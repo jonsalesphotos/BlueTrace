@@ -1,0 +1,2006 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BlueTrace UI Codex Prototype</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef5fb;
+      --ink: #102033;
+      --muted: #6a7788;
+      --line: #dce7f1;
+      --blue: #0879ff;
+      --blue-2: #00c8ff;
+      --blue-3: #e6f5ff;
+      --navy: #061b5c;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --shadow: 0 24px 70px rgba(16, 32, 51, 0.16);
+      --phone-w: min(390px, 92vw);
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(0, 200, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 88% 18%, rgba(8, 121, 255, 0.18), transparent 30%),
+        linear-gradient(135deg, #eef6ff 0%, #f8fbff 42%, #eef3f7 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(360px, 1fr) minmax(280px, 360px);
+      gap: 28px;
+      width: min(1480px, calc(100vw - 48px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 30px 0;
+      align-items: center;
+    }
+
+    .side-panel {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    .brand-card,
+    .notes-card {
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(220, 231, 241, 0.86);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 18px 48px rgba(16, 32, 51, 0.09);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .brand-row img {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      box-shadow: 0 12px 26px rgba(8, 121, 255, 0.22);
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 2px 0 0;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #415269;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 0 4px rgba(8, 121, 255, 0.12);
+    }
+
+    .dot.green {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+    }
+
+    .screen-menu {
+      display: grid;
+      gap: 10px;
+    }
+
+    .screen-tab {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 58px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--muted);
+      text-align: left;
+      transition: 180ms ease;
+    }
+
+    .screen-tab:hover,
+    .screen-tab.active {
+      border-color: rgba(8, 121, 255, 0.24);
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 12px 34px rgba(8, 121, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .tab-number {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .screen-tab.active .tab-number {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    }
+
+    .tab-title {
+      display: block;
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .tab-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .tab-arrow {
+      color: #9aabba;
+      font-size: 18px;
+    }
+
+    .phone-stage {
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .phone-stage::before {
+      content: "";
+      position: absolute;
+      width: min(560px, 94vw);
+      height: min(560px, 94vw);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 200, 255, 0.25), rgba(8, 121, 255, 0.08) 45%, transparent 70%);
+      filter: blur(10px);
+    }
+
+    .phone {
+      position: relative;
+      z-index: 1;
+      width: calc(var(--phone-w) + 24px);
+      padding: 12px;
+      border-radius: 42px;
+      background: linear-gradient(145deg, #172235, #020814);
+      box-shadow: var(--shadow);
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 118px;
+      height: 24px;
+      border-radius: 0 0 18px 18px;
+      background: #050b16;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    .phone-screen {
+      position: relative;
+      overflow: hidden;
+      width: var(--phone-w);
+      aspect-ratio: 390 / 844;
+      border-radius: 32px;
+      background: #f5f8fc;
+    }
+
+    .app-screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      background: #f5f8fc;
+      color: var(--ink);
+    }
+
+    .app-screen.active {
+      display: flex;
+    }
+
+    .statusbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 38px;
+      padding: 0 22px;
+      color: #102033;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .system-icons {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .signal-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 12px;
+    }
+
+    .signal-bars span {
+      display: block;
+      width: 3px;
+      border-radius: 2px;
+      background: #102033;
+    }
+
+    .signal-bars span:nth-child(1) { height: 4px; }
+    .signal-bars span:nth-child(2) { height: 6px; }
+    .signal-bars span:nth-child(3) { height: 8px; }
+    .signal-bars span:nth-child(4) { height: 10px; }
+
+    .battery {
+      width: 20px;
+      height: 10px;
+      border: 1.6px solid #102033;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .battery::before {
+      content: "";
+      position: absolute;
+      right: -4px;
+      top: 3px;
+      width: 2px;
+      height: 4px;
+      border-radius: 0 2px 2px 0;
+      background: #102033;
+    }
+
+    .battery::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 13px;
+      height: 4px;
+      border-radius: 2px;
+      background: #102033;
+    }
+
+    .app-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      padding: 0 18px 10px;
+    }
+
+    .app-title-block {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .app-title {
+      margin: 0;
+      color: #0d1e32;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .app-kicker {
+      margin: 3px 0 0;
+      color: #6e7c8c;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .icon-btn,
+    .back-btn {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      color: #26415f;
+      font-weight: 900;
+      box-shadow: 0 8px 18px rgba(16, 32, 51, 0.07);
+    }
+
+    .app-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      box-shadow: 0 8px 18px rgba(8, 121, 255, 0.18);
+    }
+
+    .content {
+      flex: 1;
+      overflow: hidden;
+      padding: 0 18px 18px;
+    }
+
+    .scroll {
+      overflow-y: auto;
+      height: 100%;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+
+    .scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .screen-splash {
+      background: #061b5c;
+    }
+
+    .splash-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .splash-actions {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 24px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .splash-progress {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .splash-progress span {
+      display: block;
+      width: 72%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #fff, #35eaff);
+    }
+
+    .splash-copy {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .summary-card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(16, 32, 51, 0.07);
+    }
+
+    .summary-card.blue {
+      border: 0;
+      background:
+        radial-gradient(circle at 85% 12%, rgba(88, 232, 255, 0.38), transparent 34%),
+        linear-gradient(135deg, #0879ff, #0453d9 54%, #062a88);
+      color: #fff;
+      box-shadow: 0 16px 40px rgba(8, 121, 255, 0.28);
+    }
+
+    .summary-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .summary-label {
+      margin: 0 0 4px;
+      color: inherit;
+      opacity: 0.72;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .summary-meta {
+      margin: 7px 0 0;
+      color: inherit;
+      opacity: 0.76;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      color: #047857;
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .summary-card.blue .status-chip {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+
+    .status-chip.blue {
+      background: rgba(8, 121, 255, 0.12);
+      color: #0067d8;
+    }
+
+    .status-chip.amber {
+      background: rgba(245, 158, 11, 0.13);
+      color: #9a5a00;
+    }
+
+    .status-chip.red {
+      background: rgba(239, 68, 68, 0.12);
+      color: #b91c1c;
+    }
+
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .quick-stat {
+      min-width: 0;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 10px;
+    }
+
+    .quick-stat strong,
+    .metric strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .quick-stat span,
+    .metric span {
+      display: block;
+      margin-top: 2px;
+      color: inherit;
+      opacity: 0.74;
+      font-size: 10px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 18px 0 10px;
+      color: #1b2d43;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .section-title small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .checklist,
+    .role-grid,
+    .device-list,
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-row,
+    .role-card,
+    .scan-card,
+    .history-card,
+    .file-row {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(16, 32, 51, 0.055);
+    }
+
+    .check-row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .check-icon {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: var(--blue-3);
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 950;
+    }
+
+    .check-icon.ok {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+    }
+
+    .check-icon.warn {
+      background: rgba(245, 158, 11, 0.14);
+      color: #b56b00;
+    }
+
+    .row-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .row-sub {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .text-btn {
+      padding: 8px 10px;
+      border: 1px solid rgba(8, 121, 255, 0.2);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .text-btn.ghost {
+      border-color: var(--line);
+      color: #50647b;
+    }
+
+    .bottom-bar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px 18px;
+      background: linear-gradient(180deg, rgba(245, 248, 252, 0), #f5f8fc 22%);
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 17px;
+      font-size: 14px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--blue), #05bdf5);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(8, 121, 255, 0.24);
+    }
+
+    .secondary-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #27415c;
+    }
+
+    .danger-btn {
+      background: #fff1f1;
+      color: #c22626;
+      border: 1px solid rgba(239, 68, 68, 0.18);
+    }
+
+    .role-card {
+      padding: 14px;
+    }
+
+    .role-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .role-name {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .role-badge {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: var(--blue-3);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .role-card.active {
+      border-color: rgba(8, 121, 255, 0.34);
+      box-shadow: 0 12px 26px rgba(8, 121, 255, 0.12);
+    }
+
+    .role-card.active .role-badge {
+      background: linear-gradient(135deg, var(--blue), var(--blue-2));
+      color: #fff;
+    }
+
+    .role-card.partial {
+      border-color: rgba(245, 158, 11, 0.32);
+      background: linear-gradient(0deg, rgba(245, 158, 11, 0.05), rgba(255, 255, 255, 1));
+    }
+
+    .role-copy {
+      min-width: 0;
+    }
+
+    .role-copy h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .role-copy p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .device-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 16px;
+      background: #f7fafd;
+      color: #42566d;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .device-line strong {
+      color: #122239;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .role-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .session-strip {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .mini-card span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 44px;
+      margin-bottom: 12px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .scan-filter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #e8f6ff, #fff);
+      border: 1px solid rgba(8, 121, 255, 0.16);
+    }
+
+    .scan-filter strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .scan-filter span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .timer-ring {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--blue) 0 72%, #d9e8f4 72% 100%);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 950;
+      position: relative;
+    }
+
+    .timer-ring::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .timer-ring span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .scan-card {
+      display: grid;
+      grid-template-columns: 46px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+    }
+
+    .rssi {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      background: var(--blue-3);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 950;
+    }
+
+    .rssi.weak {
+      background: rgba(245, 158, 11, 0.14);
+      color: #a46100;
+    }
+
+    .scan-card h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .scan-card p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .collection-hero {
+      border-radius: 26px;
+      padding: 16px;
+      background:
+        radial-gradient(circle at 82% 20%, rgba(0, 200, 255, 0.36), transparent 33%),
+        linear-gradient(135deg, #071f67, #0879ff);
+      color: #fff;
+      box-shadow: 0 16px 38px rgba(8, 121, 255, 0.25);
+    }
+
+    .collection-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .collection-top h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 950;
+    }
+
+    .collection-top p {
+      margin: 7px 0 0;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .wave-card {
+      height: 104px;
+      margin-top: 14px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.13);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .wave-card svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .metric {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.13);
+      padding: 10px;
+    }
+
+    .role-telemetry {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .telemetry {
+      border-radius: 15px;
+      background: #f7fafd;
+      padding: 10px;
+    }
+
+    .telemetry strong {
+      display: block;
+      color: #13243a;
+      font-size: 14px;
+      font-weight: 950;
+    }
+
+    .telemetry span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .banner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      background: #fff7e8;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: #805000;
+    }
+
+    .banner strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .banner span {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 750;
+      opacity: 0.8;
+    }
+
+    .file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .file-row strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 950;
+      word-break: break-word;
+    }
+
+    .file-row span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .history-card {
+      padding: 14px;
+    }
+
+    .history-card header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .history-card h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 950;
+    }
+
+    .history-card p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      line-height: 1.4;
+    }
+
+    .history-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .history-stats span {
+      border-radius: 14px;
+      background: #f7fafd;
+      padding: 8px;
+      color: #50647b;
+      font-size: 10px;
+      font-weight: 850;
+      text-align: center;
+    }
+
+    .history-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .bottom-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 10px 16px 18px;
+      background: #f5f8fc;
+      border-top: 1px solid rgba(220, 231, 241, 0.86);
+    }
+
+    .nav-item {
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      min-height: 54px;
+      border-radius: 18px;
+      background: transparent;
+      color: #7c8b9b;
+      font-size: 11px;
+      font-weight: 850;
+      transition: 160ms ease;
+    }
+
+    .nav-item.active {
+      background: #fff;
+      color: var(--blue);
+      box-shadow: 0 8px 18px rgba(16, 32, 51, 0.06);
+    }
+
+    .nav-icon {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 10px;
+      background: #7c8b9b;
+      color: #fff;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 950;
+      opacity: 0.24;
+    }
+
+    .nav-item.active .nav-icon {
+      opacity: 1;
+      background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    }
+
+    .session-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .session-actions.single {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .settings-row {
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(16, 32, 51, 0.055);
+    }
+
+    .toggle {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      border-radius: 999px;
+      background: #d9e5ef;
+    }
+
+    .toggle::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 3px 8px rgba(16, 32, 51, 0.16);
+    }
+
+    .toggle.on {
+      background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    }
+
+    .toggle.on::after {
+      left: 21px;
+    }
+
+    .notes-card h2 {
+      margin: 0 0 14px;
+      font-size: 19px;
+      line-height: 1.15;
+      font-weight: 950;
+    }
+
+    .principles {
+      display: grid;
+      gap: 12px;
+    }
+
+    .principle {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .principle strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .principle span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .principle-mark {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      background: var(--blue-3);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .state-panel {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .state-tile {
+      min-height: 96px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fff;
+    }
+
+    .state-tile strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 950;
+    }
+
+    .state-tile span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1180px) {
+      .page {
+        grid-template-columns: 1fr;
+        width: min(760px, calc(100vw - 28px));
+        align-items: start;
+      }
+
+      .side-panel {
+        align-self: auto;
+      }
+
+      .screen-menu {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .phone-stage {
+        order: 2;
+      }
+    }
+
+    @media (max-width: 640px) {
+      :root {
+        --phone-w: min(390px, calc(100vw - 48px));
+      }
+
+      .page {
+        width: 100%;
+        padding: 16px 12px 24px;
+        gap: 18px;
+      }
+
+      .brand-card,
+      .notes-card {
+        border-radius: 22px;
+        padding: 18px;
+      }
+
+      .screen-menu {
+        grid-template-columns: 1fr;
+      }
+
+      .phone {
+        width: calc(var(--phone-w) + 18px);
+        padding: 9px;
+        border-radius: 34px;
+      }
+
+      .phone-screen {
+        border-radius: 26px;
+      }
+
+      .state-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <aside class="side-panel">
+      <section class="brand-card" aria-labelledby="prototype-title">
+        <div class="brand-row">
+          <img src="./bluetrace_icon.svg" alt="BlueTrace icon">
+          <div>
+            <p class="eyebrow">BLE Data Capture</p>
+            <h1 id="prototype-title">BlueTrace</h1>
+          </div>
+        </div>
+        <p class="lede">
+          一版面向 Android BLE 采集的全新 UI 原型：把权限、角色分配、扫描、采集、导出和历史会话串成一个会话控制台。
+        </p>
+        <div class="pill-row" aria-label="Design goals">
+          <span class="pill"><span class="dot green"></span>1..N 设备</span>
+          <span class="pill"><span class="dot"></span>DUT + Reference</span>
+          <span class="pill"><span class="dot amber"></span>断线恢复</span>
+        </div>
+      </section>
+
+      <nav class="screen-menu" aria-label="Prototype screens">
+        <button class="screen-tab active" type="button" data-screen-target="splash">
+          <span class="tab-number">00</span>
+          <span><span class="tab-title">Splash</span><span class="tab-sub">品牌首屏</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="permission">
+          <span class="tab-number">01</span>
+          <span><span class="tab-title">Permission Gate</span><span class="tab-sub">采集前置检查</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="assignment">
+          <span class="tab-number">02</span>
+          <span><span class="tab-title">Assignment</span><span class="tab-sub">选择 DUT / REF</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="scan">
+          <span class="tab-number">03</span>
+          <span><span class="tab-title">Role Scan</span><span class="tab-sub">按角色过滤设备</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="collection">
+          <span class="tab-number">04</span>
+          <span><span class="tab-title">Collection</span><span class="tab-sub">实时采集仪表盘</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="history">
+          <span class="tab-number">05</span>
+          <span><span class="tab-title">History</span><span class="tab-sub">CSV 导出闭环</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+        <button class="screen-tab" type="button" data-screen-target="settings">
+          <span class="tab-number">06</span>
+          <span><span class="tab-title">Settings</span><span class="tab-sub">采集与导出设置</span></span>
+          <span class="tab-arrow">›</span>
+        </button>
+      </nav>
+    </aside>
+
+    <section class="phone-stage" aria-label="Phone preview">
+      <div class="phone">
+        <div class="phone-screen">
+          <section class="app-screen screen-splash active" data-screen="splash" aria-label="Splash screen">
+            <img class="splash-image" src="./首屏.png" alt="BlueTrace splash">
+            <div class="splash-actions">
+              <div class="splash-progress"><span></span></div>
+              <div class="splash-copy">
+                <span>Preparing BLE environment</span>
+                <span>72%</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="app-screen" data-screen="permission" aria-label="Permission gate screen">
+            <div class="statusbar">
+              <span>10:28</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <img class="app-logo" src="./bluetrace_icon.svg" alt="">
+              <div class="app-title-block">
+                <h2 class="app-title">Ready to collect</h2>
+                <p class="app-kicker">Permission Gate</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="History">H</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <section class="summary-card blue">
+                  <div class="summary-head">
+                    <div>
+                      <p class="summary-label">Prerequisites</p>
+                      <p class="summary-value">3 of 4</p>
+                      <p class="summary-meta">BLE collection can start after hard requirements are green.</p>
+                    </div>
+                    <span class="status-chip">Action needed</span>
+                  </div>
+                  <div class="quick-stats">
+                    <div class="quick-stat"><strong>ON</strong><span>Bluetooth</span></div>
+                    <div class="quick-stat"><strong>OK</strong><span>Scan / Connect</span></div>
+                    <div class="quick-stat"><strong>Ask</strong><span>Notification</span></div>
+                  </div>
+                </section>
+
+                <h3 class="section-title">Required before collection <small>state-driven</small></h3>
+                <div class="checklist">
+                  <article class="check-row">
+                    <span class="check-icon ok">BT</span>
+                    <div>
+                      <p class="row-title">Bluetooth</p>
+                      <p class="row-sub">Powered on and available for BLE connection.</p>
+                    </div>
+                    <span class="status-chip">Ready</span>
+                  </article>
+                  <article class="check-row">
+                    <span class="check-icon ok">SC</span>
+                    <div>
+                      <p class="row-title">BLE scan and connect</p>
+                      <p class="row-sub">BLUETOOTH_SCAN and CONNECT are granted.</p>
+                    </div>
+                    <span class="status-chip">Ready</span>
+                  </article>
+                  <article class="check-row">
+                    <span class="check-icon warn">LC</span>
+                    <div>
+                      <p class="row-title">Location service</p>
+                      <p class="row-sub">Required for this build's BLE scan policy.</p>
+                    </div>
+                    <button class="text-btn" type="button">Open</button>
+                  </article>
+                  <article class="check-row">
+                    <span class="check-icon">NT</span>
+                    <div>
+                      <p class="row-title">Notification</p>
+                      <p class="row-sub">Recommended for visible background collection.</p>
+                    </div>
+                    <button class="text-btn" type="button">Grant</button>
+                  </article>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-bar">
+              <button class="secondary-btn" type="button">Continue without notification</button>
+              <button class="primary-btn" type="button">Next</button>
+            </div>
+          </section>
+
+          <section class="app-screen" data-screen="assignment" aria-label="Device assignment screen">
+            <div class="statusbar">
+              <span>10:29</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <img class="app-logo" src="./bluetrace_icon.svg" alt="">
+              <div class="app-title-block">
+                <h2 class="app-title">New session</h2>
+                <p class="app-kicker">Select one or more roles</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="Settings">S</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <section class="summary-card blue">
+                  <div class="summary-head">
+                    <div>
+                      <p class="summary-label">Session draft</p>
+                      <p class="summary-value">2 roles</p>
+                      <p class="summary-meta">Output will include 2 CSV files and one manifest.</p>
+                    </div>
+                    <span class="status-chip">Ready</span>
+                  </div>
+                </section>
+
+                <h3 class="section-title">Role assignment <small>single path for 1..N devices</small></h3>
+                <div class="role-grid">
+                  <article class="role-card active">
+                    <div class="role-top">
+                      <div class="role-name">
+                        <span class="role-badge">DUT</span>
+                        <div class="role-copy">
+                          <h3>Test device</h3>
+                          <p>Private PPG protocol, high-frequency samples.</p>
+                        </div>
+                      </div>
+                      <span class="status-chip">Selected</span>
+                    </div>
+                    <div class="device-line">
+                      <span><strong>BlueTrace-PPG-01</strong><br>AA:BB:CC:DD:EE:01</span>
+                      <span>-54 dBm</span>
+                    </div>
+                    <div class="role-actions">
+                      <button class="text-btn ghost" type="button">Clear</button>
+                      <button class="text-btn" type="button">Change</button>
+                    </div>
+                  </article>
+
+                  <article class="role-card active">
+                    <div class="role-top">
+                      <div class="role-name">
+                        <span class="role-badge">REF</span>
+                        <div class="role-copy">
+                          <h3>Reference belt</h3>
+                          <p>Heart Rate Service 0x180D for comparison.</p>
+                        </div>
+                      </div>
+                      <span class="status-chip">Selected</span>
+                    </div>
+                    <div class="device-line">
+                      <span><strong>Polar H10</strong><br>11:22:33:44:55:66</span>
+                      <span>-48 dBm</span>
+                    </div>
+                    <div class="role-actions">
+                      <button class="text-btn ghost" type="button">Clear</button>
+                      <button class="text-btn" type="button">Change</button>
+                    </div>
+                  </article>
+                </div>
+
+                <div class="session-strip">
+                  <div class="mini-card"><strong>50 Hz</strong><span>DUT sample stream</span></div>
+                  <div class="mini-card"><strong>1 Hz</strong><span>Reference BPM</span></div>
+                </div>
+                <div class="session-actions single">
+                  <button class="primary-btn" type="button">Start collection</button>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav" aria-label="App navigation">
+              <button class="nav-item" type="button" data-nav-target="collection"><span class="nav-icon" aria-hidden="true">C</span><span>采集</span></button>
+              <button class="nav-item" type="button" data-nav-target="history"><span class="nav-icon" aria-hidden="true">H</span><span>历史</span></button>
+              <button class="nav-item" type="button" data-nav-target="settings"><span class="nav-icon" aria-hidden="true">S</span><span>设置</span></button>
+            </nav>
+          </section>
+
+          <section class="app-screen" data-screen="scan" aria-label="Role scan screen">
+            <div class="statusbar">
+              <span>10:30</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <button class="back-btn" type="button" aria-label="Back">‹</button>
+              <div class="app-title-block">
+                <h2 class="app-title">Select DUT device</h2>
+                <p class="app-kicker">Filtered by private service UUID</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="Rescan">R</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <div class="search-box">
+                  <span>Search discovered devices</span>
+                </div>
+                <section class="scan-filter">
+                  <div>
+                    <strong>Auto scanning nearby DUT</strong>
+                    <span>Shows only devices matching this role.</span>
+                  </div>
+                  <div class="timer-ring"><span>07s</span></div>
+                </section>
+                <div class="device-list">
+                  <article class="scan-card">
+                    <span class="rssi">-54</span>
+                    <div>
+                      <h3>BlueTrace-PPG-01</h3>
+                      <p>AA:BB:CC:DD:EE:01 · last seen now</p>
+                    </div>
+                    <button class="text-btn" type="button">Select</button>
+                  </article>
+                  <article class="scan-card">
+                    <span class="rssi">-61</span>
+                    <div>
+                      <h3>BlueTrace-PPG-Lab</h3>
+                      <p>A4:41:09:2C:11:8F · last seen 1s ago</p>
+                    </div>
+                    <button class="text-btn" type="button">Select</button>
+                  </article>
+                  <article class="scan-card">
+                    <span class="rssi weak">-76</span>
+                    <div>
+                      <h3>BlueTrace-PPG-02</h3>
+                      <p>F4:EF:DC:6E:54:12 · last seen 4s ago</p>
+                    </div>
+                    <button class="text-btn" type="button">Select</button>
+                  </article>
+                </div>
+                <h3 class="section-title">Debug options</h3>
+                <article class="check-row">
+                  <span class="check-icon">UN</span>
+                  <div>
+                    <p class="row-title">Show unnamed devices</p>
+                    <p class="row-sub">Off by default to keep pairing focused.</p>
+                  </div>
+                  <button class="text-btn ghost" type="button">Off</button>
+                </article>
+                <div class="session-actions">
+                  <button class="secondary-btn" type="button">Show unnamed</button>
+                  <button class="primary-btn" type="button">Rescan</button>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav" aria-label="App navigation">
+              <button class="nav-item" type="button" data-nav-target="collection"><span class="nav-icon" aria-hidden="true">C</span><span>采集</span></button>
+              <button class="nav-item" type="button" data-nav-target="history"><span class="nav-icon" aria-hidden="true">H</span><span>历史</span></button>
+              <button class="nav-item" type="button" data-nav-target="settings"><span class="nav-icon" aria-hidden="true">S</span><span>设置</span></button>
+            </nav>
+          </section>
+
+          <section class="app-screen" data-screen="collection" aria-label="Data collection screen">
+            <div class="statusbar">
+              <span>10:31</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <img class="app-logo" src="./bluetrace_icon.svg" alt="">
+              <div class="app-title-block">
+                <h2 class="app-title">Collection</h2>
+                <p class="app-kicker">Foreground service running</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="Export">E</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <section class="collection-hero">
+                  <div class="collection-top">
+                    <div>
+                      <h2>00:12:43</h2>
+                      <p>Session 2026-05-21 10:18</p>
+                    </div>
+                    <span class="status-chip">Collecting</span>
+                  </div>
+                  <div class="wave-card" aria-label="Live PPG waveform">
+                    <svg viewBox="0 0 360 104" role="img" aria-label="Waveform">
+                      <defs>
+                        <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0" stop-color="#9bf8ff"/>
+                          <stop offset="1" stop-color="#ffffff"/>
+                        </linearGradient>
+                      </defs>
+                      <path d="M0 61 C24 61 25 55 40 55 C55 55 52 83 70 83 C90 83 88 12 106 12 C125 12 120 92 142 92 C162 92 160 48 176 48 C192 48 188 62 204 62 C222 62 218 26 238 26 C258 26 252 89 276 89 C300 89 294 46 314 46 C334 46 332 60 360 60" fill="none" stroke="url(#waveGrad)" stroke-width="6" stroke-linecap="round"/>
+                      <g fill="rgba(255,255,255,.18)">
+                        <rect x="0" y="76" width="360" height="1"/>
+                        <rect x="0" y="52" width="360" height="1"/>
+                        <rect x="0" y="28" width="360" height="1"/>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="metric-grid">
+                    <div class="metric"><strong data-counter="saved">12345</strong><span>Samples saved</span></div>
+                    <div class="metric"><strong>50 Hz</strong><span>DUT rate</span></div>
+                    <div class="metric"><strong>78.2</strong><span>Derived BPM</span></div>
+                  </div>
+                </section>
+
+                <h3 class="section-title">Devices <small>DUT failure does not stop REF</small></h3>
+                <div class="role-grid">
+                  <article class="role-card active">
+                    <div class="role-top">
+                      <div class="role-name">
+                        <span class="role-badge">DUT</span>
+                        <div class="role-copy">
+                          <h3>BlueTrace-PPG-01</h3>
+                          <p>AA:BB:CC:DD:EE:01 · DUT_AA-BB-CC-DD-EE-01.csv</p>
+                        </div>
+                      </div>
+                      <span class="status-chip">Collecting</span>
+                    </div>
+                    <div class="role-telemetry">
+                      <div class="telemetry"><strong>83,214</strong><span>Latest PPG</span></div>
+                      <div class="telemetry"><strong>2</strong><span>Invalid</span></div>
+                      <div class="telemetry"><strong>50 Hz</strong><span>Rate</span></div>
+                    </div>
+                    <div class="role-actions">
+                      <button class="text-btn ghost" type="button">Command</button>
+                      <button class="text-btn" type="button">Reconnect</button>
+                    </div>
+                  </article>
+
+                  <article class="role-card partial">
+                    <div class="banner">
+                      <div>
+                        <strong>REFERENCE needs attention</strong>
+                        <span>Address may have changed. Existing CSV is safe.</span>
+                      </div>
+                      <button class="text-btn" type="button">Open</button>
+                    </div>
+                    <div class="role-top">
+                      <div class="role-name">
+                        <span class="role-badge">REF</span>
+                        <div class="role-copy">
+                          <h3>Polar H10</h3>
+                          <p>11:22:33:44:55:66 · waiting for AutoConnect</p>
+                        </div>
+                      </div>
+                      <span class="status-chip amber">Reconnecting</span>
+                    </div>
+                    <div class="role-telemetry">
+                      <div class="telemetry"><strong>79</strong><span>Last BPM</span></div>
+                      <div class="telemetry"><strong>0</strong><span>Invalid</span></div>
+                      <div class="telemetry"><strong>812ms</strong><span>RR</span></div>
+                    </div>
+                    <div class="role-actions">
+                      <button class="text-btn ghost" type="button">Select again</button>
+                      <button class="text-btn" type="button">Reconnect</button>
+                    </div>
+                  </article>
+                </div>
+
+                <article class="file-row">
+                  <div>
+                    <strong>2 CSV + session_manifest.json</strong>
+                    <span>/Android/data/.../BlueTrace/session_20260521_1018</span>
+                  </div>
+                  <button class="text-btn" type="button">Export</button>
+                </article>
+                <div class="session-actions">
+                  <button class="danger-btn" type="button">Stop</button>
+                  <button class="primary-btn" type="button">Export now</button>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav" aria-label="App navigation">
+              <button class="nav-item" type="button" data-nav-target="collection"><span class="nav-icon" aria-hidden="true">C</span><span>采集</span></button>
+              <button class="nav-item" type="button" data-nav-target="history"><span class="nav-icon" aria-hidden="true">H</span><span>历史</span></button>
+              <button class="nav-item" type="button" data-nav-target="settings"><span class="nav-icon" aria-hidden="true">S</span><span>设置</span></button>
+            </nav>
+          </section>
+
+          <section class="app-screen" data-screen="history" aria-label="Session history screen">
+            <div class="statusbar">
+              <span>10:32</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <button class="back-btn" type="button" aria-label="Back">‹</button>
+              <div class="app-title-block">
+                <h2 class="app-title">Session history</h2>
+                <p class="app-kicker">Local CSV archive</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="Search">F</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <div class="search-box">
+                  <span>Search by device, date or file</span>
+                </div>
+                <div class="history-list">
+                  <article class="history-card">
+                    <header>
+                      <div>
+                        <h3>May 21, 2026 · 10:18</h3>
+                        <p>DUT + REFERENCE · duration 00:42:31</p>
+                      </div>
+                      <span class="status-chip">Complete</span>
+                    </header>
+                    <div class="history-stats">
+                      <span>2 CSV</span>
+                      <span>1 manifest</span>
+                      <span>3.8 MB</span>
+                    </div>
+                    <div class="history-actions">
+                      <button class="text-btn ghost" type="button">Open</button>
+                      <button class="text-btn" type="button">Export</button>
+                    </div>
+                  </article>
+                  <article class="history-card">
+                    <header>
+                      <div>
+                        <h3>May 21, 2026 · 09:42</h3>
+                        <p>DUT only · duration 00:03:12</p>
+                      </div>
+                      <span class="status-chip blue">Single</span>
+                    </header>
+                    <div class="history-stats">
+                      <span>1 CSV</span>
+                      <span>1 manifest</span>
+                      <span>0.9 MB</span>
+                    </div>
+                    <div class="history-actions">
+                      <button class="text-btn ghost" type="button">Open</button>
+                      <button class="text-btn" type="button">Export</button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav" aria-label="App navigation">
+              <button class="nav-item" type="button" data-nav-target="collection"><span class="nav-icon" aria-hidden="true">C</span><span>采集</span></button>
+              <button class="nav-item" type="button" data-nav-target="history"><span class="nav-icon" aria-hidden="true">H</span><span>历史</span></button>
+              <button class="nav-item" type="button" data-nav-target="settings"><span class="nav-icon" aria-hidden="true">S</span><span>设置</span></button>
+            </nav>
+          </section>
+
+          <section class="app-screen" data-screen="settings" aria-label="Settings screen">
+            <div class="statusbar">
+              <span>10:33</span>
+              <span class="system-icons"><span class="signal-bars"><span></span><span></span><span></span><span></span></span><span>5G</span><span class="battery"></span></span>
+            </div>
+            <header class="app-topbar">
+              <img class="app-logo" src="./bluetrace_icon.svg" alt="">
+              <div class="app-title-block">
+                <h2 class="app-title">Settings</h2>
+                <p class="app-kicker">Collection and export defaults</p>
+              </div>
+              <button class="icon-btn" type="button" aria-label="About">i</button>
+            </header>
+            <div class="content">
+              <div class="scroll">
+                <section class="summary-card blue">
+                  <div class="summary-head">
+                    <div>
+                      <p class="summary-label">Device policy</p>
+                      <p class="summary-value">FGS</p>
+                      <p class="summary-meta">Background collection uses connected-device foreground service.</p>
+                    </div>
+                    <span class="status-chip">Enabled</span>
+                  </div>
+                  <div class="quick-stats">
+                    <div class="quick-stat"><strong>10s</strong><span>Scan window</span></div>
+                    <div class="quick-stat"><strong>CSV</strong><span>File format</span></div>
+                    <div class="quick-stat"><strong>MAC</strong><span>Resume key</span></div>
+                  </div>
+                </section>
+
+                <h3 class="section-title">Collection defaults</h3>
+                <div class="settings-list">
+                  <article class="settings-row">
+                    <span class="check-icon">BG</span>
+                    <div>
+                      <p class="row-title">Background collection</p>
+                      <p class="row-sub">Keep the BLE session alive after leaving the screen.</p>
+                    </div>
+                    <span class="toggle on" aria-hidden="true"></span>
+                  </article>
+                  <article class="settings-row">
+                    <span class="check-icon">RC</span>
+                    <div>
+                      <p class="row-title">Auto reconnect</p>
+                      <p class="row-sub">Use saved address first, then rescan by service UUID.</p>
+                    </div>
+                    <span class="toggle on" aria-hidden="true"></span>
+                  </article>
+                  <article class="settings-row">
+                    <span class="check-icon">UN</span>
+                    <div>
+                      <p class="row-title">Show unnamed devices</p>
+                      <p class="row-sub">Useful for lab debugging, hidden during normal pairing.</p>
+                    </div>
+                    <span class="toggle" aria-hidden="true"></span>
+                  </article>
+                </div>
+
+                <h3 class="section-title">Storage</h3>
+                <article class="file-row">
+                  <div>
+                    <strong>Downloads/BlueTrace</strong>
+                    <span>Exported sessions are copied here as CSV + manifest.</span>
+                  </div>
+                  <button class="text-btn" type="button">Change</button>
+                </article>
+              </div>
+            </div>
+            <nav class="bottom-nav" aria-label="App navigation">
+              <button class="nav-item" type="button" data-nav-target="collection"><span class="nav-icon" aria-hidden="true">C</span><span>采集</span></button>
+              <button class="nav-item" type="button" data-nav-target="history"><span class="nav-icon" aria-hidden="true">H</span><span>历史</span></button>
+              <button class="nav-item" type="button" data-nav-target="settings"><span class="nav-icon" aria-hidden="true">S</span><span>设置</span></button>
+            </nav>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <section class="notes-card">
+        <h2>Design direction</h2>
+        <div class="principles">
+          <div class="principle">
+            <span class="principle-mark">1</span>
+            <span><strong>会话优先</strong>用户先看“本次采集是否健康”，再处理设备、文件和恢复动作。</span>
+          </div>
+          <div class="principle">
+            <span class="principle-mark">2</span>
+            <span><strong>角色即模型</strong>DUT、REFERENCE 和未来角色共用卡片结构，避免单设备与双设备两套 UI。</span>
+          </div>
+          <div class="principle">
+            <span class="principle-mark">3</span>
+            <span><strong>状态可见</strong>权限、扫描倒计时、采样速率、CSV 文件和断线恢复都在当前上下文内呈现。</span>
+          </div>
+        </div>
+        <div class="state-panel" aria-label="Prototype coverage">
+          <div class="state-tile"><strong>6</strong><span>Core screens covered from permission to settings.</span></div>
+          <div class="state-tile"><strong>2</strong><span>Active roles shown with independent recovery states.</span></div>
+          <div class="state-tile"><strong>CSV</strong><span>Export path is visible during and after collection.</span></div>
+          <div class="state-tile"><strong>FGS</strong><span>Foreground collection is treated as global state.</span></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+    const tabs = Array.from(document.querySelectorAll("[data-screen-target]"));
+    const screens = Array.from(document.querySelectorAll("[data-screen]"));
+    const navButtons = Array.from(document.querySelectorAll("[data-nav-target]"));
+
+    function navGroupForScreen(name) {
+      if (name === "history" || name === "settings") return name;
+      if (name === "splash") return "";
+      return "collection";
+    }
+
+    function setScreen(name) {
+      tabs.forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.screenTarget === name);
+      });
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", screen.dataset.screen === name);
+      });
+      const activeNav = navGroupForScreen(name);
+      navButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.navTarget === activeNav);
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => setScreen(tab.dataset.screenTarget));
+    });
+
+    navButtons.forEach((button) => {
+      button.addEventListener("click", () => setScreen(button.dataset.navTarget));
+    });
+
+    let saved = 12345;
+    window.setInterval(() => {
+      const counter = document.querySelector("[data-counter='saved']");
+      if (!counter) return;
+      saved += Math.round(16 + Math.random() * 12);
+      counter.textContent = saved.toLocaleString("en-US");
+    }, 1800);
+  </script>
+</body>
+</html>

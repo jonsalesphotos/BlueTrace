@@ -1,0 +1,2646 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BlueTrace · UI 原型</title>
+<style>
+  /* ============================================================
+     Design tokens — 来自项目 Material 3 主题（primary #415F91）
+     ============================================================ */
+  :root {
+    --primary:        #415F91;
+    --primary-c:      #D6E3FF;
+    --on-primary-c:   #284777;
+    --secondary:      #565F71;
+    --secondary-c:    #DAE2F9;
+    --tertiary:       #705575;
+    --tertiary-c:     #FAD8FD;
+    --error:          #BA1A1A;
+    --error-c:        #FFDAD6;
+    --on-error-c:     #93000A;
+    --warning:        #B26B00;
+    --warning-c:      #FFE0B2;
+    --success:        #2E7D32;
+    --success-c:      #C8E6C9;
+    --bg:             #F9F9FF;
+    --surface:        #FFFFFF;
+    --surface-1:      #F3F3FA;
+    --surface-2:      #EDEDF4;
+    --surface-3:      #E7E8EE;
+    --on-surface:     #191C20;
+    --on-surface-v:   #44474E;
+    --outline:        #74777F;
+    --outline-v:      #C4C6D0;
+
+    --radius-sm: 8px;
+    --radius:    14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+
+    --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+    --shadow-2: 0 2px 6px rgba(0,0,0,.08), 0 4px 14px rgba(0,0,0,.06);
+    --shadow-3: 0 6px 20px rgba(0,0,0,.10), 0 14px 40px rgba(0,0,0,.08);
+
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+            "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: var(--font);
+    color: var(--on-surface);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #E8EEFB 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #F5E8FA 0%, transparent 55%),
+      linear-gradient(180deg, #F3F5FB 0%, #EDEFF7 100%);
+    min-height: 100vh;
+  }
+
+  /* ============================================================
+     页面骨架
+     ============================================================ */
+  .page-header {
+    padding: 56px 48px 24px;
+    max-width: 1480px;
+    margin: 0 auto;
+  }
+  .page-header h1 {
+    font-size: 38px;
+    margin: 0 0 8px;
+    letter-spacing: -.02em;
+    background: linear-gradient(120deg, var(--primary) 0%, var(--tertiary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .page-header .sub {
+    color: var(--on-surface-v);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 760px;
+  }
+  .page-header .meta {
+    margin-top: 14px;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--on-surface-v);
+    font-size: 12px;
+    border: 1px solid var(--outline-v);
+    box-shadow: var(--shadow-1);
+  }
+  .chip .dot {
+    width: 6px; height: 6px; border-radius: 999px; background: var(--primary);
+  }
+
+  /* 分组小节标题 */
+  .section {
+    max-width: 1480px;
+    margin: 16px auto 0;
+    padding: 16px 48px 8px;
+  }
+  .section h2 {
+    font-size: 18px;
+    margin: 28px 0 6px;
+    color: var(--on-surface);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section h2::before {
+    content: ""; width: 6px; height: 22px;
+    background: linear-gradient(180deg, var(--primary), var(--tertiary));
+    border-radius: 3px;
+  }
+  .section p.desc {
+    color: var(--on-surface-v);
+    font-size: 13px;
+    margin: 0 0 18px;
+  }
+
+  /* 手机墙 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 36px 28px;
+    padding: 8px 48px 64px;
+    max-width: 1480px;
+    margin: 0 auto;
+  }
+
+  /* ============================================================
+     手机外框
+     ============================================================ */
+  .phone {
+    position: relative;
+    width: 320px;
+    height: 660px;
+    margin: 0 auto;
+    border-radius: 38px;
+    background: #0F1116;
+    padding: 10px;
+    box-shadow: var(--shadow-3);
+  }
+  .phone::before {
+    content: "";
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 110px; height: 24px;
+    background: #0F1116;
+    border-radius: 14px;
+    z-index: 5;
+  }
+  .phone-screen {
+    position: relative;
+    width: 100%; height: 100%;
+    border-radius: 28px;
+    overflow: hidden;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+  }
+  .status-bar {
+    height: 36px;
+    padding: 8px 18px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-surface);
+    flex-shrink: 0;
+  }
+  .status-bar .icons {
+    display: flex; gap: 4px; align-items: center;
+    margin-left: 50px;
+  }
+  .status-bar .icons svg { width: 14px; height: 14px; }
+
+  .screen-label {
+    text-align: center;
+    margin-top: 14px;
+    color: var(--on-surface-v);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .screen-label .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    line-height: 22px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    margin-right: 8px;
+  }
+  .screen-note {
+    text-align: center;
+    color: var(--outline);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  /* ============================================================
+     App 通用区块
+     ============================================================ */
+  .app-bar {
+    padding: 6px 16px 10px;
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .app-bar .title {
+    font-size: 18px; font-weight: 700;
+    color: var(--on-surface);
+    flex: 1;
+  }
+  .app-bar .subtitle {
+    font-size: 11px;
+    color: var(--on-surface-v);
+    margin-top: 2px;
+    font-weight: 500;
+  }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent;
+    color: var(--on-surface-v);
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { background: var(--surface-1); }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  .content {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 16px 20px;
+  }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* 卡片 */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    box-shadow: var(--shadow-1);
+    border: 1px solid var(--outline-v);
+    margin-bottom: 12px;
+  }
+  .card.tonal {
+    background: var(--primary-c);
+    color: var(--on-primary-c);
+    border-color: transparent;
+  }
+  .card.tonal-tertiary {
+    background: var(--tertiary-c);
+    color: #4A2D4F;
+    border-color: transparent;
+  }
+  .card .row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card .head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .card .head .name {
+    font-size: 14px; font-weight: 700;
+  }
+  .card .head .role-tag {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    letter-spacing: .04em;
+  }
+  .card .head .role-tag.ref { background: var(--tertiary); }
+
+  .meta-row {
+    font-size: 12px;
+    color: var(--on-surface-v);
+    margin-top: 4px;
+    display: flex; gap: 10px;
+    align-items: center;
+  }
+  .meta-row .k { color: var(--outline); }
+  .mac {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--on-surface-v);
+  }
+
+  /* 按钮 */
+  .btn {
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(.95); }
+  .btn.block { width: 100%; }
+  .btn.outline {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--outline-v);
+  }
+  .btn.tonal {
+    background: var(--primary-c);
+    color: var(--on-primary-c);
+  }
+  .btn.text {
+    background: transparent;
+    color: var(--primary);
+    padding: 0 8px;
+  }
+  .btn.danger { background: var(--error); }
+  .btn.small { height: 32px; padding: 0 12px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-group.end { justify-content: flex-end; }
+
+  /* 状态徽章 */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    letter-spacing: .02em;
+  }
+  .status-pill.ok       { background: var(--success-c); color: var(--success); }
+  .status-pill.warn     { background: var(--warning-c); color: var(--warning); }
+  .status-pill.err      { background: var(--error-c);   color: var(--on-error-c); }
+  .status-pill.idle     { background: var(--surface-2); color: var(--on-surface-v); }
+  .status-pill .pulse {
+    width: 6px; height: 6px; border-radius: 999px; background: currentColor;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink {
+    0%,100% { opacity: .4; transform: scale(.8); }
+    50%     { opacity: 1;  transform: scale(1.1); }
+  }
+
+  /* 列表项 */
+  .list-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--outline-v);
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-1);
+  }
+  .list-item .ico {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: var(--primary-c);
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .list-item .ico svg { width: 20px; height: 20px; }
+  .list-item .ico.ref { background: var(--tertiary-c); color: var(--tertiary); }
+  .list-item .body { flex: 1; min-width: 0; }
+  .list-item .body .title { font-size: 13px; font-weight: 600; }
+  .list-item .body .sub {
+    font-size: 11px; color: var(--on-surface-v);
+    display: flex; gap: 6px; align-items: center; margin-top: 2px;
+  }
+  .list-item .rssi {
+    font-size: 11px;
+    color: var(--on-surface-v);
+    font-variant-numeric: tabular-nums;
+  }
+  .list-item.selected {
+    border-color: var(--primary);
+    background: var(--primary-c);
+  }
+
+  /* 输入字段 */
+  .field {
+    background: var(--surface-1);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    border: 1px solid var(--outline-v);
+    margin-bottom: 10px;
+  }
+  .field .label {
+    font-size: 10px;
+    color: var(--on-surface-v);
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .field .value {
+    font-size: 14px;
+    color: var(--on-surface);
+    margin-top: 2px;
+    font-weight: 500;
+  }
+  .field.dropdown::after {
+    content: "▾"; float: right;
+    color: var(--on-surface-v);
+    margin-top: -18px;
+  }
+
+  /* 分割线 */
+  .divider { height: 1px; background: var(--outline-v); margin: 12px 0; }
+
+  /* 横幅 */
+  .banner {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .banner.warn { background: var(--warning-c); color: #5A3500; }
+  .banner.err  { background: var(--error-c);   color: var(--on-error-c); }
+  .banner.info { background: var(--primary-c); color: var(--on-primary-c); }
+  .banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* 底部按钮区 */
+  .footer-bar {
+    padding: 12px 16px 18px;
+    background: var(--surface);
+    border-top: 1px solid var(--outline-v);
+    flex-shrink: 0;
+  }
+
+  /* 实时数据网格 */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .stat {
+    background: var(--surface-1);
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .stat .k {
+    font-size: 9px;
+    color: var(--outline);
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .stat .v {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--on-surface);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .v.accent { color: var(--primary); }
+
+  /* PPG 波形 */
+  .waveform {
+    margin-top: 10px;
+    background: linear-gradient(180deg, #0E1A33 0%, #142447 100%);
+    border-radius: 12px;
+    padding: 10px;
+    color: #B5C7F3;
+    font-size: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .waveform .lbl {
+    display: flex; justify-content: space-between;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .waveform .lbl .bpm {
+    color: #FF8B8B;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .waveform svg { width: 100%; height: 60px; display: block; }
+
+  /* 大型心率显示 */
+  .hr-big {
+    text-align: center;
+    padding: 10px 0 6px;
+  }
+  .hr-big .num {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--error);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .hr-big .unit {
+    font-size: 12px;
+    color: var(--on-surface-v);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  /* 权限项 */
+  .perm-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--outline-v);
+    margin-bottom: 10px;
+  }
+  .perm-item .ico {
+    width: 36px; height: 36px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .perm-item .ico.ok   { background: var(--success-c); color: var(--success); }
+  .perm-item .ico.warn { background: var(--warning-c); color: var(--warning); }
+  .perm-item .ico.err  { background: var(--error-c);   color: var(--error); }
+  .perm-item .body { flex: 1; min-width: 0; }
+  .perm-item .body .ttl { font-size: 13px; font-weight: 600; }
+  .perm-item .body .sub { font-size: 11px; color: var(--on-surface-v); margin-top: 2px; }
+
+  /* 长按退出环 */
+  .long-press-stage {
+    position: absolute; inset: 0;
+    background: rgba(15,17,22,.78);
+    backdrop-filter: blur(12px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #fff;
+    z-index: 10;
+  }
+  .ring-wrap {
+    position: relative;
+    width: 180px; height: 180px;
+    margin-bottom: 22px;
+  }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-wrap .center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .ring-wrap .center .pct {
+    font-size: 38px; font-weight: 800;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .ring-wrap .center .lbl {
+    font-size: 11px; color: rgba(255,255,255,.7);
+    letter-spacing: .12em;
+    margin-top: 2px;
+  }
+  .long-press-stage .hint {
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.5;
+    max-width: 240px;
+    color: rgba(255,255,255,.85);
+  }
+  .long-press-stage .hint b { color: #fff; }
+  .long-press-stage .release {
+    margin-top: 18px;
+    font-size: 11px;
+    color: rgba(255,255,255,.6);
+  }
+
+  /* 弹窗 */
+  .dialog-mask {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 22px;
+    z-index: 10;
+  }
+  .dialog {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    padding: 22px 20px 16px;
+    width: 100%;
+    box-shadow: var(--shadow-3);
+  }
+  .dialog .d-ico {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--primary-c);
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .dialog .d-ico.err { background: var(--error-c); color: var(--error); }
+  .dialog .d-ico.warn { background: var(--warning-c); color: var(--warning); }
+  .dialog h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+  .dialog p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--on-surface-v);
+    line-height: 1.5;
+  }
+  .dialog .actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+
+  /* 底部菜单 */
+  .bottom-sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    padding: 10px 16px 24px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,.16);
+    z-index: 10;
+  }
+  .bottom-sheet .grip {
+    width: 36px; height: 4px;
+    border-radius: 999px;
+    background: var(--outline-v);
+    margin: 0 auto 14px;
+  }
+  .bottom-sheet h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+  .bottom-sheet .sub {
+    font-size: 12px;
+    color: var(--on-surface-v);
+    margin-bottom: 14px;
+  }
+  .sheet-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--surface-1);
+    margin-bottom: 8px;
+  }
+  .sheet-item .ico {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: var(--primary-c);
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sheet-item .body { flex: 1; }
+  .sheet-item .ttl { font-size: 13px; font-weight: 600; }
+  .sheet-item .sub2 { font-size: 11px; color: var(--on-surface-v); margin-top: 2px; }
+
+  /* 图例 */
+  .legend {
+    max-width: 1480px;
+    margin: 16px auto 0;
+    padding: 24px 48px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .legend .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow-1);
+    margin: 0;
+  }
+  .legend .card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--on-surface);
+  }
+  .legend .card p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--on-surface-v);
+    line-height: 1.5;
+  }
+  .palette {
+    display: flex; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .palette span {
+    flex: 1;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  /* 顶部导航器 */
+  .topnav {
+    position: sticky; top: 0;
+    z-index: 100;
+    background: rgba(249,249,255,.86);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--outline-v);
+  }
+  .topnav-inner {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 10px 48px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .topnav .brand {
+    font-weight: 800;
+    background: linear-gradient(120deg, var(--primary), var(--tertiary));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-size: 18px;
+    margin-right: 8px;
+  }
+  .topnav a {
+    color: var(--on-surface-v);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+  .topnav a:hover { background: var(--surface-1); color: var(--primary); }
+
+  .footer-credits {
+    text-align: center;
+    color: var(--outline);
+    font-size: 12px;
+    padding: 24px 16px 48px;
+  }
+
+  /* 小工具 */
+  .row-tight { display: flex; gap: 6px; align-items: center; }
+  .between { display: flex; justify-content: space-between; align-items: center; }
+  .muted { color: var(--on-surface-v); }
+  .num-mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, monospace; }
+  .nowrap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     顶部导航
+     ========================================================= -->
+<nav class="topnav">
+  <div class="topnav-inner">
+    <span class="brand">BlueTrace · UI 原型</span>
+    <a href="#flow-onboarding">① 启动 / 权限</a>
+    <a href="#flow-setup">② 会话准备</a>
+    <a href="#flow-scan">③ 设备扫描</a>
+    <a href="#flow-meta">④ 采集元信息</a>
+    <a href="#flow-collect">⑤ 正式采集</a>
+    <a href="#flow-exit">⑥ 长按退出</a>
+    <a href="#flow-history">⑦ 历史与导出</a>
+    <a href="#flow-error">⑧ 异常与恢复</a>
+  </div>
+</nav>
+
+<!-- =========================================================
+     标题
+     ========================================================= -->
+<header class="page-header">
+  <h1>BlueTrace 数据采集 App · UI 原型</h1>
+  <p class="sub">
+    面向 BLE PPG 信号评测的 Android 数据采集应用原型。基于 Material 3 设计语言，主色取自仓库
+    <code>theme/Color.kt</code> 中的 <code>primaryLight = #415F91</code>；以单/双设备同模型为核心，
+    全程支持 1..N 角色并行采集，长按退出避免误触。本原型覆盖 14 个关键界面与 3 类弹层/系统入口。
+  </p>
+  <div class="meta">
+    <span class="chip"><span class="dot"></span> Material 3</span>
+    <span class="chip"><span class="dot" style="background:var(--tertiary)"></span> Compose 风格</span>
+    <span class="chip"><span class="dot" style="background:var(--success)"></span> 多角色同模型</span>
+    <span class="chip"><span class="dot" style="background:var(--warning)"></span> FGS 后台采集</span>
+    <span class="chip"><span class="dot" style="background:var(--error)"></span> 长按退出</span>
+  </div>
+</header>
+
+<!-- ============================================================
+     图例
+     ============================================================ -->
+<section class="legend">
+  <div class="card">
+    <h4>主色板（取自仓库主题）</h4>
+    <div class="palette">
+      <span style="background:#415F91"></span>
+      <span style="background:#D6E3FF"></span>
+      <span style="background:#705575"></span>
+      <span style="background:#FAD8FD"></span>
+      <span style="background:#BA1A1A"></span>
+      <span style="background:#2E7D32"></span>
+    </div>
+    <p>primary / primary-container / tertiary / tertiary-container / error / success</p>
+  </div>
+  <div class="card">
+    <h4>角色色彩约定</h4>
+    <p><b style="color:var(--primary)">DUT</b>（待测设备）用 primary 蓝；<b style="color:var(--tertiary)">REFERENCE</b>（标准心率带）用 tertiary 紫红。同一会话中可单独或并存。</p>
+  </div>
+  <div class="card">
+    <h4>状态徽章</h4>
+    <p>
+      <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+      <span class="status-pill warn">需要关注</span>
+      <span class="status-pill err">已断开</span>
+    </p>
+  </div>
+  <div class="card">
+    <h4>退出方式</h4>
+    <p>采集运行中按返回键 = 弹层；要真正停止采集需要 <b>长按"停止采集"按钮 2 秒</b>，避免误触。</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 1 · 启动 / 权限
+     ============================================================ -->
+<div id="flow-onboarding" class="section">
+  <h2>① 启动 / 权限准备</h2>
+  <p class="desc">冷启动后的硬前置检查。蓝牙、定位、BLE 运行时权限缺一不可，通知权限为软建议项。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 1.1 Splash -->
+  <div>
+    <div class="phone"><div class="phone-screen" style="background:linear-gradient(160deg,#415F91 0%, #705575 100%);">
+      <div class="status-bar" style="color:#fff">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V4z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:0 24px">
+        <div style="width:88px;height:88px;border-radius:24px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px);box-shadow:0 12px 40px rgba(0,0,0,.25);margin-bottom:24px">
+          <svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor"><path d="M14.88 16.29L13 14.41V20.5l4.71-4.71-2.83-2.83zM6.7 8.46L9.59 11.34 6.7 14.22v3.55l5.71-5.71L6.7 6.34v2.12zM13 3.5v6.09l1.88-1.88 2.83 2.83L13 14.41V8.32l4.71-4.82L13 3.5z" opacity=".9"/></svg>
+        </div>
+        <div style="font-size:34px;font-weight:800;letter-spacing:-.02em">BlueTrace</div>
+        <div style="font-size:13px;opacity:.8;margin-top:4px">Bluetooth 数据采集工具</div>
+        <div style="position:absolute;bottom:64px;left:0;right:0;font-size:11px;color:rgba(255,255,255,.65)">v1.0.0 · 基于 Kotlin-BLE-Library v2.0</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">1</span> 启动页 Splash</div>
+    <div class="screen-note">androidx.core:core-splashscreen · API 24+</div>
+  </div>
+
+  <!-- 1.2 Permission Gate (blocking) -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V4z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">权限准备</div>
+          <div class="subtitle">满足全部硬前置才能开始采集</div>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="banner err">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/></svg>
+          <div>有 <b>3 项</b> 必需条件未满足，请逐项处理。</div>
+        </div>
+
+        <div class="perm-item">
+          <div class="ico err">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+          </div>
+          <div class="body">
+            <div class="ttl">蓝牙未开启</div>
+            <div class="sub">BLE 扫描与连接所必需</div>
+          </div>
+          <button class="btn small">打开</button>
+        </div>
+
+        <div class="perm-item">
+          <div class="ico err">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+          </div>
+          <div class="body">
+            <div class="ttl">定位服务未开启</div>
+            <div class="sub">当前构建未声明 neverForLocation</div>
+          </div>
+          <button class="btn small outline">设置</button>
+        </div>
+
+        <div class="perm-item">
+          <div class="ico warn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          </div>
+          <div class="body">
+            <div class="ttl">BLE 运行时权限</div>
+            <div class="sub">SCAN · CONNECT · FINE_LOCATION</div>
+          </div>
+          <button class="btn small">授权</button>
+        </div>
+
+        <div class="perm-item">
+          <div class="ico ok">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </div>
+          <div class="body">
+            <div class="ttl">前台服务通知</div>
+            <div class="sub">已授权 · 后台采集时可见</div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);margin-top:14px;line-height:1.5">
+          <b>提示：</b> 通知权限拒绝不会阻塞采集，但前台服务通知将不显示在通知抽屉中。
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block" disabled>继续</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">2</span> 权限准备页（缺项）</div>
+    <div class="screen-note">PermissionGateScreen · 硬前置阻断</div>
+  </div>
+
+  <!-- 1.3 Permission Gate (ready) -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">权限准备</div>
+          <div class="subtitle">全部就绪</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="banner info">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <div>所有硬前置条件已满足，可以开始采集。</div>
+        </div>
+
+        <div class="perm-item">
+          <div class="ico ok"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="body"><div class="ttl">蓝牙已开启</div><div class="sub">POWERED_ON</div></div>
+        </div>
+        <div class="perm-item">
+          <div class="ico ok"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="body"><div class="ttl">定位服务已开启</div><div class="sub">高精度模式</div></div>
+        </div>
+        <div class="perm-item">
+          <div class="ico ok"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="body"><div class="ttl">BLE 权限已授予</div><div class="sub">SCAN · CONNECT · LOCATION</div></div>
+        </div>
+        <div class="perm-item">
+          <div class="ico ok"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="body"><div class="ttl">通知权限已授予</div><div class="sub">后台采集通知可见</div></div>
+        </div>
+
+        <div class="card" style="background:linear-gradient(135deg,var(--primary-c) 0%, var(--tertiary-c) 100%);border:none;margin-top:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--on-primary-c)">准备就绪</div>
+          <div style="font-size:11px;color:var(--on-primary-c);opacity:.85;margin-top:4px;line-height:1.5">
+            下一步：选择 DUT 待测设备和（可选的）参考心率带。
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block">
+          继续到设备分配
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">3</span> 权限准备页（就绪）</div>
+    <div class="screen-note">满足后自动跳转 · 用户可后退回看</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 2 · 会话准备 / 设备分配
+     ============================================================ -->
+<div id="flow-setup" class="section">
+  <h2>② 会话准备 · 角色分配</h2>
+  <p class="desc">每次采集都是一份 <code>DeviceAssignment</code>（Map&lt;DeviceRole, Peripheral&gt;）。最少 1 个角色即可开始，双设备对照采集只是 size=2 的情况，UI 没有"单设备/多设备"两套页面。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 2.1 Empty assignment -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">新建采集会话</div>
+          <div class="subtitle">选择至少 1 个角色</div>
+        </div>
+        <button class="icon-btn" title="历史">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.25 2.52.77-1.28L13.5 12V8H12z"/></svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="banner info">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <div>单设备：仅选 DUT 即可。双设备：DUT + REFERENCE 同时连。</div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--primary-c);color:var(--on-primary-c)">DUT</div>
+              <span style="font-size:13px;font-weight:600">待测设备</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--on-surface-v);margin:8px 0 12px">私有 PPG 协议 · 必填以采集原始波形</div>
+          <div class="row" style="background:var(--surface-1);padding:16px;border-radius:12px;justify-content:center;color:var(--outline);font-size:12px;flex-direction:column;gap:8px">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z" opacity=".4"/></svg>
+            <span>尚未选择设备</span>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.49-1.49-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+              扫描选择
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--tertiary-c);color:#4A2D4F">REFERENCE</div>
+              <span style="font-size:13px;font-weight:600">参考心率带</span>
+              <span class="status-pill idle">可选</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--on-surface-v);margin:8px 0 12px">标准 Heart Rate Service 0x180D · 用于对照评测</div>
+          <div class="row" style="background:var(--surface-1);padding:16px;border-radius:12px;justify-content:center;color:var(--outline);font-size:12px;flex-direction:column;gap:8px">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" opacity=".4"/></svg>
+            <span>未启用此角色</span>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">扫描选择</button>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block" disabled>
+          开始采集
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div style="text-align:center;font-size:11px;color:var(--outline);margin-top:6px">至少选择 1 个角色</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">4</span> 设备分配（空）</div>
+    <div class="screen-note">DeviceAssignmentScreen · Draft 编辑器</div>
+  </div>
+
+  <!-- 2.2 Dual selected -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">新建采集会话</div>
+          <div class="subtitle">已选择 2 个角色</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3z"/></svg></button>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--primary-c);color:var(--on-primary-c)">DUT</div>
+              <span style="font-size:13px;font-weight:700">待测设备</span>
+            </div>
+            <button class="icon-btn" style="width:28px;height:28px">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+          </div>
+          <div class="row" style="gap:12px">
+            <div class="list-item" style="margin:0;flex:1;border:none;box-shadow:none;background:transparent;padding:0">
+              <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 9h2v6H7V9zm4-2h2v10h-2V7zm4 4h2v6h-2v-6z"/></svg></div>
+              <div class="body">
+                <div class="title">BlueTrace-PPG-01</div>
+                <div class="sub mac">AA:BB:CC:DD:EE:01</div>
+              </div>
+            </div>
+          </div>
+          <div class="meta-row" style="margin-top:10px">
+            <span class="status-pill ok"><span class="pulse"></span>信号良好</span>
+            <span>RSSI <b class="num-mono">-54 dBm</b></span>
+            <span>50 Hz PPG</span>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">更换</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--tertiary-c);color:#4A2D4F">REFERENCE</div>
+              <span style="font-size:13px;font-weight:700">参考心率带</span>
+            </div>
+            <button class="icon-btn" style="width:28px;height:28px"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+          </div>
+          <div class="list-item" style="margin:0;border:none;box-shadow:none;background:transparent;padding:0">
+            <div class="ico ref"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+            <div class="body">
+              <div class="title">Polar H10</div>
+              <div class="sub mac">11:22:33:44:55:66</div>
+            </div>
+          </div>
+          <div class="meta-row" style="margin-top:10px">
+            <span class="status-pill ok"><span class="pulse"></span>信号良好</span>
+            <span>RSSI <b class="num-mono">-48 dBm</b></span>
+            <span>HRS 0x180D</span>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">更换</button>
+          </div>
+        </div>
+
+        <div class="card tonal">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.04em">本次会话输出</div>
+          <div style="font-size:11px;margin-top:6px;line-height:1.6;opacity:.85">
+            ☑ DUT_AA-BB-CC-DD-EE-01.csv<br>
+            ☑ REFERENCE_11-22-33-44-55-66.csv<br>
+            ☑ session_manifest.json
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block">
+          下一步 · 填写采集信息
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">5</span> 设备分配（双角色）</div>
+    <div class="screen-note">DUT + REFERENCE 对照采集</div>
+  </div>
+
+  <!-- 2.3 Single device -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">新建采集会话</div>
+          <div class="subtitle">单设备模式</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3z"/></svg></button>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--primary-c);color:var(--on-primary-c)">DUT</div>
+              <span style="font-size:13px;font-weight:700">待测设备</span>
+            </div>
+            <button class="icon-btn" style="width:28px;height:28px"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+          </div>
+          <div class="list-item" style="margin:0;border:none;box-shadow:none;background:transparent;padding:0">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 9h2v6H7zm4-2h2v10h-2zm4 4h2v6h-2z"/></svg></div>
+            <div class="body">
+              <div class="title">BlueTrace-PPG-01</div>
+              <div class="sub mac">AA:BB:CC:DD:EE:01</div>
+            </div>
+          </div>
+          <div class="meta-row" style="margin-top:10px">
+            <span class="status-pill ok"><span class="pulse"></span>信号良好</span>
+            <span>RSSI <b class="num-mono">-54 dBm</b></span>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">更换</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <div class="status-pill" style="background:var(--tertiary-c);color:#4A2D4F">REFERENCE</div>
+              <span style="font-size:13px;font-weight:600">参考心率带</span>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--on-surface-v);margin:8px 0 12px">未启用 · 单设备会话只产生 1 个 CSV</div>
+          <button class="btn outline block small">+ 添加参考设备</button>
+        </div>
+
+        <div class="card tonal-tertiary">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            单设备 vs 双设备
+          </div>
+          <div style="font-size:11px;margin-top:6px;line-height:1.6;opacity:.85">
+            两种模式共用同一套页面与状态模型。单设备只渲染一个卡片、落一个 CSV；架构层面无差别。
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block">
+          下一步 · 填写采集信息
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">6</span> 设备分配（单设备）</div>
+    <div class="screen-note">同一套页面 · size=1 退化路径</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 3 · 设备扫描
+     ============================================================ -->
+<div id="flow-scan" class="section">
+  <h2>③ 设备扫描</h2>
+  <p class="desc">由 <code>role</code> 参数驱动的扫描子任务。DUT 按私有 Service UUID 过滤，REFERENCE 按 Heart Rate Service 0x180D 过滤。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 3.1 DUT scanning -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">选择 DUT 设备</div>
+          <div class="subtitle">过滤 · 私有 Service UUID</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 6V3L8 7l4 4V8c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 14c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 9.74A7.93 7.93 0 0 0 4 14c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg></button>
+      </div>
+      <div class="content">
+        <div style="display:flex;align-items:center;gap:10px;background:var(--primary-c);padding:10px 14px;border-radius:14px;margin-bottom:12px">
+          <div style="width:32px;height:32px;border-radius:999px;border:2px solid var(--primary);border-top-color:transparent;animation:spin 1s linear infinite"></div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--on-primary-c)">正在扫描…</div>
+            <div style="font-size:11px;color:var(--on-primary-c);opacity:.8">已搜索 8 秒 · 找到 2 台设备</div>
+          </div>
+        </div>
+
+        <div class="list-item selected">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 9h2v6H7zm4-2h2v10h-2zm4 4h2v6h-2z"/></svg></div>
+          <div class="body">
+            <div class="title">BlueTrace-PPG-01</div>
+            <div class="sub mac">AA:BB:CC:DD:EE:01 · 刚刚</div>
+          </div>
+          <div style="text-align:right">
+            <div class="rssi" style="font-weight:700;color:var(--success)">-54 dBm</div>
+            <div style="font-size:10px;color:var(--outline);margin-top:2px">强</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 9h2v6H7zm4-2h2v10h-2zm4 4h2v6h-2z"/></svg></div>
+          <div class="body">
+            <div class="title">BlueTrace-PPG-02</div>
+            <div class="sub mac">AA:BB:CC:DD:EE:02 · 2 秒前</div>
+          </div>
+          <div style="text-align:right">
+            <div class="rssi">-71 dBm</div>
+            <div style="font-size:10px;color:var(--outline);margin-top:2px">中</div>
+          </div>
+        </div>
+
+        <div style="text-align:center;padding:20px 0 8px;color:var(--outline);font-size:11px">
+          继续保持扫描中…<br>
+          <span style="font-size:10px">长按设备可查看更多信息</span>
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.65 6.35a8 8 0 1 0 1.85 5.65L17.65 12a6 6 0 1 1-1.7-4.24L13 11h7V4l-2.35 2.35z"/></svg>
+          重新扫描
+        </button>
+        <button class="btn" style="flex:1">选择此设备</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">7</span> DUT 扫描</div>
+    <div class="screen-note">RoleScanScreen(DeviceRole.DUT)</div>
+  </div>
+
+  <!-- 3.2 Heart rate band scanning -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">选择心率带</div>
+          <div class="subtitle">过滤 · HRS 0x180D</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 6V3L8 7l4 4V8c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></button>
+      </div>
+      <div class="content">
+        <div style="display:flex;align-items:center;gap:10px;background:var(--tertiary-c);padding:10px 14px;border-radius:14px;margin-bottom:12px;color:#4A2D4F">
+          <div style="width:32px;height:32px;border-radius:999px;border:2px solid var(--tertiary);border-top-color:transparent;animation:spin 1s linear infinite"></div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700">扫描中…</div>
+            <div style="font-size:11px;opacity:.8">已搜索 5 秒 · 找到 2 台</div>
+          </div>
+        </div>
+
+        <div class="list-item selected" style="border-color:var(--tertiary);background:var(--tertiary-c)">
+          <div class="ico ref"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+          <div class="body">
+            <div class="title">Polar H10</div>
+            <div class="sub mac">11:22:33:44:55:66 · 刚刚</div>
+          </div>
+          <div style="text-align:right">
+            <div class="rssi" style="font-weight:700;color:var(--success)">-48 dBm</div>
+            <div style="font-size:10px;color:var(--outline);margin-top:2px">很强</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico ref"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+          <div class="body">
+            <div class="title">Wahoo TICKR</div>
+            <div class="sub mac">22:33:44:55:66:77 · 1 秒前</div>
+          </div>
+          <div style="text-align:right">
+            <div class="rssi">-61 dBm</div>
+            <div style="font-size:10px;color:var(--outline);margin-top:2px">中</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico ref"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+          <div class="body">
+            <div class="title">Garmin HRM-Dual</div>
+            <div class="sub mac">33:44:55:66:77:88 · 3 秒前</div>
+          </div>
+          <div style="text-align:right">
+            <div class="rssi" style="color:var(--warning)">-82 dBm</div>
+            <div style="font-size:10px;color:var(--outline);margin-top:2px">弱</div>
+          </div>
+        </div>
+
+        <div style="text-align:center;padding:12px 0 4px;color:var(--outline);font-size:11px">
+          兼容 Polar / Wahoo / Garmin 等标准 HRS 设备
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">重新扫描</button>
+        <button class="btn" style="flex:1;background:var(--tertiary)">选择此设备</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">8</span> 心率带扫描</div>
+    <div class="screen-note">RoleScanScreen(DeviceRole.REFERENCE)</div>
+  </div>
+
+  <!-- 3.3 Empty scan result -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">选择 DUT 设备</div>
+          <div class="subtitle">未发现匹配设备</div>
+        </div>
+      </div>
+      <div class="content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24px">
+        <div style="width:100px;height:100px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:20px;color:var(--outline)">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.49-1.49-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z" opacity=".5"/></svg>
+        </div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">未找到匹配设备</div>
+        <div style="font-size:12px;color:var(--on-surface-v);line-height:1.6;max-width:240px">
+          请确认：
+          <ul style="text-align:left;padding-left:18px;margin:8px 0">
+            <li>设备已开机并广播</li>
+            <li>设备距离手机 ≤ 5 米</li>
+            <li>未被其他 App 占用</li>
+          </ul>
+        </div>
+        <button class="btn" style="margin-top:16px">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.65 6.35a8 8 0 1 0 1.85 5.65L17.65 12a6 6 0 1 1-1.7-4.24L13 11h7V4l-2.35 2.35z"/></svg>
+          重新扫描
+        </button>
+        <button class="btn text" style="margin-top:8px;font-size:11px;color:var(--outline)">显示无名设备 (调试)</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">9</span> 扫描无结果</div>
+    <div class="screen-note">空状态 · 引导自查</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 4 · 采集元信息编辑（新增页面）
+     ============================================================ -->
+<div id="flow-meta" class="section">
+  <h2>④ 采集元信息编辑</h2>
+  <p class="desc">开始采集前的最后一步：录入人员、项目、采集位置等业务上下文。这些字段会写入 <code>session_manifest.json</code>，方便后续溯源与对照分析。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 4.1 Meta entry -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">采集信息</div>
+          <div class="subtitle">写入 session_manifest.json</div>
+        </div>
+      </div>
+      <div class="content">
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:4px 0 8px">受试者</div>
+        <div class="field">
+          <div class="label">受试者编号 *</div>
+          <div class="value">S-2026-0142</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:0">
+          <div class="field dropdown">
+            <div class="label">性别</div>
+            <div class="value">男</div>
+          </div>
+          <div class="field">
+            <div class="label">年龄</div>
+            <div class="value">28</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field">
+            <div class="label">身高 (cm)</div>
+            <div class="value">175</div>
+          </div>
+          <div class="field">
+            <div class="label">体重 (kg)</div>
+            <div class="value">68</div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">项目 / 场景</div>
+        <div class="field dropdown">
+          <div class="label">所属项目 *</div>
+          <div class="value">PPG-Algo-2026Q2</div>
+        </div>
+        <div class="field dropdown">
+          <div class="label">采集场景 *</div>
+          <div class="value">静息 / 坐位</div>
+        </div>
+        <div class="field dropdown">
+          <div class="label">DUT 佩戴位置</div>
+          <div class="value">左手腕 · 桡侧</div>
+        </div>
+        <div class="field dropdown">
+          <div class="label">REFERENCE 位置</div>
+          <div class="value">胸前 · 心电带</div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">操作员与备注</div>
+        <div class="field">
+          <div class="label">操作员</div>
+          <div class="value">张三 (eng_zs)</div>
+        </div>
+        <div class="field" style="min-height:64px">
+          <div class="label">备注</div>
+          <div class="value" style="color:var(--on-surface-v);font-size:12px;line-height:1.5">室温 24℃，环境安静；受试者已休息 5 分钟。</div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block">
+          下一步 · 开始前预检
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">10</span> 采集元信息编辑</div>
+    <div class="screen-note">SessionMetadataScreen · 上下文录入</div>
+  </div>
+
+  <!-- 4.2 Start precheck dialog -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar"><div><div class="title">采集信息</div></div></div>
+      <div class="content" style="filter:blur(2px) saturate(.7);opacity:.5">
+        <div class="field"><div class="label">受试者编号</div><div class="value">S-2026-0142</div></div>
+        <div class="field"><div class="label">所属项目</div><div class="value">PPG-Algo-2026Q2</div></div>
+      </div>
+
+      <div class="dialog-mask">
+        <div class="dialog">
+          <div class="d-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <h3>开始采集前确认</h3>
+          <p>即将启动前台采集服务，请最后确认：</p>
+          <div class="card" style="margin:0 0 12px;background:var(--surface-1);border-color:transparent">
+            <div class="between" style="margin-bottom:6px">
+              <span style="font-size:11px;color:var(--on-surface-v)">受试者</span>
+              <span style="font-size:12px;font-weight:600">S-2026-0142 · 男 / 28</span>
+            </div>
+            <div class="between" style="margin-bottom:6px">
+              <span style="font-size:11px;color:var(--on-surface-v)">项目</span>
+              <span style="font-size:12px;font-weight:600">PPG-Algo-2026Q2</span>
+            </div>
+            <div class="between" style="margin-bottom:6px">
+              <span style="font-size:11px;color:var(--on-surface-v)">场景</span>
+              <span style="font-size:12px;font-weight:600">静息坐位</span>
+            </div>
+            <div class="between">
+              <span style="font-size:11px;color:var(--on-surface-v)">设备</span>
+              <span style="font-size:12px;font-weight:600">DUT + REFERENCE</span>
+            </div>
+          </div>
+          <div class="banner warn" style="margin-bottom:12px;font-size:11px">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2zm1 14h-2v-2h2zm0-4h-2V8h2z"/></svg>
+            <div>建议保持手机屏幕亮起 30 秒，等待 BLE 通知订阅稳定。</div>
+          </div>
+          <div class="actions">
+            <button class="btn outline small">返回修改</button>
+            <button class="btn small">确认 · 开始</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">11</span> 开始前预检</div>
+    <div class="screen-note">StartPrecheckDialog · 最后确认</div>
+  </div>
+
+  <!-- 4.3 Preset templates -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">快速模板</div>
+          <div class="subtitle">选择一个常用场景</div>
+        </div>
+      </div>
+      <div class="content">
+        <div style="font-size:12px;color:var(--on-surface-v);margin-bottom:12px;line-height:1.5">
+          从模板填入采集信息可减少重复输入；选中后仍可在下一屏微调字段。
+        </div>
+
+        <div class="list-item selected">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z"/></svg></div>
+          <div class="body">
+            <div class="title">静息坐位 · 5 分钟基线</div>
+            <div class="sub">DUT 左腕 · REF 胸前 · 50 Hz</div>
+          </div>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--primary)"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+
+        <div class="list-item">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg></div>
+          <div class="body">
+            <div class="title">运动恢复 · 10 分钟</div>
+            <div class="sub">DUT 左腕 · REF 胸前 · 100 Hz</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 2 8.93 9.65 5.06 7.72c-.84-.42-1.85-.07-2.27.77L.34 11.59 6 12.5l5.66 11.32c.42.84 1.43 1.19 2.27.77L17 22.95l5 .94L19 2z" opacity=".6"/></svg></div>
+          <div class="body">
+            <div class="title">睡眠监测 · 8 小时</div>
+            <div class="sub">仅 DUT · 25 Hz · 低功耗</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></div>
+          <div class="body">
+            <div class="title">自由活动 · 30 分钟</div>
+            <div class="sub">DUT + REF · 50 Hz</div>
+          </div>
+        </div>
+
+        <button class="btn outline block" style="margin-top:8px">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+          自定义模板
+        </button>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">跳过</button>
+        <button class="btn" style="flex:1">使用并继续</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">12</span> 快速模板（可选）</div>
+    <div class="screen-note">SessionTemplateScreen · 减少重复输入</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 5 · 正式采集
+     ============================================================ -->
+<div id="flow-collect" class="section">
+  <h2>⑤ 正式采集（运行时主屏）</h2>
+  <p class="desc">FGS 运行中。每个角色一张卡片，独立显示连接状态、实时数据、写入计数和文件名。停止采集需要长按按钮 2 秒。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 5.1 Dual collecting -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">采集中</div>
+          <div class="subtitle">2 个角色 · 已运行 00:12:43</div>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="card tonal" style="padding:12px 14px">
+          <div class="between">
+            <div>
+              <div style="font-size:11px;opacity:.7">会话 ID</div>
+              <div style="font-size:13px;font-weight:700">2026-05-20 14:32:18</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;opacity:.7">已运行</div>
+              <div style="font-size:18px;font-weight:800" class="num-mono">00:12:43</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DUT card -->
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <span class="role-tag">DUT</span>
+              <span style="font-size:13px;font-weight:700;margin-left:6px">BlueTrace-PPG-01</span>
+            </div>
+            <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+          </div>
+          <div class="mac">AA:BB:CC:DD:EE:01</div>
+
+          <div class="waveform">
+            <div class="lbl">
+              <span>PPG · 50 Hz</span>
+              <span class="bpm">♥ 78.2 BPM</span>
+            </div>
+            <svg viewBox="0 0 300 60" preserveAspectRatio="none">
+              <polyline fill="none" stroke="#8FB6FF" stroke-width="1.5"
+                points="0,30 8,28 16,30 24,18 32,42 40,30 48,30 56,28 64,30 72,30 80,18 88,42 96,30 104,30 112,30 120,28 128,30 136,18 144,42 152,30 160,30 168,28 176,30 184,18 192,42 200,30 208,30 216,28 224,30 232,18 240,42 248,30 256,30 264,28 272,30 280,18 288,42 296,30"/>
+            </svg>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">已写入</div><div class="v num-mono">38,150</div></div>
+            <div class="stat"><div class="k">无效帧</div><div class="v num-mono">2</div></div>
+            <div class="stat"><div class="k">速率</div><div class="v num-mono accent">50 Hz</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--outline);margin-top:8px" class="nowrap">
+            ⎘ DUT_AA-BB-CC-DD-EE-01.csv
+          </div>
+        </div>
+
+        <!-- REFERENCE card -->
+        <div class="card">
+          <div class="head">
+            <div class="row-tight">
+              <span class="role-tag ref">REF</span>
+              <span style="font-size:13px;font-weight:700;margin-left:6px">Polar H10</span>
+            </div>
+            <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+          </div>
+          <div class="mac">11:22:33:44:55:66</div>
+
+          <div class="hr-big">
+            <div class="num">79</div>
+            <div class="unit">BPM · RR 812 ms</div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">已写入</div><div class="v num-mono">12,310</div></div>
+            <div class="stat"><div class="k">无效帧</div><div class="v num-mono">0</div></div>
+            <div class="stat"><div class="k">速率</div><div class="v num-mono accent">1 Hz</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--outline);margin-top:8px" class="nowrap">
+            ⎘ REFERENCE_11-22-33-44-55-66.csv
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+          导出
+        </button>
+        <button class="btn danger" style="flex:1.5">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+          长按 2 秒停止
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">13</span> 采集中 · 双设备</div>
+    <div class="screen-note">DataCollectionScreen · 主运行屏</div>
+  </div>
+
+  <!-- 5.2 Detailed waveform (single device expanded) -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">BlueTrace-PPG-01</div>
+          <div class="subtitle">DUT · 实时详情</div>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0L19.2 12l-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="between" style="margin-bottom:10px">
+            <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+            <span style="font-size:11px;color:var(--outline)" class="num-mono">已订阅 12:43</span>
+          </div>
+
+          <div class="waveform" style="padding:14px">
+            <div class="lbl"><span style="font-size:11px">PPG 原始波形 · 最近 6 秒</span><span class="bpm">78.2 BPM</span></div>
+            <svg viewBox="0 0 300 90" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="ppg" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#8FB6FF" stop-opacity=".4"/>
+                  <stop offset="100%" stop-color="#8FB6FF" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <polyline fill="url(#ppg)" stroke="none"
+                points="0,90 0,45 8,42 16,46 24,28 32,62 40,46 48,46 56,42 64,45 72,45 80,28 88,62 96,46 104,45 112,46 120,42 128,45 136,28 144,62 152,46 160,45 168,42 176,46 184,28 192,62 200,46 208,46 216,42 224,46 232,28 240,62 248,46 256,46 264,42 272,46 280,28 288,62 296,46 300,90"/>
+              <polyline fill="none" stroke="#8FB6FF" stroke-width="1.6"
+                points="0,45 8,42 16,46 24,28 32,62 40,46 48,46 56,42 64,45 72,45 80,28 88,62 96,46 104,45 112,46 120,42 128,45 136,28 144,62 152,46 160,45 168,42 176,46 184,28 192,62 200,46 208,46 216,42 224,46 232,28 240,62 248,46 256,46 264,42 272,46 280,28 288,62 296,46"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">实时指标</div>
+          <div class="stats">
+            <div class="stat"><div class="k">最新 PPG</div><div class="v num-mono">83,214</div></div>
+            <div class="stat"><div class="k">推算 BPM</div><div class="v num-mono accent">78.2</div></div>
+            <div class="stat"><div class="k">SNR</div><div class="v num-mono">14.6 dB</div></div>
+            <div class="stat"><div class="k">速率</div><div class="v num-mono">50 Hz</div></div>
+            <div class="stat"><div class="k">已写入</div><div class="v num-mono">38,150</div></div>
+            <div class="stat"><div class="k">无效</div><div class="v num-mono">2</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">设备命令</div>
+          <div class="btn-group">
+            <button class="btn outline small">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5z"/></svg>
+              开始采样
+            </button>
+            <button class="btn outline small">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              暂停
+            </button>
+            <button class="btn outline small">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M3.55 18.54 4.96 19.95l16.49-16.49-1.41-1.42L3.55 18.54zM12 4a8 8 0 0 0-8 8h2a6 6 0 0 1 6-6V4z"/></svg>
+              校准
+            </button>
+            <button class="btn outline small">查询版本</button>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block outline">返回总览</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">14</span> 单设备详情 · 实时波形</div>
+    <div class="screen-note">DeviceDetailScreen · 命令面板</div>
+  </div>
+
+  <!-- 5.3 Notification when backgrounded -->
+  <div>
+    <div class="phone"><div class="phone-screen" style="background:#0F1116">
+      <div class="status-bar" style="color:#fff">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div style="padding:16px;color:#fff">
+        <div style="text-align:center;margin:24px 0">
+          <div style="font-size:64px;font-weight:200" class="num-mono">9:41</div>
+          <div style="font-size:14px;opacity:.7">星期三 5 月 20 日</div>
+        </div>
+
+        <!-- Foreground service notification -->
+        <div style="background:rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;backdrop-filter:blur(10px);margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#415F91,#705575);display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M14.88 16.29L13 14.41V20.5l4.71-4.71-2.83-2.83zM6.7 8.46L9.59 11.34 6.7 14.22v3.55l5.71-5.71L6.7 6.34v2.12zM13 3.5v6.09l1.88-1.88 2.83 2.83L13 14.41V8.32l4.71-4.82L13 3.5z"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:600">BlueTrace</div>
+            <div style="font-size:10px;opacity:.5;margin-left:auto" class="num-mono">现在 · 持续</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">采集进行中 · 00:12:43</div>
+          <div style="font-size:11px;opacity:.75;line-height:1.5">
+            DUT BlueTrace-PPG-01 · 38,150 帧<br>
+            REF Polar H10 · 79 BPM · 12,310 帧
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button style="flex:1;background:rgba(255,255,255,.12);border:0;color:#fff;font-size:11px;padding:6px 10px;border-radius:999px;font-weight:600">打开</button>
+            <button style="flex:1;background:rgba(255,255,255,.12);border:0;color:#FF8B8B;font-size:11px;padding:6px 10px;border-radius:999px;font-weight:600">停止</button>
+          </div>
+        </div>
+
+        <div style="font-size:10px;color:rgba(255,255,255,.5);text-align:center;margin-top:14px;padding:0 14px;line-height:1.5">
+          前台服务通知 · foregroundServiceType="connectedDevice"<br>
+          系统不会自动关闭采集
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">15</span> 后台采集通知</div>
+    <div class="screen-note">CollectionForegroundService · 持续可见</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 6 · 长按退出（关键交互）
+     ============================================================ -->
+<div id="flow-exit" class="section">
+  <h2>⑥ 长按退出（防误触关键交互）</h2>
+  <p class="desc">为避免在采集中误触停止按钮，停止操作要求 <b>长按 2 秒</b>。环形进度可视化保留按住的进度；中途松手即取消。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 6.1 Long press start -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar"><div><div class="title">采集中</div><div class="subtitle">2 个角色 · 00:42:10</div></div></div>
+      <div class="content" style="opacity:.35">
+        <div class="card"><div class="head"><span style="font-size:13px;font-weight:700">BlueTrace-PPG-01</span><span class="status-pill ok">采集中</span></div></div>
+        <div class="card"><div class="head"><span style="font-size:13px;font-weight:700">Polar H10</span><span class="status-pill ok">采集中</span></div></div>
+      </div>
+
+      <div class="long-press-stage">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="6"/>
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#FF8B8B" stroke-width="6"
+                    stroke-dasharray="276" stroke-dashoffset="207" stroke-linecap="round"/>
+          </svg>
+          <div class="center">
+            <div class="pct">25%</div>
+            <div class="lbl">HOLD</div>
+          </div>
+        </div>
+        <div class="hint">
+          继续按住 <b>停止</b> 按钮<br>
+          <span style="opacity:.75">2 秒后将停止本次采集</span>
+        </div>
+        <div class="release">松手即取消</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">16</span> 长按停止 · 开始</div>
+    <div class="screen-note">LongPressStopRing · 0.5s</div>
+  </div>
+
+  <!-- 6.2 Long press almost -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar"><div><div class="title">采集中</div><div class="subtitle">2 个角色 · 00:42:11</div></div></div>
+      <div class="content" style="opacity:.35">
+        <div class="card"></div><div class="card"></div>
+      </div>
+
+      <div class="long-press-stage">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="6"/>
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#FF8B8B" stroke-width="6"
+                    stroke-dasharray="276" stroke-dashoffset="22" stroke-linecap="round"/>
+          </svg>
+          <div class="center">
+            <div class="pct" style="color:#FF8B8B">92%</div>
+            <div class="lbl">即将停止</div>
+          </div>
+        </div>
+        <div class="hint">
+          <b>松手即停止采集</b><br>
+          <span style="opacity:.75">CSV 文件已自动保存</span>
+        </div>
+        <div class="release" style="color:#FF8B8B">保存中 · 1.8s</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">17</span> 长按停止 · 临界点</div>
+    <div class="screen-note">即将触发 · 仍可松手取消</div>
+  </div>
+
+  <!-- 6.3 Stopped summary -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div>
+          <div class="title">采集已完成</div>
+          <div class="subtitle">共记录 00:42:11</div>
+        </div>
+      </div>
+      <div class="content">
+        <div style="text-align:center;padding:18px 0">
+          <div style="width:80px;height:80px;border-radius:999px;background:var(--success-c);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">
+            <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--success)"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </div>
+          <div style="font-size:18px;font-weight:700">数据保存成功</div>
+          <div style="font-size:12px;color:var(--on-surface-v);margin-top:4px">3 个文件 · 共 2.4 MB</div>
+        </div>
+
+        <div class="card">
+          <div class="between" style="margin-bottom:8px">
+            <span style="font-size:12px;color:var(--on-surface-v)">会话 ID</span>
+            <span style="font-size:12px;font-weight:600" class="num-mono">20260520_143218</span>
+          </div>
+          <div class="divider"></div>
+          <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">输出文件</div>
+          <div class="list-item" style="margin-bottom:6px;padding:8px 10px">
+            <div class="ico" style="width:32px;height:32px;background:var(--primary-c)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg></div>
+            <div class="body">
+              <div class="title" style="font-size:12px">DUT_AA-BB-CC-DD-EE-01.csv</div>
+              <div class="sub">1.6 MB · 126,510 行</div>
+            </div>
+          </div>
+          <div class="list-item" style="margin-bottom:6px;padding:8px 10px">
+            <div class="ico ref" style="width:32px;height:32px"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+            <div class="body">
+              <div class="title" style="font-size:12px">REFERENCE_11-22-33-44-55-66.csv</div>
+              <div class="sub">120 KB · 2,531 行</div>
+            </div>
+          </div>
+          <div class="list-item" style="margin-bottom:0;padding:8px 10px">
+            <div class="ico" style="width:32px;height:32px;background:var(--secondary-c);color:var(--secondary)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 4h14v2H5zm0 4h14v2H5zm0 4h14v2H5zm0 4h7v2H5z"/></svg></div>
+            <div class="body">
+              <div class="title" style="font-size:12px">session_manifest.json</div>
+              <div class="sub">4 KB · 元信息</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">查看详情</button>
+        <button class="btn" style="flex:1.2">导出到 Downloads</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">18</span> 停止完成 · 文件摘要</div>
+    <div class="screen-note">SessionSummaryScreen · 引导导出</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 7 · 历史与数据导出
+     ============================================================ -->
+<div id="flow-history" class="section">
+  <h2>⑦ 历史会话与数据导出</h2>
+  <p class="desc">本地历史会话列表 + 详情；从会话详情进入"采样数据选择菜单"，按角色、列、时间范围导出。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 7.1 History list -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">历史会话</div>
+          <div class="subtitle">本地 16 条 · 共 124 MB</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.49-1.49-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg></button>
+      </div>
+      <div class="content">
+        <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">全部 · 16</span>
+          <span class="chip">本周 · 5</span>
+          <span class="chip">DUT 单设备</span>
+          <span class="chip">双设备</span>
+          <span class="chip">已导出</span>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <div class="between" style="margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:700">今天 14:32</div>
+              <div style="font-size:11px;color:var(--on-surface-v)">PPG-Algo-2026Q2 · S-2026-0142</div>
+            </div>
+            <span class="status-pill ok">已完成</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <span class="chip" style="font-size:10px">DUT</span>
+            <span class="chip" style="font-size:10px;background:var(--tertiary-c);color:#4A2D4F;border-color:transparent">REF</span>
+          </div>
+          <div class="between">
+            <span style="font-size:11px;color:var(--on-surface-v)" class="num-mono">00:42:31 · 2.4 MB</span>
+            <div class="row-tight">
+              <button class="btn outline small">详情</button>
+              <button class="btn tonal small">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+                导出
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <div class="between" style="margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:700">今天 15:04</div>
+              <div style="font-size:11px;color:var(--on-surface-v)">PPG-Algo-2026Q2 · S-2026-0142</div>
+            </div>
+            <span class="status-pill ok">已完成</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <span class="chip" style="font-size:10px">DUT</span>
+          </div>
+          <div class="between">
+            <span style="font-size:11px;color:var(--on-surface-v)" class="num-mono">00:03:12 · 180 KB</span>
+            <div class="row-tight">
+              <button class="btn outline small">详情</button>
+              <button class="btn tonal small">导出</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <div class="between" style="margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:700">昨天 09:12</div>
+              <div style="font-size:11px;color:var(--on-surface-v)">SleepStudy-A · S-2026-0099</div>
+            </div>
+            <span class="status-pill warn">部分掉线</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <span class="chip" style="font-size:10px">DUT</span>
+            <span class="chip" style="font-size:10px;background:var(--tertiary-c);color:#4A2D4F;border-color:transparent">REF</span>
+          </div>
+          <div class="between">
+            <span style="font-size:11px;color:var(--on-surface-v)" class="num-mono">07:43:09 · 38 MB</span>
+            <div class="row-tight">
+              <button class="btn outline small">详情</button>
+              <button class="btn tonal small">导出</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <div class="between" style="margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:700">5 月 18 日</div>
+              <div style="font-size:11px;color:var(--on-surface-v)">RestingHR · S-2026-0089</div>
+            </div>
+            <span class="status-pill idle">未导出</span>
+          </div>
+          <div class="between">
+            <span style="font-size:11px;color:var(--on-surface-v)" class="num-mono">00:05:00 · 280 KB</span>
+            <div class="row-tight">
+              <button class="btn outline small">详情</button>
+              <button class="btn tonal small">导出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">19</span> 历史会话列表</div>
+    <div class="screen-note">SessionHistoryScreen · 筛选 / 搜索</div>
+  </div>
+
+  <!-- 7.2 Session detail -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+        <div>
+          <div class="title">会话详情</div>
+          <div class="subtitle" class="num-mono">20260520_143218</div>
+        </div>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
+      </div>
+      <div class="content">
+        <div class="card tonal">
+          <div class="between" style="margin-bottom:8px">
+            <span style="font-size:11px;opacity:.75">总时长</span>
+            <span style="font-size:18px;font-weight:800" class="num-mono">00:42:31</span>
+          </div>
+          <div style="font-size:11px;opacity:.85;line-height:1.6">
+            开始：2026-05-20 14:32:18<br>
+            结束：2026-05-20 15:14:49
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">元信息</div>
+        <div class="card" style="padding:12px">
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">受试者</span><span style="font-weight:600">S-2026-0142 · 男 / 28 / 175cm / 68kg</span></div>
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">项目</span><span style="font-weight:600">PPG-Algo-2026Q2</span></div>
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">场景</span><span style="font-weight:600">静息坐位</span></div>
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">DUT 位置</span><span style="font-weight:600">左手腕 · 桡侧</span></div>
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">REF 位置</span><span style="font-weight:600">胸前 · 心电带</span></div>
+          <div class="between" style="font-size:12px;padding:4px 0"><span class="muted">操作员</span><span style="font-weight:600">张三</span></div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">设备角色</div>
+
+        <div class="card" style="padding:12px">
+          <div class="head" style="margin-bottom:6px">
+            <div class="row-tight"><span class="role-tag">DUT</span><span style="font-size:13px;font-weight:700;margin-left:6px">BlueTrace-PPG-01</span></div>
+          </div>
+          <div class="mac" style="margin-bottom:8px">AA:BB:CC:DD:EE:01</div>
+          <div class="stats">
+            <div class="stat"><div class="k">采样率</div><div class="v num-mono">50 Hz</div></div>
+            <div class="stat"><div class="k">行数</div><div class="v num-mono">126,510</div></div>
+            <div class="stat"><div class="k">无效</div><div class="v num-mono">17</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <div class="head" style="margin-bottom:6px">
+            <div class="row-tight"><span class="role-tag ref">REF</span><span style="font-size:13px;font-weight:700;margin-left:6px">Polar H10</span></div>
+          </div>
+          <div class="mac" style="margin-bottom:8px">11:22:33:44:55:66</div>
+          <div class="stats">
+            <div class="stat"><div class="k">采样率</div><div class="v num-mono">1 Hz</div></div>
+            <div class="stat"><div class="k">行数</div><div class="v num-mono">2,531</div></div>
+            <div class="stat"><div class="k">无效</div><div class="v num-mono">0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">删除</button>
+        <button class="btn" style="flex:1.6">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+          选择导出数据
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">20</span> 会话详情</div>
+    <div class="screen-note">SessionDetailScreen · 元信息复核</div>
+  </div>
+
+  <!-- 7.3 Sample data picker (bottom sheet) -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71L13.41 12l4.3-4.29z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar"><div><div class="title">会话详情</div></div></div>
+      <div class="content" style="filter:blur(2px);opacity:.4">
+        <div class="card tonal" style="height:80px"></div>
+        <div class="card" style="height:120px"></div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="grip"></div>
+        <h3>选择导出的采样数据</h3>
+        <div class="sub">勾选要导出的角色和列；可指定时间范围</div>
+
+        <div style="font-size:10px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:4px 0 6px">角色</div>
+        <div class="sheet-item">
+          <div class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5v14h14V3zM7 9h2v6H7V9zm4-2h2v10h-2V7zm4 4h2v6h-2v-6z"/></svg></div>
+          <div class="body">
+            <div class="ttl">DUT · BlueTrace-PPG-01</div>
+            <div class="sub2">126,510 行 · 1.6 MB · 50 Hz PPG</div>
+          </div>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="var(--primary)"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+
+        <div class="sheet-item">
+          <div class="ico ref" style="background:var(--tertiary-c);color:var(--tertiary)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+          <div class="body">
+            <div class="ttl">REFERENCE · Polar H10</div>
+            <div class="sub2">2,531 行 · 120 KB · BPM + RR</div>
+          </div>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="var(--tertiary)"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+
+        <div style="font-size:10px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px">数据列</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">timestamp_ms</span>
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">ppg_raw</span>
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">bpm</span>
+          <span class="chip">rr_ms</span>
+          <span class="chip">sensor_contact</span>
+          <span class="chip">snr_db</span>
+        </div>
+
+        <div style="font-size:10px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px">时间范围</div>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">全部 · 42:31</span>
+          <span class="chip">前 5 分钟</span>
+          <span class="chip">中段</span>
+          <span class="chip">自定义</span>
+        </div>
+
+        <div style="font-size:10px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px">格式与目标</div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <span class="chip" style="background:var(--primary);color:#fff;border-color:transparent">CSV</span>
+          <span class="chip">Parquet</span>
+          <span class="chip">压缩为 ZIP</span>
+        </div>
+
+        <button class="btn block">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          导出到 Downloads/BlueTrace/
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">21</span> 采样数据选择菜单</div>
+    <div class="screen-note">SampleExportSheet · 按列 / 时间 / 格式</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SECTION 8 · 异常 / 恢复
+     ============================================================ -->
+<div id="flow-error" class="section">
+  <h2>⑧ 异常状态与会话恢复</h2>
+  <p class="desc">部分掉线、整体掉线、存储失败、返回键拦截、进程恢复——所有故障在 DataCollectionScreen 都有明确的可点击恢复路径。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 8.1 Partial failed -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--warning)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7zm4-4h2v14h-2zm4 4h2v10h-2zm4-4h2v14h-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="9" width="20" height="6" rx="2"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div><div class="title">采集进行中</div><div class="subtitle">部分角色异常 · 00:42:10</div></div>
+      </div>
+      <div class="content">
+        <div class="banner warn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2zm1 14h-2v-2h2zm0-4h-2V8h2z"/></svg>
+          <div>DUT 已断开连接 · 正在尝试重连 (第 3 次)</div>
+        </div>
+
+        <div class="card" style="border-color:var(--warning);border-width:1.5px">
+          <div class="head">
+            <div class="row-tight">
+              <span class="role-tag" style="background:var(--warning)">DUT</span>
+              <span style="font-size:13px;font-weight:700;margin-left:6px">BlueTrace-PPG-01</span>
+            </div>
+            <span class="status-pill warn"><span class="pulse"></span>需要关注</span>
+          </div>
+          <div class="mac">AA:BB:CC:DD:EE:01</div>
+          <div style="background:var(--warning-c);padding:10px 12px;border-radius:10px;margin-top:10px;font-size:11px;color:#5A3500;line-height:1.5">
+            <b>原因：</b>设备不在范围内或地址已轮换<br>
+            <b>已尝试：</b>AutoConnect 重连 3 次 · 失败<br>
+            <b>影响：</b>过去 24 秒数据丢失
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="k">已写入</div><div class="v num-mono">31,800</div></div>
+            <div class="stat"><div class="k">丢失</div><div class="v num-mono" style="color:var(--warning)">1,200</div></div>
+            <div class="stat"><div class="k">速率</div><div class="v num-mono">— Hz</div></div>
+          </div>
+          <div class="btn-group end" style="margin-top:10px">
+            <button class="btn outline small">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M17.65 6.35a8 8 0 1 0 1.85 5.65L17.65 12a6 6 0 1 1-1.7-4.24L13 11h7V4l-2.35 2.35z"/></svg>
+              立即重连
+            </button>
+            <button class="btn small">重新选设备</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div class="row-tight"><span class="role-tag ref">REF</span><span style="font-size:13px;font-weight:700;margin-left:6px">Polar H10</span></div>
+            <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+          </div>
+          <div class="mac">11:22:33:44:55:66</div>
+          <div class="hr-big" style="padding:6px 0 4px">
+            <div class="num" style="font-size:36px">80</div>
+            <div class="unit">BPM</div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="k">已写入</div><div class="v num-mono">31,830</div></div>
+            <div class="stat"><div class="k">无效</div><div class="v num-mono">0</div></div>
+            <div class="stat"><div class="k">速率</div><div class="v num-mono accent">1 Hz</div></div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);text-align:center;margin-top:8px;line-height:1.5">
+          REFERENCE 不受影响 · 继续独立采集
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">导出</button>
+        <button class="btn danger" style="flex:1.5">长按 2 秒停止</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">22</span> 部分角色掉线</div>
+    <div class="screen-note">DUT Failed · REF 持续 · 按角色隔离</div>
+  </div>
+
+  <!-- 8.2 Leave dialog -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--primary)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7z"/></svg>
+        </span>
+      </div>
+      <div class="app-bar"><div><div class="title">采集中</div><div class="subtitle">2 个角色 · 00:23:01</div></div></div>
+      <div class="content" style="filter:blur(1px);opacity:.5">
+        <div class="card tonal" style="height:60px"></div>
+        <div class="card" style="height:140px"></div>
+        <div class="card" style="height:140px"></div>
+      </div>
+
+      <div class="dialog-mask">
+        <div class="dialog">
+          <div class="d-ico warn">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M10.09 15.59 11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 0 0-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
+          </div>
+          <h3>采集正在进行</h3>
+          <p>采集会继续在后台运行（前台服务通知保持可见），即使你离开此页面。</p>
+          <div style="background:var(--surface-1);padding:10px 12px;border-radius:10px;margin-bottom:14px;font-size:11px;color:var(--on-surface-v);line-height:1.5">
+            <b style="color:var(--on-surface)">提示：</b>真正停止采集请在主屏上长按"停止"按钮 2 秒。
+          </div>
+          <div class="actions" style="flex-wrap:wrap">
+            <button class="btn outline small" style="flex:1">取消</button>
+            <button class="btn small" style="flex:1">最小化</button>
+            <button class="btn danger small" style="flex:1">停止并退出</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">23</span> 返回键拦截</div>
+    <div class="screen-note">LeaveRunningDialog · 防误退出</div>
+  </div>
+
+  <!-- 8.3 Storage failed -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="var(--error)"><circle cx="12" cy="12" r="6"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3z"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div><div class="title">采集异常</div><div class="subtitle">所有写入失败</div></div>
+      </div>
+      <div class="content">
+        <div class="banner err">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2zm0-4h-2V7h2v8z"/></svg>
+          <div><b>存储失败</b> · 最近 6 秒采样可能丢失</div>
+        </div>
+
+        <div class="card" style="border-color:var(--error);border-width:1.5px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--error)">磁盘空间不足</div>
+          <div style="font-size:12px;color:var(--on-surface-v);line-height:1.6">
+            可用：<b class="num-mono">42 MB</b><br>
+            预计 30 秒后需要：<b class="num-mono">128 MB</b><br>
+            位置：<span class="mac">/Android/data/.../BlueTrace/</span>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">建议操作</div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--error-c);color:var(--error)"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7z"/></svg></div>
+          <div class="body">
+            <div class="title">导出当前数据并停止</div>
+            <div class="sub">保留已采集的 38,150 帧</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--warning-c);color:var(--warning)"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 3v18h12V3H9zm10 16H11V5h8v14z"/></svg></div>
+          <div class="body">
+            <div class="title">删除旧的历史会话</div>
+            <div class="sub">释放 ~86 MB</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--secondary-c);color:var(--secondary)"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
+          <div class="body">
+            <div class="title">切换到系统存储设置</div>
+            <div class="sub">手动清理</div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar" style="display:flex;gap:8px">
+        <button class="btn outline" style="flex:1">忽略</button>
+        <button class="btn danger" style="flex:1.5">导出 &amp; 停止</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">24</span> 存储失败</div>
+    <div class="screen-note">Failed(StorageFailed) · 引导清理</div>
+  </div>
+
+  <!-- 8.4 Process recovery -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v14H3zm4 4h2v10H7z"/></svg>
+        </span>
+      </div>
+      <div class="app-bar">
+        <div><div class="title">恢复中断的会话</div><div class="subtitle">检测到 1 个未完成的采集</div></div>
+      </div>
+      <div class="content">
+        <div style="text-align:center;padding:18px 0 6px">
+          <div style="width:84px;height:84px;border-radius:999px;background:var(--primary-c);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">
+            <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--primary)"><path d="M17.65 6.35a8 8 0 1 0 1.85 5.65L17.65 12a6 6 0 1 1-1.7-4.24L13 11h7V4l-2.35 2.35z"/></svg>
+          </div>
+          <div style="font-size:16px;font-weight:700">检测到未完成的会话</div>
+          <div style="font-size:12px;color:var(--on-surface-v);margin-top:4px;line-height:1.5">
+            进程上次被系统终止<br>本地已保存 38,150 帧
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="between" style="margin-bottom:8px">
+            <span style="font-size:11px;color:var(--on-surface-v)">开始于</span>
+            <span style="font-size:12px;font-weight:600" class="num-mono">2026-05-20 14:32:18</span>
+          </div>
+          <div class="between" style="margin-bottom:8px">
+            <span style="font-size:11px;color:var(--on-surface-v)">已运行</span>
+            <span style="font-size:12px;font-weight:600">12 分 43 秒</span>
+          </div>
+          <div class="between">
+            <span style="font-size:11px;color:var(--on-surface-v)">角色</span>
+            <div class="row-tight">
+              <span class="chip" style="font-size:10px">DUT</span>
+              <span class="chip" style="font-size:10px;background:var(--tertiary-c);color:#4A2D4F;border-color:transparent">REF</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--outline);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">恢复选项</div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--success-c);color:var(--success)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">继续这次采集</div>
+            <div class="sub">追加到原 CSV · 标记中断点</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--primary-c);color:var(--primary)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">仅导出已采集的数据</div>
+            <div class="sub">关闭会话 · 保存到历史</div>
+          </div>
+        </div>
+
+        <div class="list-item">
+          <div class="ico" style="background:var(--error-c);color:var(--error)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">丢弃这次会话</div>
+            <div class="sub">删除本地临时文件</div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">25</span> 进程恢复</div>
+    <div class="screen-note">CollectionResumer · 三选项</div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     Footer
+     ============================================================ -->
+<div class="footer-credits">
+  BlueTrace · UI 原型 · 共 25 屏 / 8 主流程 / 3 类弹层 · 基于 Material 3 + Kotlin-BLE-Library v2.0<br>
+  使用 Chrome / Edge / Safari 直接打开本 HTML 即可查看
+</div>
+
+<style>
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+</style>
+
+</body>
+</html>
