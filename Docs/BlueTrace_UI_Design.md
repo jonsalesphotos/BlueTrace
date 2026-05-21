@@ -2,7 +2,7 @@
 
 > 本文档面向产品、业务、测试和设计评审，说明 BlueTrace Android App 一期页面范围、核心用户流程、异常处理和体验规则。
 >
-> 技术模块拆分、状态模型、前台服务、后台任务、BLE 接入顺序见 [BlueTrace_UI_Implementation.md](E:/BlueTrace/BlueTrace_UI_Implementation.md)。
+> 技术模块拆分、状态模型、前台服务、后台任务、BLE 接入顺序见 [BlueTrace_UI_Implementation.md](BlueTrace_UI_Implementation.md)。
 
 ---
 

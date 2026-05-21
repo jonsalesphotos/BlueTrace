@@ -2,7 +2,7 @@
 
 > 本文档面向 Android 开发与项目排期，描述 BlueTrace 一期的导航状态机、页面与服务边界、Fake 到真实 BLE 的替换路径，以及前台服务、后台任务、文件系统的接入顺序。
 >
-> 页面范围、用户流程和产品规则见 [BlueTrace_UI_Design.md](E:/BlueTrace/BlueTrace_UI_Design.md)。
+> 页面范围、用户流程和产品规则见 [BlueTrace_UI_Design.md](BlueTrace_UI_Design.md)。
 
 ---
 
@@ -435,4 +435,3 @@ Recovery：
 - 蓝牙关闭、权限撤销、存储失败均有明确提示。
 - App 从后台返回时状态一致。
 - Service 异常停止后不会留下错误通知。
-
