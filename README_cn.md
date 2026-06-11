@@ -16,23 +16,30 @@ BlueTrace 面向 BLE 传感器数据采集，一期核心场景是 PPG 信号评
 
 ## 文档目录
 
-所有设计文档和原型文件已统一放入 [Docs](Docs)。
+所有文档按**关注点分层**放入 [Docs](Docs)，完整导航见 [Docs/README.md](Docs/README.md)。
 
-- [架构设计](Docs/BlueTrace_Architecture.md)
-- [UI 产品与交互说明](Docs/BlueTrace_UI_Design.md)
-- [UI 技术实施说明](Docs/BlueTrace_UI_Implementation.md)
-- [UI 原型](Docs/BlueTrace_UI_Prototype.html)
-- [UI 原型 v2](Docs/BlueTrace_UI_Prototype_v2.html)
-- [Codex UI 原型](Docs/BlueTrace_UI_Codex_Prototype.html)
+**产品（做什么 / 为什么）：**
+- [产品需求 PRD](Docs/product/BlueTrace_PRD.md)
+- [交互 / UX 规格](Docs/product/BlueTrace_UX_Flows.md)
+- [设计系统](Docs/product/BlueTrace_Design_System.md)
+
+**原型（手机墙）：**
+- [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html)
+- 历史版本：[v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
+
+**技术架构（怎么做）：**
+- [Android 架构设计](Docs/architecture/BlueTrace_Architecture.md)
+- [UI 技术实施说明](Docs/architecture/BlueTrace_UI_Implementation.md)
+- [跨平台技术说明（Android + iOS）](Docs/architecture/BlueTrace_CrossPlatform_Notes.md)
 
 ## 设计资源
 
-截图、图标和参考图片也已归档到 [Docs](Docs)：
+图标与截图归档到 [Docs/assets](Docs/assets)：
 
-- [App 图标 SVG](Docs/bluetrace_icon.svg)
-- [图标预览](Docs/%E5%9B%BE%E6%A0%87.png)
-- [首屏预览](Docs/%E9%A6%96%E5%B1%8F.png)
-- [参考图片](Docs/pic)
+- [App 图标 SVG](Docs/assets/bluetrace_icon.svg)
+- [图标预览](Docs/assets/%E5%9B%BE%E6%A0%87.png)
+- [首屏预览](Docs/assets/%E9%A6%96%E5%B1%8F.png)
+- [参考图片](Docs/assets/pic)
 
 ## 当前状态
 

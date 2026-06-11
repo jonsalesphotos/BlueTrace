@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BlueTrace · UI 原型 v3 (iOS 适配 · HIG)</title>
+<style>
+  /* 与 Android 版同一套 token —— 统一设计语言 */
+  :root {
+    --primary:#2BAEEA; --primary-deep:#1C8EC5; --primary-c:#DCF1FB; --on-primary-c:#0E5E89;
+    --tertiary:#7C5BC9; --tertiary-c:#ECE3FF;
+    --error:#E5484D; --error-c:#FFE3E3; --on-error-c:#93000A;
+    --warning:#E89F40; --warning-c:#FFE8C9;
+    --success:#2AAE6D; --success-c:#D4F4E2; --on-success-c:#0B5733;
+    --s-ppg:#2AAE6D; --s-ppg-c:#D4F4E2; --s-ecg:#E5484D; --s-ecg-c:#FFE3E3;
+    --s-imu:#2BAEEA; --s-imu-c:#DCF1FB; --s-mag:#7C5BC9; --s-mag-c:#ECE3FF;
+    --s-temp:#E89F40; --s-temp-c:#FFE8C9;
+    --bg:#F2F2F7;            /* iOS 系统灰 */
+    --surface:#FFFFFF; --surface-1:#F6F7FB; --surface-2:#ECEEF3; --surface-3:#E2E5EC;
+    --on-surface:#1B1D22; --on-surface-v:#6A6E78; --outline:#A0A4AD; --outline-v:#E2E4E9;
+    --ios-sep:#D7D8DC;      /* iOS 分割线 */
+    --radius:14px; --radius-lg:20px;
+    --shadow-1:0 1px 2px rgba(15,30,60,.05),0 1px 3px rgba(15,30,60,.04);
+    --shadow-2:0 4px 12px rgba(15,30,60,.08);
+    --shadow-3:0 12px 28px rgba(15,30,60,.12);
+    /* iOS 优先 SF Pro */
+    --font:-apple-system,"SF Pro Text","SF Pro Display","PingFang SC","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+    --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+  html,body { margin:0; padding:0; font-family:var(--font); color:var(--on-surface);
+    background:radial-gradient(1000px 500px at 0% -10%,#DCEEFB 0%,transparent 60%),
+      radial-gradient(800px 400px at 100% 0%,#F0E5FA 0%,transparent 55%),
+      linear-gradient(180deg,#EEF1F7 0%,#E7EAF2 100%); min-height:100vh; }
+  code { font-family:var(--font-mono); font-size:12px; background:rgba(255,255,255,.65); padding:1px 6px; border-radius:6px; }
+
+  .page-header { padding:56px 48px 18px; max-width:1560px; margin:0 auto; }
+  .page-header h1 { font-size:38px; margin:0 0 8px; letter-spacing:-.02em;
+    background:linear-gradient(120deg,var(--primary),var(--tertiary)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .page-header .sub { color:var(--on-surface-v); font-size:15px; line-height:1.65; max-width:940px; }
+  .page-header .meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; background:var(--surface);
+    color:var(--on-surface-v); font-size:12px; border:1px solid var(--outline-v); box-shadow:var(--shadow-1); }
+  .chip .dot { width:6px; height:6px; border-radius:999px; background:var(--primary); }
+  .chip.tert .dot { background:var(--tertiary); } .chip.ok .dot { background:var(--success); } .chip.warn .dot { background:var(--warning); }
+
+  .note-card { max-width:1560px; margin:8px auto 0; padding:0 48px; }
+  .note-card .inner { background:var(--surface); border-radius:var(--radius-lg); padding:18px 22px; border:1px solid var(--outline-v); box-shadow:var(--shadow-1); }
+  .note-card h4 { margin:0 0 8px; font-size:15px; }
+  .note-card p { margin:0 0 6px; font-size:12.5px; color:var(--on-surface-v); line-height:1.65; }
+
+  .section { max-width:1560px; margin:16px auto 0; padding:16px 48px 8px; }
+  .section h2 { font-size:20px; margin:28px 0 6px; display:flex; align-items:center; gap:10px; }
+  .section h2::before { content:""; width:6px; height:22px; background:linear-gradient(180deg,var(--primary),var(--tertiary)); border-radius:3px; }
+  .section p.desc { color:var(--on-surface-v); font-size:13px; line-height:1.65; margin:0; max-width:980px; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:40px 28px; padding:16px 48px 64px; max-width:1560px; margin:0 auto; }
+
+  /* iPhone 外框 */
+  .phone { position:relative; width:330px; height:716px; margin:0 auto; border-radius:46px; background:#0F1116; padding:11px; box-shadow:var(--shadow-3); }
+  .phone::before { content:""; position:absolute; top:13px; left:50%; transform:translateX(-50%); width:104px; height:26px; background:#0F1116; border-radius:16px; z-index:6; } /* 灵动岛 */
+  .phone-screen { position:relative; width:100%; height:100%; border-radius:36px; overflow:hidden; background:var(--bg); display:flex; flex-direction:column; }
+
+  .status-bar { height:42px; padding:14px 26px 0; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; color:var(--on-surface); flex-shrink:0; }
+  .status-bar .icons { display:flex; gap:5px; align-items:center; }
+  .status-bar .icons svg { width:15px; height:13px; }
+
+  /* iOS 导航栏 */
+  .nav { padding:4px 14px 8px; flex-shrink:0; }
+  .nav .row { display:flex; align-items:center; min-height:38px; }
+  .nav .back { display:inline-flex; align-items:center; gap:1px; color:var(--primary); font-size:15px; flex:1; min-width:0; }
+  .nav .back svg { width:20px; height:20px; }
+  .nav .ttl-center { flex:0 0 auto; font-size:16px; font-weight:700; text-align:center; }
+  .nav .right { flex:1; text-align:right; color:var(--primary); font-size:15px; }
+  .nav .right.bold { font-weight:700; }
+  .nav .right svg { width:22px; height:22px; }
+  .nav-large { padding:2px 18px 6px; font-size:30px; font-weight:800; letter-spacing:-.02em; flex-shrink:0; }
+  .nav-large .sub { font-size:12px; font-weight:500; color:var(--on-surface-v); margin-top:2px; }
+
+  .content { flex:1; overflow:hidden; padding:6px 16px 14px; }
+
+  /* iOS inset grouped list */
+  .ios-group { background:var(--surface); border-radius:14px; overflow:hidden; margin-bottom:18px; box-shadow:var(--shadow-1); }
+  .ios-group .ghdr { font-size:12px; color:var(--on-surface-v); padding:6px 6px 7px; text-transform:none; }
+  .group-hdr { font-size:12px; color:var(--on-surface-v); margin:4px 6px 7px; }
+  .ios-row { display:flex; align-items:center; gap:12px; padding:12px 14px; position:relative; }
+  .ios-row + .ios-row::before { content:""; position:absolute; top:0; left:48px; right:0; height:1px; background:var(--ios-sep); }
+  .ios-row .ico { width:30px; height:30px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
+  .ios-row .ico svg { width:18px; height:18px; }
+  .ios-row .ico.blue{background:var(--primary)} .ios-row .ico.purple{background:var(--tertiary)}
+  .ios-row .ico.green{background:var(--success)} .ios-row .ico.orange{background:var(--warning)} .ios-row .ico.red{background:var(--error)}
+  .ios-row .body { flex:1; min-width:0; }
+  .ios-row .body .t { font-size:15px; font-weight:500; }
+  .ios-row .body .s { font-size:11.5px; color:var(--on-surface-v); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ios-row .val { font-size:14px; color:var(--on-surface-v); }
+  .ios-row .chev { color:var(--outline); } .ios-row .chev svg { width:16px; height:16px; }
+
+  /* iOS 开关 */
+  .ios-switch { width:48px; height:29px; border-radius:999px; background:#E5E5EA; position:relative; flex-shrink:0; }
+  .ios-switch::after { content:""; position:absolute; top:2px; left:2px; width:25px; height:25px; border-radius:999px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.18); transition:left .2s; }
+  .ios-switch.on { background:var(--success); } .ios-switch.on.blue { background:var(--primary); }
+  .ios-switch.on::after { left:21px; }
+
+  /* iOS 分段控件 */
+  .ios-seg { display:flex; background:#E3E3E8; border-radius:9px; padding:2px; margin-bottom:12px; }
+  .ios-seg .t { flex:1; text-align:center; font-size:13px; font-weight:600; color:var(--on-surface); padding:6px 0; border-radius:7px; }
+  .ios-seg .t.active { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+
+  /* iOS 大按钮 */
+  .ios-btn { height:50px; border-radius:14px; border:0; background:var(--primary); color:#fff; font-size:16px; font-weight:600; width:100%; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  .ios-btn.tonal { background:var(--primary-c); color:var(--on-primary-c); }
+  .ios-btn.gray { background:var(--surface); color:var(--primary); box-shadow:var(--shadow-1); }
+  .ios-btn.danger { background:var(--error); }
+  .ios-btn svg { width:18px; height:18px; }
+
+  /* iOS 底栏（含 Home Indicator） */
+  .ios-footer { padding:10px 16px 8px; flex-shrink:0; }
+  .home-indicator { width:130px; height:5px; border-radius:999px; background:#0F1116; opacity:.85; margin:6px auto 8px; }
+
+  /* iOS Action Sheet */
+  .ios-scrim { position:absolute; inset:0; background:rgba(15,20,30,.35); display:flex; align-items:flex-end; padding:8px; }
+  .action-sheet { width:100%; display:flex; flex-direction:column; gap:8px; }
+  .as-group { background:rgba(248,248,248,.92); backdrop-filter:blur(20px); border-radius:14px; overflow:hidden; }
+  .as-title { text-align:center; font-size:12.5px; color:var(--on-surface-v); padding:14px 16px 10px; line-height:1.5; border-bottom:1px solid var(--ios-sep); }
+  .as-item { text-align:center; font-size:18px; color:var(--primary); padding:15px; border-bottom:1px solid var(--ios-sep); }
+  .as-item:last-child { border-bottom:0; }
+  .as-item.bold { font-weight:600; } .as-item.danger { color:var(--error); }
+  .as-cancel { background:#fff; border-radius:14px; text-align:center; font-size:18px; font-weight:700; color:var(--primary); padding:15px; }
+
+  /* iOS 系统权限弹窗 */
+  .ios-alert { position:absolute; inset:0; background:rgba(15,20,30,.35); display:flex; align-items:center; justify-content:center; padding:34px; }
+  .alert-box { width:100%; background:rgba(250,250,250,.96); backdrop-filter:blur(20px); border-radius:16px; overflow:hidden; text-align:center; }
+  .alert-box .ab-body { padding:18px 18px 14px; }
+  .alert-box h3 { margin:0 0 7px; font-size:16px; }
+  .alert-box p { margin:0; font-size:12.5px; color:var(--on-surface-v); line-height:1.5; }
+  .alert-box .ab-btns { display:flex; border-top:1px solid var(--ios-sep); }
+  .alert-box .ab-btns div { flex:1; padding:12px; font-size:16px; color:var(--primary); }
+  .alert-box .ab-btns div:first-child { border-right:1px solid var(--ios-sep); }
+  .alert-box .ab-btns div.bold { font-weight:700; }
+
+  /* 卡片 / 通用（沿用 Android 版视觉，两端一致） */
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow-1); margin-bottom:12px; }
+  .card.tonal { background:var(--primary-c); color:var(--on-primary-c); }
+  .card-title { font-size:13px; font-weight:700; margin:0 0 5px; }
+  .card-sub { font-size:11.5px; color:var(--on-surface-v); line-height:1.55; }
+  .pill { background:var(--surface-2); color:var(--on-surface-v); font-size:11px; padding:4px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; }
+  .pill-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .status-pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; }
+  .status-pill.ok { background:var(--success-c); color:var(--on-success-c); }
+  .status-pill .pulse { width:6px; height:6px; border-radius:999px; background:currentColor; animation:blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:.4;transform:scale(.8)} 50%{opacity:1;transform:scale(1.1)} }
+  .freq-badge { font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:999px; }
+  .freq-badge.hi { background:var(--tertiary-c); color:var(--tertiary); } .freq-badge.lo { background:#DAE2F9; color:#565F71; }
+  .rate-chip { font-size:11px; padding:5px 11px; border-radius:999px; background:var(--surface-2); color:var(--on-surface-v); }
+  .rate-chip.active { background:var(--primary); color:#fff; font-weight:600; }
+  .c-ppg{color:var(--s-ppg)} .c-ecg{color:var(--s-ecg)} .c-imu{color:var(--s-imu)} .c-mag{color:var(--s-mag)} .c-temp{color:var(--s-temp)}
+  .bg-ppg{background:var(--s-ppg-c)} .bg-ecg{background:var(--s-ecg-c)} .bg-imu{background:var(--s-imu-c)} .bg-mag{background:var(--s-mag-c)} .bg-temp{background:var(--s-temp-c)}
+
+  /* 传感器配置行（iOS group 内） */
+  .sensor-cfg { padding:12px 14px; position:relative; }
+  .sensor-cfg + .sensor-cfg::before { content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--ios-sep); }
+  .sensor-cfg .head { display:flex; align-items:center; gap:11px; }
+  .sensor-cfg .ico { width:32px; height:32px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .sensor-cfg .ico svg { width:18px; height:18px; }
+  .sensor-cfg .info { flex:1; min-width:0; }
+  .sensor-cfg .nm { font-size:14px; font-weight:600; display:flex; align-items:center; gap:7px; }
+  .sensor-cfg .desc { font-size:11px; color:var(--on-surface-v); margin-top:1px; }
+  .sensor-cfg .opts { display:flex; gap:6px; margin-top:10px; padding-left:43px; }
+  .sensor-cfg.off { opacity:.5; } .sensor-cfg.off .opts { display:none; }
+
+  /* 传感器总览小卡 */
+  .sensor-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .sensor-tile { background:var(--surface); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow-1); display:flex; flex-direction:column; gap:6px; overflow:hidden; }
+  .sensor-tile .top { display:flex; align-items:center; gap:7px; }
+  .sensor-tile .top .nm { font-size:12px; font-weight:700; }
+  .sensor-tile .top .tag { margin-left:auto; font-size:9px; font-family:var(--font-mono); color:var(--outline); }
+  .sensor-tile .wave { height:40px; border-radius:8px; background:var(--surface-1); overflow:hidden; }
+  .sensor-tile .wave svg { width:100%; height:100%; display:block; }
+  .sensor-tile .val { font-size:13px; font-weight:700; font-family:var(--font-mono); }
+  .sensor-tile .val small { font-size:10px; font-weight:500; color:var(--on-surface-v); }
+
+  .device-bar { display:flex; gap:10px; margin-bottom:12px; }
+  .device-mini { flex:1; background:var(--surface); border-radius:14px; padding:9px 11px; box-shadow:var(--shadow-1); border:2px solid var(--primary-c); min-width:0; }
+  .device-mini.tertiary { border-color:var(--tertiary-c); }
+  .device-mini .nm { font-size:12px; font-weight:700; color:var(--primary-deep); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .device-mini.tertiary .nm { color:var(--tertiary); }
+  .device-mini .stat { font-size:10px; color:var(--success); display:flex; align-items:center; gap:4px; margin-top:3px; }
+  .device-mini .stat .pulse { width:6px; height:6px; border-radius:999px; background:currentColor; animation:blink 1.2s infinite; }
+
+  .pkt-stream { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-1); padding:10px 12px; flex:1; overflow:hidden; }
+  .pkt { border-radius:8px; padding:7px 9px; margin-bottom:7px; font-family:var(--font-mono); font-size:9.5px; line-height:1.5; }
+  .pkt .ph { display:flex; align-items:center; gap:6px; margin-bottom:3px; font-size:9px; }
+  .pkt .ph .k { font-weight:700; } .pkt .ph .sz { margin-left:auto; color:var(--outline); }
+  .pkt.batch { background:var(--tertiary-c); color:var(--tertiary); } .pkt.group { background:var(--success-c); color:var(--on-success-c); }
+  .pkt .hex { word-break:break-all; opacity:.9; }
+  .metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .metric { background:var(--surface); border-radius:10px; padding:9px 11px; box-shadow:var(--shadow-1); }
+  .metric .k { font-size:10px; color:var(--on-surface-v); } .metric .v { font-size:16px; font-weight:700; font-family:var(--font-mono); margin-top:2px; }
+  .metric .v small { font-size:10px; font-weight:500; color:var(--on-surface-v); }
+
+  .banner { border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:9px; font-size:12px; margin-bottom:10px; }
+  .banner svg { width:18px; height:18px; flex-shrink:0; }
+  .banner .txt { flex:1; line-height:1.4; } .banner .txt b { display:block; }
+  .banner.err { background:var(--error-c); color:var(--on-error-c); } .banner.warn { background:var(--warning-c); color:#8a5a14; }
+  .banner .b-act { font-weight:700; }
+
+  .long-press-btn { position:relative; height:50px; border-radius:14px; background:var(--error); color:#fff; font-size:16px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; overflow:hidden; width:100%; }
+  .long-press-btn .progress { position:absolute; inset:0; background:rgba(255,255,255,.25); transform-origin:left; transform:scaleX(.6); }
+  .long-press-btn .lbl { position:relative; z-index:2; display:inline-flex; align-items:center; gap:6px; }
+  .long-press-btn svg { width:18px; height:18px; }
+
+  .cmd-log { background:var(--surface-1); border-radius:10px; padding:8px 10px; font-family:var(--font-mono); font-size:9.5px; line-height:1.7; color:var(--on-surface-v); }
+  .cmd-log .tx { color:var(--primary-deep); } .cmd-log .rx { color:var(--success); }
+
+  .top-toast { position:absolute; top:54px; left:50%; transform:translateX(-50%); background:rgba(20,24,32,.92); color:#fff; font-size:12px; padding:9px 16px; border-radius:999px; display:inline-flex; align-items:center; gap:8px; box-shadow:var(--shadow-3); white-space:nowrap; }
+  .top-toast svg { width:15px; height:15px; color:#5BE3A0; }
+
+  .splash-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:radial-gradient(420px 300px at 50% 38%,#DCF1FB 0%,transparent 70%); }
+  .splash-logo { width:92px; height:92px; border-radius:26px; background:linear-gradient(135deg,var(--primary),var(--tertiary)); display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-3); }
+  .splash-logo svg { width:52px; height:52px; color:#fff; }
+  .splash-name { font-size:26px; font-weight:800; background:linear-gradient(120deg,var(--primary),var(--tertiary)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .splash-tag { font-size:12px; color:var(--on-surface-v); margin-top:-8px; }
+  .dots { display:flex; gap:6px; } .dots i { width:7px; height:7px; border-radius:999px; background:var(--primary); animation:blink 1s infinite; }
+  .dots i:nth-child(2){animation-delay:.2s} .dots i:nth-child(3){animation-delay:.4s}
+
+  .screen-label { text-align:center; margin-top:14px; color:var(--on-surface-v); font-size:13px; font-weight:600; }
+  .screen-label .num { display:inline-block; min-width:26px; height:22px; line-height:22px; padding:0 5px; border-radius:999px; background:var(--primary); color:#fff; font-size:11px; margin-right:8px; font-weight:700; }
+  .screen-note { text-align:center; color:var(--outline); font-size:11px; margin-top:4px; }
+  .ios-tag { display:inline-block; background:#111; color:#fff; font-size:9px; font-weight:700; padding:2px 7px; border-radius:999px; margin-left:6px; vertical-align:middle; }
+
+  /* 状态栏 icon helper */
+  .sb-ic { display:inline-flex; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>BlueTrace · UI 原型 v3 <span class="ios-tag" style="font-size:14px;padding:4px 12px">iOS 适配</span></h1>
+  <p class="sub">
+    与 <b>v3_android.html 同一套设计 token、同一套传感器配色、同一套数据可视化</b>——这就是「统一设计语言」。
+    分叉只发生在<b>系统外壳</b>：导航栏（返回箭头 + 标题 / 大标题）、底部 <b>Action Sheet</b>、iOS 开关与分段控件、
+    灵动岛 + 底部 Home Indicator 安全区、一次性系统权限弹窗、以及后台 Core Bluetooth 机制。
+    下方只展示<b>真正分叉的关键屏</b>；未列出的屏（传感器总览各卡、波形视图、结束摘要细节等）与 Android 版<b>视觉完全一致</b>。
+  </p>
+  <div class="meta">
+    <span class="chip ok"><span class="dot"></span>同一设计语言</span>
+    <span class="chip"><span class="dot"></span>HIG 平台自适应</span>
+    <span class="chip tert"><span class="dot"></span>Action Sheet / 导航栏 / 安全区</span>
+    <span class="chip warn"><span class="dot"></span>Core Bluetooth 后台</span>
+  </div>
+</header>
+
+<div class="note-card"><div class="inner">
+  <h4>📐 iOS 自适应清单（对照 Android 版）</h4>
+  <p>① 顶部 App Bar → <b>导航栏</b>（左上返回箭头 + 居中标题；列表页用大标题）。② Bottom Sheet → <b>Action Sheet</b>（破坏项红色置底 + 独立"取消"）。③ Material 开关/分段 → <b>iOS Toggle / Segmented Control</b>。④ FAB/底部按钮 → iOS 大圆角底部按钮，无 FAB。⑤ Snackbar → <b>顶部胶囊 Toast</b>。⑥ 底部留 <b>Home Indicator</b> 安全区。⑦ 运行时逐项权限 → <b>一次性系统弹窗 + Info.plist 用途文案</b>。⑧ 前台服务保活 → <b>bluetooth-central 后台模式 + 状态恢复</b>（详见 <code>architecture/BlueTrace_CrossPlatform_Notes.md</code>）。</p>
+</div></div>
+
+<!-- ① 启动 / 权限 -->
+<section class="section"><h2>① 启动 / 权限（iOS 系统弹窗）</h2>
+<p class="desc">iOS 权限是一次性系统弹窗，弹窗文案来自 Info.plist；BlueTrace 自绘的"用途说明层"在系统弹窗前出现。iOS 蓝牙扫描不需要定位权限。</p></section>
+<div class="grid">
+
+  <!-- Splash -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 18 13" fill="currentColor"><rect x="0" y="8" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="8" rx="1"/><rect x="8" y="2" width="3" height="11" rx="1"/><rect x="12" y="0" width="3" height="13" rx="1" opacity=".4"/></svg><svg viewBox="0 0 24 18" fill="currentColor"><path d="M12 3a14 14 0 019 3l-2 2a11 11 0 00-14 0L3 6a14 14 0 019-3z"/><circle cx="12" cy="14" r="2"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/><rect x="23" y="4.5" width="2" height="4" rx="1" fill="currentColor"/></svg></span></div>
+      <div class="splash-wrap">
+        <div class="splash-logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="splash-name">BlueTrace</div>
+        <div class="splash-tag">多传感器 BLE 数据采集</div>
+        <div class="dots"><i></i><i></i><i></i></div>
+      </div>
+      <div class="home-indicator"></div>
+    </div></div>
+    <div class="screen-label"><span class="num">1</span> 启动页</div>
+    <div class="screen-note">灵动岛 + Home Indicator</div>
+  </div>
+
+  <!-- 权限系统弹窗 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 18 13" fill="currentColor"><rect x="0" y="8" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="8" rx="1"/><rect x="8" y="2" width="3" height="11" rx="1"/><rect x="12" y="0" width="3" height="13" rx="1" opacity=".4"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav-large">权限与环境<div class="sub">开始采集前的检查</div></div>
+      <div class="content" style="filter:blur(.5px);opacity:.5">
+        <div class="ios-group"><div class="ios-row"><div class="ico blue"></div><div class="body"><div class="t">蓝牙</div></div></div></div>
+      </div>
+      <div class="ios-alert"><div class="alert-box">
+        <div class="ab-body"><h3>"BlueTrace"想要使用蓝牙</h3><p>用于扫描并连接待测设备与参考心率带，采集多路传感器数据。（文案取自 Info.plist · NSBluetoothAlwaysUsageDescription）</p></div>
+        <div class="ab-btns"><div>不允许</div><div class="bold">允许</div></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">2</span> 权限 · 系统弹窗</div>
+    <div class="screen-note">一次性弹窗 + 用途文案</div>
+  </div>
+
+  <!-- 设备分配 inset list -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 18 13" fill="currentColor"><rect x="0" y="8" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="8" rx="1"/><rect x="8" y="2" width="3" height="11" rx="1"/><rect x="12" y="0" width="3" height="13" rx="1" opacity=".4"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>返回</span><span class="ttl-center">新建会话</span><span class="right">&nbsp;</span></div></div>
+      <div class="content">
+        <div class="group-hdr">待测设备 DUT · 多传感器</div>
+        <div class="ios-group">
+          <div class="ios-row"><div class="ico blue"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="t">BT-DUT-0427</div><div class="s">identifier 9F3A… · 已连接</div></div><span class="status-pill ok"><span class="pulse"></span>在线</span></div>
+        </div>
+        <div class="pill-row" style="margin:-10px 4px 16px">
+          <span class="pill" style="background:var(--s-ppg-c);color:var(--s-ppg)">PPG</span>
+          <span class="pill" style="background:var(--s-ecg-c);color:var(--s-ecg)">ECG</span>
+          <span class="pill" style="background:var(--s-imu-c);color:var(--s-imu)">IMU</span>
+          <span class="pill" style="background:var(--s-mag-c);color:var(--s-mag)">地磁</span>
+          <span class="pill" style="background:var(--s-temp-c);color:var(--s-temp)">温度</span>
+        </div>
+        <div class="group-hdr">参考设备 REFERENCE · 可选</div>
+        <div class="ios-group">
+          <div class="ios-row"><div class="ico purple"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="t">Polar H10</div><div class="s">心率带 · 0x180D</div></div><span class="status-pill ok"><span class="pulse"></span>在线</span></div>
+        </div>
+      </div>
+      <div class="ios-footer"><button class="ios-btn">下一步 · 配置传感器</button><div class="home-indicator"></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">3</span> 设备分配</div>
+    <div class="screen-note">Inset Grouped List · iOS 用 identifier 非 MAC</div>
+  </div>
+</div>
+
+<!-- ② 配置 / 控制 -->
+<section class="section"><h2>② DUT 配置与控制</h2>
+<p class="desc">传感器开关用 iOS Toggle，分组用 Inset List；采样率仍是 BlueTrace 统一芯片。视觉积木一致，控件形态自适应。</p></section>
+<div class="grid">
+
+  <!-- 传感器总控 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 18 13" fill="currentColor"><rect x="0" y="8" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="8" rx="1"/><rect x="8" y="2" width="3" height="11" rx="1"/><rect x="12" y="0" width="3" height="13" rx="1" opacity=".4"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>返回</span><span class="ttl-center">传感器总控</span><span class="right bold">算法</span></div></div>
+      <div class="content">
+        <div class="ios-group">
+          <div class="sensor-cfg"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3l2-5 3 10 2-7 2 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">PPG <span class="freq-badge hi">高频·批包</span></div><div class="desc">光电容积脉搏波</div></div><div class="ios-switch on blue"></div></div><div class="opts"><span class="rate-chip">25Hz</span><span class="rate-chip active">100Hz</span><span class="rate-chip">200Hz</span></div></div>
+          <div class="sensor-cfg"><div class="head"><div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h4l1.5-4 2.5 9 2-11 2 7 1.5-1h4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">ECG <span class="freq-badge hi">高频·批包</span></div><div class="desc">单导联心电</div></div><div class="ios-switch on blue"></div></div><div class="opts"><span class="rate-chip">125Hz</span><span class="rate-chip active">250Hz</span><span class="rate-chip">500Hz</span></div></div>
+          <div class="sensor-cfg"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">IMU <span class="freq-badge hi">高频·批包</span></div><div class="desc">加速度+陀螺·各3轴</div></div><div class="ios-switch on blue"></div></div><div class="opts"><span class="rate-chip">50Hz</span><span class="rate-chip active">104Hz</span><span class="rate-chip">208Hz</span></div></div>
+          <div class="sensor-cfg"><div class="head"><div class="ico bg-mag c-mag"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4v7a5 5 0 0010 0V4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="info"><div class="nm">地磁 <span class="freq-badge lo">低频·组帧</span></div><div class="desc">三轴磁力计</div></div><div class="ios-switch on"></div></div><div class="opts"><span class="rate-chip active">10Hz</span><span class="rate-chip">25Hz</span></div></div>
+          <div class="sensor-cfg off"><div class="head"><div class="ico bg-temp c-temp"><svg viewBox="0 0 24 24" fill="none"><path d="M14 14.5V5a2 2 0 10-4 0v9.5a4 4 0 104 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">温度 <span class="freq-badge lo">低频·组帧</span></div><div class="desc">皮温·默认关闭</div></div><div class="ios-switch"></div></div></div>
+        </div>
+      </div>
+      <div class="ios-footer"><button class="ios-btn">下发并继续</button><div class="home-indicator"></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">4</span> 传感器总控</div>
+    <div class="screen-note">iOS Toggle + Inset List</div>
+  </div>
+
+  <!-- 采集 · 原始分包流（iOS 分段控件） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 18" fill="currentColor"><path d="M12 3a14 14 0 019 3l-2 2a11 11 0 00-14 0L3 6a14 14 0 019-3z"/><circle cx="12" cy="14" r="2"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ttl-center">数据采集 · 12:58</span><span class="right"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg></span></div></div>
+      <div class="content" style="display:flex;flex-direction:column">
+        <div class="ios-seg"><div class="t">波形视图</div><div class="t active">原始分包流</div></div>
+        <div class="metric-grid">
+          <div class="metric"><div class="k">批包/s</div><div class="v" style="color:var(--tertiary)">48</div></div>
+          <div class="metric"><div class="k">组帧/s</div><div class="v" style="color:var(--success)">5</div></div>
+          <div class="metric"><div class="k">丢包</div><div class="v">0.0<small>%</small></div></div>
+          <div class="metric"><div class="k">CRC错</div><div class="v">0</div></div>
+        </div>
+        <div class="pkt-stream">
+          <div class="pkt batch"><div class="ph"><span class="k">▶ 高频批包 · PPG</span><span class="sz">42B/16pt</span></div><div class="hex">AA56 1F 01 0C8A40 10 0800 0803 0801 …×16 9C</div></div>
+          <div class="pkt batch"><div class="ph"><span class="k">▶ 高频批包 · ECG</span><span class="sz">38B/16pt</span></div><div class="hex">AA56 20 02 0C8A41 10 01A2 01B0 01C4 …×16 4E</div></div>
+          <div class="pkt group"><div class="ph"><span class="k">◆ 低频组帧 · 温度+地磁</span><span class="sz">16B</span></div><div class="hex">AA55 07 0C8A42 1A 2C01 0A02 F1FF 3E00 88</div></div>
+          <div class="pkt batch"><div class="ph"><span class="k">▶ 高频批包 · IMU</span><span class="sz">110B/16pt</span></div><div class="hex">AA56 21 03 0C8A43 10 00FA0014 …×16 D7</div></div>
+        </div>
+      </div>
+      <div class="ios-footer"><div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div><div class="home-indicator"></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">5</span> 采集 · 原始分包流</div>
+    <div class="screen-note">iOS Segmented Control · 后台蓝牙=状态栏蓝点</div>
+  </div>
+
+  <!-- 运行中控制 Action Sheet -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back">&nbsp;</span><span class="ttl-center">数据采集 · 13:10</span><span class="right">&nbsp;</span></div></div>
+      <div class="content" style="filter:blur(.6px);opacity:.5"><div class="device-bar"><div class="device-mini"><div class="nm">BT-DUT-0427</div></div><div class="device-mini tertiary"><div class="nm">Polar H10</div></div></div></div>
+      <div class="ios-scrim"><div class="action-sheet">
+        <div class="as-group">
+          <div class="as-title">运行中控制面板<br>不停止采集即可向 DUT 下发指令</div>
+          <div class="as-item">⏻ 临时开启「温度」</div>
+          <div class="as-item">⚙ 切换设备端算法「跌倒检测」</div>
+          <div class="as-item">🏷 打时间标签</div>
+          <div class="as-item">📋 查看指令日志（→CMD/←ACK）</div>
+        </div>
+        <div class="as-cancel">取消</div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">6</span> 运行中控制 · Action Sheet</div>
+    <div class="screen-note">iOS 底部动作面板（替代 Bottom Sheet）</div>
+  </div>
+</div>
+
+<!-- ③ 采集总览 / 结束 / 恢复 -->
+<section class="section"><h2>③ 采集总览 · 结束 · 恢复</h2>
+<p class="desc">传感器总览卡、波形、结束摘要的内容与 Android 完全一致；这里展示 iOS 外壳（导航栏 + Home Indicator）、状态恢复弹窗与导出顶部 Toast。</p></section>
+<div class="grid">
+
+  <!-- 多传感器总览 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 18" fill="currentColor"><path d="M12 3a14 14 0 019 3l-2 2a11 11 0 00-14 0L3 6a14 14 0 019-3z"/><circle cx="12" cy="14" r="2"/></svg><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ttl-center">数据采集 · 12:43</span><span class="right"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg></span></div></div>
+      <div class="content">
+        <div class="device-bar"><div class="device-mini"><div class="nm">BT-DUT-0427</div><div class="stat"><span class="pulse"></span>多传感器·在线</div></div><div class="device-mini tertiary"><div class="nm">Polar H10</div><div class="stat"><span class="pulse"></span>72 BPM</div></div></div>
+        <div class="sensor-grid">
+          <div class="sensor-tile"><div class="top"><span style="width:9px;height:9px;border-radius:3px;background:var(--s-ppg)"></span><span class="nm c-ppg">PPG</span><span class="tag">100Hz</span></div><div class="wave"><svg viewBox="0 0 120 40" preserveAspectRatio="none"><path d="M0 30 Q10 30 14 20 Q18 6 22 20 Q26 30 36 30 Q46 30 50 20 Q54 6 58 20 Q62 30 72 30 Q82 30 86 20 Q90 6 94 20 Q98 30 108 30 L120 30" fill="none" stroke="var(--s-ppg)" stroke-width="2"/></svg></div><div class="val c-ppg">2 048 <small>ADC</small></div></div>
+          <div class="sensor-tile"><div class="top"><span style="width:9px;height:9px;border-radius:3px;background:var(--s-ecg)"></span><span class="nm c-ecg">ECG</span><span class="tag">250Hz</span></div><div class="wave"><svg viewBox="0 0 120 40" preserveAspectRatio="none"><path d="M0 26 L18 26 L22 22 L26 28 L29 6 L32 34 L36 24 L40 26 L58 26 L62 22 L66 28 L69 6 L72 34 L76 24 L80 26 L120 26" fill="none" stroke="var(--s-ecg)" stroke-width="1.8"/></svg></div><div class="val c-ecg">+0.42 <small>mV</small></div></div>
+          <div class="sensor-tile"><div class="top"><span style="width:9px;height:9px;border-radius:3px;background:var(--s-imu)"></span><span class="nm c-imu">IMU</span><span class="tag">104Hz</span></div><div class="wave"><svg viewBox="0 0 120 40" preserveAspectRatio="none"><path d="M0 20 Q15 8 30 20 T60 20 T90 20 T120 20" fill="none" stroke="var(--s-imu)" stroke-width="1.6"/><path d="M0 26 Q15 32 30 24 T60 28 T90 22 T120 26" fill="none" stroke="#7FCAF0" stroke-width="1.4"/></svg></div><div class="val c-imu" style="font-size:11px">x.98 y.02 z.15</div></div>
+          <div class="sensor-tile"><div class="top"><span style="width:9px;height:9px;border-radius:3px;background:var(--s-temp)"></span><span class="nm c-temp">温度</span><span class="tag">1Hz</span></div><div class="wave"><svg viewBox="0 0 120 40" preserveAspectRatio="none"><path d="M0 22 L120 20" fill="none" stroke="var(--s-temp)" stroke-width="2"/></svg></div><div class="val c-temp">33.6 <small>°C</small></div></div>
+        </div>
+      </div>
+      <div class="ios-footer"><div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div><div class="home-indicator"></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">7</span> 多传感器总览</div>
+    <div class="screen-note">内容同 Android · iOS 外壳</div>
+  </div>
+
+  <!-- 状态恢复（iOS Action Sheet 形态） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav-large" style="opacity:.5;filter:blur(.5px)">BlueTrace</div>
+      <div class="content" style="opacity:.5;filter:blur(.5px)"></div>
+      <div class="ios-scrim"><div class="action-sheet">
+        <div class="as-group">
+          <div class="as-title">恢复上次采集？<br>06-11 14:32 的会话被系统终止后已恢复连接<br>（Core Bluetooth willRestoreState）</div>
+          <div class="as-item bold">恢复采集 · DUT 已重连</div>
+          <div class="as-item">仅重扫参考心率带</div>
+          <div class="as-item danger">放弃该会话</div>
+        </div>
+        <div class="as-cancel">稍后</div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">8</span> 进程恢复</div>
+    <div class="screen-note">CBCentralManager 状态恢复 · Action Sheet</div>
+  </div>
+
+  <!-- 导出（顶部 Toast + Files 共享） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 26 13" fill="none"><rect x="1" y="1" width="21" height="11" rx="3" stroke="currentColor"/><rect x="3" y="3" width="16" height="7" rx="1.5" fill="currentColor"/></svg></span></div>
+      <div class="nav"><div class="row"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>返回</span><span class="ttl-center">会话详情</span><span class="right"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0-12L8 7m4-4l4 4M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></div>
+      <div class="top-toast"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>已存入「文件」App</div>
+      <div class="content">
+        <div class="card"><div class="card-title">导出到「文件」App</div><div class="card-sub">6 个 CSV + manifest 已写入 On My iPhone/BlueTrace，可在 Files 浏览或经分享 Sheet 发送。</div>
+          <div style="margin-top:10px;height:12px;border-radius:999px;background:var(--surface-2);overflow:hidden"><i style="display:block;width:100%;height:100%;background:var(--success)"></i></div>
+          <div style="font-size:11px;color:var(--on-surface-v);margin-top:6px;font-family:var(--font-mono)">On My iPhone/BlueTrace/session_20260611_1432/</div>
+        </div>
+        <div class="ios-group"><div class="ios-row"><div class="ico green"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="t">session_20260611_1432</div><div class="s">6 文件 · 11.8 MB · 文件 App 可见</div></div><div class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div>
+        <button class="ios-btn gray" style="margin-top:4px"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0-12L8 7m4-4l4 4M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>通过分享 Sheet 发送</button>
+      </div>
+      <div class="ios-footer"><div class="home-indicator"></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">9</span> 导出 · 文件 App</div>
+    <div class="screen-note">Files 共享 + 顶部胶囊 Toast</div>
+  </div>
+</div>
+
+<footer style="max-width:1560px;margin:0 auto;padding:24px 48px 64px;color:var(--on-surface-v);font-size:12px;line-height:1.7">
+  <b style="color:var(--on-surface)">BlueTrace · UI 原型 v3 · iOS 适配</b><br>
+  与 <code>v3_android.html</code> 共享同一套设计 token、传感器配色与数据可视化（统一设计语言）；仅导航栏、Action Sheet、iOS 开关/分段控件、安全区、一次性权限弹窗、Core Bluetooth 后台与状态恢复按 HIG 自适应。组件级映射见 <code>product/BlueTrace_Design_System.md §6</code>，技术分叉见 <code>architecture/BlueTrace_CrossPlatform_Notes.md</code>。
+</footer>
+</body>
+</html>
