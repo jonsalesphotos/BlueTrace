@@ -21,23 +21,31 @@ persistence separated so the app can evolve from prototype UI to real device wor
 
 ## Documentation
 
-All design and planning materials are stored in [Docs](Docs).
+All design and planning materials live under [Docs](Docs), organized by concern.
+See [Docs/README.md](Docs/README.md) for the full map.
 
-- [Architecture Design](Docs/BlueTrace_Architecture.md)
-- [UI Product and Interaction Notes](Docs/BlueTrace_UI_Design.md)
-- [UI Technical Implementation Notes](Docs/BlueTrace_UI_Implementation.md)
-- [UI Prototype](Docs/BlueTrace_UI_Prototype.html)
-- [UI Prototype v2](Docs/BlueTrace_UI_Prototype_v2.html)
-- [Codex UI Prototype](Docs/BlueTrace_UI_Codex_Prototype.html)
+**Product (what & why):**
+- [Product Requirements (PRD)](Docs/product/BlueTrace_PRD.md)
+- [UX / Interaction Flows](Docs/product/BlueTrace_UX_Flows.md)
+- [Design System](Docs/product/BlueTrace_Design_System.md)
+
+**Prototypes (the phone walls):**
+- [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html)
+- Legacy: [v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
+
+**Architecture (how):**
+- [Android Architecture](Docs/architecture/BlueTrace_Architecture.md)
+- [UI Implementation Notes](Docs/architecture/BlueTrace_UI_Implementation.md)
+- [Cross-Platform Notes (Android + iOS)](Docs/architecture/BlueTrace_CrossPlatform_Notes.md)
 
 ## Assets
 
-Design screenshots, icons, and image references are also under [Docs](Docs):
+Icons and screenshots are under [Docs/assets](Docs/assets):
 
-- [App icon SVG](Docs/bluetrace_icon.svg)
-- [Icon preview](Docs/%E5%9B%BE%E6%A0%87.png)
-- [First-screen preview](Docs/%E9%A6%96%E5%B1%8F.png)
-- [Reference images](Docs/pic)
+- [App icon SVG](Docs/assets/bluetrace_icon.svg)
+- [Icon preview](Docs/assets/%E5%9B%BE%E6%A0%87.png)
+- [First-screen preview](Docs/assets/%E9%A6%96%E5%B1%8F.png)
+- [Reference images](Docs/assets/pic)
 
 ## Repository Status
 
