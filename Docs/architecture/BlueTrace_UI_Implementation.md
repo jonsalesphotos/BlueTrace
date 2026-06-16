@@ -34,6 +34,7 @@ UI Navigation + Fake State
 
 ```text
 ui/
+  HomeScreen
   PermissionGateScreen
   DeviceAssignmentScreen
   RoleScanScreen
@@ -122,12 +123,17 @@ sealed interface RoleRuntimeState {
 
 | 条件 | 目标页面 |
 | --- | --- |
-| 硬权限缺失 | PermissionGateScreen |
-| 权限就绪且无运行 session | DeviceAssignmentScreen |
+| 首次启动 或 启动静默检查发现硬权限缺失 | PermissionGateScreen（门控，无返回） |
+| 否则（非首启且静默通过） | HomeScreen（主界面，落地中枢） |
+| Home → 扫描并连接设备（环境就绪） | DeviceAssignmentScreen / RoleScanScreen |
+| Home → 扫描并连接设备（环境不完整） | PermissionGateScreen（手动，可返回） |
+| Home → 环境与权限检查 | PermissionGateScreen（手动，可返回） |
 | 用户为某个 role 选设备 | RoleScanScreen(role) |
 | SessionState.Running | DataCollectionScreen |
 | SessionState.Ended | SessionSummary / SessionDetail |
 | 查看历史 | SessionHistoryScreen |
+
+> **导航修订（2026-06-16）**：落地页改为 HomeScreen；启动先做**静默环境检查**，仅"首次启动"或"硬权限缺失"才门控弹 PermissionGate，其余直接进 Home。扫描页不再开屏即扫，仅由 Home 的"扫描并连接设备"按需进入。硬权限阻断守在"进入采集/扫描"入口处（环境未就绪则引导回权限页）。首启标记用 `AppPreferences`（一期 SharedPreferences）持久化。
 
 重要约束：
 
@@ -145,15 +151,15 @@ sealed interface RoleRuntimeState {
 需要先跑通：
 
 ```text
-Splash / App launch
-  → PermissionGate
-  → DeviceAssignment
-  → RoleScan(role)
-  → DeviceAssignment
-  → DataCollection
-  → StopConfirm
-  → SessionSummary
-  → SessionDetail / SessionHistory
+App launch
+  → 静默环境检查
+      ├─（首启 / 硬权限缺失）→ PermissionGate →（完成）→ Home
+      └─（非首启且静默通过）─────────────────────────→ Home
+  → Home（主界面 · 中枢）
+      ├─ 扫描并连接设备 → DeviceAssignment → RoleScan(role) → DeviceAssignment
+      │                    → DataCollection → StopConfirm → SessionSummary → SessionDetail
+      ├─ 环境与权限检查（手动，可返回）→ PermissionGate
+      └─ 历史会话 → SessionHistory
 ```
 
 同时实现以下 UI 状态：

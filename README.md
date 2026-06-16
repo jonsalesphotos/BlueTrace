@@ -24,6 +24,10 @@ persistence separated so the app can evolve from prototype UI to real device wor
 All design and planning materials live under [Docs](Docs), organized by concern.
 See [Docs/README.md](Docs/README.md) for the full map.
 
+**Start here — control document:** [REQUIREMENTS.md](REQUIREMENTS.md) is the single source of
+truth and plan tracker. It consolidates requirements, milestones, the requirement↔phase status
+matrix, and the resolved key decisions (D-1…D-10). Detailed docs below are downstream of it.
+
 **Product (what & why):**
 - [Product Requirements (PRD)](Docs/product/BlueTrace_PRD.md)
 - [UX / Interaction Flows](Docs/product/BlueTrace_UX_Flows.md)
@@ -37,6 +41,7 @@ See [Docs/README.md](Docs/README.md) for the full map.
 - [Android Architecture](Docs/architecture/BlueTrace_Architecture.md)
 - [UI Implementation Notes](Docs/architecture/BlueTrace_UI_Implementation.md)
 - [Cross-Platform Notes (Android + iOS)](Docs/architecture/BlueTrace_CrossPlatform_Notes.md)
+- [Device Protocol v0](Docs/architecture/BlueTrace_Protocol.md) · [bluetrace_v0.proto](Docs/architecture/bluetrace_v0.proto)
 
 ## Assets
 

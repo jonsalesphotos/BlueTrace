@@ -1,0 +1,171 @@
+// BlueTrace 设备通信协议 v0.1 —— payload schema（权威单一事实源，D-10）
+//
+// 适用范围：DUT 自研协议的 protobuf payload 部分。
+// 注意：BLE 包的"标准头部"（msgType / 长度 / 分片 / CRC）是 12 字节二进制，**不在本文件**，
+//       定义见 BlueTrace_Protocol.md §3。本文件只定义 header.msgType 分发到的各 message。
+//
+// 状态：v0.1 草案（已过一轮多视角评审），待与固件端冻结（见 BlueTrace_Protocol.md §15）。
+//       冻结前可自由改 tag/字段；冻结后只增不改 tag、删除字段用 reserved。
+// 生成：app 侧用 Wire 生成 Kotlin（commonMain）；固件端同源生成/手写对齐。
+
+syntax = "proto3";
+
+package bluetrace.protocol.v0;
+
+option java_package = "com.example.bluetrace.protocol.v0";
+
+// ============ 设备 → app：数据 ============
+
+// header.msgType = 0x01
+// 高频批包：样本紧凑打进 bytes，避免逐样本 tag 开销（见 BlueTrace_Protocol.md §7）
+message HighFreqBatch {
+  uint32 sensor_id         = 1;  // 见 SensorId
+  uint64 base_device_ts_us = 2;  // 首样本的设备单调时钟（微秒）
+  uint32 sample_period_ns  = 3;  // 每样本间隔（纳秒）= 精确计时源；展示速率 = 1e9 / period
+  uint32 sample_count      = 4;
+  uint32 channel_count     = 5;  // ACC=3、PPG=1..N LED 等
+  SampleFormat format      = 6;  // **不得为 SF_UNSPECIFIED**
+  uint32 batch_seq         = 7;  // 该 sensor_id 流的批序号，从 0 起，模 2^32（流级丢包检测）
+  bytes  samples           = 8;  // 长度**必须** == sample_count*channel_count*width(format)，否则丢弃该批
+}
+
+// 紧凑样本的每值字节宽度（小端、紧密排列、无填充）：
+//   SF_U16/SF_S16 = 2B   SF_U24/SF_S24 = 3B   SF_S32/SF_F32 = 4B
+//   S24/S32 为二补码；S24 解码后须按 bit23 符号扩展到 32 位。
+enum SampleFormat {
+  SF_UNSPECIFIED = 0;  // 非法值：HighFreqBatch.format 不得为此
+  SF_U16 = 1;
+  SF_S16 = 2;
+  SF_U24 = 3;
+  SF_S24 = 4;
+  SF_S32 = 5;
+  SF_F32 = 6;
+}
+
+// header.msgType = 0x02
+// 低频组帧：一帧内多路低频读数
+message LowFreqFrame {
+  uint64 device_ts_us = 1;
+  repeated LowFreqReading readings = 2;
+}
+
+message LowFreqReading {
+  uint32 sensor_id = 1;
+  repeated sint32 values = 2 [packed = true];  // 如地磁 xyz、温度
+  // 定点缩放：真实值 = value * scale_milli / 1000。
+  // **scale_milli == 0 表示"不缩放"（真实值 = value）**，避免 proto3 零默认把数据清零。
+  sint32 scale_milli = 3;
+}
+
+// header.msgType = 0x03
+// 汇顶专用 PPG+ACC 组合包 —— 单独类型，落兼容 CSV（F-FILE-7）。
+// PPG 与 ACC 各有独立的速率/数量/通道/格式（两流通常不同 ODR）。
+// 各 bytes 块内精确字节布局待与固件/汇顶规格对齐（BlueTrace_Protocol.md §15）。
+message GoodixPpgAcc {
+  uint64 base_device_ts_us = 1;
+  // PPG 流
+  uint32 ppg_sample_period_ns = 2;
+  uint32 ppg_sample_count     = 3;
+  uint32 ppg_channel_count    = 4;
+  SampleFormat ppg_format     = 5;
+  bytes  ppg                  = 6;
+  // ACC 流
+  uint32 acc_sample_period_ns = 7;
+  uint32 acc_sample_count     = 8;
+  uint32 acc_channel_count    = 9;   // 典型 3（xyz）
+  SampleFormat acc_format     = 10;
+  bytes  acc                  = 11;
+}
+
+// header.msgType = 0x10
+message DeviceEvent {
+  uint32 code = 1;
+  string detail = 2;
+  uint64 device_ts_us = 3;
+}
+
+// header.msgType = 0x11
+// 设备**静态能力**声明：F-CTRL-1/2 的真理源（"能做什么"）
+message DeviceCapability {
+  string firmware_version = 1;
+  repeated SensorCap sensors = 2;
+  repeated uint32 algorithm_ids = 3 [packed = true];
+}
+
+message SensorCap {
+  uint32 sensor_id = 1;
+  bool   high_freq = 2;
+  repeated uint32 supported_rates_mhz = 3 [packed = true];  // 毫赫兹，支持小数率（如 12500 = 12.5Hz）
+  uint32 channel_count = 4;
+}
+
+// header.msgType = 0x12
+// 设备**当前状态**（"现在怎样"）：用于重连/进程恢复后对账（F-BG-4、关键规则 6）
+message DeviceState {
+  repeated SensorState sensors = 1;
+  repeated uint32 active_algorithm_ids = 2 [packed = true];
+}
+
+message SensorState {
+  uint32 sensor_id = 1;
+  bool   enabled = 2;
+  uint32 current_rate_mhz = 3;  // 设备实际生效值（含被夹紧后的真实值）
+}
+
+// header.msgType = 0x20
+// 设备端算法结果（F-CTRL-3）：每个输出带 metric_id，避免裸 float 数组无法命名
+message AlgoResult {
+  uint32 algorithm_id = 1;
+  uint64 device_ts_us = 2;
+  repeated AlgoMetric metrics = 3;
+}
+
+message AlgoMetric {
+  uint32 metric_id = 1;  // 如 HR / SpO2 / RR …（枚举待冻结，§15）
+  float  value = 2;
+}
+
+// ============ app → 设备：控制（header.msgType = 0x40）============
+// 约定：Command 必须能装进单次 ATT write（v0 写方向不做协议级分片），见 §2。
+
+message Command {
+  uint32 cmd_id = 1;  // 自增，ACK 回显
+  oneof body {
+    SetSensorEnable set_sensor_enable = 2;
+    SetSampleRate   set_sample_rate   = 3;
+    SelectAlgorithm select_algorithm  = 4;
+    SetPacking      set_packing       = 5;  // F-CTRL-4 控制旋钮（D-9）
+    SessionControl  session_control   = 6;
+    QueryCapability query_capability  = 7;
+    QueryState      query_state       = 8;  // 请求 DeviceState（当前配置）
+  }
+}
+
+message SetSensorEnable { uint32 sensor_id = 1; bool enabled = 2; }
+message SetSampleRate   { uint32 sensor_id = 1; uint32 sample_rate_mhz = 2; }  // 毫赫兹
+message SelectAlgorithm { repeated uint32 algorithm_ids = 1 [packed = true]; }
+message SetPacking      { uint32 batch_samples = 1; uint32 frame_period_ms = 2; }
+message SessionControl  { enum Action { STOP = 0; START = 1; } Action action = 1; }
+message QueryCapability {}
+message QueryState {}
+
+// ============ 设备 → app：回执（header.msgType = 0x80）============
+
+message Ack {
+  uint32 cmd_id = 1;
+  uint32 status = 2;  // 0 = OK，其它为错误码（待固件定义）
+  string detail = 3;
+}
+
+// ============ 公共枚举 ============
+
+// 待与固件冻结（BlueTrace_Protocol.md §15）
+enum SensorId {
+  SENSOR_UNSPECIFIED = 0;
+  SENSOR_PPG  = 1;
+  SENSOR_ECG  = 2;
+  SENSOR_ACC  = 3;
+  SENSOR_GYRO = 4;
+  SENSOR_MAG  = 5;
+  SENSOR_TEMP = 6;
+}

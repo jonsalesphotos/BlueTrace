@@ -9,15 +9,18 @@ Docs/
 │   ├── BlueTrace_UX_Flows.md       交互规格：页面流、状态机、边界、平台差异
 │   └── BlueTrace_Design_System.md  设计系统：色板/字号/组件 + Android↔iOS 映射
 ├── prototypes/       视觉原型（会频繁改的"活产物" = 手机墙）
-│   ├── v3_android.html             v3 · Android（Material 3，17 屏 + 协议说明）
+│   ├── v3_android.html             v3 · Android（Material 3，含主界面 Home，18 屏 + 协议说明）
 │   ├── v3_ios.html                 v3 · iOS（HIG 自适应，关键分叉屏）
 │   └── legacy/  v1.html · v2.html · codex.html（历史版本归档）
 ├── architecture/     技术实现（怎么做）
 │   ├── BlueTrace_Architecture.md           Android 详版架构
 │   ├── BlueTrace_UI_Implementation.md       UI 技术实施
-│   └── BlueTrace_CrossPlatform_Notes.md     Android + iOS 跨平台技术分叉
+│   ├── BlueTrace_CrossPlatform_Notes.md     Android + iOS 跨平台技术分叉
+│   ├── BlueTrace_Protocol.md                设备通信协议 v0（标准头部+分片+protobuf）
+│   └── bluetrace_v0.proto                   协议 payload 权威 .proto 契约
 ├── legacy/           被取代的旧文档
-│   └── BlueTrace_UI_Design.md      （已由 product/PRD + UX_Flows 取代）
+│   ├── BlueTrace_UI_Design.md                      （已由 product/PRD + UX_Flows 取代）
+│   └── BlueTrace_Architecture_v1_single_device.md  （单设备第一版，已由 architecture/BlueTrace_Architecture.md 取代）
 └── assets/           图标 / 截图 / svg
 ```
 
@@ -29,6 +32,7 @@ Docs/
 | 设计 / 前端 | `product/BlueTrace_Design_System.md` + `prototypes/v3_*.html` |
 | Android 开发 | `architecture/BlueTrace_Architecture.md` |
 | 跨平台 / iOS 开发 | `architecture/BlueTrace_CrossPlatform_Notes.md` |
+| 固件 / 协议对接 | `architecture/BlueTrace_Protocol.md` + `architecture/bluetrace_v0.proto` |
 
 ## 四层关系
 

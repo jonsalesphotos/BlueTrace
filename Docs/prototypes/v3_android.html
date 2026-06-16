@@ -450,7 +450,7 @@
     采集主屏支持<b>波形视图 ⇄ 原始分包流视图</b>双视图切换。视觉沿用 v1/v2 浅蓝 Material 3。
   </p>
   <div class="meta">
-    <span class="chip"><span class="dot"></span>静态手机墙 · 16 屏</span>
+    <span class="chip"><span class="dot"></span>静态手机墙 · 18 屏</span>
     <span class="chip ok"><span class="dot"></span>沿用浅蓝 Material 3</span>
     <span class="chip tert"><span class="dot"></span>多传感器 + 设备控制</span>
     <span class="chip warn"><span class="dot"></span>打包/分包可视化</span>
@@ -459,11 +459,12 @@
 
 <nav class="toc">
   <a href="#s-boot">① 启动 / 权限</a>
-  <a href="#s-dev">② 设备接入</a>
-  <a href="#s-cfg">③ DUT 配置与控制</a>
-  <a href="#s-run">④ 采集运行</a>
-  <a href="#s-end">⑤ 结束 / 文件</a>
-  <a href="#s-err">⑥ 异常 / 恢复</a>
+  <a href="#s-home">② 主界面 Home</a>
+  <a href="#s-dev">③ 设备接入</a>
+  <a href="#s-cfg">④ DUT 配置与控制</a>
+  <a href="#s-run">⑤ 采集运行</a>
+  <a href="#s-end">⑥ 结束 / 文件</a>
+  <a href="#s-err">⑦ 异常 / 恢复</a>
 </nav>
 
 <!-- 协议 / 配色说明 -->
@@ -589,10 +590,104 @@
 </div>
 
 <!-- ============================================================
-     ② 设备接入
+     ② 主界面 Home（工具中枢）
+     ============================================================ -->
+<section class="section" id="s-home">
+  <h2>② 主界面 Home（工具中枢）</h2>
+  <p class="desc">启动做静默环境检查，通过后的<b>落地页</b>（规格修订 2026-06-16）。它不是底部 Tab，而是<b>工具中枢</b>：汇集环境状态概览（可点进权限页复查）、"扫描并连接设备"主入口、历史会话。采集是强状态任务，从这里<b>向导式</b>逐步前进；环境未就绪时，"扫描并连接设备"会在采集入口处把用户引导回权限页处理。</p>
+</section>
+<div class="grid">
+
+  <!-- S2 主界面 Home · 就绪态 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg>
+      </span></div>
+      <div class="app-bar left">
+        <div class="title-block"><div class="title">BlueTrace</div><div class="subtitle">多传感器 BLE 数据采集</div></div>
+        <div class="action"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.2A1.6 1.6 0 006 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 004.6 14H4a2 2 0 110-4h.2A1.6 1.6 0 006 7.3l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H11A1.6 1.6 0 0012 4.6V4a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="content">
+        <div class="sec-h">本机环境</div>
+        <div class="list-tile" style="border:1px solid var(--success-c)">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">环境就绪</div><div class="sub">蓝牙 · 扫描 · 连接 权限正常</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
+        <div class="sec-h">采集</div>
+        <div class="card tonal">
+          <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>开始一次采集会话</div>
+          <div class="card-sub">向导式：扫描并连接设备 → 分配 DUT / REFERENCE → 配置传感器与打包 → 采集。采集是强状态任务，按步骤前进，不用 Tab 平行切换。</div>
+        </div>
+
+        <div class="sec-h">最近 / 工具</div>
+        <div class="list-tile">
+          <div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">历史会话</div><div class="sub">最近：BT-DUT-0427 · 5 路 · 02:14</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">环境与权限检查</div><div class="sub">手动复查 · 全部就绪</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9a16 16 0 0118 0M6 12.5a11 11 0 0112 0M9 16a6 6 0 016 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg>扫描并连接设备</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">2</span> 主界面 Home · 就绪</div>
+    <div class="screen-note">工具中枢：环境概览 + 采集入口 + 历史</div>
+    <div class="screen-flow">静默检查通过 → 落地 Home；点 <b>扫描并连接设备</b> → 设备分配</div>
+  </div>
+
+  <!-- S2′ 主界面 Home · 待处理 + 可恢复 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg>
+      </span></div>
+      <div class="app-bar left">
+        <div class="title-block"><div class="title">BlueTrace</div><div class="subtitle">多传感器 BLE 数据采集</div></div>
+        <div class="action"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.2A1.6 1.6 0 006 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 004.6 14H4a2 2 0 110-4h.2A1.6 1.6 0 006 7.3l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H11A1.6 1.6 0 0012 4.6V4a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="content">
+        <div class="banner info"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1018 0 9 9 0 00-18 0z" stroke="currentColor" stroke-width="2"/><path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div class="txt"><b>检测到可恢复会话</b>上次采集未正常结束，可续采或重扫</div><span class="b-act">恢复</span></div>
+
+        <div class="sec-h">本机环境</div>
+        <div class="list-tile" style="border:1px solid var(--warning-c)">
+          <div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.3 4.3l-7 12A2 2 0 005 19h14a2 2 0 001.7-2.7l-7-12a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">1 项待处理</div><div class="sub">定位服务未开启 · 部分机型扫描依赖</div></div>
+          <span class="status-pill warn">待处理</span>
+        </div>
+
+        <div class="sec-h">采集</div>
+        <div class="card ghost">
+          <div class="card-sub">环境未就绪时，<b>扫描并连接设备</b> 会先把你带回权限页处理硬性条件，再进入设备分配——"缺硬性条件阻断采集"。</div>
+        </div>
+
+        <div class="sec-h">最近 / 工具</div>
+        <div class="list-tile">
+          <div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">历史会话</div><div class="sub">最近：BT-DUT-0427 · 5 路 · 02:14</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block warn"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9a16 16 0 0118 0M6 12.5a11 11 0 0112 0M9 16a6 6 0 016 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg>扫描并连接设备</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">2′</span> 主界面 Home · 待处理</div>
+    <div class="screen-note">采集入口守门 + 可恢复会话</div>
+    <div class="screen-flow">点 <b>扫描并连接设备</b> 时环境未就绪 → 引导回 <b>权限页</b>；可恢复会话 → 续采 / 重扫</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     ③ 设备接入
      ============================================================ -->
 <section class="section" id="s-dev">
-  <h2>② 设备接入</h2>
+  <h2>③ 设备接入</h2>
   <p class="desc">DUT 现在是多传感器设备，扫描时按 Service UUID 过滤；REFERENCE 仍是标准心率带（0x180D）做对照。</p>
 </section>
 <div class="grid">
@@ -662,7 +757,7 @@
      ③ DUT 配置与控制 ★核心
      ============================================================ -->
 <section class="section" id="s-cfg">
-  <h2>③ DUT 配置与控制 <span class="freq-badge hi" style="font-size:11px;vertical-align:middle">核心新增</span></h2>
+  <h2>④ DUT 配置与控制 <span class="freq-badge hi" style="font-size:11px;vertical-align:middle">核心新增</span></h2>
   <p class="desc">采集前先与 DUT 协商本次启用哪些传感器、各自采样率、设备端跑哪些算法，以及 BLE 传输的打包策略。所有变更都通过控制协议下发给设备。</p>
 </section>
 <div class="grid">
@@ -806,7 +901,7 @@
      ④ 采集运行
      ============================================================ -->
 <section class="section" id="s-run">
-  <h2>④ 采集运行</h2>
+  <h2>⑤ 采集运行</h2>
   <p class="desc">采集主屏支持「波形视图 ⇄ 原始分包流」双视图切换；运行中仍可下发控制指令（开关传感器、切算法、打标签）。退出唯一方式是长按 2 秒。</p>
 </section>
 <div class="grid">
@@ -986,7 +1081,7 @@
      ⑤ 结束 / 文件
      ============================================================ -->
 <section class="section" id="s-end">
-  <h2>⑤ 结束 / 文件</h2>
+  <h2>⑥ 结束 / 文件</h2>
   <p class="desc">结束摘要展示每路传感器各自的文件与行数；会话目录下每个传感器一个 CSV，配 session_manifest.json 记录设备控制配置与对齐锚点。</p>
 </section>
 <div class="grid">
@@ -1072,7 +1167,7 @@
      ⑥ 异常 / 恢复
      ============================================================ -->
 <section class="section" id="s-err">
-  <h2>⑥ 异常 / 恢复</h2>
+  <h2>⑦ 异常 / 恢复</h2>
   <p class="desc">多传感器场景下异常更细：单个传感器流中断、设备断连、存储失败、进程被杀恢复——按 banner 颜色分级，单路异常不影响其它路落盘。</p>
 </section>
 <div class="grid">
