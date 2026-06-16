@@ -446,6 +446,41 @@
   .collecting-bar .pulse { width: 7px; height: 7px; border-radius: 999px; background: #fff; animation: blink 1.2s infinite; flex-shrink: 0; }
   .collecting-bar .go { margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .collecting-bar .go svg { width: 14px; height: 14px; }
+
+  /* ============================================================
+     V4 粗修（2026-06-16 续）：暂不实现遮罩 + 采集运行标签区
+     ============================================================ */
+  /* 暂不实现遮罩：保留设计、灰显标注移至最后 */
+  .defer-veil { position: absolute; inset: 0; z-index: 8; background: rgba(243,245,248,.78); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .defer-veil .badge { background: var(--surface-3); color: var(--on-surface-v); font-size: 14px; font-weight: 700; padding: 9px 20px; border-radius: 999px; box-shadow: var(--shadow-2); letter-spacing: .02em; }
+  .defer-veil small { color: var(--outline); font-size: 11px; }
+
+  /* 标签区：输入框（内嵌清空 X）+ 右侧 Pin（瞬时点标签）；下方 Start/Stop 切换（长时间区间标签） */
+  .label-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  .label-input { flex: 1; min-width: 0; height: 38px; background: var(--surface); border: 1px solid var(--outline-v); border-radius: 12px; padding: 0 4px 0 13px; display: flex; align-items: center; }
+  .label-input input { border: 0; outline: none; background: transparent; flex: 1; min-width: 0; font-size: 13px; color: var(--on-surface); font-family: inherit; }
+  .label-input input::placeholder { color: var(--outline); }
+  .label-input .clear-x { width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; }
+  .label-input .clear-x svg { width: 18px; height: 18px; }
+  .label-pin { flex: 0 0 auto; height: 38px; padding: 0 15px; border-radius: 12px; border: 0; background: var(--primary-c); color: var(--on-primary-c); font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .label-pin svg { width: 15px; height: 15px; }
+  .label-toggle { width: 100%; height: 38px; margin-top: 8px; border-radius: 12px; border: 1.5px solid var(--primary); background: transparent; color: var(--primary-deep); font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; }
+  .label-toggle svg { width: 15px; height: 15px; }
+  .label-toggle.on { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: var(--shadow-cta); }
+
+  /* 采集运行：实时数据流（[时间戳] HEX · 小字号 · 底部锚定 · 无滚动条） */
+  .log-list { font-family: var(--font-mono); font-size: 9px; line-height: 1.65; color: var(--on-surface-v); padding: 7px 11px; overflow: hidden; }
+  .log-list.tail { display: flex; flex-direction: column; justify-content: flex-end; }
+  .log-list .ln { display: flex; gap: 7px; white-space: nowrap; overflow: hidden; }
+  .log-list .ln > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .log-list .ln .t { color: var(--primary-deep); flex-shrink: 0; }
+  .log-list .ln.ok { color: var(--success); font-weight: 700; }
+  .log-list .ln.warn { color: #8a5a14; font-weight: 700; }
+  .log-list .ln.err { color: var(--error); font-weight: 700; }
+
+  /* 长按结束：半透明遮罩叠在采集中界面之上，透出下面内容（不整屏遮挡） */
+  .press-overlay { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(243,245,248,.34); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
+  .press-overlay .hint { font-size: 13px; font-weight: 700; color: var(--on-surface); background: rgba(255,255,255,.82); padding: 6px 15px; border-radius: 999px; box-shadow: var(--shadow-1); }
 </style>
 </head>
 <body>
@@ -907,103 +942,15 @@
 
 </div>
 
-<!-- 传感器与算法配置页组：采集 Tab 子页。复用 v3 屏6(传感器总控)+屏7(设备端算法)结构，套 V4 外壳(返回箭头、无底部 Tab、V4 密度)。已删除 v3 屏8 打包策略页，全程无任何 BLE 链路参数 -->
-<section class="section">
-  <h2>传感器与算法配置</h2>
-  <p class="desc">采集前用开关选择<b>本次采集哪些传感器路</b>（透明传输 · 不控采样率，开关只决定该路是否上传/落盘）；设备端算法为<b>后期</b>能力。App 不配置任何 BLE 链路参数。</p>
-</section>
-<div class="grid">
-
-  <!-- 配置A：传感器总控 -->
-  <div>
-    <div class="phone"><div class="phone-screen">
-      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
-      <div class="app-bar">
-        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="title-block"><div class="title">传感器总控</div><div class="subtitle">开关 = 是否采集该路（透明传输）</div></div>
-      </div>
-      <div class="content">
-        <!-- PPG -->
-        <div class="sensor-row">
-          <div class="head">
-            <div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3l2-5 3 10 2-7 2 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <div class="info"><div class="nm">PPG</div><div class="desc">光电容积脉搏波</div></div>
-            <div class="switch on primary"></div>
-          </div>        </div>
-        <!-- ECG -->
-        <div class="sensor-row">
-          <div class="head">
-            <div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h4l1.5-4 2.5 9 2-11 2 7 1.5-1h4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <div class="info"><div class="nm">ECG</div><div class="desc">单导联心电</div></div>
-            <div class="switch on primary"></div>
-          </div>        </div>
-        <!-- IMU -->
-        <div class="sensor-row">
-          <div class="head">
-            <div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="currentColor" stroke-width="1.6"/></svg></div>
-            <div class="info"><div class="nm">IMU</div><div class="desc">加速度 + 陀螺 · 各 3 轴</div></div>
-            <div class="switch on primary"></div>
-          </div>        </div>
-        <!-- 地磁 -->
-        <div class="sensor-row">
-          <div class="head">
-            <div class="ico bg-mag c-mag"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4v7a5 5 0 0010 0V4M7 4h3M14 4h3M7 8h3M14 8h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-            <div class="info"><div class="nm">地磁</div><div class="desc">三轴磁力计</div></div>
-            <div class="switch on"></div>
-          </div>        </div>
-        <!-- 温度 -->
-        <div class="sensor-row off">
-          <div class="head">
-            <div class="ico bg-temp c-temp"><svg viewBox="0 0 24 24" fill="none"><path d="M14 14.5V5a2 2 0 10-4 0v9.5a4 4 0 104 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
-            <div class="info"><div class="nm">温度</div><div class="desc">皮温 · 默认关闭</div></div>
-            <div class="switch"></div>
-          </div>        </div>
-      </div>
-      <div class="footer-bar"><button class="btn block">完成</button></div>
-    </div></div>
-    <div class="screen-label"><span class="num">配置A</span> 传感器总控</div>
-    <div class="screen-note">开关 + 采样率 + 频段标注，五路统一管理</div>
-    <div class="screen-flow">每路<b>开关</b>决定是否采集该路（透明传输 · 不控采样率）；设备端算法见配置B（<b>后期</b>）</div>
-  </div>
-
-  <!-- 配置B：设备端算法 -->
-  <div>
-    <div class="phone"><div class="phone-screen">
-      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
-      <div class="app-bar">
-        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="title-block"><div class="title">设备端算法</div><div class="subtitle">在 DUT 上运行</div></div>
-      </div>
-      <div class="content">
-        <div class="banner info"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.5 5 5.5.8-4 3.9 1 5.5L12 21l-5-2.3 1-5.5-4-3.9 5.5-.8L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="txt">算法在设备端运行，结果随数据流回传；关闭则只回原始信号</div></div>
-
-        <div class="sec-h">基于 PPG</div>
-        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">心率 HR</div><div class="desc">PPG → BPM</div></div><div class="switch on primary"></div></div></div>
-        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M8 13a4 4 0 008 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="info"><div class="nm">血氧 SpO₂</div><div class="desc">需双波长 PPG</div></div><div class="switch on primary"></div></div></div>
-
-        <div class="sec-h">基于 ECG</div>
-        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h5l2-5 2 9 2-4h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">R 波 / RR 间期</div><div class="desc">QRS 检测 → HRV</div></div><div class="switch on primary"></div></div></div>
-
-        <div class="sec-h">基于 IMU</div>
-        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18c3 0 3-9 7-9s4 9 7 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="1.4" fill="currentColor"/></svg></div><div class="info"><div class="nm">步数 / 活动姿态</div><div class="desc">计步 + 姿态分类</div></div><div class="switch on primary"></div></div></div>
-        <div class="sensor-row off"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v6m0 0l-3-2m3 2l3-2M5 21l3-7m11 7l-3-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">跌倒检测</div><div class="desc">默认关闭</div></div><div class="switch"></div></div></div>
-      </div>
-      <div class="footer-bar"><button class="btn block">下发算法配置</button></div>
-    </div></div>
-    <div class="screen-label"><span class="num">配置B</span> 设备端算法</div>
-    <div class="screen-note">手机决定 DUT 跑哪些算法，按数据源分组</div>
-    <div class="screen-flow">勾选算法 → 协议 <b>下发</b> → 结果随数据流回传；关闭则只回<b>原始信号</b></div>
-  </div>
-
-</div>
-
-<!-- 采集运行页组（按竞品 Data Collection 参考重做 · 2026-06-16）：全屏运行任务，隐藏底部 Tab。
-     头部 = 返回 + 数据采集 + "用户·模式·计时" + 右上采集类型设置；设备卡（单设备优先，含 HR）；采集类型芯片条 → 勾选采集类型清单（开关=该路是否采集，透明传输）；
-     Datas/Time + 简单实时数据区；自定义标签 + Start/End Label；底部 = 暂停 + 长按 2 秒结束（保留防误触）。
+<!-- 采集运行页组（按竞品 Data Collection 参考重做 · 2026-06-16；2026-06-16 粗修）：全屏运行任务，隐藏底部 Tab。
+     头部 = 返回 + 数据采集 + "用户·模式·计时" + 右上「采集类型选择」入口；设备卡（单设备优先，含 HR）；
+     采集类型选择（运行C，下抽屉）= 进入运行A 自动弹出 / 右上角点按重开，采集中(运行B)不隐藏(仍可重开)；开关 = 该路是否上传（需通信）/落盘，透明传输不控采样率；
+     Datas/Time + 简单实时数据区；标签区 = 输入框(内嵌 X 清空) + Pin(瞬时点标签) + Start/Stop Label 切换(长时间区间标签)；
+     底部 = 暂停(仅暂停数据框滚动显示·不停接收/采集) + 蓝色「结束」(按住进运行D：半透明遮罩·长按 2 秒确认)；实时流 = 每条 [时间戳] HEX 写一行·锚定底部·无滚动条。
      已去掉：波形⇄分包流双视图、只读观测指标、运行中控制面板（按用户精简方向；如需观测/双视图为 PRD F-COL-2/3，可后期补）。 -->
 <section class="section">
   <h2>采集运行</h2>
-  <p class="desc">从采集页「开始采集」进入，<b>照竞品 Data Collection 参考重做</b>：头部显示<b>用户 · 模式 · 计时</b>；设备卡含实时 HR；采集类型芯片条点开是<b>勾选采集类型</b>清单（开关只决定该路是否采集，透明传输）；中间是<b>简单实时数据区</b>（Datas / Time + 实时流），可打 Start / End 标签。退出唯一 = <b>长按 2 秒结束</b>（防误触），另有<b>暂停</b>。</p>
+  <p class="desc">从采集页「开始采集」进入，<b>照竞品 Data Collection 参考重做</b>：头部显示<b>用户 · 模式 · 计时</b>；设备卡含实时 HR；<b>采集类型选择</b>（运行C · 下抽屉）进入时自动弹出、右上角可重开、<b>采集中也不隐藏</b>（开关 = 该路是否上传/落盘，透明传输）；中间是<b>简单实时数据区</b>，每收到一条按 <b>[时间戳] HEX</b> 写一行、窗口锚定底部、无滚动条。标签区可打 <b>Pin 瞬时点</b>或 <b>Start/Stop 区间</b>标签。底部为<b>暂停</b>（仅暂停数据框滚动显示，不停止接收数据）与蓝色<b>「结束」</b>（按住长按 2 秒确认，半透明遮罩叠在采集界面上）。</p>
 </section>
 <div class="grid">
 
@@ -1016,35 +963,40 @@
         <div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:00:00</div></div>
         <div class="action"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h9M4 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="7" r="3" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="3" stroke="currentColor" stroke-width="2"/></svg></div>
       </div>
-      <div class="content">
-        <div class="list-tile connected">
+      <div class="content fit">
+        <div class="list-tile connected" style="flex-shrink:0">
           <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub" style="color:var(--success)"><span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;margin-right:5px"></span>在线 · 多传感器</div></div>
           <span style="color:var(--error);font-weight:700;font-size:13px;font-family:var(--font-mono)">♥ 72</span>
         </div>
 
-        <div class="list-tile" style="margin-bottom:12px">
+        <div class="list-tile" style="margin-top:8px;flex-shrink:0">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg></div>
           <div class="body" style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill">acc</span><span class="pill">ppg_g</span><span class="pill">ppg_ir</span></div>
           <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
 
-        <div class="card" style="padding:0;overflow:hidden">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:12px 14px;border-bottom:1px solid var(--outline-v)"><span>Datas：<b style="color:var(--on-surface);font-family:var(--font-mono)">0</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:00:00</b></span></div>
-          <div style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--outline);font-size:12px">点「开始采集」后实时显示数据流</div>
+        <div class="card" style="padding:0;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column;margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:12px 14px;border-bottom:1px solid var(--outline-v);flex-shrink:0"><span>Datas：<b style="color:var(--on-surface);font-family:var(--font-mono)">0</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:00:00</b></span></div>
+          <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;color:var(--outline);font-size:12px;text-align:center;padding:0 18px;line-height:1.6">点「开始采集」后开始接收<br>每收到一条写一行 <span style="font-family:var(--font-mono)">[时间戳] HEX</span></div>
         </div>
 
-        <div class="search" style="margin-top:12px;margin-bottom:8px"><input placeholder="输入自定义标签…" /><span style="color:var(--primary-deep)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 3l7 7-3.5 1.2-3 3-1 5.3-2.2-2.2-4 4-1.4-1.4 4-4L4 14l5.3-1 3-3L13.5 6.5 14 3z"/></svg></span></div>
-        <div class="btn-group"><button class="btn small outline">清除</button><button class="btn small outline">Start Label</button><button class="btn small outline">End Label</button></div>
+        <!-- 标签区（粗修）：输入框 + 右侧 Pin（瞬时点标签）；下方 Start/Stop Label 切换（长时间区间标签）。就绪态输入为空，不显示 X。 -->
+        <div class="label-row" style="flex-shrink:0">
+          <div class="label-input"><input placeholder="输入标签内容…" /></div>
+          <button class="label-pin"><svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6l-3 3v2h10v-2l-3-3V3M12 16v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Pin</button>
+        </div>
+        <button class="label-toggle" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="none"><path d="M5 21V4h11l-2 3.5L16 11H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Start Label</button>
       </div>
       <div class="footer-bar">
-        <button class="btn outline" disabled><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>暂停</button>
-        <button class="btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>开始采集</button>
+        <!-- 暂停 = 仅暂停数据框滚动显示（不停止接收/采集）；就绪态禁用 -->
+        <button class="btn outline" style="flex:0 0 auto" disabled><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>暂停</button>
+        <button class="btn" style="flex:1"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>开始采集</button>
       </div>
     </div></div>
     <div class="screen-label"><span class="num">运行A</span> 数据采集 · 就绪</div>
-    <div class="screen-note">设备卡 + 采集类型芯片 + Datas/Time + 标签 + 开始</div>
-    <div class="screen-flow">点采集类型芯片→<b>勾选采集类型</b>（运行C）；<b>开始采集</b>→采集中（运行B）</div>
+    <div class="screen-note">设备卡 + 采集类型选择 + Datas/Time + Pin/区间标签 + 开始</div>
+    <div class="screen-flow">进入自动弹出 / 点右上角→<b>采集类型选择</b>（运行C）；<b>开始采集</b>→采集中（运行B）</div>
   </div>
 
   <!-- 运行B 数据采集 · 采集中 -->
@@ -1055,41 +1007,62 @@
         <div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:02:14</div></div>
         <span class="status-pill ok"><span class="pulse"></span>采集中</span>
       </div>
-      <div class="content">
-        <div class="list-tile connected" style="margin-bottom:10px">
+      <div class="content fit">
+        <div class="list-tile connected" style="flex-shrink:0">
           <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub" style="color:var(--success)"><span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;margin-right:5px"></span>在线 · acc · ppg_g · ppg_ir</div></div>
           <span style="color:var(--error);font-weight:700;font-size:13px;font-family:var(--font-mono)">♥ 71</span>
         </div>
 
-        <div class="card" style="padding:0;overflow:hidden">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:11px 14px;border-bottom:1px solid var(--outline-v)"><span>Datas：<b style="color:var(--primary-deep);font-family:var(--font-mono)">128 402</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:02:14</b></span></div>
-          <div class="log-list" style="height:190px;border-radius:0;border:0">
-            <div class="ln"><span class="t">02:13.97</span><span>ppg_g 2048 · ppg_ir 1990 · acc .98,.02,.15</span></div>
-            <div class="ln"><span class="t">02:13.98</span><span>ppg_g 2051 · ppg_ir 1988 · acc .97,.03,.14</span></div>
-            <div class="ln"><span class="t">02:13.99</span><span>ppg_g 2049 · ppg_ir 1992 · acc .98,.02,.16</span></div>
-            <div class="ln"><span class="t">02:14.00</span><span>ppg_g 2046 · ppg_ir 1995 · acc .99,.01,.15</span></div>
-            <div class="ln"><span class="t">02:14.01</span><span>ppg_g 2050 · ppg_ir 1991 · acc .98,.02,.15</span></div>
-            <div class="ln"><span class="t">02:14.02</span><span>ppg_g 2052 · ppg_ir 1989 · acc .97,.02,.14</span></div>
-            <div class="ln ok"><span class="t">02:14.03</span><span>label ▶ Start · "rest baseline"</span></div>
-            <div class="ln"><span class="t">02:14.04</span><span>ppg_g 2048 · ppg_ir 1990 · acc .98,.02,.15</span></div>
+        <!-- 采集类型芯片条：采集中不隐藏，点开重开「采集类型选择」(运行C) -->
+        <div class="list-tile" style="margin-top:8px;flex-shrink:0">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body" style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill">acc</span><span class="pill">ppg_g</span><span class="pill">ppg_ir</span></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:11px 14px;border-bottom:1px solid var(--outline-v);flex-shrink:0"><span>Datas：<b style="color:var(--primary-deep);font-family:var(--font-mono)">128 402</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:02:14</b></span></div>
+          <!-- 实时流：每收到一条写一行 [时间戳] HEX；窗口锚定底部、无滚动条（旧行自顶部裁切） -->
+          <div class="log-list tail" style="flex:1;min-height:0;border:0;border-radius:0">
+            <div class="ln"><span class="t">[02:13.92]</span><span>7E 02 1A 08 00 2C 48 F2 19 B0 07 C6 1F</span></div>
+            <div class="ln"><span class="t">[02:13.93]</span><span>7E 02 1A 08 00 2D 47 F0 19 AE 07 C9 22</span></div>
+            <div class="ln"><span class="t">[02:13.94]</span><span>7E 02 1A 08 00 2C 49 F4 19 B2 07 C4 1D</span></div>
+            <div class="ln"><span class="t">[02:13.95]</span><span>7E 02 1A 08 00 2E 48 F1 19 AF 07 C7 20</span></div>
+            <div class="ln"><span class="t">[02:13.96]</span><span>7E 02 1A 08 00 2C 48 F3 19 B1 07 C5 1E</span></div>
+            <div class="ln"><span class="t">[02:13.97]</span><span>7E 02 1A 08 00 2D 47 F2 19 B0 07 C8 21</span></div>
+            <div class="ln"><span class="t">[02:13.98]</span><span>7E 02 1A 08 00 2C 49 F0 19 AD 07 C6 1F</span></div>
+            <div class="ln"><span class="t">[02:13.99]</span><span>7E 02 1A 08 00 2E 48 F4 19 B3 07 C3 1C</span></div>
+            <div class="ln"><span class="t">[02:14.00]</span><span>7E 02 1A 08 00 2C 48 F1 19 AF 07 C7 20</span></div>
+            <div class="ln"><span class="t">[02:14.01]</span><span>7E 02 1A 08 00 2D 47 F3 19 B1 07 C5 1E</span></div>
+            <div class="ln"><span class="t">[02:14.02]</span><span>7E 02 1A 08 00 2C 49 F2 19 B0 07 C8 21</span></div>
+            <div class="ln ok"><span class="t">[02:14.03]</span><span>▶ LABEL START · "rest baseline"</span></div>
+            <div class="ln"><span class="t">[02:14.04]</span><span>7E 02 1A 08 00 2E 48 F0 19 AE 07 C6 1F</span></div>
+            <div class="ln"><span class="t">[02:14.05]</span><span>7E 02 1A 08 00 2C 48 F4 19 B2 07 C4 1D</span></div>
+            <div class="ln"><span class="t">[02:14.06]</span><span>7E 02 1A 08 00 2D 47 F1 19 AF 07 C9 22</span></div>
           </div>
         </div>
 
-        <div class="search" style="margin-top:12px;margin-bottom:8px"><input value="rest baseline" /><span style="color:var(--primary-deep)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 3l7 7-3.5 1.2-3 3-1 5.3-2.2-2.2-4 4-1.4-1.4 4-4L4 14l5.3-1 3-3L13.5 6.5 14 3z"/></svg></span></div>
-        <div class="btn-group"><button class="btn small outline">清除</button><button class="btn small">Start Label</button><button class="btn small outline">End Label</button></div>
+        <!-- 标签区（粗修）：采集中 — 已打 Start Label，切换按钮显示 Stop Label；输入框有文字 → 右侧内嵌 X 清空 -->
+        <div class="label-row" style="flex-shrink:0">
+          <div class="label-input"><input value="rest baseline" /><span class="clear-x"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="var(--surface-2)"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6" stroke="var(--on-surface-v)" stroke-width="1.8" stroke-linecap="round"/></svg></span></div>
+          <button class="label-pin"><svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6l-3 3v2h10v-2l-3-3V3M12 16v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Pin</button>
+        </div>
+        <button class="label-toggle on" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>Stop Label</button>
       </div>
       <div class="footer-bar">
+        <!-- 暂停 = 仅暂停数据框滚动显示（不停止接收/采集） -->
         <button class="btn outline" style="flex:0 0 auto"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>暂停</button>
-        <div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div>
+        <!-- 结束：蓝色主按钮；按住进入运行D（半透明长按 2 秒确认，防误触） -->
+        <button class="btn" style="flex:1"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束</button>
       </div>
     </div></div>
     <div class="screen-label"><span class="num">运行B</span> 数据采集 · 采集中</div>
-    <div class="screen-note">Datas/Time + 简单实时数据流 + 标签 · 暂停 / 长按结束</div>
-    <div class="screen-flow">实时流滚动；打 <b>Start/End Label</b>；<b>暂停</b>可续；<b>长按 2 秒</b>→结束摘要</div>
+    <div class="screen-note">[时间戳] HEX 实时流(锚定底部·无滚动条) + Pin/区间标签 · 暂停 / 结束</div>
+    <div class="screen-flow">每条 <b>[时间戳] HEX</b> 写一行；<b>Pin</b> 打瞬时点 / <b>Start·Stop</b> 打区间；<b>暂停</b>仅停滚动显示(不停接收)；按住<b>结束</b>满 2 秒→结束摘要</div>
   </div>
 
-  <!-- 运行C 勾选采集类型（Sheet · 开关=该路是否采集） -->
+  <!-- 运行C 采集类型选择（下抽屉 Bottom Sheet · 开关=该路是否上传/落盘；进入运行A 自动弹出 / 右上角重开，采集中不隐藏·仍可重开） -->
   <div>
     <div class="phone"><div class="phone-screen">
       <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1099,8 +1072,8 @@
       </div>
       <div class="scrim"><div class="sheet">
         <div class="grab"></div>
-        <h3>勾选采集类型</h3>
-        <p>勾选本次要采集的传感器路。开关只决定该路<b>是否采集/落盘</b>（透明传输，不控采样率）。</p>
+        <h3>采集类型选择</h3>
+        <!-- 界面注释（不显示）：勾选本次要采集/上传的传感器路。开关只决定该路是否上传(需通信)/落盘，透明传输、不控采样率。 -->
         <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">PPG_G</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
         <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">PPG_IR</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
         <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">ACC</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
@@ -1110,29 +1083,52 @@
         <div class="btn-group" style="margin-top:14px"><button class="btn outline">取消</button><button class="btn">确定</button></div>
       </div></div>
     </div></div>
-    <div class="screen-label"><span class="num">运行C</span> 勾选采集类型</div>
-    <div class="screen-note">竞品式清单 · 勾选=该路是否采集（透明传输）</div>
-    <div class="screen-flow">从采集类型芯片条 ⌄ 进入；勾选 → <b>确定</b> 写回</div>
+    <div class="screen-label"><span class="num">运行C</span> 采集类型选择</div>
+    <div class="screen-note">下抽屉清单 · 勾选=该路是否上传/落盘（透明传输）</div>
+    <div class="screen-flow">进入运行A <b>自动弹出</b> / 右上角点按重开；勾选 → <b>确定</b> 写回；<b>采集中不隐藏</b>(仍可重开)</div>
   </div>
 
   <!-- 运行D 长按 2 秒结束（防误触唯一退出） -->
   <div>
     <div class="phone"><div class="phone-screen">
       <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
-      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">即将结束…</div></div></div>
-      <div class="content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
-        <div style="position:relative;width:140px;height:140px">
-          <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--error-c)" stroke-width="12"/><circle cx="60" cy="60" r="52" fill="none" stroke="var(--error)" stroke-width="12" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="120"/></svg>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:30px;font-weight:800;color:var(--error)">1.2s</div><div style="font-size:11px;color:var(--on-surface-v)">继续按住</div></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:02:18</div></div><span class="status-pill ok"><span class="pulse"></span>采集中</span></div>
+      <div class="content fit" style="position:relative">
+        <!-- 背景 = 采集中运行界面（透出），长按时仅叠一层半透明 press-overlay，不整屏遮挡 -->
+        <div class="list-tile connected" style="flex-shrink:0">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub" style="color:var(--success)">在线 · acc · ppg_g · ppg_ir</div></div>
+          <span style="color:var(--error);font-weight:700;font-size:13px;font-family:var(--font-mono)">♥ 71</span>
         </div>
-        <div style="font-size:14px;font-weight:600">松手取消 · 按满 2 秒停止</div>
-        <div class="card ghost" style="width:100%;text-align:left"><div class="card-sub">停止后生成 D-6 会话文件夹（原始 HEX 日志 + 解码 CSV + manifest）。当前已存 <b>128 402</b> 行。</div></div>
+        <div class="card" style="padding:0;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:11px 14px;border-bottom:1px solid var(--outline-v);flex-shrink:0"><span>Datas：<b style="color:var(--primary-deep);font-family:var(--font-mono)">128 442</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:02:18</b></span></div>
+          <div class="log-list tail" style="flex:1;min-height:0;border:0;border-radius:0">
+            <div class="ln"><span class="t">[02:14.14]</span><span>7E 02 1A 08 00 2C 48 F2 19 B0 07 C6 1F</span></div>
+            <div class="ln"><span class="t">[02:14.15]</span><span>7E 02 1A 08 00 2D 47 F0 19 AE 07 C9 22</span></div>
+            <div class="ln"><span class="t">[02:14.16]</span><span>7E 02 1A 08 00 2C 49 F4 19 B2 07 C4 1D</span></div>
+            <div class="ln"><span class="t">[02:14.17]</span><span>7E 02 1A 08 00 2E 48 F1 19 AF 07 C7 20</span></div>
+            <div class="ln"><span class="t">[02:14.18]</span><span>7E 02 1A 08 00 2C 48 F3 19 B1 07 C5 1E</span></div>
+          </div>
+        </div>
+        <div class="label-row" style="flex-shrink:0">
+          <div class="label-input"><input value="rest baseline" /><span class="clear-x"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="var(--surface-2)"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6" stroke="var(--on-surface-v)" stroke-width="1.8" stroke-linecap="round"/></svg></span></div>
+          <button class="label-pin"><svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6l-3 3v2h10v-2l-3-3V3M12 16v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Pin</button>
+        </div>
+        <button class="label-toggle on" style="flex-shrink:0"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>Stop Label</button>
+        <!-- 半透明长按确认遮罩：透出下面采集中内容（界面注释：停止后生成 D-6 会话文件夹 = 原始 HEX 日志 + 解码 CSV + manifest） -->
+        <div class="press-overlay">
+          <div style="position:relative;width:128px;height:128px">
+            <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(43,174,234,.18)" stroke-width="12"/><circle cx="60" cy="60" r="52" fill="none" stroke="var(--primary)" stroke-width="12" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="120"/></svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:28px;font-weight:800;color:var(--primary-deep)">1.2s</div><div style="font-size:11px;color:var(--on-surface-v)">继续按住</div></div>
+          </div>
+          <div class="hint">松手取消 · 按满 2 秒停止</div>
+        </div>
       </div>
-      <div class="footer-bar"><div class="long-press-btn" style="background:var(--error)"><span class="progress" style="transform:scaleX(.42)"></span><span class="lbl">松开取消…</span></div></div>
+      <div class="footer-bar"><div class="long-press-btn" style="background:var(--primary)"><span class="progress" style="transform:scaleX(.42)"></span><span class="lbl">松开取消…</span></div></div>
     </div></div>
-    <div class="screen-label"><span class="num">运行D</span> 长按 2 秒结束</div>
-    <div class="screen-note">防误触唯一退出（保留）· 暂停在运行B 底部</div>
-    <div class="screen-flow">按满 2 秒 → <b>结束摘要</b>；松手 → 继续采集</div>
+    <div class="screen-label"><span class="num">运行D</span> 长按 2 秒结束（半透明遮罩）</div>
+    <div class="screen-note">叠在采集中界面之上 · 透出下面内容 · 松开取消</div>
+    <div class="screen-flow">按住「结束」满 2 秒 → <b>结束摘要</b>；松手 → 继续采集</div>
   </div>
 
 </div>
@@ -1591,7 +1587,8 @@
       </div>
       <div class="footer-bar">
         <button class="btn outline icon-only"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h6v6H4zM14 5h6v14h-6zM4 15h6v4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
-        <div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div>
+        <!-- 风格与运行B 一致：蓝色「结束」（按住长按 2 秒确认，半透明遮罩） -->
+        <button class="btn" style="flex:1"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束</button>
       </div>
     </div></div>
     <div class="screen-label"><span class="num">横切A</span> 暂停 · 重连中</div>
@@ -1693,6 +1690,98 @@
     <div class="screen-label"><span class="num">横切E</span> 正在采集 全局提示条</div>
     <div class="screen-note">采集 Tab 顶级 · 唯一保留底部 Tab 的横切屏</div>
     <div class="screen-flow">提示条常驻 · 点 <b>返回采集</b> 回运行界面</div>
+  </div>
+
+</div>
+
+<!-- 传感器与算法配置页组：采集 Tab 子页。复用 v3 屏6(传感器总控)+屏7(设备端算法)结构，套 V4 外壳(返回箭头、无底部 Tab、V4 密度)。已删除 v3 屏8 打包策略页，全程无任何 BLE 链路参数 -->
+<section class="section">
+  <h2>传感器与算法配置 · 暂不实现（已移至文末）</h2>
+  <p class="desc"><b>本组两屏暂不实现、移至最后</b>。采集类型的选择改由「采集运行 · 采集类型选择（运行C）」承担（开关 = 该路是否上传/落盘，透明传输 · 不控采样率）；设备端算法仍为后期能力。以下设计灰显保留备用，不计入当前交付。</p>
+</section>
+<div class="grid">
+
+  <!-- 配置A：传感器总控（暂不实现 · 移至最后；UI 保留备用） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="defer-veil"><span class="badge">暂不实现</span><small>移至最后实现 · 设计保留</small></div>
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">传感器总控</div><div class="subtitle">开关 = 是否采集该路（透明传输）</div></div>
+      </div>
+      <div class="content">
+        <!-- PPG -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3l2-5 3 10 2-7 2 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">PPG</div><div class="desc">光电容积脉搏波</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- ECG -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h4l1.5-4 2.5 9 2-11 2 7 1.5-1h4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">ECG</div><div class="desc">单导联心电</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- IMU -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="currentColor" stroke-width="1.6"/></svg></div>
+            <div class="info"><div class="nm">IMU</div><div class="desc">加速度 + 陀螺 · 各 3 轴</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- 地磁 -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-mag c-mag"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4v7a5 5 0 0010 0V4M7 4h3M14 4h3M7 8h3M14 8h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div class="info"><div class="nm">地磁</div><div class="desc">三轴磁力计</div></div>
+            <div class="switch on"></div>
+          </div>        </div>
+        <!-- 温度 -->
+        <div class="sensor-row off">
+          <div class="head">
+            <div class="ico bg-temp c-temp"><svg viewBox="0 0 24 24" fill="none"><path d="M14 14.5V5a2 2 0 10-4 0v9.5a4 4 0 104 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">温度</div><div class="desc">皮温 · 默认关闭</div></div>
+            <div class="switch"></div>
+          </div>        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block">完成</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">配置A</span> 传感器总控 · 暂不实现</div>
+    <div class="screen-note">移至最后实现；选择已并入运行C 采集类型选择</div>
+    <div class="screen-flow">每路<b>开关</b>决定是否采集该路（透明传输 · 不控采样率）；设备端算法见配置B（<b>后期</b>）</div>
+  </div>
+
+  <!-- 配置B：设备端算法（暂不实现 · 移至最后；UI 保留备用） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="defer-veil"><span class="badge">暂不实现</span><small>移至最后实现 · 设计保留</small></div>
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">设备端算法</div><div class="subtitle">在 DUT 上运行</div></div>
+      </div>
+      <div class="content">
+        <div class="banner info"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.5 5 5.5.8-4 3.9 1 5.5L12 21l-5-2.3 1-5.5-4-3.9 5.5-.8L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="txt">算法在设备端运行，结果随数据流回传；关闭则只回原始信号</div></div>
+
+        <div class="sec-h">基于 PPG</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">心率 HR</div><div class="desc">PPG → BPM</div></div><div class="switch on primary"></div></div></div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M8 13a4 4 0 008 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="info"><div class="nm">血氧 SpO₂</div><div class="desc">需双波长 PPG</div></div><div class="switch on primary"></div></div></div>
+
+        <div class="sec-h">基于 ECG</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h5l2-5 2 9 2-4h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">R 波 / RR 间期</div><div class="desc">QRS 检测 → HRV</div></div><div class="switch on primary"></div></div></div>
+
+        <div class="sec-h">基于 IMU</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18c3 0 3-9 7-9s4 9 7 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="1.4" fill="currentColor"/></svg></div><div class="info"><div class="nm">步数 / 活动姿态</div><div class="desc">计步 + 姿态分类</div></div><div class="switch on primary"></div></div></div>
+        <div class="sensor-row off"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v6m0 0l-3-2m3 2l3-2M5 21l3-7m11 7l-3-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">跌倒检测</div><div class="desc">默认关闭</div></div><div class="switch"></div></div></div>
+      </div>
+      <div class="footer-bar"><button class="btn block">下发算法配置</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">配置B</span> 设备端算法 · 暂不实现</div>
+    <div class="screen-note">后期能力，移至最后实现；当前不计入交付</div>
+    <div class="screen-flow">勾选算法 → 协议 <b>下发</b> → 结果随数据流回传；关闭则只回<b>原始信号</b></div>
   </div>
 
 </div>
