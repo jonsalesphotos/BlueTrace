@@ -32,10 +32,12 @@ matrix, and the resolved key decisions (D-1…D-10). Detailed docs below are dow
 - [Product Requirements (PRD)](Docs/product/BlueTrace_PRD.md)
 - [UX / Interaction Flows](Docs/product/BlueTrace_UX_Flows.md)
 - [Design System](Docs/product/BlueTrace_Design_System.md)
+- [V4 Design Contract](Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md) — authoritative bottom-3-tab IA & scope convergence (V4)
 
 **Prototypes (the phone walls):**
-- [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html)
-- Legacy: [v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
+- **Current — [v4 · Android](Docs/prototypes/v4_android.html)**: bottom 3-tab IA (Collect / Data / Settings). iOS v4 TBD.
+- Legacy reference: [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html) — reuse mature exception / collection-runtime / recovery visuals only, not the wizard IA.
+- Archive: [v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
 
 **Architecture (how):**
 - [Android Architecture](Docs/architecture/BlueTrace_Architecture.md)

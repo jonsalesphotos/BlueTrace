@@ -9,8 +9,9 @@ Docs/
 │   ├── BlueTrace_UX_Flows.md       交互规格：页面流、状态机、边界、平台差异
 │   └── BlueTrace_Design_System.md  设计系统：色板/字号/组件 + Android↔iOS 映射
 ├── prototypes/       视觉原型（会频繁改的"活产物" = 手机墙）
-│   ├── v3_android.html             v3 · Android（Material 3，含主界面 Home，18 屏 + 协议说明）
-│   ├── v3_ios.html                 v3 · iOS（HIG 自适应，关键分叉屏）
+│   ├── v4_android.html             **v4 · Android（当前）**：底部三 Tab（采集/数据/设置）
+│   ├── v3_android.html             v3 · Android（**legacy 参考**：异常态/采集运行/恢复流程复用其外观）
+│   ├── v3_ios.html                 v3 · iOS（legacy 参考；**v4_ios 待补**）
 │   └── legacy/  v1.html · v2.html · codex.html（历史版本归档）
 ├── architecture/     技术实现（怎么做）
 │   ├── BlueTrace_Architecture.md           Android 详版架构
@@ -18,6 +19,9 @@ Docs/
 │   ├── BlueTrace_CrossPlatform_Notes.md     Android + iOS 跨平台技术分叉
 │   ├── BlueTrace_Protocol.md                设备通信协议 v0（标准头部+分片+protobuf）
 │   └── bluetrace_v0.proto                   协议 payload 权威 .proto 契约
+├── reviews/          设计审查与收敛契约（V4）
+│   ├── BlueTrace_设计审查_2026-06-16.md            设计审查报告（10 维）
+│   └── BlueTrace_V4_设计契约_2026-06-16.md          V4 收敛契约（权威 IA / 范围 / 冲突修正）
 ├── legacy/           被取代的旧文档
 │   ├── BlueTrace_UI_Design.md                      （已由 product/PRD + UX_Flows 取代）
 │   └── BlueTrace_Architecture_v1_single_device.md  （单设备第一版，已由 architecture/BlueTrace_Architecture.md 取代）
@@ -29,7 +33,7 @@ Docs/
 | 你是… | 先读 |
 | --- | --- |
 | 产品 / 业务 / 第一次做需求 | `product/BlueTrace_PRD.md` → `product/BlueTrace_UX_Flows.md` |
-| 设计 / 前端 | `product/BlueTrace_Design_System.md` + `prototypes/v3_*.html` |
+| 设计 / 前端 | `product/BlueTrace_Design_System.md` + `prototypes/v4_android.html`（当前；v3 仅 legacy 参考）+ `reviews/BlueTrace_V4_设计契约_2026-06-16.md` |
 | Android 开发 | `architecture/BlueTrace_Architecture.md` |
 | 跨平台 / iOS 开发 | `architecture/BlueTrace_CrossPlatform_Notes.md` |
 | 固件 / 协议对接 | `architecture/BlueTrace_Protocol.md` + `architecture/bluetrace_v0.proto` |

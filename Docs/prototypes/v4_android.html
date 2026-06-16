@@ -1,0 +1,1701 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BlueTrace · UI 原型 v4 (底部三 Tab · 采集中枢 · 数据 · 设置)</title>
+<style>
+  /* ============================================================
+     Design tokens —— 沿用 v3 浅蓝 Material 3（延续精修，不换皮）
+     ============================================================ */
+  :root {
+    --primary:        #2BAEEA;
+    --primary-deep:   #1C8EC5;
+    --primary-c:      #DCF1FB;
+    --on-primary-c:   #0E5E89;
+    --tertiary:       #7C5BC9;
+    --tertiary-c:     #ECE3FF;
+    --error:          #E5484D;
+    --error-c:        #FFE3E3;
+    --warning:        #E89F40;
+    --warning-c:      #FFE8C9;
+    --success:        #2AAE6D;
+    --success-c:      #D4F4E2;
+    --on-success-c:   #0B5733;
+
+    /* 传感器配色（固定，贯穿全 App） */
+    --s-ppg:   #2AAE6D;   --s-ppg-c:   #D4F4E2;
+    --s-ecg:   #E5484D;   --s-ecg-c:   #FFE3E3;
+    --s-imu:   #2BAEEA;   --s-imu-c:   #DCF1FB;
+    --s-mag:   #7C5BC9;   --s-mag-c:   #ECE3FF;
+    --s-temp:  #E89F40;   --s-temp-c:  #FFE8C9;
+
+    --bg:             #F3F5F8;
+    --surface:        #FFFFFF;
+    --surface-1:      #F6F7FB;
+    --surface-2:      #ECEEF3;
+    --surface-3:      #E2E5EC;
+    --on-surface:     #1B1D22;
+    --on-surface-v:   #4C525C;
+    --outline:        #8B919C;
+    --outline-v:      #D7DAE0;
+
+    --radius-sm: 8px;
+    --radius:    14px;
+    --radius-lg: 20px;
+
+    --shadow-1: 0 1px 2px rgba(15,30,60,.05), 0 1px 3px rgba(15,30,60,.04);
+    --shadow-2: 0 4px 12px rgba(15,30,60,.08), 0 2px 4px rgba(15,30,60,.04);
+    --shadow-3: 0 12px 28px rgba(15,30,60,.12), 0 4px 8px rgba(15,30,60,.06);
+    --shadow-cta: 0 6px 16px rgba(43,174,234,.28);
+
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+            "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: var(--font);
+    color: var(--on-surface);
+    background:
+      radial-gradient(1000px 500px at 0% -10%, #DCEEFB 0%, transparent 60%),
+      radial-gradient(800px 400px at 100% 0%, #F0E5FA 0%, transparent 55%),
+      linear-gradient(180deg, #EEF1F7 0%, #E7EAF2 100%);
+    min-height: 100vh;
+  }
+  code { font-family: var(--font-mono); font-size: 12px; background: rgba(255,255,255,.65); padding: 1px 6px; border-radius: 6px; }
+
+  /* ============================================================
+     页面骨架
+     ============================================================ */
+  .page-header { padding: 56px 48px 18px; max-width: 1560px; margin: 0 auto; }
+  .page-header h1 {
+    font-size: 38px; margin: 0 0 8px; letter-spacing: -.02em;
+    background: linear-gradient(120deg, var(--primary) 0%, var(--tertiary) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .page-header .sub { color: var(--on-surface-v); font-size: 15px; line-height: 1.65; max-width: 980px; }
+  .page-header .meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--surface); color: var(--on-surface-v); font-size: 12px;
+    border: 1px solid var(--outline-v); box-shadow: var(--shadow-1);
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--primary); }
+  .chip.ok   .dot { background: var(--success); }
+  .chip.tert .dot { background: var(--tertiary); }
+
+  .section { max-width: 1560px; margin: 16px auto 0; padding: 16px 48px 8px; }
+  .section h2 {
+    font-size: 20px; margin: 24px 0 6px; color: var(--on-surface);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section h2::before {
+    content: ""; width: 6px; height: 22px;
+    background: linear-gradient(180deg, var(--primary), var(--tertiary)); border-radius: 3px;
+  }
+  .section p.desc { color: var(--on-surface-v); font-size: 13px; line-height: 1.65; margin: 0 0 6px; max-width: 980px; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 40px 28px; padding: 16px 48px 64px; max-width: 1560px; margin: 0 auto;
+  }
+
+  /* ============================================================
+     手机外框（内屏 = 716 - 上下各 10 padding = 696px 可用高度）
+     ============================================================ */
+  .phone {
+    position: relative; width: 330px; height: 716px; margin: 0 auto;
+    border-radius: 42px; background: #0F1116; padding: 10px; box-shadow: var(--shadow-3);
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 24px; background: #0F1116; border-radius: 14px; z-index: 5;
+  }
+  .phone-screen {
+    position: relative; width: 100%; height: 100%; border-radius: 32px;
+    overflow: hidden; background: var(--bg); display: flex; flex-direction: column;
+  }
+  .status-bar {
+    height: 32px; padding: 8px 18px 0; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--on-surface); flex-shrink: 0;
+  }
+  .status-bar .icons { display: flex; gap: 4px; align-items: center; margin-left: 50px; }
+  .status-bar .icons svg { width: 13px; height: 13px; }
+
+  .screen-label { text-align: center; margin-top: 14px; color: var(--on-surface-v); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+  .screen-label .num {
+    display: inline-block; min-width: 26px; height: 22px; line-height: 22px; padding: 0 8px;
+    border-radius: 999px; background: var(--primary); color: #fff; font-size: 11px; margin-right: 8px; font-weight: 700;
+  }
+  .screen-note { text-align: center; color: var(--outline); font-size: 11px; margin-top: 4px; }
+  .screen-flow { text-align: center; margin-top: 6px; color: var(--on-surface-v); font-size: 10.5px; line-height: 1.55; padding: 0 6px; }
+  .screen-flow b { color: var(--primary-deep); font-weight: 700; }
+
+  /* ============================================================
+     App 通用（精修：标题 22→19，三级字重 700/600/400）
+     ============================================================ */
+  .app-bar { padding: 7px 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 48px; }
+  .app-bar .title-block { flex: 1; min-width: 0; }
+  .app-bar .title { font-size: 19px; font-weight: 700; color: var(--on-surface); line-height: 1.1; letter-spacing: -.01em; }
+  .app-bar .subtitle { font-size: 11px; font-weight: 400; color: var(--on-surface-v); margin-top: 1px; }
+  .app-bar .action { color: var(--primary-deep); font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; background: var(--primary-c); }
+
+  /* 基础内容区（数据/设置可滚动）；.fit 用于采集主界面：一页放下、不滚动 */
+  .content { flex: 1; overflow: auto; padding: 8px 16px 12px; }
+  .content.fit { display: flex; flex-direction: column; overflow: hidden; padding: 8px 16px 10px; }
+
+  .sec-h { font-size: 11px; font-weight: 700; color: var(--on-surface-v); letter-spacing: .04em; text-transform: uppercase; margin: 14px 4px 8px; }
+  .sec-h:first-child { margin-top: 2px; }
+
+  .card { background: var(--surface); border-radius: var(--radius); padding: 13px 14px; box-shadow: var(--shadow-1); margin-bottom: 11px; }
+  .card.ghost { background: var(--surface-1); border: 1px dashed var(--outline-v); box-shadow: none; }
+  .card-sub { font-size: 11.5px; color: var(--on-surface-v); line-height: 1.55; }
+
+  /* ---- 入口中枢卡（精修：icon34 · 标题14/600 · 去虚线分隔 · 标签 margin-top 8）---- */
+  .entry-tile { background: var(--surface); border-radius: 14px; padding: 11px 14px; margin-bottom: 10px; box-shadow: var(--shadow-1); }
+  .entry-tile .head { display: flex; align-items: center; gap: 11px; }
+  .entry-tile .ico { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--primary); background: var(--primary-c); }
+  .entry-tile .ico svg { width: 19px; height: 19px; }
+  .entry-tile .ico.tertiary { background: var(--tertiary-c); color: var(--tertiary); }
+  .entry-tile .ico.success { background: var(--success-c); color: var(--success); }
+  .entry-tile .body { flex: 1; min-width: 0; }
+  .entry-tile .body .ttl { font-size: 14px; font-weight: 600; color: var(--on-surface); line-height: 1.2; }
+  .entry-tile .body .sub { font-size: 11px; font-weight: 400; color: var(--on-surface-v); margin-top: 1px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-tile .trail { display: flex; align-items: center; gap: 5px; color: var(--outline); flex-shrink: 0; }
+  .entry-tile .trail .val { font-size: 12px; color: var(--on-surface-v); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .entry-tile .trail .val.ok { color: var(--success); }
+  .entry-tile .trail svg { width: 18px; height: 18px; }
+  .entry-tile .pill-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center; }
+  .entry-tile .tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+
+  .pill { background: var(--surface-2); color: var(--on-surface-v); font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
+  .pill.tonal { background: var(--primary-c); color: var(--on-primary-c); }
+  .pill.tertiary { background: var(--tertiary-c); color: var(--tertiary); }
+  .pill.ok   { background: var(--success-c); color: var(--on-success-c); }
+  .pill.warn { background: var(--warning-c); color: #8a5a14; }
+  .pill .pulse { width: 5px; height: 5px; border-radius: 999px; background: var(--success); animation: blink 1.2s infinite; }
+  .pill-divider { width: 1px; height: 13px; background: var(--outline-v); margin: 0 2px; }
+  @keyframes blink { 0%,100% { opacity:.4; transform: scale(.8);} 50% { opacity:1; transform: scale(1.1);} }
+
+  /* 传感器方标签（紧凑，色底+文字双编码） */
+  .tag { font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; letter-spacing: .02em; }
+  .tag.ppg { background: var(--s-ppg-c); color: var(--s-ppg); }
+  .tag.ecg { background: var(--s-ecg-c); color: var(--s-ecg); }
+  .tag.imu { background: var(--s-imu-c); color: var(--s-imu); }
+  .tag.mag { background: var(--s-mag-c); color: var(--s-mag); }
+  .tag.temp{ background: var(--s-temp-c);color: var(--s-temp); }
+  .tag.ref { background: var(--tertiary-c); color: var(--tertiary); }
+
+  /* 二选一分段控件（采集模式：尾部内联，省一整行） */
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 2px; }
+  .seg .opt { font-size: 11px; font-weight: 600; color: var(--on-surface-v); padding: 3px 11px; border-radius: 999px; }
+  .seg .opt.on { background: var(--primary); color: #fff; font-weight: 700; }
+
+  /* ---- 普通列表行（设置 / 文件页）---- */
+  .list-tile { background: var(--surface); border-radius: 14px; padding: 12px 14px; margin-bottom: 9px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-1); }
+  .list-tile .ico { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--primary); background: var(--primary-c); }
+  .list-tile .ico svg { width: 19px; height: 19px; }
+  .list-tile .ico.tertiary { background: var(--tertiary-c); color: var(--tertiary); }
+  .list-tile .ico.success { background: var(--success-c); color: var(--success); }
+  .list-tile .ico.warn { background: var(--warning-c); color: var(--warning); }
+  .list-tile .ico.tonal { background: var(--primary-c); color: var(--primary); }
+  .list-tile .body { flex: 1; min-width: 0; }
+  .list-tile .body .ttl { font-size: 14px; font-weight: 600; color: var(--on-surface); }
+  .list-tile .body .sub { font-size: 11px; color: var(--on-surface-v); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-tile .chev { color: var(--outline); flex-shrink: 0; }
+  .list-tile .chev svg { width: 18px; height: 18px; }
+
+  .switch { width: 40px; height: 24px; border-radius: 999px; background: var(--surface-3); position: relative; flex-shrink: 0; }
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:999px; background:#fff; box-shadow: var(--shadow-1); transition: left .2s; }
+  .switch.on { background: var(--success); }
+  .switch.on::after { left: 18px; }
+
+  /* ---- 按钮：主实心+柔阴影焦点，次描边降权 ---- */
+  .btn {
+    height: 48px; padding: 0 18px; border-radius: 999px; border: 0;
+    background: var(--primary); color: #fff; font-size: 15px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    box-shadow: var(--shadow-cta);
+  }
+  .btn.block { width: 100%; }
+  .btn.outline { height: 46px; background: transparent; color: var(--primary-deep); border: 1.5px solid var(--primary); font-size: 14px; font-weight: 600; box-shadow: none; }
+  .btn svg { width: 18px; height: 18px; }
+  .main-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .content.fit .main-cta { margin-top: auto; }   /* CTA 沉底，弹性吸收呼吸留白 */
+
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 999px; flex-shrink: 0; }
+  .status-pill.ok   { background: var(--success-c); color: var(--on-success-c); }
+  .status-pill.warn { background: var(--warning-c); color: #8a5a14; }
+  .status-pill.err  { background: var(--error-c);   color: var(--on-error-c); }
+  .status-pill.idle { background: var(--surface-2); color: var(--on-surface-v); }
+  .status-pill .pulse { width: 6px; height: 6px; border-radius: 999px; background: currentColor; animation: blink 1.2s infinite; }
+
+  /* 搜索框（数据页） */
+  .search { background: var(--surface); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; color: var(--outline); margin-bottom: 10px; border: 1px solid var(--outline-v); }
+  .search input { border: 0; outline: none; background: transparent; flex: 1; font-size: 13px; color: var(--on-surface); font-family: inherit; }
+  .search svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .date-h { font-size: 11px; font-weight: 700; color: var(--on-surface-v); margin: 10px 4px 7px; }
+  .file-card { background: var(--surface); border-radius: 14px; padding: 11px 14px; margin-bottom: 9px; box-shadow: var(--shadow-1); }
+  .file-card .nm { font-size: 12.5px; font-weight: 700; color: var(--on-surface); font-family: var(--font-mono); word-break: break-all; line-height: 1.35; }
+  .file-card .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center; }
+  .file-card .meta-line { margin-left: auto; font-size: 10.5px; color: var(--outline); font-family: var(--font-mono); }
+
+  /* ============================================================
+     底部导航 Bottom Navigation（Material 3：选中态药丸指示）
+     ============================================================ */
+  .bottom-nav { display: flex; background: var(--surface); border-top: 1px solid var(--outline-v); padding: 6px 6px 8px; flex-shrink: 0; }
+  .bottom-nav .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--on-surface-v); font-size: 10.5px; font-weight: 600; min-height: 44px; justify-content: center; }
+  .bottom-nav .nav-ico { width: 52px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; transition: background .2s; }
+  .bottom-nav .nav-ico svg { width: 21px; height: 21px; }
+  .bottom-nav .nav-item.active { color: var(--primary-deep); }
+  .bottom-nav .nav-item.active .nav-ico { background: var(--primary-c); color: var(--primary-deep); }
+
+  /* ============================================================
+     V4 子页组件（移植 v3 成熟组件，密度对齐 V4；子页隐藏底部 Tab）
+     ============================================================ */
+  /* 返回箭头（子页 App Bar 左侧） */
+  .app-bar .back { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; color: var(--on-surface); flex-shrink: 0; margin-left: -6px; }
+  .app-bar .back svg { width: 20px; height: 20px; }
+
+  /* 底部操作条（子页主操作） */
+  .footer-bar { padding: 10px 16px 14px; background: var(--surface); border-top: 1px solid var(--outline-v); display: flex; gap: 10px; flex-shrink: 0; }
+  .footer-bar .btn { flex: 1; height: 46px; }
+  .footer-bar .btn.icon-only { flex: 0 0 auto; padding: 0 16px; }
+
+  /* 按钮补充变体 */
+  .btn.tonal { background: var(--primary-c); color: var(--on-primary-c); box-shadow: none; }
+  .btn.tertiary { background: var(--tertiary); box-shadow: none; }
+  .btn.danger { background: var(--error); box-shadow: none; }
+  .btn.warn { background: var(--warning); box-shadow: none; }
+  .btn.danger.outline { background: transparent; color: var(--error); border: 1.5px solid var(--error-c); }
+  .mono { font-family: var(--font-mono); font-size: 12.5px; color: var(--on-surface); }
+  .btn.small { height: 34px; padding: 0 14px; font-size: 12.5px; box-shadow: none; }
+  .btn.xs { height: 27px; padding: 0 11px; font-size: 11px; box-shadow: none; }
+  .btn.text { background: transparent; color: var(--primary-deep); box-shadow: none; padding: 0 8px; height: auto; }
+  .btn:disabled { opacity: .4; }
+  .btn-group { display: flex; gap: 10px; }
+  .btn-group .btn { flex: 1; }
+
+  /* 扫描项 */
+  .scan-item { background: var(--surface); border-radius: 14px; padding: 11px 14px; margin-bottom: 9px; display: flex; align-items: center; gap: 12px; border: 1.5px solid transparent; box-shadow: var(--shadow-1); }
+  .scan-item.selected { border-color: var(--primary); }
+  .scan-item.selected.ref { border-color: var(--tertiary); }
+  .scan-item .rssi-ico { color: var(--primary); flex-shrink: 0; }
+  .scan-item.ref .rssi-ico { color: var(--tertiary); }
+  .scan-item .rssi-ico svg { width: 22px; height: 22px; }
+  .scan-item .rssi-ico.weak { color: var(--outline); }
+  .scan-item .body { flex: 1; min-width: 0; }
+  .scan-item .body .nm { font-size: 13px; font-weight: 600; color: var(--on-surface); }
+  .scan-item .body .mac { font-family: var(--font-mono); font-size: 10px; color: var(--outline); margin-top: 1px; }
+  .scan-item .rssi-val { color: var(--outline); font-size: 10.5px; font-family: var(--font-mono); }
+
+  /* 圆形复选 */
+  .chk { width: 20px; height: 20px; border-radius: 999px; border: 1.5px solid var(--outline); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .chk.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .chk.on.tert { background: var(--tertiary); border-color: var(--tertiary); }
+  .chk.on svg { width: 12px; height: 12px; }
+
+  /* 频率徽章 */
+  .freq-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px; letter-spacing: .02em; }
+  .freq-badge.hi { background: var(--tertiary-c); color: var(--tertiary); }
+  .freq-badge.lo { background: var(--surface-2); color: var(--on-surface-v); }
+
+  /* 传感器配置行 */
+  .sensor-row { background: var(--surface); border-radius: 14px; padding: 11px 13px; margin-bottom: 9px; box-shadow: var(--shadow-1); }
+  .sensor-row .head { display: flex; align-items: center; gap: 11px; }
+  .sensor-row .ico { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sensor-row .ico svg { width: 19px; height: 19px; }
+  .sensor-row .info { flex: 1; min-width: 0; }
+  .sensor-row .info .nm { font-size: 13.5px; font-weight: 700; color: var(--on-surface); display: flex; align-items: center; gap: 7px; }
+  .sensor-row .info .desc { font-size: 10.5px; color: var(--on-surface-v); margin-top: 1px; }
+  .sensor-row .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--outline-v); }
+  .sensor-row.off { opacity: .55; }
+  .sensor-row.off .opts { display: none; }
+  .rate-chip { font-size: 11px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--on-surface-v); }
+  .rate-chip.active { background: var(--primary); color: #fff; font-weight: 600; }
+  .switch.on.primary { background: var(--primary); }
+
+  /* 传感器色 helpers */
+  .c-ppg{color:var(--s-ppg)} .bg-ppg{background:var(--s-ppg-c)}
+  .c-ecg{color:var(--s-ecg)} .bg-ecg{background:var(--s-ecg-c)}
+  .c-imu{color:var(--s-imu)} .bg-imu{background:var(--s-imu-c)}
+  .c-mag{color:var(--s-mag)} .bg-mag{background:var(--s-mag-c)}
+  .c-temp{color:var(--s-temp)} .bg-temp{background:var(--s-temp-c)}
+  .c-tert{color:var(--tertiary)}
+
+  /* 采集运行：设备小卡 */
+  .device-bar { display: flex; gap: 9px; margin-bottom: 9px; }
+  .device-mini { flex: 1; background: var(--surface); border-radius: 12px; padding: 8px 11px; border: 1.5px solid var(--primary-c); min-width: 0; }
+  .device-mini.tertiary { border-color: var(--tertiary-c); }
+  .device-mini .nm { font-size: 11.5px; font-weight: 700; color: var(--primary-deep); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .device-mini.tertiary .nm { color: var(--tertiary); }
+  .device-mini .stat { font-size: 10px; color: var(--success); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+  .device-mini .stat .pulse { width: 5px; height: 5px; border-radius: 999px; background: currentColor; animation: blink 1.2s infinite; }
+
+  /* 传感器总览小卡 */
+  .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .sensor-tile { background: var(--surface); border-radius: 12px; padding: 9px 11px; border: 1px solid var(--outline-v); display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+  .sensor-tile .top { display: flex; align-items: center; gap: 6px; }
+  .sensor-tile .top .nm { font-size: 11.5px; font-weight: 700; }
+  .sensor-tile .top .tag { margin-left: auto; font-size: 8.5px; font-family: var(--font-mono); color: var(--outline); background: none; padding: 0; font-weight: 600; }
+  .sensor-tile .wave { height: 36px; border-radius: 7px; background: var(--surface-1); overflow: hidden; }
+  .sensor-tile .wave svg { width: 100%; height: 100%; display: block; }
+  .sensor-tile .val { font-size: 12.5px; font-weight: 700; font-family: var(--font-mono); }
+  .sensor-tile .val small { font-size: 9.5px; font-weight: 500; color: var(--on-surface-v); }
+
+  /* 视图切换段控件（波形 ⇄ 分包流）—— 区别于内联 .seg */
+  .seg-tab { display: flex; background: var(--surface-2); border-radius: 999px; padding: 3px; margin-bottom: 9px; flex-shrink: 0; }
+  .seg-tab .t { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: var(--on-surface-v); padding: 6px 0; border-radius: 999px; }
+  .seg-tab .t.active { background: var(--surface); color: var(--primary-deep); box-shadow: var(--shadow-1); }
+
+  /* 大波形窗 */
+  .wave-big { background: var(--surface); border-radius: 12px; border: 1px solid var(--outline-v); padding: 8px 10px; margin-bottom: 9px; }
+  .wave-big .lbl { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; }
+  .wave-big .lbl .v { font-family: var(--font-mono); }
+  .wave-big .plot { height: 52px; margin-top: 4px; }
+  .wave-big .plot svg { width: 100%; height: 100%; display: block; }
+
+  /* 原始分包流 */
+  .pkt-stream { background: var(--surface); border-radius: 12px; border: 1px solid var(--outline-v); padding: 9px 11px; flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .pkt { border-radius: 8px; padding: 6px 9px; margin-bottom: 6px; font-family: var(--font-mono); font-size: 9px; line-height: 1.5; }
+  .pkt .ph { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: 8.5px; }
+  .pkt .ph .k { font-weight: 700; }
+  .pkt .ph .sz { margin-left: auto; color: var(--outline); }
+  .pkt.batch { background: var(--tertiary-c); color: var(--tertiary); }
+  .pkt.group { background: var(--success-c); color: var(--on-success-c); }
+  .pkt .hex { word-break: break-all; opacity: .9; }
+
+  /* 指标格（只读观测：包速率/丢包/CRC/带宽） */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric { background: var(--surface-1); border-radius: 10px; padding: 8px 11px; }
+  .metric .k { font-size: 9.5px; color: var(--on-surface-v); }
+  .metric .v { font-size: 15px; font-weight: 700; font-family: var(--font-mono); margin-top: 1px; }
+  .metric .v small { font-size: 9.5px; font-weight: 500; color: var(--on-surface-v); }
+
+  /* Banner 分级（红阻断/黄降级/蓝可恢复） */
+  .banner { border-radius: 12px; padding: 9px 12px; display: flex; align-items: center; gap: 9px; font-size: 12px; margin-bottom: 9px; }
+  .banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .banner .txt { flex: 1; line-height: 1.4; }
+  .banner .txt b { display: block; font-size: 12px; }
+  .banner.err  { background: var(--error-c);   color: var(--on-error-c); }
+  .banner.warn { background: var(--warning-c);  color: #8a5a14; }
+  .banner.ok   { background: var(--success-c);  color: var(--on-success-c); }
+  .banner.info { background: var(--primary-c);  color: var(--on-primary-c); }
+  .banner .b-act { font-weight: 700; white-space: nowrap; }
+
+  /* 长按结束（唯一退出） */
+  .long-press-btn { position: relative; flex: 1; height: 46px; border-radius: 999px; background: var(--error); color: #fff; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; }
+  .long-press-btn .progress { position: absolute; inset: 0; background: rgba(255,255,255,.25); transform-origin: left; transform: scaleX(.62); }
+  .long-press-btn .lbl { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 6px; }
+  .long-press-btn svg { width: 16px; height: 16px; }
+
+  /* 指令日志 */
+  .cmd-log { background: var(--surface-1); border-radius: 10px; padding: 8px 10px; font-family: var(--font-mono); font-size: 9.5px; line-height: 1.7; color: var(--on-surface-v); }
+  .cmd-log .tx { color: var(--primary-deep); }
+  .cmd-log .rx { color: var(--success); }
+
+  /* 弹层 Sheet */
+  .scrim { position: absolute; inset: 0; background: rgba(15,20,30,.45); display: flex; align-items: flex-end; z-index: 10; }
+  .sheet { width: 100%; background: var(--surface); border-radius: 24px 24px 0 0; padding: 16px 16px 20px; max-height: 88%; overflow: auto; }
+  .sheet .grab { width: 38px; height: 4px; border-radius: 999px; background: var(--surface-3); margin: 0 auto 12px; }
+  .sheet h3 { margin: 0 0 4px; font-size: 17px; }
+  .sheet p { margin: 0 0 12px; font-size: 12px; color: var(--on-surface-v); line-height: 1.5; }
+
+  /* 表单字段（用户编辑） */
+  .field { background: var(--surface); border-radius: 12px; padding: 9px 13px; border: 1px solid var(--outline-v); margin-bottom: 9px; }
+  .field .label { font-size: 10.5px; color: var(--on-surface-v); margin-bottom: 3px; }
+  .field input, .field .value { border: 0; outline: none; background: transparent; font-size: 14px; color: var(--on-surface); width: 100%; font-family: inherit; }
+  .field input::placeholder { color: var(--outline); }
+  .field-row { display: flex; gap: 9px; }
+  .field-row .field { flex: 1; }
+
+  /* 空态 */
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; }
+  .empty-state .e-ico { width: 64px; height: 64px; border-radius: 20px; background: var(--surface-2); color: var(--outline); display: inline-flex; align-items: center; justify-content: center; }
+  .empty-state .e-ico svg { width: 32px; height: 32px; }
+  .empty-state .e-ttl { font-size: 15px; font-weight: 700; color: var(--on-surface); }
+  .empty-state .e-sub { font-size: 12px; color: var(--on-surface-v); line-height: 1.5; max-width: 220px; }
+
+  /* Toast（导出完成） */
+  .toast { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); background: rgba(20,24,32,.92); color: #fff; font-size: 12px; padding: 9px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; box-shadow: var(--shadow-3); white-space: nowrap; z-index: 20; }
+  .toast.err { background: rgba(147,0,10,.95); }
+  .toast.err svg { color: #FFB3B3; }
+  .toast svg { width: 16px; height: 16px; color: var(--success); }
+
+  /* ============================================================
+     V4 第二轮：数据闭环 / 设置子页 / 横切状态 组件
+     ============================================================ */
+  /* 存储占用条（StorageBreakdown，多段占比 + 图例） */
+  .usage-bar { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; display: flex; }
+  .usage-bar i { height: 100%; display: block; }
+  .legend-dots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 9px; }
+  .legend-dots span { font-size: 10.5px; color: var(--on-surface-v); display: inline-flex; align-items: center; gap: 5px; }
+  .legend-dots span i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+  /* 导出进度（ProgressDialog 内确定进度条） */
+  .progress-track { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 12px 0 6px; }
+  .progress-track i { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+
+  /* "正在采集"全局提示条（GlobalCollectingBanner，置于采集 Tab 顶部） */
+  .collecting-bar { display: flex; align-items: center; gap: 9px; background: var(--primary); color: #fff; padding: 10px 14px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .collecting-bar .pulse { width: 7px; height: 7px; border-radius: 999px; background: #fff; animation: blink 1.2s infinite; flex-shrink: 0; }
+  .collecting-bar .go { margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .collecting-bar .go svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>BlueTrace · UI 原型 v4</h1>
+  <p class="sub">
+    第四版信息架构：主界面改为<b>底部三 Tab 中枢</b> —— <b>采集 / 数据 / 设置</b>。
+    <b>采集</b> 是 BlueTrace 自有的入口中枢，汇集 设备 · 采集用户 · 采集模式，底部双 CTA 进入扫描连接 / 开始采集；
+    <b>数据</b> 收纳采集会话（D-6 一会话一文件夹）；<b>设置</b> 放环境权限 / GNSS / 存储 / 关于。
+    视觉沿用 v3 浅蓝 Material 3 token；<b>本轮经设计面板精修：字阶收紧（标题 19、卡标题 14、三级字重 700/600/400），密度对齐 4/8 网格，采集主界面一页放下不滚动</b>。
+  </p>
+  <div class="meta">
+    <span class="chip"><span class="dot"></span>主界面定调 3 屏</span>
+    <span class="chip ok"><span class="dot"></span>采集页一页放下 · 不滚动</span>
+    <span class="chip tert"><span class="dot"></span>底部三 Tab：采集 / 数据 / 设置</span>
+  </div>
+</header>
+
+<section class="section">
+  <h2>主界面 · 底部三 Tab 中枢</h2>
+  <p class="desc">三个 Tab 是 App 的主舞台。<b>采集</b> Tab 为主界面：点入口卡进子页（扫描连接 / 采集用户 / 采集模式），底部「开始采集」进采集运行界面。子页与采集运行页进入后 <b>隐藏底部 Tab</b>，避免强状态任务被误触切走。精修要点：层级靠<b>对比与字重</b>而非字号；去掉装饰性虚线分隔；采集模式二选一收进尾部分段控件；双 CTA 沉底，留弹性呼吸留白。</p>
+</section>
+
+<div class="grid">
+
+  <!-- T1 采集 Tab（主界面 · 精修：一页放下不滚动） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>10:28</span><span class="icons">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg>
+      </span></div>
+      <div class="app-bar">
+        <div class="title-block"><div class="title">采集</div><div class="subtitle">多传感器 BLE 数据采集 · 准备会话</div></div>
+        <span class="status-pill ok"><span class="pulse"></span>就绪</span>
+      </div>
+      <div class="content fit">
+
+        <!-- 设备 → 扫描连接界面 -->
+        <div class="entry-tile">
+          <div class="head">
+            <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="body"><div class="ttl">设备</div><div class="sub">DUT · 多传感器</div></div>
+            <div class="trail"><span class="val ok">1 已连接</span><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="pill-row">
+            <span class="pill tonal"><span class="pulse"></span>BT-DUT-0427</span>
+          </div>
+        </div>
+
+        <!-- 用户 → 用户选择界面 -->
+        <div class="entry-tile">
+          <div class="head">
+            <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div class="body"><div class="ttl">用户</div><div class="sub">采集用户档案 · 写入文件名</div></div>
+            <div class="trail"><span class="val">shb</span><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="pill-row">
+            <span class="pill">Male</span><span class="pill">1992-5</span><span class="pill">175cm</span><span class="pill">75.0kg</span>
+          </div>
+        </div>
+
+        <!-- 采集模式（单行 · 尾部分段控件） -->
+        <div class="entry-tile">
+          <div class="head">
+            <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div class="body"><div class="ttl">采集模式</div><div class="sub">Wear · 自动命名会话文件夹</div></div>
+            <div class="trail"><span class="seg"><span class="opt on">Wear</span><span class="opt">Unwear</span></span></div>
+          </div>
+        </div>
+
+        <!-- 双 CTA（沉底） -->
+        <div class="main-cta">
+          <button class="btn block"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>开始采集</button>
+        </div>
+
+      </div>
+
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          采集
+        </div>
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+          数据
+        </div>
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          设置
+        </div>
+      </div>
+
+    </div></div>
+    <div class="screen-label"><span class="num">采集</span> 采集 Tab · 主界面</div>
+    <div class="screen-note">设备 / 用户 / 采集模式 + 开始采集</div>
+    <div class="screen-flow">点 <b>设备</b>→连接；<b>用户</b>→选择；<b>开始采集</b> → 运行</div>
+  </div>
+
+  <!-- T2 数据 Tab（Raw Data File） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>10:31</span><span class="icons">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg>
+      </span></div>
+      <div class="app-bar">
+        <div class="title-block"><div class="title">数据</div><div class="subtitle">采集会话 · 12 个 · 18.4 MB</div></div>
+        <span class="action">选择</span>
+      </div>
+      <div class="content">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input placeholder="搜索会话 / 用户 / 设备" />
+        </div>
+        <div class="seg" style="display:flex;margin-bottom:10px">
+          <span class="opt on">全部</span><span class="opt">Wear</span><span class="opt">Unwear</span>
+        </div>
+
+        <div class="date-h">今天 · 2026-05-21 · 会话文件夹</div>
+        <div class="file-card">
+          <div class="nm">Wear_shb_20260521_103014_de54</div>
+          <div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="tag" style="background:var(--surface-2);color:var(--on-surface-v)">GNSS</span><span class="meta-line">0.23 MB · 09s</span></div>
+        </div>
+        <div class="file-card">
+          <div class="nm">Wear_shb_20260521_102136_de54</div>
+          <div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="tag mag">地磁</span><span class="tag temp">温度</span><span class="meta-line">8.40 MB · 04:12</span></div>
+        </div>
+
+        <div class="date-h">昨天 · 2026-05-20 · 会话文件夹</div>
+        <div class="file-card">
+          <div class="nm">Unwear_shb_20260520_150401_de54</div>
+          <div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="meta-line">3.12 MB · 03:12</span></div>
+        </div>
+        <div class="file-card">
+          <div class="nm">Wear_lina_20260520_174621_8821</div>
+          <div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="meta-line">2.08 MB · 02:41</span></div>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          采集
+        </div>
+        <div class="nav-item active">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+          数据
+        </div>
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          设置
+        </div>
+      </div>
+
+    </div></div>
+    <div class="screen-label"><span class="num">数据</span> 数据 Tab · 采集会话（D-6 文件夹）</div>
+    <div class="screen-note">列表单位 = 会话文件夹（非扁平文件）· 按日期分组 · Wear/Unwear 筛选</div>
+    <div class="screen-flow">单击进<b>会话详情</b>看夹内构成 · 长按/「选择」进多选 · 导出整文件夹</div>
+  </div>
+
+  <!-- T3 设置 Tab -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>10:21</span><span class="icons">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg>
+      </span></div>
+      <div class="app-bar">
+        <div class="title-block"><div class="title">设置</div><div class="subtitle">BlueTrace · v1.0.0</div></div>
+      </div>
+      <div class="content">
+        <div class="sec-h">环境与权限</div>
+        <div class="list-tile">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">环境与权限检查</div><div class="sub">蓝牙 · 扫描 · 连接 · 全部就绪</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body"><div class="ttl">本机 GNSS</div><div class="sub">采集保存 GNSS 日志</div></div>
+          <span class="switch on"></span>
+        </div>
+
+        <div class="sec-h">数据</div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">导出位置</div><div class="sub">Download/BlueTrace/</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="6" rx="7" ry="3" stroke="currentColor" stroke-width="2"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body"><div class="ttl">存储占用</div><div class="sub">原始 HEX 日志 + 解码 CSV · 18.4 MB</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
+        <div class="sec-h">关于</div>
+        <div class="list-tile">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8h.01M11 12h1v4h1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">关于 BlueTrace</div><div class="sub">版本 v1.0.0 · 多传感器 BLE 采集</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          采集
+        </div>
+        <div class="nav-item">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+          数据
+        </div>
+        <div class="nav-item active">
+          <span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          设置
+        </div>
+      </div>
+
+    </div></div>
+    <div class="screen-label"><span class="num">设置</span> 设置 Tab</div>
+    <div class="screen-note">环境权限 · 数据/导出 · 关于</div>
+    <div class="screen-flow">去掉远程/透传等<b>二期</b>项；环境与权限检查从此处手动进入</div>
+  </div>
+
+</div>
+
+
+<!-- 设备连接 页组：采集 Tab 子页（隐藏底部 Tab，App Bar 带返回箭头）。
+     扁平设备列表：单击一行后台连接（未连接→连接中(动画)→已连接），再点断开；右上角连接计数；天然支持 1..N。
+     第 3 台起提示链路可能不稳定，最多 3 台；第 4 台禁止。仅列出带 BlueTrace 服务的自己的 DUT；无角色槽、无链路参数（D-5 只解包观测）。 -->
+<section class="section">
+  <h2>设备连接</h2>
+  <p class="desc">从采集主界面「设备」入口进入。列出<b>自己的 DUT 设备</b>（Service UUID）+ 可选 <b>1 个标准心率带参考</b>（HRS 0x180D，做对照）。<b>单击一行即后台连接</b>，右侧标签 未连接 → 连接中(动画) → 已连接；<b>再点一下断开</b>。右上角显示连接总数——<b>DUT 最多 3 台</b>（第 3 台起提示链路不稳定、第 4 台禁止），<b>参考心率带最多 1 台</b>。扁平列表无角色槽、无任何打包/组帧/MTU/连接间隔等链路参数（App 只解包观测）。</p>
+</section>
+
+<div class="grid">
+
+  <!-- A. 设备列表 · 单击连接 / 断开 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">设备连接</div><div class="subtitle">单击连接 · 再点断开</div></div>
+        <span class="conn-count">已连 3</span>
+      </div>
+      <div class="content">
+
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input placeholder="按名称 / MAC 过滤" />
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--outline-v);border-radius:12px;padding:9px 14px 11px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--on-surface-v);margin-bottom:9px">RSSI 过滤 · 仅显示强于 <b style="color:var(--primary-deep);font-family:var(--font-mono)">−80 dBm</b></div>
+          <div style="height:5px;border-radius:999px;background:var(--surface-2);position:relative">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:999px;background:var(--primary)"></span>
+            <span style="position:absolute;top:50%;left:62%;width:16px;height:16px;border-radius:999px;background:#fff;border:2px solid var(--primary);transform:translate(-50%,-50%);box-shadow:var(--shadow-1)"></span>
+          </div>
+        </div>
+
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub">C4:7B:8D:0A:04:27 · -52 dBm</div></div>
+          <span class="status-pill ok"><span class="pulse"></span>已连接</span>
+        </div>
+
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0319</div><div class="sub">C4:7B:8D:0A:03:19 · -68 dBm</div></div>
+          <span class="status-pill ok"><span class="pulse"></span>已连接</span>
+        </div>
+
+        <div class="list-tile connected" style="border-color:var(--tertiary-c)">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">Polar H10 <span class="pill tertiary" style="font-size:9px;padding:1px 6px">参考</span></div><div class="sub">标准心率带 · 0x180D · ♥ 72</div></div>
+          <span class="status-pill ok"><span class="pulse"></span>已连接</span>
+        </div>
+
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0188</div><div class="sub">C4:7B:8D:0A:01:88 · -81 dBm</div></div>
+          <span class="status-pill warn"><span class="conn-dots"><i></i><i></i><i></i></span>连接中</span>
+        </div>
+
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0102</div><div class="sub">C4:7B:8D:0A:01:02 · -90 dBm</div></div>
+          <span class="status-pill idle">未连接</span>
+        </div>
+
+      </div>
+      <div class="footer-bar">
+        <button class="btn block outline"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>停止扫描</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">设备A</span> 设备列表 · 单击连接 / 断开</div>
+    <div class="screen-note">DUT（≤3）+ 参考心率带（≤1）· 右侧状态标签 · 右上连接计数</div>
+    <div class="screen-flow">单击行→<b>连接</b>（未连接→连接中→已连接）；再点→<b>断开</b>；参考心率带（紫·0x180D）<b>至多 1 个</b>；扫描 <b>60s 自停</b></div>
+  </div>
+
+  <!-- B. 连接上限（第 3 台提示不稳定 / 第 4 台禁止） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">设备连接</div><div class="subtitle">已达连接上限</div></div>
+        <span class="conn-count">已连 3</span>
+      </div>
+      <div class="content">
+
+        <div class="banner warn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.3 4.3l-7 12A2 2 0 005 19h14a2 2 0 001.7-2.7l-7-12a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="txt"><b>DUT 已连 3 台（上限）· 链路可能不稳定</b>DUT 最多 3 台 + 参考心率带最多 1 台</div>
+        </div>
+
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub">-52 dBm</div></div>
+          <span class="status-pill ok"><span class="pulse"></span>已连接</span>
+        </div>
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0319</div><div class="sub">-68 dBm</div></div>
+          <span class="status-pill ok"><span class="pulse"></span>已连接</span>
+        </div>
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0188</div><div class="sub">-81 dBm · 不稳定</div></div>
+          <span class="status-pill warn"><span class="pulse"></span>已连接</span>
+        </div>
+
+        <div class="list-tile disabled">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0102</div><div class="sub">-90 dBm · 断开一台后可连</div></div>
+          <span class="status-pill idle">已达上限</span>
+        </div>
+
+      </div>
+      <div class="footer-bar">
+        <button class="btn block outline"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>停止扫描</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">设备B</span> 连接上限（最多 3 台）</div>
+    <div class="screen-note">DUT ≤3（第 3 不稳定·第 4 禁止）+ 参考心率带 ≤1</div>
+    <div class="screen-flow">DUT 第 4 台→<b>禁用</b>；参考心率带超过 1 个→<b>禁用</b>；断开后恢复可连</div>
+  </div>
+
+  <!-- C. 扫描 · 无结果空态 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">设备连接</div><div class="subtitle">未发现设备</div></div>
+        <span class="conn-count">已连 0</span>
+      </div>
+      <div class="content fit">
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9a16 16 0 0118 0M6.5 12.5a11 11 0 0111 0M10 16a6 6 0 014 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19.5" r="1.4" fill="currentColor"/></svg></div>
+          <div class="e-ttl">未发现设备</div>
+          <div class="e-sub">确认 DUT 已上电并在范围内，再重新扫描。</div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn block">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          重新扫描
+        </button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">设备C</span> 扫描 · 无结果空态</div>
+    <div class="screen-note">范围内无可用 DUT 时的引导空态</div>
+    <div class="screen-flow"><b>重新扫描</b>→回到扫描中（设备A）</div>
+  </div>
+
+</div>
+
+<!-- 用户页组：采集 Tab 子页，无 bottom-nav，App Bar 带返回箭头。A 选择有列表 / B 空态 / C 编辑表单。别名非真实姓名、本地存储不上传。 -->
+<section class="section">
+  <h2>用户选择 / 编辑</h2>
+  <p class="desc">从采集前置流进入。用户别名写入会话文件名与 manifest.json，用于离线分类；档案仅本地存储，一期不上传、不出设备。退出无破坏、可随时切换或新建。</p>
+</section>
+<div class="grid">
+
+  <!-- A. 用户选择·有列表 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">选择用户</div><div class="subtitle">别名将写入文件名与 manifest</div></div></div>
+      <div class="content">
+        <div class="sec-h">当前用户</div>
+        <div class="list-tile" style="border:1.5px solid var(--tertiary-c)">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="body"><div class="ttl">shb <span class="tag ref">当前</span></div><div class="sub">Male · 1992-5 · 175cm · 75.0kg</div></div>
+          <div class="chk on tert"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <div class="sec-h">其他用户</div>
+        <div class="list-tile">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="body"><div class="ttl">lina</div><div class="sub">Female · 1996-11 · 163cm · 54.0kg</div></div>
+          <div class="chk"></div>
+        </div>
+        <div class="list-tile">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="body"><div class="ttl">t01</div><div class="sub">Other · 2001-3 · 170cm · 62.0kg</div></div>
+          <div class="chk"></div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block outline">+ 新建用户</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">用户A</span> 用户选择·有列表</div>
+    <div class="screen-note">最近使用列表，单选当前用户后开始采集。</div>
+    <div class="screen-flow">点某行即<b>选中并返回</b>采集页（自动设为当前用户，无需确认按钮）；「+ 新建用户」去<b>编辑页</b>。</div>
+  </div>
+
+  <!-- B. 用户·空态 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">选择用户</div><div class="subtitle">本地存储 · 不上传</div></div></div>
+      <div class="content">
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="e-ttl">还没有用户</div>
+          <div class="e-sub">用户别名会写入文件名与 manifest，用于离线分类</div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block">+ 新建用户</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">用户B</span> 用户·空态</div>
+    <div class="screen-note">首次使用无任何档案，引导新建。</div>
+    <div class="screen-flow">无用户时显示空态 → 点「+ 新建用户」去<b>编辑页</b>；保存后返回此页变为<b>有列表</b>。</div>
+  </div>
+
+  <!-- C. 用户编辑（表单） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">新建用户</div><div class="subtitle">别名 · 体征档案</div></div><div class="action">保存</div></div>
+      <div class="content">
+        <div class="field"><div class="label">别名</div><input placeholder="如 shb（建议别名，非真实姓名）"></div>
+        <div class="field"><div class="label">性别</div><div class="seg"><div class="opt on">男</div><div class="opt">女</div><div class="opt">其他</div></div></div>
+        <div class="field"><div class="label">出生年月</div><input value="1992-5"></div>
+        <div class="field-row">
+          <div class="field"><div class="label">身高 cm</div><input value="175"></div>
+          <div class="field"><div class="label">体重 kg</div><input value="75.0"></div>
+        </div>
+        <div class="banner info"><div class="txt"><b>档案仅本地存储</b>，一期不上传、不出设备，仅用于文件名与 manifest 离线分类。</div></div>
+      </div>
+      <div class="footer-bar"><button class="btn block">保存用户</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">用户C</span> 用户编辑（表单）</div>
+    <div class="screen-note">新建或编辑别名与体征，含本地存储隐私提示。</div>
+    <div class="screen-flow">从选择页「+ 新建」或某条编辑进入 → 填别名/性别/出生/身高体重 → 「保存用户」回到<b>选择页</b>并自动选中。</div>
+  </div>
+
+</div>
+
+<!-- 传感器与算法配置页组：采集 Tab 子页。复用 v3 屏6(传感器总控)+屏7(设备端算法)结构，套 V4 外壳(返回箭头、无底部 Tab、V4 密度)。已删除 v3 屏8 打包策略页，全程无任何 BLE 链路参数 -->
+<section class="section">
+  <h2>传感器与算法配置</h2>
+  <p class="desc">采集前用开关选择<b>本次采集哪些传感器路</b>（透明传输 · 不控采样率，开关只决定该路是否上传/落盘）；设备端算法为<b>后期</b>能力。App 不配置任何 BLE 链路参数。</p>
+</section>
+<div class="grid">
+
+  <!-- 配置A：传感器总控 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">传感器总控</div><div class="subtitle">开关 = 是否采集该路（透明传输）</div></div>
+      </div>
+      <div class="content">
+        <!-- PPG -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3l2-5 3 10 2-7 2 4h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">PPG</div><div class="desc">光电容积脉搏波</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- ECG -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h4l1.5-4 2.5 9 2-11 2 7 1.5-1h4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">ECG</div><div class="desc">单导联心电</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- IMU -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="currentColor" stroke-width="1.6"/></svg></div>
+            <div class="info"><div class="nm">IMU</div><div class="desc">加速度 + 陀螺 · 各 3 轴</div></div>
+            <div class="switch on primary"></div>
+          </div>        </div>
+        <!-- 地磁 -->
+        <div class="sensor-row">
+          <div class="head">
+            <div class="ico bg-mag c-mag"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4v7a5 5 0 0010 0V4M7 4h3M14 4h3M7 8h3M14 8h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div class="info"><div class="nm">地磁</div><div class="desc">三轴磁力计</div></div>
+            <div class="switch on"></div>
+          </div>        </div>
+        <!-- 温度 -->
+        <div class="sensor-row off">
+          <div class="head">
+            <div class="ico bg-temp c-temp"><svg viewBox="0 0 24 24" fill="none"><path d="M14 14.5V5a2 2 0 10-4 0v9.5a4 4 0 104 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+            <div class="info"><div class="nm">温度</div><div class="desc">皮温 · 默认关闭</div></div>
+            <div class="switch"></div>
+          </div>        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block">完成</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">配置A</span> 传感器总控</div>
+    <div class="screen-note">开关 + 采样率 + 频段标注，五路统一管理</div>
+    <div class="screen-flow">每路<b>开关</b>决定是否采集该路（透明传输 · 不控采样率）；设备端算法见配置B（<b>后期</b>）</div>
+  </div>
+
+  <!-- 配置B：设备端算法 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">设备端算法</div><div class="subtitle">在 DUT 上运行</div></div>
+      </div>
+      <div class="content">
+        <div class="banner info"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.5 5 5.5.8-4 3.9 1 5.5L12 21l-5-2.3 1-5.5-4-3.9 5.5-.8L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="txt">算法在设备端运行，结果随数据流回传；关闭则只回原始信号</div></div>
+
+        <div class="sec-h">基于 PPG</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">心率 HR</div><div class="desc">PPG → BPM</div></div><div class="switch on primary"></div></div></div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ppg c-ppg"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M8 13a4 4 0 008 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="info"><div class="nm">血氧 SpO₂</div><div class="desc">需双波长 PPG</div></div><div class="switch on primary"></div></div></div>
+
+        <div class="sec-h">基于 ECG</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-ecg c-ecg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12h5l2-5 2 9 2-4h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">R 波 / RR 间期</div><div class="desc">QRS 检测 → HRV</div></div><div class="switch on primary"></div></div></div>
+
+        <div class="sec-h">基于 IMU</div>
+        <div class="sensor-row" style="margin-bottom:8px"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18c3 0 3-9 7-9s4 9 7 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="18" r="1.4" fill="currentColor"/></svg></div><div class="info"><div class="nm">步数 / 活动姿态</div><div class="desc">计步 + 姿态分类</div></div><div class="switch on primary"></div></div></div>
+        <div class="sensor-row off"><div class="head"><div class="ico bg-imu c-imu"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v6m0 0l-3-2m3 2l3-2M5 21l3-7m11 7l-3-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="info"><div class="nm">跌倒检测</div><div class="desc">默认关闭</div></div><div class="switch"></div></div></div>
+      </div>
+      <div class="footer-bar"><button class="btn block">下发算法配置</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">配置B</span> 设备端算法</div>
+    <div class="screen-note">手机决定 DUT 跑哪些算法，按数据源分组</div>
+    <div class="screen-flow">勾选算法 → 协议 <b>下发</b> → 结果随数据流回传；关闭则只回<b>原始信号</b></div>
+  </div>
+
+</div>
+
+<!-- 采集运行页组（按竞品 Data Collection 参考重做 · 2026-06-16）：全屏运行任务，隐藏底部 Tab。
+     头部 = 返回 + 数据采集 + "用户·模式·计时" + 右上采集类型设置；设备卡（单设备优先，含 HR）；采集类型芯片条 → 勾选采集类型清单（开关=该路是否采集，透明传输）；
+     Datas/Time + 简单实时数据区；自定义标签 + Start/End Label；底部 = 暂停 + 长按 2 秒结束（保留防误触）。
+     已去掉：波形⇄分包流双视图、只读观测指标、运行中控制面板（按用户精简方向；如需观测/双视图为 PRD F-COL-2/3，可后期补）。 -->
+<section class="section">
+  <h2>采集运行</h2>
+  <p class="desc">从采集页「开始采集」进入，<b>照竞品 Data Collection 参考重做</b>：头部显示<b>用户 · 模式 · 计时</b>；设备卡含实时 HR；采集类型芯片条点开是<b>勾选采集类型</b>清单（开关只决定该路是否采集，透明传输）；中间是<b>简单实时数据区</b>（Datas / Time + 实时流），可打 Start / End 标签。退出唯一 = <b>长按 2 秒结束</b>（防误触），另有<b>暂停</b>。</p>
+</section>
+<div class="grid">
+
+  <!-- 运行A 数据采集 · 就绪 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:00:00</div></div>
+        <div class="action"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h9M4 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="7" r="3" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="3" stroke="currentColor" stroke-width="2"/></svg></div>
+      </div>
+      <div class="content">
+        <div class="list-tile connected">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub" style="color:var(--success)"><span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;margin-right:5px"></span>在线 · 多传感器</div></div>
+          <span style="color:var(--error);font-weight:700;font-size:13px;font-family:var(--font-mono)">♥ 72</span>
+        </div>
+
+        <div class="list-tile" style="margin-bottom:12px">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body" style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill">acc</span><span class="pill">ppg_g</span><span class="pill">ppg_ir</span></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:12px 14px;border-bottom:1px solid var(--outline-v)"><span>Datas：<b style="color:var(--on-surface);font-family:var(--font-mono)">0</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:00:00</b></span></div>
+          <div style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--outline);font-size:12px">点「开始采集」后实时显示数据流</div>
+        </div>
+
+        <div class="search" style="margin-top:12px;margin-bottom:8px"><input placeholder="输入自定义标签…" /><span style="color:var(--primary-deep)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 3l7 7-3.5 1.2-3 3-1 5.3-2.2-2.2-4 4-1.4-1.4 4-4L4 14l5.3-1 3-3L13.5 6.5 14 3z"/></svg></span></div>
+        <div class="btn-group"><button class="btn small outline">清除</button><button class="btn small outline">Start Label</button><button class="btn small outline">End Label</button></div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn outline" disabled><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>暂停</button>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>开始采集</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">运行A</span> 数据采集 · 就绪</div>
+    <div class="screen-note">设备卡 + 采集类型芯片 + Datas/Time + 标签 + 开始</div>
+    <div class="screen-flow">点采集类型芯片→<b>勾选采集类型</b>（运行C）；<b>开始采集</b>→采集中（运行B）</div>
+  </div>
+
+  <!-- 运行B 数据采集 · 采集中 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:02:14</div></div>
+        <span class="status-pill ok"><span class="pulse"></span>采集中</span>
+      </div>
+      <div class="content">
+        <div class="list-tile connected" style="margin-bottom:10px">
+          <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub" style="color:var(--success)"><span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;margin-right:5px"></span>在线 · acc · ppg_g · ppg_ir</div></div>
+          <span style="color:var(--error);font-weight:700;font-size:13px;font-family:var(--font-mono)">♥ 71</span>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--on-surface-v);padding:11px 14px;border-bottom:1px solid var(--outline-v)"><span>Datas：<b style="color:var(--primary-deep);font-family:var(--font-mono)">128 402</b></span><span>Time：<b style="color:var(--on-surface);font-family:var(--font-mono)">00:02:14</b></span></div>
+          <div class="log-list" style="height:190px;border-radius:0;border:0">
+            <div class="ln"><span class="t">02:13.97</span><span>ppg_g 2048 · ppg_ir 1990 · acc .98,.02,.15</span></div>
+            <div class="ln"><span class="t">02:13.98</span><span>ppg_g 2051 · ppg_ir 1988 · acc .97,.03,.14</span></div>
+            <div class="ln"><span class="t">02:13.99</span><span>ppg_g 2049 · ppg_ir 1992 · acc .98,.02,.16</span></div>
+            <div class="ln"><span class="t">02:14.00</span><span>ppg_g 2046 · ppg_ir 1995 · acc .99,.01,.15</span></div>
+            <div class="ln"><span class="t">02:14.01</span><span>ppg_g 2050 · ppg_ir 1991 · acc .98,.02,.15</span></div>
+            <div class="ln"><span class="t">02:14.02</span><span>ppg_g 2052 · ppg_ir 1989 · acc .97,.02,.14</span></div>
+            <div class="ln ok"><span class="t">02:14.03</span><span>label ▶ Start · "rest baseline"</span></div>
+            <div class="ln"><span class="t">02:14.04</span><span>ppg_g 2048 · ppg_ir 1990 · acc .98,.02,.15</span></div>
+          </div>
+        </div>
+
+        <div class="search" style="margin-top:12px;margin-bottom:8px"><input value="rest baseline" /><span style="color:var(--primary-deep)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 3l7 7-3.5 1.2-3 3-1 5.3-2.2-2.2-4 4-1.4-1.4 4-4L4 14l5.3-1 3-3L13.5 6.5 14 3z"/></svg></span></div>
+        <div class="btn-group"><button class="btn small outline">清除</button><button class="btn small">Start Label</button><button class="btn small outline">End Label</button></div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn outline" style="flex:0 0 auto"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>暂停</button>
+        <div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">运行B</span> 数据采集 · 采集中</div>
+    <div class="screen-note">Datas/Time + 简单实时数据流 + 标签 · 暂停 / 长按结束</div>
+    <div class="screen-flow">实时流滚动；打 <b>Start/End Label</b>；<b>暂停</b>可续；<b>长按 2 秒</b>→结束摘要</div>
+  </div>
+
+  <!-- 运行C 勾选采集类型（Sheet · 开关=该路是否采集） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 00:00:00</div></div></div>
+      <div class="content" style="filter:blur(.6px);opacity:.55">
+        <div class="list-tile connected"><div class="ico success"></div><div class="body"><div class="ttl">BT-DUT-0427</div></div></div>
+      </div>
+      <div class="scrim"><div class="sheet">
+        <div class="grab"></div>
+        <h3>勾选采集类型</h3>
+        <p>勾选本次要采集的传感器路。开关只决定该路<b>是否采集/落盘</b>（透明传输，不控采样率）。</p>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">PPG_G</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">PPG_IR</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">ACC</div></div><span class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">GYRO</div></div><span class="chk"></span></div>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">地磁</div></div><span class="chk"></span></div>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="body"><div class="ttl" style="font-size:14px">温度</div></div><span class="chk"></span></div>
+        <div class="btn-group" style="margin-top:14px"><button class="btn outline">取消</button><button class="btn">确定</button></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">运行C</span> 勾选采集类型</div>
+    <div class="screen-note">竞品式清单 · 勾选=该路是否采集（透明传输）</div>
+    <div class="screen-flow">从采集类型芯片条 ⌄ 进入；勾选 → <b>确定</b> 写回</div>
+  </div>
+
+  <!-- 运行D 长按 2 秒结束（防误触唯一退出） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">即将结束…</div></div></div>
+      <div class="content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
+        <div style="position:relative;width:140px;height:140px">
+          <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--error-c)" stroke-width="12"/><circle cx="60" cy="60" r="52" fill="none" stroke="var(--error)" stroke-width="12" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="120"/></svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:30px;font-weight:800;color:var(--error)">1.2s</div><div style="font-size:11px;color:var(--on-surface-v)">继续按住</div></div>
+        </div>
+        <div style="font-size:14px;font-weight:600">松手取消 · 按满 2 秒停止</div>
+        <div class="card ghost" style="width:100%;text-align:left"><div class="card-sub">停止后生成 D-6 会话文件夹（原始 HEX 日志 + 解码 CSV + manifest）。当前已存 <b>128 402</b> 行。</div></div>
+      </div>
+      <div class="footer-bar"><div class="long-press-btn" style="background:var(--error)"><span class="progress" style="transform:scaleX(.42)"></span><span class="lbl">松开取消…</span></div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">运行D</span> 长按 2 秒结束</div>
+    <div class="screen-note">防误触唯一退出（保留）· 暂停在运行B 底部</div>
+    <div class="screen-flow">按满 2 秒 → <b>结束摘要</b>；松手 → 继续采集</div>
+  </div>
+
+</div>
+
+<!-- ⑥ 采集结束摘要 · 采集 Tab 子页 · 文件模型 = D-6 会话文件夹（非"每路一个 CSV"） · 隐藏底部 Tab · App Bar 带返回箭头 -->
+<section class="section">
+  <h2>采集结束摘要</h2>
+  <p class="desc">长按 2 秒结束采集后落地。一个会话 = 一个文件夹（D-6）：① 原始 HEX 行日志为 source of truth ② 每模块解码 CSV ③ 组合包兼容 CSV ④ manifest.json。摘要只描述"会话文件夹"构成，不再是"每路一个 CSV·6 文件"的旧模型。</p>
+</section>
+<div class="grid">
+
+  <!-- 结束A 采集结束摘要 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">采集已结束</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content">
+        <div class="card tonal" style="text-align:center;padding:18px 14px">
+          <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
+          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考</div>
+          <div class="pill-row" style="justify-content:center;margin-top:12px"><span class="pill" style="background:rgba(255,255,255,.55)">87 102 行</span><span class="pill" style="background:rgba(255,255,255,.55)">11.8 MB</span><span class="pill" style="background:rgba(255,255,255,.55)">1 会话</span></div>
+        </div>
+        <div class="sec-h">会话文件夹构成</div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · 可重放 · 1 份/来源 · source of truth</div></div><span class="pill ok">OK</span></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">解码 CSV（每模块）</div><div class="sub">PPG / ECG / IMU / 地磁 / 温度 / 参考</div></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">组合包兼容 CSV</div><div class="sub">汇顶 PPG+ACC 合并</div></div></div>
+        <div class="list-tile"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">manifest.json</div><div class="sub">起点时间 · 对齐锚点 · 用户 · 设备配置</div></div></div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">查看详情</button><button class="btn">导出</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">结束A</span> 采集结束摘要</div>
+    <div class="screen-note">一个会话 = 一个文件夹（D-6），非每路一个 CSV</div>
+    <div class="screen-flow">查看详情 → <b>会话详情</b>；导出 → <b>Download/BlueTrace/</b></div>
+  </div>
+
+  <!-- 结束B 导出完成 Toast（复用 A，底部叠加 .toast） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">采集已结束</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content">
+        <div class="card tonal" style="text-align:center;padding:18px 14px">
+          <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
+          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考</div>
+          <div class="pill-row" style="justify-content:center;margin-top:12px"><span class="pill" style="background:rgba(255,255,255,.55)">87 102 行</span><span class="pill" style="background:rgba(255,255,255,.55)">11.8 MB</span><span class="pill" style="background:rgba(255,255,255,.55)">1 会话</span></div>
+        </div>
+        <div class="sec-h">会话文件夹构成</div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · 可重放 · 1 份/来源 · source of truth</div></div><span class="pill ok">OK</span></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">解码 CSV（每模块）</div><div class="sub">PPG / ECG / IMU / 地磁 / 温度 / 参考</div></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">组合包兼容 CSV</div><div class="sub">汇顶 PPG+ACC 合并</div></div></div>
+        <div class="list-tile"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">manifest.json</div><div class="sub">起点时间 · 对齐锚点 · 用户 · 设备配置</div></div></div>
+        <div class="toast"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>已导出到 Download/BlueTrace/</div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">查看详情</button><button class="btn">导出</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">结束B</span> 导出完成 Toast</div>
+    <div class="screen-note">整个会话文件夹导出落地 Download/BlueTrace/</div>
+    <div class="screen-flow">点导出 → 文件夹打包 → <b>Toast 反馈</b></div>
+  </div>
+
+</div>
+
+
+<!-- ⑦ 数据 Tab 子页与态 · D-6 文件夹模型：会话文件夹为单位，HEX 行日志=source of truth；选择态/会话详情隐藏底部 Tab，空态/无结果为顶级数据 Tab 保留底部 Tab -->
+<section class="section">
+  <h2>数据 Tab · 会话详情与态</h2>
+  <p class="desc">数据 Tab 的空态、多选、会话详情与搜索无结果四态。列表单位 = 会话文件夹（D-6），非扁平文件。会话详情按文件夹构成展开：原始 HEX 行日志（source of truth）、每模块解码 CSV、组合包兼容 CSV、GNSS gps.csv、session_manifest.json，逐项可勾选导出。空态 / 无结果为顶级数据 Tab（保留底部 Tab，无返回）；多选 / 会话详情进入子页（隐藏底部 Tab）。</p>
+</section>
+<div class="grid">
+
+  <!-- 数据A 数据空态（顶级 Tab） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据</div><div class="subtitle">采集会话</div></div></div>
+      <div class="content">
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+          <div class="e-ttl">还没有采集数据</div>
+          <div class="e-sub">采集结束后会在这里按会话文件夹归档</div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>采集</div>
+        <div class="nav-item active"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>数据</div>
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>设置</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">数据A</span> 数据空态</div>
+    <div class="screen-note">顶级数据 Tab · 尚无任何会话文件夹</div>
+    <div class="screen-flow">采集结束落盘后此处出现首个<b>会话文件夹</b>；空态保留底部 Tab 无返回</div>
+  </div>
+
+  <!-- 数据B 多选/选择态（隐藏底部 Tab） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back" style="width:auto;font-size:14px;font-weight:600;color:var(--primary-deep)">取消</div><div class="title-block"><div class="title">已选 2</div></div><div class="action" style="width:auto;font-size:14px;font-weight:600;color:var(--primary-deep)">全选</div></div>
+      <div class="content">
+        <div class="date-h">今天 · 2026-05-21 · 会话文件夹</div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary)">
+          <div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div style="flex:1;min-width:0"><div class="nm">Wear_shb_20260521_103014_de54</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="meta-line">0.23 MB · 09s</span></div></div>
+        </div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary)">
+          <div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div style="flex:1;min-width:0"><div class="nm">Wear_shb_20260521_102136_de54</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="tag mag">地磁</span><span class="tag temp">温度</span><span class="meta-line">8.40 MB · 04:12</span></div></div>
+        </div>
+        <div class="date-h">昨天 · 2026-05-20 · 会话文件夹</div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px">
+          <div class="chk"></div>
+          <div style="flex:1;min-width:0"><div class="nm">Unwear_shb_20260520_150401_de54</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="meta-line">3.12 MB · 03:12</span></div></div>
+        </div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px">
+          <div class="chk"></div>
+          <div style="flex:1;min-width:0"><div class="nm">Wear_lina_20260520_174621_8821</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="meta-line">2.08 MB · 02:41</span></div></div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn danger outline">删除</button><button class="btn">导出所选 (2)</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">数据B</span> 多选 / 选择态</div>
+    <div class="screen-note">隐藏底部 Tab · 标题随选数变化 · 以会话文件夹为单位批量操作</div>
+    <div class="screen-flow">长按或「选择」进入 → 勾选若干 → 底部<b>导出所选</b>整文件夹 / <b>删除</b>；「取消」退出选择态</div>
+  </div>
+
+  <!-- 数据C 会话详情（隐藏底部 Tab，返回箭头） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260521_103014_de54</div></div><div class="action"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      <div class="content">
+        <div class="card">
+          <div class="card-title">📋 manifest 摘要</div>
+          <div class="metric-grid" style="margin-top:10px">
+            <div class="metric"><div class="k">起点 wallclock</div><div class="v">14:32:07</div></div>
+            <div class="metric"><div class="k">monotonic 锚点</div><div class="v" style="font-size:15px">8 421 663<small>µs</small></div></div>
+            <div class="metric"><div class="k">用户</div><div class="v" style="font-size:15px">shb · Wear</div></div>
+            <div class="metric"><div class="k">设备</div><div class="v" style="font-size:15px">DUT + REF</div></div>
+          </div>
+        </div>
+        <div class="sec-h">manifest 记录的启用配置</div>
+        <div class="card">
+          <div class="pill-row"><span class="pill"><span class="tag ppg">PPG</span> 100Hz</span><span class="pill"><span class="tag ecg">ECG</span> 250Hz</span><span class="pill"><span class="tag imu">IMU</span> 104Hz</span><span class="pill"><span class="tag mag">地磁</span> 10Hz</span><span class="pill"><span class="tag temp">温度</span> 1Hz</span></div>
+          <div class="pill-divider"></div>
+          <div class="pill-row"><span class="pill tonal">HR</span><span class="pill tonal">SpO₂</span><span class="pill tonal">RR</span><span class="pill tonal">计步</span></div>
+        </div>
+        <div class="sec-h">会话文件夹构成 · 选择导出</div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · source of truth · 可重放</div></div><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">解码 CSV · 每模块</div><div class="sub">ppg / ecg / imu / mag / temp / 参考</div></div><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">组合包兼容 CSV</div><div class="sub">汇顶 PPG+ACC 合并</div></div><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl">GNSS gps.csv</div><div class="sub">经纬度 / 海拔 / 速度 / 精度 / 时间戳</div></div><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        <div class="list-tile"><div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">session_manifest.json</div><div class="sub">起点 · 锚点 · 用户 · 设备配置</div></div><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      </div>
+      <div class="footer-bar"><button class="btn danger outline">删除</button><button class="btn">导出所选</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">数据C</span> 会话详情</div>
+    <div class="screen-note">隐藏底部 Tab · manifest 摘要 + 启用配置 + 文件夹构成逐项可勾选导出</div>
+    <div class="screen-flow">从列表单击进入 → 看夹内构成（HEX 日志=<b>source of truth</b>）→ 勾选导出至 <b>Download/BlueTrace/</b></div>
+  </div>
+
+  <!-- 数据D 搜索无结果（顶级 Tab） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据</div><div class="subtitle">采集会话</div></div></div>
+      <div class="content">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input value="xyz" placeholder="搜索会话 / 用户 / 设备" />
+        </div>
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="e-ttl">无匹配会话</div>
+          <div class="e-sub">试试其它关键词或清除筛选</div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>采集</div>
+        <div class="nav-item active"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>数据</div>
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>设置</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">数据D</span> 搜索无结果</div>
+    <div class="screen-note">顶级数据 Tab · 已输入关键词但无匹配会话</div>
+    <div class="screen-flow">在搜索框输入 → 无命中显示<b>空结果态</b>；清除关键词回到完整列表</div>
+  </div>
+
+</div>
+
+<!-- 数据 Tab · 导出态 ⑦ 组：均以"会话详情"为背景（隐藏底部 Tab · App Bar 带返回箭头）。
+     D-6 文件夹模型：导出单位 = 整个会话文件夹（HEX 日志 + 解码 CSV + 组合包 CSV + manifest + GNSS）；导出位置统一 Download/BlueTrace/（MediaStore 写公共目录，无需存储权限）。
+     A 导出中 ProgressDialog（scrim+sheet+progress-track）/ B 导出完成 Toast / C 导出失败 banner.err+重试 / D 存储不足导出前预检 banner.err。
+     异常分级双编码：红 = 阻断（失败/空间不足）。 -->
+<section class="section">
+  <h2>数据 Tab · 导出态</h2>
+  <p class="desc">从会话详情点「导出」后的全链路状态。导出单位 = 整个会话文件夹（D-6：原始 HEX 日志 + 每模块解码 CSV + 组合包兼容 CSV + manifest.json + GNSS gps.csv），打包写入 <b>Download/BlueTrace/</b>（经 MediaStore 写公共目录，无需存储权限）。四态：<b>导出中</b>（ProgressDialog 可取消）→ 成功 <b>Toast</b>；写入中断 = 红色阻断 banner 可<b>重试</b>；导出前预检空间不足 = 红色阻断 + 去清理引导。均为会话详情子页，隐藏底部 Tab、App Bar 带返回箭头。</p>
+</section>
+<div class="grid">
+
+  <!-- 导出A 导出中 ProgressDialog -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content" style="filter:blur(.6px);opacity:.55">
+        <div class="card tonal" style="text-align:center;padding:18px 14px">
+          <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
+          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考 + GNSS</div>
+        </div>
+        <div class="sec-h">会话文件夹构成</div>
+        <div class="list-tile"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · source of truth</div></div></div>
+      </div>
+      <div class="scrim"><div class="sheet">
+        <div class="grab"></div>
+        <h3>导出中</h3>
+        <p>正在打包会话文件夹 → Download/BlueTrace/</p>
+        <div class="progress-track"><i style="width:62%"></i></div>
+        <div class="card-sub">62% · 7.3 / 11.8 MB</div>
+        <div class="btn-group" style="margin-top:12px"><button class="btn outline">取消</button></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">导出A</span> 导出中（ProgressDialog）</div>
+    <div class="screen-note">整文件夹打包写入 · 确定进度可取消</div>
+    <div class="screen-flow">打包 → 写入 <b>Download/BlueTrace/</b> → 完成 <b>Toast</b>（导出B）；取消 → 回会话详情</div>
+  </div>
+
+  <!-- 导出B 导出完成 Toast -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content">
+        <div class="card tonal" style="text-align:center;padding:18px 14px">
+          <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
+          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考 + GNSS</div>
+          <div class="pill-row" style="justify-content:center;margin-top:12px"><span class="pill" style="background:rgba(255,255,255,.55)">87 102 行</span><span class="pill" style="background:rgba(255,255,255,.55)">11.8 MB</span><span class="pill" style="background:rgba(255,255,255,.55)">1 会话</span></div>
+        </div>
+        <div class="sec-h">会话文件夹构成</div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · source of truth</div></div><span class="pill ok">OK</span></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">解码 CSV（每模块）</div><div class="sub">PPG / ECG / IMU / 地磁 / 温度 / 参考</div></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">组合包兼容 CSV</div><div class="sub">汇顶 PPG+ACC 合并</div></div></div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl">GNSS gps.csv</div><div class="sub">经纬度/海拔/速度/精度/时间戳</div></div></div>
+        <div class="list-tile"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">session_manifest.json</div><div class="sub">起点时间 · 对齐锚点 · 用户 · 设备配置</div></div></div>
+        <div class="toast"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>已导出到 Download/BlueTrace/</div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">分享</button><button class="btn">完成</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">导出B</span> 导出完成 Toast</div>
+    <div class="screen-note">整个会话文件夹落地 Download/BlueTrace/</div>
+    <div class="screen-flow">打包成功 → 底部 <b>Toast</b> 反馈 · 文件可在系统文件管理器 Download/BlueTrace/ 查看</div>
+  </div>
+
+  <!-- 导出C 导出失败 写入中断 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content">
+        <div class="banner err">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="txt"><b>导出失败 · 写入中断</b>已写入部分数据，未完整导出</div>
+          <span class="b-act">重试</span>
+        </div>
+        <div class="card ghost">
+          <div class="card-sub">可能是<b>存储波动</b>或文件被占用；可<b>重试</b>，或检查可用空间后再导出。原始会话文件夹仍在本机，未受影响。</div>
+        </div>
+        <div class="sec-h">会话文件夹构成</div>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">原始 HEX 行日志</div><div class="sub">append-only · source of truth · 本机完好</div></div><span class="pill ok">OK</span></div>
+        <div class="list-tile"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">session_manifest.json</div><div class="sub">起点时间 · 对齐锚点 · 设备配置</div></div></div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">查看空间</button><button class="btn">重试导出</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">导出C</span> 导出失败 · 写入中断</div>
+    <div class="screen-note">红色阻断 banner + 行内重试 · 原始数据未受影响</div>
+    <div class="screen-flow"><b>重试导出</b>→ 回导出中（导出A）；<b>查看空间</b>→ 设置存储占用</div>
+  </div>
+
+  <!-- 导出D 存储不足 导出前预检 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260611_1432</div></div></div>
+      <div class="content">
+        <div class="banner err">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="txt"><b>存储空间不足 · 无法导出</b>导出前预检未通过</div>
+        </div>
+        <div class="card ghost">
+          <div class="card-sub">本次导出需 <b>~12 MB</b>，当前可用 <b>4 MB</b>。请清理已导出会话或删除旧数据后重试；导出目标仍为 Download/BlueTrace/。</div>
+        </div>
+        <div class="sec-h">空间占用</div>
+        <div class="usage-bar"><i style="width:74%;background:var(--error)"></i><i style="width:18%;background:var(--primary)"></i><i style="width:8%;background:var(--outline)"></i></div>
+        <div class="legend-dots" style="margin-top:8px"><span><i style="background:var(--error)"></i>系统/其它 · 已满</span><span><i></i>BlueTrace 数据 18.4 MB</span><span><i style="background:var(--surface-2)"></i>可用 4 MB</span></div>
+        <div class="card ghost" style="margin-top:8px">
+          <div class="card-sub">清理入口在<b>设置 · 存储占用</b>，可删除已导出的旧会话文件夹释放空间。</div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">取消</button><button class="btn">去清理空间</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">导出D</span> 存储不足（导出前预检）</div>
+    <div class="screen-note">红色阻断 · 预检拦截 · 引导清理释放空间</div>
+    <div class="screen-flow"><b>去清理空间</b>→ 设置存储占用删旧会话；空间够后回会话详情重新<b>导出</b></div>
+  </div>
+
+</div>
+
+<!-- 设置 Tab 子页：环境与权限检查 / 导出位置 / 存储占用 / 关于。均隐藏底部 Tab，App Bar 带返回箭头。遵循 D-6 文件夹模型五段构成、minSdk29 MediaStore 导出、GNSS 一期、二期灰显规则。 -->
+<section class="section"><h2>设置 Tab · 子页</h2><p class="desc">从设置中枢进入的四个详情子页：环境与权限硬性/建议条件检查、导出位置（MediaStore 公共目录）、存储占用按五段构成拆分、关于与二期能力灰显。全部隐藏底部 Tab，App Bar 带返回箭头。</p></section>
+<div class="grid">
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">环境与权限检查</div></div></div>
+<div class="content">
+<div class="sec-h">硬性条件 · 缺失则阻断采集</div>
+<div class="list-tile"><span class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">蓝牙</div><div class="sub">系统蓝牙已开启</div></div><span class="status-pill ok">就绪</span></div>
+<div class="list-tile"><span class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">BLE 扫描权限</div><div class="sub">已授权附近设备</div></div><span class="status-pill ok">就绪</span></div>
+<div class="list-tile"><span class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">BLE 连接权限</div><div class="sub">已授权连接设备</div></div><span class="status-pill ok">就绪</span></div>
+<div class="list-tile"><span class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 4l-7 12a2 2 0 001.7 3h14a2 2 0 001.7-3l-7-12a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">定位 · GNSS</div><div class="sub">定位关闭，GPS 一路将缺失</div></div><span class="btn xs warn">去开启</span></div>
+<div class="sec-h">建议条件 · 可继续</div>
+<div class="list-tile"><span class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div class="body"><div class="ttl">通知</div><div class="sub">采集进行中前台通知</div></div><span class="btn xs tonal">授权</span></div>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置A</span> 环境与权限检查详情</div>
+<div class="screen-note">硬性条件缺失阻断采集，定位为黄态可去开启；建议条件不阻断。</div>
+<div class="screen-flow">流转(<b>去开启</b> 跳系统定位设置 → 返回复检；<b>授权</b> 拉起通知权限弹层)</div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">导出位置</div></div></div>
+<div class="content">
+<div class="card"><div class="card-title">导出目录</div><div class="card-sub">所有会话文件夹写入此公共目录</div><div class="mono">Download/BlueTrace/</div></div>
+<div class="banner info"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div class="txt">Android 10+ 经 <b>MediaStore</b> 写入公共目录，无需存储权限</div></div>
+<div class="list-tile"><span class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">打开系统文件管理</div><div class="sub">在文件 App 中查看 BlueTrace 目录</div></div><span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置B</span> 导出位置详情</div>
+<div class="screen-note">固定公共目录 Download/BlueTrace/，MediaStore 写入无需存储权限。</div>
+<div class="screen-flow">流转(<b>打开系统文件管理</b> 跳系统文件 App 定位到 BlueTrace 目录)</div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">存储占用</div></div></div>
+<div class="content">
+<div class="card"><div class="card-title">本地占用构成</div><div class="card-sub">按会话文件夹内五段构成统计</div>
+<div class="usage-bar"><i style="width:60%;background:var(--warning)"></i><i style="width:25%;background:var(--success)"></i><i style="width:8%;background:var(--primary)"></i><i style="width:4%;background:var(--tertiary)"></i><i style="width:3%;background:var(--outline)"></i></div>
+<div class="legend-dots"><span><i style="background:var(--warning)"></i>原始 HEX 60%</span><span><i style="background:var(--success)"></i>解码 CSV 25%</span><span><i style="background:var(--primary)"></i>组合包 8%</span><span><i style="background:var(--tertiary)"></i>GNSS 4%</span><span><i style="background:var(--outline)"></i>manifest 3%</span></div>
+<div class="metric-grid"><div class="metric"><div class="k">总占用</div><div class="v">18.4 <small>MB</small></div></div><div class="metric"><div class="k">会话数</div><div class="v">12</div></div></div>
+</div>
+<button class="btn block outline">清理已导出会话</button>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置C</span> 存储占用详情（StorageBreakdown）</div>
+<div class="screen-note">五段占用：原始 HEX 为大头（source of truth），仅清理已导出会话。</div>
+<div class="screen-flow">流转(<b>清理已导出会话</b> 二次确认后释放本地空间，已导出文件夹安全删除)</div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">关于</div></div></div>
+<div class="content">
+<div class="card tonal" style="text-align:center"><div class="card-title">BlueTrace</div><div class="card-sub">v1.0.0 · 多传感器 BLE 采集</div></div>
+<div class="card ghost">档案与数据仅本地存储，一期不上传、不出设备</div>
+<div class="sec-h">二期能力（当前不可用）</div>
+<div class="list-tile" style="opacity:.5;pointer-events:none"><span class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div class="body"><div class="ttl">服务器上传</div><div class="sub">会话上传至云端</div></div><span class="pill">二期</span></div>
+<div class="list-tile" style="opacity:.5;pointer-events:none"><span class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">实时透传</div><div class="sub">采集中实时上行</div></div><span class="pill">二期</span></div>
+<div class="list-tile" style="opacity:.5;pointer-events:none"><span class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v4M12 17v4M5 12H1m22 0h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/></svg></span><div class="body"><div class="ttl">远程下发</div><div class="sub">云端下发采集配置</div></div><span class="pill">二期</span></div>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置D</span> 关于 BlueTrace</div>
+<div class="screen-note">品牌与版本、本地存储声明；二期能力灰显并标注，一期不可用。</div>
+<div class="screen-flow">流转(三项<b>灰显不可点</b>，仅展示二期规划，不进入任何上传/透传/下发流程)</div></div>
+
+</div>
+
+<!-- 设置 Tab · GNSS 数据源 三态：已启用 / 缺定位权限 / 系统定位关闭；均为设置子页（隐藏底部 Tab + 返回箭头）。GNSS 为一期正式功能，本机 GPS 作一路数据源写入 gps.csv + manifest，与 BLE 多路共用同一 monotonic 对齐锚点 -->
+<section class="section"><h2>设置 Tab · GNSS 数据源</h2><p class="desc">本机 GNSS 作为一路正式数据源随会话落地 gps.csv，与 BLE 多路共用同一 monotonic 对齐锚点。三态覆盖权限已授（while-in-use）、缺定位权限、系统定位总开关关闭；均为设置子页，隐藏底部 Tab，App Bar 带返回箭头。</p></section>
+<div class="grid">
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">GNSS 数据源</div></div></div>
+<div class="content">
+<div class="list-tile"><span class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><div class="body"><div class="ttl">本机 GNSS</div><div class="sub">采集保存 GNSS 日志</div></div><div class="switch on primary"></div></div>
+<div class="banner ok"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="txt">定位权限已授权 · <b>while-in-use</b></div></div>
+<div class="sec-h">写入字段</div>
+<div class="card">
+<div class="pill-row"><span class="pill tonal">经度</span><span class="pill tonal">纬度</span><span class="pill tonal">海拔</span><span class="pill tonal">速度</span><span class="pill tonal">精度</span><span class="pill tonal">时间戳</span></div>
+<div class="card-sub">随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
+</div>
+</div>
+</div></div><div class="screen-label"><span class="num">GNSS A</span> GNSS · 已启用</div><div class="screen-note">权限已授（while-in-use），本机 GNSS 作一路写入会话。</div><div class="screen-flow">主开关开 → 落地 <b>gps.csv</b> + <b>manifest</b> · 共用 <b>monotonic 锚点</b></div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">GNSS 数据源</div></div></div>
+<div class="content">
+<div class="list-tile"><span class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><div class="body"><div class="ttl">本机 GNSS</div><div class="sub">未就绪 · 需先授予定位权限</div></div><div class="switch"></div></div>
+<div class="banner info"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.3 4.3L3.3 17a2 2 0 001.7 3h14a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="txt">需要<b>定位权限</b>才能记录 GNSS<span class="b-act">去授权</span></div></div>
+<div class="sec-h">权限</div>
+<div class="list-tile"><span class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><div class="body"><div class="ttl">定位权限</div><div class="sub">未授权</div></div><span class="btn xs tonal">授权</span></div>
+<div class="sec-h">写入字段</div>
+<div class="card">
+<div class="pill-row"><span class="pill tonal">经度</span><span class="pill tonal">纬度</span><span class="pill tonal">海拔</span><span class="pill tonal">速度</span><span class="pill tonal">精度</span><span class="pill tonal">时间戳</span></div>
+<div class="card-sub">授权后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
+</div>
+</div>
+</div></div><div class="screen-label"><span class="num">GNSS B</span> GNSS · 缺定位权限</div><div class="screen-note">应用尚未获定位权限，主开关呈未就绪态。</div><div class="screen-flow">去授权 → 系统权限弹层 → 授予后回此页 → 开关可开</div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">GNSS 数据源</div></div></div>
+<div class="content">
+<div class="list-tile"><span class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><div class="body"><div class="ttl">本机 GNSS</div><div class="sub">点按提示先开启系统定位</div></div><div class="switch"></div></div>
+<div class="banner warn"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div class="txt"><b>系统定位服务已关闭</b><span class="b-act">去系统设置</span></div></div>
+<div class="sec-h">说明</div>
+<div class="card ghost">
+<div class="card-sub">应用权限已授予，但系统定位总开关关闭；前往系统设置开启后方可记录。</div>
+</div>
+<div class="sec-h">写入字段</div>
+<div class="card">
+<div class="pill-row"><span class="pill tonal">经度</span><span class="pill tonal">纬度</span><span class="pill tonal">海拔</span><span class="pill tonal">速度</span><span class="pill tonal">精度</span><span class="pill tonal">时间戳</span></div>
+<div class="card-sub">系统定位开启后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
+</div>
+</div>
+</div></div><div class="screen-label"><span class="num">GNSS C</span> GNSS · 系统定位关闭</div><div class="screen-note">应用权限已授，但系统定位总开关关闭。</div><div class="screen-flow">开关 → 提示先开系统定位 → 去系统设置开启 → 回此页可记录；要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路</div></div>
+
+</div>
+
+<!-- 横切状态（精简模型 · 2026-06-16）：采集运行只有三种状态——采集中 / 暂停·重连中 / 已停止——加一个运行日志。
+     连接断开（蓝牙关/设备走远）= 暂停并自动重连，重连后原始 HEX 日志续写续解析、不丢数据；只有"不可继续"（存储满）才已停止。
+     所有坏包/CRC错/解码失败/重连记录进运行日志，不打断采集、不弹分级 Banner。进程被回收可恢复；运行中离开时采集 Tab 顶部常驻"正在采集"提示条。
+     去掉：红黄蓝五条合屏、单路降级、参考断开、协议版本不匹配、重连配置对账（这些都只进日志）。 -->
+<section class="section">
+  <h2>横切状态（采集中 / 暂停重连 / 已停止 + 运行日志）</h2>
+  <p class="desc">专业采集工具，异常不发散。运行只有三种状态：<b>🟢 采集中</b> · <b>🟡 暂停·重连中</b>（连接断开 → 自动重连，原始 HEX 日志续写不丢数据）· <b>🔴 已停止</b>（存储满等不可继续）。无法处理的坏包 / CRC 错 / 解码失败 / 重连记录一律<b>进运行日志</b>、不打断采集。进程被回收可恢复；运行中离开时采集 Tab 顶部常驻"正在采集"提示条。</p>
+</section>
+<div class="grid">
+
+  <!-- 横切A 暂停 · 重连中 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 已暂停</div></div><span class="status-pill warn"><span class="pulse"></span>重连中</span></div>
+      <div class="content">
+        <div class="banner info">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="txt"><b>连接断开 · 自动重连中…</b>采集已暂停</div>
+        </div>
+        <div class="card ghost">
+          <div class="card-sub">连接断开（蓝牙关闭 / 设备走远 / 通信报错）一律<b>暂停 → 自动重连</b>。重连成功后原始 HEX 日志 append-only <b>续写续解析</b>，不丢数据、不需用户处理。无需为此弹分级告警。</div>
+        </div>
+        <div class="metric-grid" style="margin-top:2px">
+          <div class="metric"><div class="k">已存原始日志</div><div class="v">86 980 <small>行</small></div></div>
+          <div class="metric"><div class="k">本次重连</div><div class="v">2 <small>次</small></div></div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn outline icon-only"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h6v6H4zM14 5h6v14h-6zM4 15h6v4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
+        <div class="long-press-btn"><span class="progress"></span><span class="lbl"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>长按 2 秒结束</span></div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">横切A</span> 暂停 · 重连中</div>
+    <div class="screen-note">连接断开=暂停并自动重连 · 重连续写不丢数据</div>
+    <div class="screen-flow">蓝牙关 / 设备走远 / 通信报错 → <b>暂停重连</b>；重连成功 → 自动续采（无需用户操作）</div>
+  </div>
+
+  <!-- 横切B 已停止（存储满，不可继续） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">数据采集</div><div class="subtitle">shb · Wear · 已停止</div></div><span class="status-pill err">已停止</span></div>
+      <div class="content">
+        <div class="banner err">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="txt"><b>存储空间不足 · 已安全停止</b>无法继续写入</div>
+        </div>
+        <div class="card ghost">
+          <div class="card-sub">写入失败属<b>不可继续</b>的致命情况，会话已安全停止并保存当前数据（原始 HEX 日志 + 已解码 CSV + manifest 完整）。请清理空间或导出后再开新会话。</div>
+        </div>
+        <div class="metric-grid" style="margin-top:2px">
+          <div class="metric"><div class="k">已保存</div><div class="v">86 980 <small>行</small></div></div>
+          <div class="metric"><div class="k">剩余空间</div><div class="v">0.2 <small>GB</small></div></div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn outline">查看会话</button>
+        <button class="btn">导出</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">横切B</span> 已停止（存储满）</div>
+    <div class="screen-note">唯一"已停止"语义：不可继续才停 · 数据已安全保存</div>
+    <div class="screen-flow"><b>导出</b>腾空间 → 再开新会话；正常停止走<b>长按 2 秒</b> → 结束摘要</div>
+  </div>
+
+  <!-- 横切C 运行日志 -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">运行日志</div><div class="subtitle">本次会话 · 只记录不打断</div></div></div>
+      <div class="content fit">
+        <div class="card ghost" style="margin-bottom:9px">
+          <div class="card-sub">无法处理的包<b>记入日志并丢弃</b>，不影响其余数据落盘；原始 HEX 始终保留可重放。坏包 / CRC 错 / 解码失败 / 未知消息类型 / 重连，都在这里，不弹告警。</div>
+        </div>
+        <div class="log-list">
+          <div class="ln ok"><span class="t">00:02:14.310</span><span>SESSION start · sink=raw+csv · subject=shb mode=Wear</span></div>
+          <div class="ln ok"><span class="t">00:02:14.512</span><span>BT-DUT-0427 connected · 5 sensors · notify on</span></div>
+          <div class="ln warn"><span class="t">00:06:41.880</span><span>CRC mismatch seq=10422 · dropped 1 batch (PPG)</span></div>
+          <div class="ln warn"><span class="t">00:07:03.140</span><span>decode skip · unknown msgType=0x3F len=44 · raw kept</span></div>
+          <div class="ln err"><span class="t">00:09:55.002</span><span>link lost · BT-DUT-0427 · PAUSE -&gt; reconnecting</span></div>
+          <div class="ln ok"><span class="t">00:10:07.661</span><span>reconnected · resume append @row 80421</span></div>
+          <div class="ln warn"><span class="t">00:11:20.418</span><span>bad frame · header AA?? · dropped 18B · raw kept</span></div>
+          <div class="ln ok"><span class="t">00:12:43.900</span><span>throughput 18.4 kB/s · loss 0.04% · crc-err 2</span></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">横切C</span> 运行日志</div>
+    <div class="screen-note">坏包/CRC/解码失败/重连 → 进日志，不打断采集</div>
+    <div class="screen-flow">报错只<b>记录 + 丢弃</b>，原始 HEX 可重放；从运行页 ⚙ / 控制面板进入查看</div>
+  </div>
+
+  <!-- 横切D 进程恢复弹层（单设备） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">BlueTrace</div></div></div>
+      <div class="content" style="filter:blur(1px);opacity:.5"><div class="list-tile"><div class="ico tonal"></div><div class="body"><div class="ttl">设备连接</div></div></div></div>
+      <div class="scrim"><div class="sheet">
+        <div class="grab"></div>
+        <h3>恢复上次采集？</h3>
+        <p>检测到 2026-06-11 14:32 的会话被中断（进程被系统回收）。设备地址命中，可直接续采、原始日志续写。</p>
+        <div class="list-tile" style="margin-bottom:8px"><div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">BT-DUT-0427</div><div class="sub">MAC 命中配置保留 · 可直接续采</div></div></div>
+        <div class="card ghost"><div class="card-sub">若地址失效（设备轮换 MAC），将自动转为按 <b>Service UUID 定向重扫</b>。</div></div>
+        <div class="btn-group" style="margin-top:12px"><button class="btn outline">放弃</button><button class="btn">恢复采集</button></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">横切D</span> 进程恢复弹层</div>
+    <div class="screen-note">单设备续采 · 地址失效则定向重扫 · 子页隐藏 Tab</div>
+    <div class="screen-flow">MAC 命中 → <b>直接续采</b>；地址失效 → <b>定向重扫</b></div>
+  </div>
+
+  <!-- 横切E 正在采集 全局提示条（唯一保留底部 Tab，采集 .active） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="collecting-bar"><span class="pulse"></span>正在采集 · shb · Wear · 00:03:12<span class="go">返回采集<svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">采集</div><div class="subtitle">会话进行中 · 入口锁定</div></div><span class="status-pill ok"><span class="pulse"></span>采集中</span></div>
+      <div class="content fit">
+        <div class="list-tile" style="opacity:.55"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">设备</div><div class="sub">BT-DUT-0427 · 采集中不可改</div></div><span class="pill ok">1 连接</span></div>
+        <div class="list-tile" style="opacity:.55;margin-top:8px"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">用户</div><div class="sub">shb · 已写入文件名 · 锁定</div></div></div>
+        <div class="card ghost" style="text-align:center;margin-top:4px"><div class="card-sub">会话进行中，新会话入口已锁定。点顶部提示条<b>返回采集</b>回到运行界面。</div></div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>采集</div>
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>数据</div>
+        <div class="nav-item"><span class="nav-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8 2 2 0 11-2.5 2.5 1.6 1.6 0 00-2.7 1.1 2 2 0 11-4 0 1.6 1.6 0 00-2.7-1.1 2 2 0 11-2.5-2.5A1.6 1.6 0 004.6 13a2 2 0 110-4 1.6 1.6 0 001.1-2.7 2 2 0 112.5-2.5A1.6 1.6 0 0011 4.6a2 2 0 114 0 1.6 1.6 0 002.7 1.1 2 2 0 112.5 2.5A1.6 1.6 0 0019.4 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>设置</div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">横切E</span> 正在采集 全局提示条</div>
+    <div class="screen-note">采集 Tab 顶级 · 唯一保留底部 Tab 的横切屏</div>
+    <div class="screen-flow">提示条常驻 · 点 <b>返回采集</b> 回运行界面</div>
+  </div>
+
+</div>
+
+</body>
+</html>

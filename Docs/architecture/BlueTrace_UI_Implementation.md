@@ -1,8 +1,10 @@
 # BlueTrace UI 技术实施说明
 
-> 本文档面向 Android 开发与项目排期，描述 BlueTrace 一期的导航状态机、页面与服务边界、Fake 到真实 BLE 的替换路径，以及前台服务、后台任务、文件系统的接入顺序。
+> **⚠️ V4 精简 UI 口径（2026-06-16）**：按 [V4 设计契约 §九](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 开发 —— 扁平设备连接（DUT ≤3 + 心率带参考 ≤1、无角色槽）· 传感器纯开关（透明传输 / 不控采样率）· 采集运行照竞品 Data Collection（简单实时数据区 + Start/End 标签 + 暂停 + 长按 2 秒结束）· 异常三态 + 运行日志 · 用户（原受试者）。波形⇄分包流 / 观测面板 / 运行中控制面板 / 采样率配置 / 打包页 **降后期或移除**；协议层高/低频为链路事实保留。下文旧 UI 描述以此为准。
+
+> 本文档面向 Android 开发与项目排期，描述 BlueTrace 一期的导航状态机、页面与服务边界、Fake 到真实 BLE 的替换路径，以及前台服务、后台任务、文件系统的接入顺序。**本文只讲"怎么搭"，不重复描述界面视觉与各屏状态——各屏长什么样、有哪些状态以 [v4_android.html 原型](../prototypes/v4_android.html) 为准。**
 >
-> 页面范围、用户流程和产品规则见 [BlueTrace_UI_Design.md](BlueTrace_UI_Design.md)。
+> 页面范围、用户流程和产品规则见 [BlueTrace_UX_Flows.md](../product/BlueTrace_UX_Flows.md) 与 [BlueTrace_Design_System.md](../product/BlueTrace_Design_System.md)；V4 收敛口径以 [V4 设计契约](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准（底部三 Tab）。
 
 ---
 
@@ -34,24 +36,34 @@ UI Navigation + Fake State
 
 ```text
 ui/
-  HomeScreen
-  PermissionGateScreen
-  DeviceAssignmentScreen
-  RoleScanScreen
-  DataCollectionScreen
-  SessionHistoryScreen
-  SessionDetailScreen
+  MainTabsScaffold        // 底部三 Tab：采集 / 数据 / 设置；子页与采集运行隐藏 Tab
+  collect/
+    CollectHubScreen      // 采集中枢：设备 / 受试者 / 模式 + 「开始采集」
+    DeviceScanScreen      // 设备扫描/分配（搜索 + Service UUID + RSSI + 连接）
+    SubjectSelectScreen   // 受试者选择
+    SubjectEditScreen     // 受试者编辑（别名/性别/生日/身高/体重）
+    SensorConfigScreen    // 传感器总控 + 设备端算法（无打包策略页，D-5）
+    DataCollectionScreen  // 采集运行（复用 v3 外观）
+    SessionSummaryScreen  // 结束摘要（D-6 文件夹）
+  data/
+    DataListScreen        // Raw Data File（按会话文件夹，D-6）
+    SessionDetailScreen
+  settings/
+    SettingsScreen        // 环境与权限复查 / GNSS / 受试者管理 / 导出位置 / 关于
+    PermissionGateScreen  // 首启 / 硬权限门控
 
 viewmodel/
+  CollectHubViewModel
   PermissionGateViewModel
-  DeviceAssignmentViewModel
-  RoleScanViewModel
+  DeviceScanViewModel
+  SubjectViewModel
   DataCollectionViewModel
-  SessionHistoryViewModel
+  DataListViewModel
 
 domain/
   SessionController
   DeviceScanner
+  SubjectRepository       // 受试者本地 CRUD（V4 一期）
   SessionRepository
   ExportRepository
   PermissionRepository
@@ -124,16 +136,16 @@ sealed interface RoleRuntimeState {
 | 条件 | 目标页面 |
 | --- | --- |
 | 首次启动 或 启动静默检查发现硬权限缺失 | PermissionGateScreen（门控，无返回） |
-| 否则（非首启且静默通过） | HomeScreen（主界面，落地中枢） |
-| Home → 扫描并连接设备（环境就绪） | DeviceAssignmentScreen / RoleScanScreen |
-| Home → 扫描并连接设备（环境不完整） | PermissionGateScreen（手动，可返回） |
-| Home → 环境与权限检查 | PermissionGateScreen（手动，可返回） |
-| 用户为某个 role 选设备 | RoleScanScreen(role) |
-| SessionState.Running | DataCollectionScreen |
-| SessionState.Ended | SessionSummary / SessionDetail |
-| 查看历史 | SessionHistoryScreen |
+| 否则（非首启且静默通过） | MainTabsScaffold → 采集 Tab（落地中枢） |
+| 采集 Tab → 设备入口（环境就绪） | DeviceScanScreen（隐藏底部 Tab） |
+| 采集 Tab → 设备入口（环境不完整） | PermissionGateScreen（手动，可返回） |
+| 采集 Tab → 受试者入口 | SubjectSelectScreen / SubjectEditScreen |
+| 设置 Tab → 环境与权限检查 | PermissionGateScreen（手动，可返回） |
+| SessionState.Running | DataCollectionScreen（全屏，隐藏 Tab，返回≠停止） |
+| SessionState.Ended | SessionSummaryScreen / SessionDetailScreen |
+| 查看数据 | 数据 Tab → DataListScreen（会话文件夹） |
 
-> **导航修订（2026-06-16）**：落地页改为 HomeScreen；启动先做**静默环境检查**，仅"首次启动"或"硬权限缺失"才门控弹 PermissionGate，其余直接进 Home。扫描页不再开屏即扫，仅由 Home 的"扫描并连接设备"按需进入。硬权限阻断守在"进入采集/扫描"入口处（环境未就绪则引导回权限页）。首启标记用 `AppPreferences`（一期 SharedPreferences）持久化。
+> **导航修订（V4 · 2026-06-16）**：落地改为 **MainTabsScaffold 的采集 Tab**；底部三 Tab（采集/数据/设置）为唯一主 IA，进入任一子页或采集运行**隐藏底部 Tab**。启动先做**静默环境检查**，仅"首启"或"硬权限缺失"才门控弹 PermissionGate，其余直接进采集 Tab。设备扫描不再开屏即扫，仅由采集 Tab 设备入口按需进入。硬权限阻断守在"进入采集/扫描"入口。首启标记用 `AppPreferences`（SharedPreferences）持久化。
 
 重要约束：
 
@@ -146,36 +158,16 @@ sealed interface RoleRuntimeState {
 
 ## 4. 页面跳转先行阶段
 
-第一阶段目标是构建完整 Navigation Graph 和页面状态分支。
+第一阶段目标：用 `FakeSessionController`（不接真实 BLE）跑通完整 Navigation Graph 与各屏状态分支。
 
-需要先跑通：
+> **页面流、各屏视觉与状态以 [v4_android.html 原型](../prototypes/v4_android.html)（当前）+ [UX_Flows §1/§4](../product/BlueTrace_UX_Flows.md) + [V4 设计契约 §九](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准**，本文不再重复描述（导航骨架见 §3 导航规则表，已 V4 对齐：底部三 Tab + 子页/采集运行隐藏 Tab）。
 
-```text
-App launch
-  → 静默环境检查
-      ├─（首启 / 硬权限缺失）→ PermissionGate →（完成）→ Home
-      └─（非首启且静默通过）─────────────────────────→ Home
-  → Home（主界面 · 中枢）
-      ├─ 扫描并连接设备 → DeviceAssignment → RoleScan(role) → DeviceAssignment
-      │                    → DataCollection → StopConfirm → SessionSummary → SessionDetail
-      ├─ 环境与权限检查（手动，可返回）→ PermissionGate
-      └─ 历史会话 → SessionHistory
-```
+验收（用 Fake 数据驱动，对照原型）：
 
-同时实现以下 UI 状态：
-
-| 状态 | 验证点 |
-| --- | --- |
-| 权限缺失 | 权限页展示缺项，Start 禁用 |
-| 设备未连接 | DeviceAssignment 可编辑，Start 禁用 |
-| 单设备已连接 | Start 可用 |
-| 双设备已连接 | DUT / REFERENCE 均显示在线 |
-| 采集中 | 进入 DataCollection，返回键被拦截 |
-| 单设备断线 | amber banner + reconnect 入口 |
-| 全部失败 | red banner + stop / recover 入口 |
-| 采集结束 | summary 显示文件、时长、设备 |
-
-这阶段使用 `FakeSessionController`，不要接真实 BLE。
+- 跑通整条导航：启动 → 采集 Tab → 设备连接（扁平列表 · DUT ≤3 + 参考心率带 ≤1）→ 用户 → 采集模式 → 数据采集 → 长按 2 秒结束 → 结束摘要；
+- 用 Fake 注入会话三态 **采集中 / 暂停·重连 / 已停止** 验证 UI 切换正确（无法处理的错误进运行日志、不打断）；
+- 进入任一子页与采集运行时**隐藏底部 Tab**，返回键 ≠ 停止；
+- 各屏长什么样、有哪些组件不在此列举——对照原型即可。
 
 ---
 
@@ -249,7 +241,7 @@ Manifest 需要预留前台服务类型。具体类型按实际能力确认：
     android:foregroundServiceType="connectedDevice|location|dataSync" />
 ```
 
-如果一期不做 GNSS 或上传，`location` / `dataSync` 可按实现范围收敛。
+GNSS 为一期正式功能（F-GPS-1）→ 保留 `location`；`dataSync`（上传）属二期，可收敛。
 
 ---
 
@@ -323,18 +315,23 @@ stop()
 ```text
 files/
   sessions/
-    session_20260521_153000_xxx/
-      dut.rawdata
-      reference.rawdata
+    Wear_shb_20260521_153000_de54/          // 一会话一文件夹（D-6），名 = 模式_受试者_时间_设备
+      raw/  dut.hexlog  reference.hexlog     // 原始 HEX 行日志 = source of truth（<epochMs>: HEX，可重放，后期 zstd）
+      csv/  ppg.csv ecg.csv imu.csv mag.csv  // 解码后按模块 CSV
+      csv/  ppg_acc.csv                       // 组合包兼容 CSV（汇顶 PPG+ACC 等，1→N 文件）
+      gps.csv                                 // 本机 GPS（若开启 GNSS，F-GPS-1）
       session_manifest.json
 ```
+
+> **存储模型（D-6）**：每会话一个文件夹；**原始 HEX 行日志为主体（source of truth）**，解码 CSV / 组合包兼容 CSV 为显示与分析派生物，即便解码逻辑或 schema 变更也能回放重解。
 
 manifest 至少包含：
 
 - sessionId
 - startTime / endTime
-- user
-- project / sampling config
+- **subject**（别名/性别/生日/身高/体重）
+- **mode**（Wear / Unwear）
+- sampling config（启用传感器/采样率/算法；**不含 BLE 链路参数**，D-5）
 - device roles
 - file list
 - app version
@@ -383,13 +380,12 @@ Downloads/BlueTrace/session_20260521_153000.zip
 
 一期至少覆盖显式异常提示：
 
-| 异常 | UI 表现 | 行为 |
+| 异常 | UI 表现（V4 精简三态 + 运行日志） | 行为 |
 | --- | --- | --- |
-| 蓝牙关闭 | red banner | 暂停 / 失败，提供打开蓝牙入口 |
-| 单设备断线 | amber banner | 允许 DUT 继续，REFERENCE 重连 |
-| 全部设备失败 | red banner | Stop / Recover |
-| 权限撤销 | PermissionGate | 清理不可用 session 或等待授权 |
-| 存储失败 | red banner | Stop & Export / 清理空间 |
+| 连接断开（蓝牙关 / 设备走远 / 通信报错） | "暂停 · 重连中" | 暂停 → 自动重连；重连后原始 HEX 日志续写续解析，不丢数据 |
+| 坏包 / CRC / 解码失败 / 未知类型 | 进运行日志（不打断采集） | 丢弃该包，原始 HEX 仍落盘可重放，不弹分级 Banner |
+| 存储不足（写入失败） | "已停止" | 唯一"已停止"语义=不可继续；安全保存后引导清理 / 导出 |
+| 权限撤销 | 回权限门控 | 权限全局硬门；清理不可用 session / 等待重授权 |
 
 恢复能力分级：
 
@@ -424,9 +420,9 @@ ForegroundService：
 BLE：
 
 - 能扫描真实设备。
-- 能过滤 DUT / REFERENCE。
+- 能过滤自己的 DUT（Service UUID）+ 标准心率带参考（HRS 0x180D）。
 - 能连接单设备并接收数据。
-- 双设备断开其中一个时，UI 状态正确。
+- 断开其中一台时，UI 状态正确（该台转"暂停·重连"、连接计数更新，其余继续）。
 
 File：
 
