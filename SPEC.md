@@ -145,7 +145,7 @@
 | D-V4-16 | 配置两屏（传感器总控/设备端算法）暂不实现、移文档末尾；原型升级为 **UI + 交互双真源**（`.screen-ux` 37 屏全覆盖）。 |
 | D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截）+ edge-to-edge（targetSdk 36）。详见 §7.2 + 导航链路图。 |
 | D-V4-18 | **异常模型再精简 + 硬锁定 + 前台服务恢复**（2026-06-17 共识）：断联交 SDK 自动重连（内联「重连中」·不弹屏不阻断）；无法处理的进**全局诊断日志**（不入会话夹）；存储满**自动结束**（开始前预检 + <1GB 启动提示 + 不足禁开 + toast）；采集运行**硬锁定**（app 内不可退，在场感 = 前台服务通知）；进程被杀→数据已落盘，重启**服务活则重绑续采 / 全杀则开口会话自动收尾**（`stopReason=interrupted` + toast，无恢复弹层）；时间全用 **unix 时间戳**，manifest 记时区 + 起点 + 质量小结。横切状态组屏暂不实现。 |
-| D-V4-19 | **技术栈选型（KMP · Android-first，2026-06-17 拍板）**：现在即 KMP 化（`:shared` commonMain 共享协议/会话/CSV/manifest/repo 接口 + `:app` Android）；BLE = androidMain Nordic Kotlin-BLE 藏在 commonMain 接口后（iOS 后期 Core Bluetooth）；protobuf = Wire（高频批包走手写字节解析）；文件 IO = okio；序列化 = kotlinx.serialization；DI = Koin；导航 = Navigation Compose 类型安全；prefs = DataStore；**SDK target/compile 跟进发布 = 36**（minSdk 29 不变）。详见 §10。 |
+| D-V4-19 | **技术栈选型（KMP · Android-first，2026-06-17 拍板）**：KMP 结构（`:shared` commonMain 共享协议/会话/CSV/manifest/repo 接口 + `:app` Android）；BLE = androidMain Nordic Kotlin-BLE 藏在 commonMain 接口后（iOS 后期 Core Bluetooth）；protobuf = Wire（高频批包走手写字节解析）；文件 IO = okio；序列化 = kotlinx.serialization；DI = Koin；导航 = Navigation Compose 类型安全；prefs = DataStore；**SDK target/compile 跟进发布 = 36**（minSdk 29 不变）。详见 §10。 |
 
 ### 3.3 真源分工
 
@@ -765,15 +765,20 @@ RootNavHost
 
 ## 10. 开发就绪（KMP · Android-first）
 
-> 一句话：**设计完备、可以开工**。Android 端已起步（P1 骨架），但要先补两件结构性的事再往下铺。本节是「从这里开始写代码」的总纲。
+> 本节是「**按本规格从零实现**」的工程总纲。一期 Android 优先、KMP 结构；iOS 后期从 commonMain 平移。实现以 **本规格 + 原型 `v4_android.html` + `bluetrace_v0.proto`** 为唯一依据（不依赖任何既有脚手架）。
 
-### 10.1 现状盘点
+### 10.1 工程结构（KMP 模块与包）
 
-- **设计**：SPEC + 原型（37+ 屏）+ `bluetrace_v0.proto` 草案，一期 Android 完备。
-- **实现已起步**：`app/` 是整洁架构的 Android 骨架（domain model · repository · mock 假实现 · 权限屏 · 扫描屏 · 单元测试），进度约 **P1**；Kotlin 2.2.x / AGP 9.x / Compose。
-- **两处偏差（待修）**：
-  1. **未 KMP** —— 单 `:app` Android 模块（`com.android.application`），无 `:shared`/commonMain，不符合"用 KMP"目标。
-  2. **部分模型为 V4 前口径** —— 如 `DeviceAssignment = Map<DeviceRole, Device>`（每角色一台、单 DUT）、注释引用**已归档的旧 REQUIREMENTS §10**；V4（D-V4-3）应为**扁平列表 DUT≤3 + 参考≤1**。
+- **`:shared`（commonMain · 纯 Kotlin · 无 Android 依赖 · 可 JVM 单测）**
+  - `protocol/`：标准帧头解析 / 分片重组 / 一包多帧拆分 / `msgType` dispatch；Wire 生成的 protobuf 消息（控制/低频/事件/能力）；**高频批包 `bytes` 手写定宽字节解析**（§4）。
+  - `session/`：采集会话状态机（采集中 / 断联自动重连 / 结束，§5.4）、`SessionController` 接口与采集编排、运行错误/事件日志通道。
+  - `data/`：raw HEX 与解码 CSV 的 **append 写入器（okio）**、D-6 会话文件夹布局（§6.1）、manifest 模型（kotlinx.serialization，§6.2）、unix 时间戳工具（§6.3）。
+  - `domain/`：实体（**扁平设备模型**、`Subject`、`Mode`、`Session`…）+ repository 接口（设备扫描 / 环境与权限 / 会话 / 用户）。
+  - `ble/`：`BleClient` 接口（扫描 / 连接 / 订阅 Notify / 写 / 状态流），平台各自 actual 实现。
+- **`:app`（Android）**
+  - Compose UI 按原型逐屏渲染；**三 Tab + `NavigationSuiteScaffold` + 类型安全路由**（§7.2）。
+  - `BleClient` 的 **Nordic Kotlin-BLE** 实现；前台服务托管采集（§7.4）；MediaStore 导出（§6.4）；权限/蓝牙门控（§5.2）；DataStore（prefs）；Koin（DI）。
+- **`:ios`（iosMain，后期）**：`BleClient` 的 Core Bluetooth 实现 + SwiftUI（§7.5）。
 
 ### 10.2 技术栈（D-V4-19）
 
@@ -790,22 +795,24 @@ RootNavHost
 | 并发 | kotlinx.coroutines（数据管线 `Flow<SensorSample>`） |
 | SDK | minSdk **29** / target·compile **36**（跟进发布）/ Kotlin 2.2.x / AGP 9.x / Compose BOM |
 
-### 10.3 开工前先做两件结构性的事（P0）
+### 10.3 核心模型实现要点（钉住 V4 口径）
 
-- **KMP 化**：新建 `:shared`，把 domain + 协议 + 会话状态机 + CSV/manifest 模型迁到 commonMain（接口与纯逻辑），`:app` 依赖 `:shared`；趁 P1 代码量小、迁移便宜。
-- **V4 校准**：设备模型 `Map<Role,Device>` → **扁平列表 + 限额（DUT≤3 + 参考≤1）**；补 `Subject`（用户）/`Mode`（Wear/Unwear）实体；三 Tab 脚手架（`NavigationSuiteScaffold`）+ 隐藏 Bar 规则；清理对已归档旧 REQUIREMENTS 的引用。
+- **设备 = 扁平列表 + 限额**（DUT ≤3 + 参考 ≤1，D-V4-3）：**不是**"每角色一台"的 `Map<Role,Device>`；Device 按 `kind` 区分（自研多传感器 DUT / 标准 HRS `0x180D` 心率带）。至少一台连接才放行开始（§5.3）。
+- **会话级实体**：`Subject`（用户）/ `Mode`（Wear/Unwear）写入文件名前缀 + manifest（§6.2）。
+- **状态机**：三态（采集中 / 断联重连内联 / 存储满自动结束）+ 全局诊断日志（§5.4）；采集运行**硬锁定**、在场感=前台服务通知、进程恢复=服务重绑 / 开口会话自动收尾（§5.10）。
+- **时间全用 unix 时间戳**（§6.3）；manifest 记时区 + 起点 + 质量小结。
+- 协议未冻结时用 **`SessionController` 的 Fake 实现 + 录制回放** 跑通 UI / 导航 / 状态机（Fake 是接口替身，非临时 mock）。
 
 ### 10.4 协议冻结清单（并行轨 · 与固件共同冻结，gates 解码层 P2/P5）
 
-ver 值 · 字节序（小端待确认）· `DUT_NOTIFY/WRITE` 服务/特征 UUID · `SensorId` 枚举 · `msgType` 注册表定版 · 各传感器 `SampleFormat`/通道/采样率 · `hdrCrc8`/payload CRC 开关。冻结前用 **Fake Controller + 录制回放**推进 UI 与状态机（§7.3）。
+ver 值 · 字节序（小端待确认）· `DUT_NOTIFY/WRITE` 服务/特征 UUID · `SensorId` 枚举 · `msgType` 注册表定版 · 各传感器 `SampleFormat`/通道/采样率 · `hdrCrc8`/payload CRC 开关。冻结前用 **Fake + 录制回放**推进 UI 与状态机（§10.3）。
 
-### 10.5 开发顺序（沿用 §2.8 P1–P5 + P0 结构）
+### 10.5 开发顺序（沿用 §2.8）
 
-- **P0（新增·结构）**：KMP 化 + V4 校准（§10.3）。
-- **P1** 权限/扫描骨架（已起步 → 迁 commonMain 接口 + Nordic 实现）。
-- **P2** 设备/纯开关/三态状态机（Fake Controller 跑通导航与三态）。
-- **P3** 持久化/D-6 文件/导出/GNSS（okio 写 + MediaStore + manifest）。
-- **P4** 后台/前台服务/进程恢复（硬锁定 + 服务重绑 + 开口会话自动收尾）。
-- **P5** 固件联调（协议冻结后接真机解码）。
+- **P1**：KMP 骨架 + 权限/扫描 + 三 Tab 导航 + `BleClient` 接口与 Nordic 实现 + Fake 跑通。
+- **P2**：扁平设备（DUT≤3 + 参考≤1）/ 纯开关采集类型 / 三态状态机。
+- **P3**：D-6 持久化 / 导出（MediaStore）/ GNSS / manifest。
+- **P4**：后台前台服务 / 进程恢复（硬锁定 + 服务重绑 + 开口会话自动收尾）。
+- **P5**：固件联调（协议冻结后接真机解码）。
 
-> 实现骨架现状见 `app/`（待 KMP 化 + V4 校准）；机器契约见 `Docs/architecture/bluetrace_v0.proto`。
+> 机器契约见 `Docs/architecture/bluetrace_v0.proto`。
