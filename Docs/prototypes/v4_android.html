@@ -481,6 +481,33 @@
   /* 长按结束：半透明遮罩叠在采集中界面之上，透出下面内容（不整屏遮挡） */
   .press-overlay { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(243,245,248,.34); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
   .press-overlay .hint { font-size: 13px; font-weight: 700; color: var(--on-surface); background: rgba(255,255,255,.82); padding: 6px 15px; border-radius: 999px; box-shadow: var(--shadow-1); }
+
+  /* GNSS 传感器方标签（并入色标系统，去内联色） */
+  .tag.gnss { background: var(--surface-2); color: var(--on-surface-v); }
+
+  /* 每屏 UX 交互规格（写入文档：点击去向 / 手势 / 状态规则） */
+  .screen-ux { max-width: 330px; margin: 9px auto 0; background: var(--surface-1); border: 1px solid var(--outline-v); border-radius: 12px; padding: 9px 12px; text-align: left; }
+  .screen-ux .h { font-size: 9.5px; font-weight: 700; color: var(--primary-deep); letter-spacing: .06em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+  .screen-ux .h svg { width: 12px; height: 12px; }
+  .screen-ux ul { margin: 0; padding: 0; list-style: none; }
+  .screen-ux li { font-size: 10.5px; line-height: 1.5; color: var(--on-surface-v); margin-bottom: 4px; padding-left: 14px; position: relative; }
+  .screen-ux li:last-child { margin-bottom: 0; }
+  .screen-ux li::before { content: "→"; position: absolute; left: 0; top: -.5px; color: var(--primary); font-weight: 700; }
+  .screen-ux li b { color: var(--on-surface); font-weight: 600; }
+  .screen-ux li .k { font-family: var(--font-mono); font-size: 9.5px; background: var(--surface-2); color: var(--on-surface); padding: 0 5px; border-radius: 5px; }
+
+  /* 设备连接：连接计数徽章 / 连接中动画点 / 行状态（这些类此前无样式，补齐） */
+  .conn-count { font-size: 12px; font-weight: 700; color: var(--on-primary-c); background: var(--primary-c); padding: 5px 11px; border-radius: 999px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .list-tile.connected { border: 1px solid var(--primary-c); }
+  .list-tile.disabled { opacity: .5; }
+  .list-tile.selected { border: 1.5px solid var(--primary); background: var(--primary-c); }
+  .conn-dots { display: inline-flex; align-items: center; gap: 2px; }
+  .conn-dots i { width: 4px; height: 4px; border-radius: 999px; background: currentColor; animation: blink 1.2s infinite; }
+  .conn-dots i:nth-child(2) { animation-delay: .2s; }
+  .conn-dots i:nth-child(3) { animation-delay: .4s; }
+
+  /* 卡内标题（此前无样式，补齐：与 CardTitle 字阶一致 14/700） */
+  .card-title { font-size: 13.5px; font-weight: 700; color: var(--on-surface); display: flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body>
@@ -553,7 +580,7 @@
           </div>
         </div>
 
-        <!-- 双 CTA（沉底） -->
+        <!-- 单一主 CTA（沉底）· V4-7：一期移除离线/在线双 CTA，仅「开始采集」 -->
         <div class="main-cta">
           <button class="btn block"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>开始采集</button>
         </div>
@@ -579,6 +606,13 @@
     <div class="screen-label"><span class="num">采集</span> 采集 Tab · 主界面</div>
     <div class="screen-note">设备 / 用户 / 采集模式 + 开始采集</div>
     <div class="screen-flow">点 <b>设备</b>→连接；<b>用户</b>→选择；<b>开始采集</b> → 运行</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>点 <b>设备</b> 卡 → 设备列表（设备A）；右上 <b>N 已连接</b> 实时反映连接数</li>
+      <li>点 <b>用户</b> 卡 → 用户选择（用户A）；当前别名写入文件名前缀</li>
+      <li>采集模式 <span class="k">Wear</span>⇄<span class="k">Unwear</span> 行内切换，即时生效、写入文件名</li>
+      <li><b>开始采集</b> → 采集运行（运行A），进入即<b>隐藏底部 Tab</b>；未连设备 / 未选用户 → 按钮禁用</li>
+      <li>底部 Tab 平行切换 采集 / 数据 / 设置；子页与运行页隐藏 Tab，防强状态误切</li>
+    </ul></div>
   </div>
 
   <!-- T2 数据 Tab（Raw Data File） -->
@@ -604,7 +638,7 @@
         <div class="date-h">今天 · 2026-05-21 · 会话文件夹</div>
         <div class="file-card">
           <div class="nm">Wear_shb_20260521_103014_de54</div>
-          <div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="tag" style="background:var(--surface-2);color:var(--on-surface-v)">GNSS</span><span class="meta-line">0.23 MB · 09s</span></div>
+          <div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="tag imu">IMU</span><span class="tag ref">REF</span><span class="tag gnss">GNSS</span><span class="meta-line">0.23 MB · 09s</span></div>
         </div>
         <div class="file-card">
           <div class="nm">Wear_shb_20260521_102136_de54</div>
@@ -641,6 +675,13 @@
     <div class="screen-label"><span class="num">数据</span> 数据 Tab · 采集会话（D-6 文件夹）</div>
     <div class="screen-note">列表单位 = 会话文件夹（非扁平文件）· 按日期分组 · Wear/Unwear 筛选</div>
     <div class="screen-flow">单击进<b>会话详情</b>看夹内构成 · 长按/「选择」进多选 · 导出整文件夹</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>搜索框输入 → 实时过滤（会话名 / 用户 / 设备）；有输入显示清除 X，无命中见数据D</li>
+      <li>分段 <span class="k">全部</span>/<span class="k">Wear</span>/<span class="k">Unwear</span> → 按采集模式筛选</li>
+      <li>单击会话卡 → 会话详情（数据C），隐藏底部 Tab</li>
+      <li>长按会话卡 / 点 <b>选择</b> → 多选态（数据B），底部批量导出 / 删除</li>
+      <li>单位 = 会话文件夹（D-6）按日期分组；首启空态见数据A</li>
+    </ul></div>
   </div>
 
   <!-- T3 设置 Tab -->
@@ -705,6 +746,12 @@
     <div class="screen-label"><span class="num">设置</span> 设置 Tab</div>
     <div class="screen-note">环境权限 · 数据/导出 · 关于</div>
     <div class="screen-flow">去掉远程/透传等<b>二期</b>项；环境与权限检查从此处手动进入</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>点 <b>环境与权限检查</b> → 设置A；汇总 蓝牙 / 扫描 / 连接 / 定位 / 通知 状态</li>
+      <li><b>本机 GNSS</b> 开关 → 切换 GNSS 一路数据源；缺权限 / 系统定位关 → 引导（GNSS B/C）</li>
+      <li>点 <b>导出位置 / 存储占用 / 关于</b> → 设置B / 设置C / 设置D</li>
+      <li>二期能力（服务器 / 上传 / 透传）仅在关于页<b>灰显不可点</b></li>
+    </ul></div>
   </div>
 
 </div>
@@ -781,6 +828,13 @@
     <div class="screen-label"><span class="num">设备A</span> 设备列表 · 单击连接 / 断开</div>
     <div class="screen-note">DUT（≤3）+ 参考心率带（≤1）· 右侧状态标签 · 右上连接计数</div>
     <div class="screen-flow">单击行→<b>连接</b>（未连接→连接中→已连接）；再点→<b>断开</b>；参考心率带（紫·0x180D）<b>至多 1 个</b>；扫描 <b>60s 自停</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>单击设备行 → 后台连接：<span class="k">未连接</span> → <span class="k">连接中</span>(动画点) → <span class="k">已连接</span>；再点 → 断开</li>
+      <li>搜索按 名称 / MAC 过滤；RSSI 滑条 → 仅显示强于阈值的设备</li>
+      <li>右上 <b>已连 N</b> 实时计数（DUT + 参考心率带合计）</li>
+      <li>扫描 <b>60s 自停</b>；底部「停止扫描」手动停；返回不断开（连接后台保持）</li>
+      <li>参考心率带（紫 · HRS 0x180D）做对照，<b>至多 1 个</b></li>
+    </ul></div>
   </div>
 
   <!-- B. 连接上限（第 3 台提示不稳定 / 第 4 台禁止） -->
@@ -829,6 +883,11 @@
     <div class="screen-label"><span class="num">设备B</span> 连接上限（最多 3 台）</div>
     <div class="screen-note">DUT ≤3（第 3 不稳定·第 4 禁止）+ 参考心率带 ≤1</div>
     <div class="screen-flow">DUT 第 4 台→<b>禁用</b>；参考心率带超过 1 个→<b>禁用</b>；断开后恢复可连</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>DUT 达 3 台 → 顶部黄条提示链路不稳定；<b>第 4 台行禁用</b>（已达上限、不可点）</li>
+      <li>第 3 台标「不稳定」(黄) 但仍可采；参考心率带超过 1 个同样禁用</li>
+      <li><b>断开任一台</b> → 被禁用行立即恢复可连</li>
+    </ul></div>
   </div>
 
   <!-- C. 扫描 · 无结果空态 -->
@@ -857,6 +916,11 @@
     <div class="screen-label"><span class="num">设备C</span> 扫描 · 无结果空态</div>
     <div class="screen-note">范围内无可用 DUT 时的引导空态</div>
     <div class="screen-flow"><b>重新扫描</b>→回到扫描中（设备A）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>范围内 60s 无 DUT → 空态引导（区别于权限缺失，那属设置A）</li>
+      <li><b>重新扫描</b> → 回扫描中（设备A）</li>
+      <li>先确认 DUT 已上电 / 在范围内 / 蓝牙开，再重试</li>
+    </ul></div>
   </div>
 
 </div>
@@ -897,6 +961,12 @@
     <div class="screen-label"><span class="num">用户A</span> 用户选择·有列表</div>
     <div class="screen-note">最近使用列表，单选当前用户后开始采集。</div>
     <div class="screen-flow">点某行即<b>选中并返回</b>采集页（自动设为当前用户，无需确认按钮）；「+ 新建用户」去<b>编辑页</b>。</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>点任一用户行 → 立即设为当前并<b>返回采集页</b>（无确认按钮）</li>
+      <li>当前用户置顶高亮（紫框 + 勾）；其余归「其他用户」分组</li>
+      <li><b>+ 新建用户</b> → 编辑页（用户C）；左滑行 → 编辑 / 删除（待补手势）</li>
+      <li>别名写入文件名 + manifest；可随时切换，退出无破坏</li>
+    </ul></div>
   </div>
 
   <!-- B. 用户·空态 -->
@@ -916,6 +986,11 @@
     <div class="screen-label"><span class="num">用户B</span> 用户·空态</div>
     <div class="screen-note">首次使用无任何档案，引导新建。</div>
     <div class="screen-flow">无用户时显示空态 → 点「+ 新建用户」去<b>编辑页</b>；保存后返回此页变为<b>有列表</b>。</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>首次无档案 → 空态引导；主 CTA「+ 新建用户」→ 编辑页（用户C）</li>
+      <li>保存后回到此页变为<b>有列表</b>（用户A）并自动选中新建项</li>
+      <li>档案仅本地存储、不上传、不出设备</li>
+    </ul></div>
   </div>
 
   <!-- C. 用户编辑（表单） -->
@@ -938,6 +1013,11 @@
     <div class="screen-label"><span class="num">用户C</span> 用户编辑（表单）</div>
     <div class="screen-note">新建或编辑别名与体征，含本地存储隐私提示。</div>
     <div class="screen-flow">从选择页「+ 新建」或某条编辑进入 → 填别名/性别/出生/身高体重 → 「保存用户」回到<b>选择页</b>并自动选中。</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>别名建议用化名（非真实姓名）；性别分段单选；数字键盘输入身高/体重</li>
+      <li>顶部「保存」或底部「保存用户」→ 回选择页并<b>自动选中</b>（别名必填方可保存）</li>
+      <li>返回(←) 放弃本次编辑；隐私提示常驻：仅本地、不出设备</li>
+    </ul></div>
   </div>
 
 </div>
@@ -997,6 +1077,12 @@
     <div class="screen-label"><span class="num">运行A</span> 数据采集 · 就绪</div>
     <div class="screen-note">设备卡 + 采集类型选择 + Datas/Time + Pin/区间标签 + 开始</div>
     <div class="screen-flow">进入自动弹出 / 点右上角→<b>采集类型选择</b>（运行C）；<b>开始采集</b>→采集中（运行B）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>进入即<b>自动弹出</b>采集类型选择（运行C）；右上 ⚙ 可重开</li>
+      <li>设备卡显示在线 + 实时 HR；采集类型芯片条点开 = 重选</li>
+      <li><b>开始采集</b> → 采集中（运行B）：计时启动、数据流开始写入</li>
+      <li>底部「暂停」就绪态禁用（无流可停）；返回(←)= 软锁定，不停采集</li>
+    </ul></div>
   </div>
 
   <!-- 运行B 数据采集 · 采集中 -->
@@ -1060,6 +1146,13 @@
     <div class="screen-label"><span class="num">运行B</span> 数据采集 · 采集中</div>
     <div class="screen-note">[时间戳] HEX 实时流(锚定底部·无滚动条) + Pin/区间标签 · 暂停 / 结束</div>
     <div class="screen-flow">每条 <b>[时间戳] HEX</b> 写一行；<b>Pin</b> 打瞬时点 / <b>Start·Stop</b> 打区间；<b>暂停</b>仅停滚动显示(不停接收)；按住<b>结束</b>满 2 秒→结束摘要</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>每收到一条 → 写一行 <span class="k">[时间戳] HEX</span>，窗口锚定底部、无滚动条</li>
+      <li><b>Pin</b> = 打瞬时点标签；<b>Start Label ⇄ Stop Label</b> = 打长时间区间标签</li>
+      <li>输入框有文字 → 内嵌 <b>X</b> 清空（取代独立清除键）</li>
+      <li><b>暂停</b> = 仅停数据框滚动显示（数据照常接收/落盘），再点恢复跟随</li>
+      <li>按住<b>结束</b> → 运行D 长按 2 秒确认；采集类型入口采集中不隐藏</li>
+    </ul></div>
   </div>
 
   <!-- 运行C 采集类型选择（下抽屉 Bottom Sheet · 开关=该路是否上传/落盘；进入运行A 自动弹出 / 右上角重开，采集中不隐藏·仍可重开） -->
@@ -1086,6 +1179,12 @@
     <div class="screen-label"><span class="num">运行C</span> 采集类型选择</div>
     <div class="screen-note">下抽屉清单 · 勾选=该路是否上传/落盘（透明传输）</div>
     <div class="screen-flow">进入运行A <b>自动弹出</b> / 右上角点按重开；勾选 → <b>确定</b> 写回；<b>采集中不隐藏</b>(仍可重开)</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>进入运行A <b>自动弹出</b>；右上 ⚙ / 采集中均可重开</li>
+      <li>勾选要采集/上传的路 → <b>确定</b> 写回；<b>取消</b> 不改动</li>
+      <li>开关 = 该路是否上传(需通信)/落盘（透明传输、不控采样率）</li>
+      <li>下抽屉(Bottom Sheet)：点遮罩 / 下滑 关闭</li>
+    </ul></div>
   </div>
 
   <!-- 运行D 长按 2 秒结束（防误触唯一退出） -->
@@ -1129,6 +1228,11 @@
     <div class="screen-label"><span class="num">运行D</span> 长按 2 秒结束（半透明遮罩）</div>
     <div class="screen-note">叠在采集中界面之上 · 透出下面内容 · 松开取消</div>
     <div class="screen-flow">按住「结束」满 2 秒 → <b>结束摘要</b>；松手 → 继续采集</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>半透明遮罩叠在采集中界面上，<b>下面内容透出可见</b>（不整屏遮挡）</li>
+      <li>持续按住 → 环形进度走满 2 秒 → 结束、落盘 → 结束摘要（结束A）</li>
+      <li><b>中途松手 → 取消</b>，继续采集（防误触，结束是唯一退出）</li>
+    </ul></div>
   </div>
 
 </div>
@@ -1162,6 +1266,12 @@
     <div class="screen-label"><span class="num">结束A</span> 采集结束摘要</div>
     <div class="screen-note">一个会话 = 一个文件夹（D-6），非每路一个 CSV</div>
     <div class="screen-flow">查看详情 → <b>会话详情</b>；导出 → <b>Download/BlueTrace/</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>结束即落盘；摘要卡 = 时长 + 行数 + 体积 + 会话数</li>
+      <li>会话夹构成：原始 HEX 日志（source of truth）+ 每模块解码 CSV + 组合包 CSV + manifest</li>
+      <li><b>查看详情</b> → 会话详情（数据C）；<b>导出</b> → 打包整夹到 Download/BlueTrace/</li>
+      <li>返回(←) → 数据 Tab；会话已存，可稍后再导出</li>
+    </ul></div>
   </div>
 
   <!-- 结束B 导出完成 Toast（复用 A，底部叠加 .toast） -->
@@ -1187,6 +1297,11 @@
     <div class="screen-label"><span class="num">结束B</span> 导出完成 Toast</div>
     <div class="screen-note">整个会话文件夹导出落地 Download/BlueTrace/</div>
     <div class="screen-flow">点导出 → 文件夹打包 → <b>Toast 反馈</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>点<b>导出</b> → 打包会话文件夹 → 写入 Download/BlueTrace/（MediaStore 公共目录）</li>
+      <li>成功 → 底部 <b>Toast</b> 反馈，数秒后自动消失</li>
+      <li>过程见导出中（导出A）；失败 / 空间不足 → 导出C / 导出D</li>
+    </ul></div>
   </div>
 
 </div>
@@ -1220,6 +1335,11 @@
     <div class="screen-label"><span class="num">数据A</span> 数据空态</div>
     <div class="screen-note">顶级数据 Tab · 尚无任何会话文件夹</div>
     <div class="screen-flow">采集结束落盘后此处出现首个<b>会话文件夹</b>；空态保留底部 Tab 无返回</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>顶级数据 Tab，<b>无返回</b>、保留底部 Tab</li>
+      <li>尚无会话 → 空态；首次采集落盘后出现首个会话文件夹（变有列表）</li>
+      <li>引导切到采集 Tab 开始第一次采集</li>
+    </ul></div>
   </div>
 
   <!-- 数据B 多选/选择态（隐藏底部 Tab） -->
@@ -1252,6 +1372,12 @@
     <div class="screen-label"><span class="num">数据B</span> 多选 / 选择态</div>
     <div class="screen-note">隐藏底部 Tab · 标题随选数变化 · 以会话文件夹为单位批量操作</div>
     <div class="screen-flow">长按或「选择」进入 → 勾选若干 → 底部<b>导出所选</b>整文件夹 / <b>删除</b>；「取消」退出选择态</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>长按会话卡 / 点「选择」→ 进入多选；隐藏底部 Tab</li>
+      <li>勾选若干 → 标题随 <b>已选 N</b> 变化；右上「全选」切换</li>
+      <li>底部 <b>导出所选 (N)</b> 打包各文件夹 / <b>删除</b>（二次确认）</li>
+      <li>「取消」退出选择态，回普通列表</li>
+    </ul></div>
   </div>
 
   <!-- 数据C 会话详情（隐藏底部 Tab，返回箭头） -->
@@ -1287,6 +1413,12 @@
     <div class="screen-label"><span class="num">数据C</span> 会话详情</div>
     <div class="screen-note">隐藏底部 Tab · manifest 摘要 + 启用配置 + 文件夹构成逐项可勾选导出</div>
     <div class="screen-flow">从列表单击进入 → 看夹内构成（HEX 日志=<b>source of truth</b>）→ 勾选导出至 <b>Download/BlueTrace/</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>单击会话卡进入；隐藏底部 Tab，右上 ⤓ 一键导出整夹</li>
+      <li>manifest 摘要 + 启用配置（只读）；文件夹构成<b>逐项可勾选</b></li>
+      <li>勾选要导出的文件 → 底部 <b>导出所选</b> → Download/BlueTrace/</li>
+      <li><b>删除</b> 整会话（二次确认）；返回(←) 回列表</li>
+    </ul></div>
   </div>
 
   <!-- 数据D 搜索无结果（顶级 Tab） -->
@@ -1314,6 +1446,11 @@
     <div class="screen-label"><span class="num">数据D</span> 搜索无结果</div>
     <div class="screen-note">顶级数据 Tab · 已输入关键词但无匹配会话</div>
     <div class="screen-flow">在搜索框输入 → 无命中显示<b>空结果态</b>；清除关键词回到完整列表</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>搜索有输入但<b>无命中</b> → 空结果态；保留底部 Tab</li>
+      <li>清除关键词 / 改词 → 回完整列表</li>
+      <li>区别于「无任何数据」空态（数据A）</li>
+    </ul></div>
   </div>
 
 </div>
@@ -1353,6 +1490,11 @@
     <div class="screen-label"><span class="num">导出A</span> 导出中（ProgressDialog）</div>
     <div class="screen-note">整文件夹打包写入 · 确定进度可取消</div>
     <div class="screen-flow">打包 → 写入 <b>Download/BlueTrace/</b> → 完成 <b>Toast</b>（导出B）；取消 → 回会话详情</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>点导出 → ProgressDialog（下抽屉）：确定进度条 + 已写 / 总量</li>
+      <li><b>取消</b> → 终止打包、回会话详情（已写部分清理，原始夹不动）</li>
+      <li>完成 → 自动转成功 Toast（导出B）</li>
+    </ul></div>
   </div>
 
   <!-- 导出B 导出完成 Toast -->
@@ -1379,6 +1521,11 @@
     <div class="screen-label"><span class="num">导出B</span> 导出完成 Toast</div>
     <div class="screen-note">整个会话文件夹落地 Download/BlueTrace/</div>
     <div class="screen-flow">打包成功 → 底部 <b>Toast</b> 反馈 · 文件可在系统文件管理器 Download/BlueTrace/ 查看</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>成功 → 底部 Toast；底部按钮变 <b>分享 / 完成</b></li>
+      <li><b>分享</b> → 系统分享面板（直接分享导出文件）；<b>完成</b> → 回详情/列表</li>
+      <li>文件落 Download/BlueTrace/，系统文件管理器可见</li>
+    </ul></div>
   </div>
 
   <!-- 导出C 导出失败 写入中断 -->
@@ -1404,6 +1551,11 @@
     <div class="screen-label"><span class="num">导出C</span> 导出失败 · 写入中断</div>
     <div class="screen-note">红色阻断 banner + 行内重试 · 原始数据未受影响</div>
     <div class="screen-flow"><b>重试导出</b>→ 回导出中（导出A）；<b>查看空间</b>→ 设置存储占用</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>写入中断 → 红色阻断 banner + 行内 / 底部 <b>重试</b></li>
+      <li><b>重试导出</b> → 回导出中（导出A）；<b>查看空间</b> → 设置 · 存储占用</li>
+      <li>原始会话本机完好、未受影响（只是公共目录副本失败）</li>
+    </ul></div>
   </div>
 
   <!-- 导出D 存储不足 导出前预检 -->
@@ -1431,6 +1583,11 @@
     <div class="screen-label"><span class="num">导出D</span> 存储不足（导出前预检）</div>
     <div class="screen-note">红色阻断 · 预检拦截 · 引导清理释放空间</div>
     <div class="screen-flow"><b>去清理空间</b>→ 设置存储占用删旧会话；空间够后回会话详情重新<b>导出</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>导出前<b>预检</b>拦截：需求 &gt; 可用 → 红色阻断，不开始打包</li>
+      <li><b>去清理空间</b> → 设置 · 存储占用 删已导出旧会话；<b>取消</b> 返回</li>
+      <li>空间够后回会话详情重新导出</li>
+    </ul></div>
   </div>
 
 </div>
@@ -1454,7 +1611,12 @@
 </div></div>
 <div class="screen-label"><span class="num">设置A</span> 环境与权限检查详情</div>
 <div class="screen-note">硬性条件缺失阻断采集，定位为黄态可去开启；建议条件不阻断。</div>
-<div class="screen-flow">流转(<b>去开启</b> 跳系统定位设置 → 返回复检；<b>授权</b> 拉起通知权限弹层)</div></div>
+<div class="screen-flow">流转(<b>去开启</b> 跳系统定位设置 → 返回复检；<b>授权</b> 拉起通知权限弹层)</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>硬性条件（蓝牙/扫描/连接）缺失 → <b>阻断采集</b>；逐项就绪/未就绪</li>
+<li>定位为黄态：缺则 GPS 一路缺失，但仍可采（不阻断）</li>
+<li><b>去开启</b> → 跳系统定位设置 → 返回自动复检；<b>授权</b> → 系统通知权限弹层</li>
+</ul></div></div>
 
 <div><div class="phone"><div class="phone-screen">
 <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1467,7 +1629,12 @@
 </div></div>
 <div class="screen-label"><span class="num">设置B</span> 导出位置详情</div>
 <div class="screen-note">固定公共目录 Download/BlueTrace/，MediaStore 写入无需存储权限。</div>
-<div class="screen-flow">流转(<b>打开系统文件管理</b> 跳系统文件 App 定位到 BlueTrace 目录)</div></div>
+<div class="screen-flow">流转(<b>打开系统文件管理</b> 跳系统文件 App 定位到 BlueTrace 目录)</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>固定公共目录 Download/BlueTrace/（MediaStore 写入，无需存储权限）</li>
+<li><b>打开系统文件管理</b> → 跳文件 App 定位到 BlueTrace 目录</li>
+<li>一期目录不可改（二期再开放自定义）</li>
+</ul></div></div>
 
 <div><div class="phone"><div class="phone-screen">
 <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1483,7 +1650,12 @@
 </div></div>
 <div class="screen-label"><span class="num">设置C</span> 存储占用详情（StorageBreakdown）</div>
 <div class="screen-note">五段占用：原始 HEX 为大头（source of truth），仅清理已导出会话。</div>
-<div class="screen-flow">流转(<b>清理已导出会话</b> 二次确认后释放本地空间，已导出文件夹安全删除)</div></div>
+<div class="screen-flow">流转(<b>清理已导出会话</b> 二次确认后释放本地空间，已导出文件夹安全删除)</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>五段占用条 + 图例；原始 HEX 为大头（source of truth）</li>
+<li><b>清理已导出会话</b> → 二次确认 → 仅删<b>已导出</b>的会话文件夹释放空间</li>
+<li>未导出会话不在清理范围（防误删数据）</li>
+</ul></div></div>
 
 <div><div class="phone"><div class="phone-screen">
 <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1499,7 +1671,12 @@
 </div></div>
 <div class="screen-label"><span class="num">设置D</span> 关于 BlueTrace</div>
 <div class="screen-note">品牌与版本、本地存储声明；二期能力灰显并标注，一期不可用。</div>
-<div class="screen-flow">流转(三项<b>灰显不可点</b>，仅展示二期规划，不进入任何上传/透传/下发流程)</div></div>
+<div class="screen-flow">流转(三项<b>灰显不可点</b>，仅展示二期规划，不进入任何上传/透传/下发流程)</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>品牌 / 版本 + 本地存储声明（不上传、不出设备）</li>
+<li>二期能力（服务器上传 / 实时透传 / 远程下发）<b>灰显不可点</b></li>
+<li>仅展示规划，点击无响应（pointer-events:none）</li>
+</ul></div></div>
 
 </div>
 
@@ -1519,7 +1696,12 @@
 <div class="card-sub">随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS A</span> GNSS · 已启用</div><div class="screen-note">权限已授（while-in-use），本机 GNSS 作一路写入会话。</div><div class="screen-flow">主开关开 → 落地 <b>gps.csv</b> + <b>manifest</b> · 共用 <b>monotonic 锚点</b></div></div>
+</div></div><div class="screen-label"><span class="num">GNSS A</span> GNSS · 已启用</div><div class="screen-note">权限已授（while-in-use），本机 GNSS 作一路写入会话。</div><div class="screen-flow">主开关开 → 落地 <b>gps.csv</b> + <b>manifest</b> · 共用 <b>monotonic 锚点</b></div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>主开关开 → 本机 GNSS 作一路；落地 gps.csv + 写入 manifest</li>
+<li>与 BLE 多路共用同一 <b>monotonic 对齐锚点</b></li>
+<li>while-in-use 定位；不申请后台定位</li>
+</ul></div></div>
 
 <div><div class="phone"><div class="phone-screen">
 <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1535,7 +1717,12 @@
 <div class="card-sub">授权后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS B</span> GNSS · 缺定位权限</div><div class="screen-note">应用尚未获定位权限，主开关呈未就绪态。</div><div class="screen-flow">去授权 → 系统权限弹层 → 授予后回此页 → 开关可开</div></div>
+</div></div><div class="screen-label"><span class="num">GNSS B</span> GNSS · 缺定位权限</div><div class="screen-note">应用尚未获定位权限，主开关呈未就绪态。</div><div class="screen-flow">去授权 → 系统权限弹层 → 授予后回此页 → 开关可开</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>开关未就绪；banner / 列表「授权」→ 系统定位权限弹层</li>
+<li>授予后回此页 → 开关可开（→ GNSS A 已启用）</li>
+<li>要 GNSS 须<b>开始采集前</b>授权，否则本次会话不含 GPS 一路</li>
+</ul></div></div>
 
 <div><div class="phone"><div class="phone-screen">
 <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
@@ -1553,7 +1740,12 @@
 <div class="card-sub">系统定位开启后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS C</span> GNSS · 系统定位关闭</div><div class="screen-note">应用权限已授，但系统定位总开关关闭。</div><div class="screen-flow">开关 → 提示先开系统定位 → 去系统设置开启 → 回此页可记录；要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路</div></div>
+</div></div><div class="screen-label"><span class="num">GNSS C</span> GNSS · 系统定位关闭</div><div class="screen-note">应用权限已授，但系统定位总开关关闭。</div><div class="screen-flow">开关 → 提示先开系统定位 → 去系统设置开启 → 回此页可记录；要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>权限已授但系统定位总开关关 → 开关提示「先开系统定位」</li>
+<li><b>去系统设置</b>开启 → 回此页可记录（→ GNSS A）</li>
+<li>同样须开始采集前就绪，否则本次缺 GPS 一路</li>
+</ul></div></div>
 
 </div>
 
@@ -1594,6 +1786,11 @@
     <div class="screen-label"><span class="num">横切A</span> 暂停 · 重连中</div>
     <div class="screen-note">连接断开=暂停并自动重连 · 重连续写不丢数据</div>
     <div class="screen-flow">蓝牙关 / 设备走远 / 通信报错 → <b>暂停重连</b>；重连成功 → 自动续采（无需用户操作）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>连接断开（蓝牙关/走远/通信报错）→ 自动 <b>暂停 → 重连</b>，无需用户操作</li>
+      <li>重连成功 → 原始 HEX append-only <b>续写续解析</b>，不丢数据</li>
+      <li>坏包/CRC/重连只进运行日志，不弹分级告警；底部「结束」与运行B 一致</li>
+    </ul></div>
   </div>
 
   <!-- 横切B 已停止（存储满，不可继续） -->
@@ -1622,6 +1819,11 @@
     <div class="screen-label"><span class="num">横切B</span> 已停止（存储满）</div>
     <div class="screen-note">唯一"已停止"语义：不可继续才停 · 数据已安全保存</div>
     <div class="screen-flow"><b>导出</b>腾空间 → 再开新会话；正常停止走<b>长按 2 秒</b> → 结束摘要</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>唯一「已停止」语义：<b>不可继续</b>（存储满 / 写入失败）才停</li>
+      <li>停的瞬间数据已安全保存（HEX + CSV + manifest 完整）</li>
+      <li><b>导出</b> 腾空间 → 再开新会话；正常结束仍走运行D 长按 2 秒</li>
+    </ul></div>
   </div>
 
   <!-- 横切C 运行日志 -->
@@ -1648,6 +1850,11 @@
     <div class="screen-label"><span class="num">横切C</span> 运行日志</div>
     <div class="screen-note">坏包/CRC/解码失败/重连 → 进日志，不打断采集</div>
     <div class="screen-flow">报错只<b>记录 + 丢弃</b>，原始 HEX 可重放；从运行页 ⚙ / 控制面板进入查看</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>坏包/CRC/解码失败/未知消息/重连 → <b>记录 + 丢弃</b>，不打断采集</li>
+      <li>原始 HEX 始终保留可重放；日志行 ok/warn/err 三色分级</li>
+      <li>从运行页 ⚙ 进入查看；不弹分级 Banner（替代 v3 红黄蓝）</li>
+    </ul></div>
   </div>
 
   <!-- 横切D 进程恢复弹层（单设备） -->
@@ -1668,6 +1875,11 @@
     <div class="screen-label"><span class="num">横切D</span> 进程恢复弹层</div>
     <div class="screen-note">单设备续采 · 地址失效则定向重扫 · 子页隐藏 Tab</div>
     <div class="screen-flow">MAC 命中 → <b>直接续采</b>；地址失效 → <b>定向重扫</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>启动检测到可恢复会话 → 弹进程恢复弹层（复用 v3 P5 外壳）</li>
+      <li>MAC 命中 → <b>直接续采</b>（append 续写）；地址失效 → <b>定向重扫</b></li>
+      <li>逐设备恢复；放弃则归档已采数据为独立会话</li>
+    </ul></div>
   </div>
 
   <!-- 横切E 正在采集 全局提示条（唯一保留底部 Tab，采集 .active） -->
@@ -1690,6 +1902,11 @@
     <div class="screen-label"><span class="num">横切E</span> 正在采集 全局提示条</div>
     <div class="screen-note">采集 Tab 顶级 · 唯一保留底部 Tab 的横切屏</div>
     <div class="screen-flow">提示条常驻 · 点 <b>返回采集</b> 回运行界面</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>采集运行中离开 → 采集 Tab 顶部常驻蓝色提示条</li>
+      <li><b>唯一保留底部 Tab</b> 的横切屏；新会话入口锁定（设备/用户灰显）</li>
+      <li>点 <b>返回采集</b> → 回运行界面（运行B）</li>
+    </ul></div>
   </div>
 
 </div>
@@ -1752,6 +1969,11 @@
     <div class="screen-label"><span class="num">配置A</span> 传感器总控 · 暂不实现</div>
     <div class="screen-note">移至最后实现；选择已并入运行C 采集类型选择</div>
     <div class="screen-flow">每路<b>开关</b>决定是否采集该路（透明传输 · 不控采样率）；设备端算法见配置B（<b>后期</b>）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互（暂不实现）</div><ul>
+      <li><b>本屏暂不实现、已移至文末</b>；采集类型选择已由运行C 承担</li>
+      <li>（规划）每路开关 = 该路是否采集/上传；透明传输、不控采样率</li>
+      <li>设备端算法见配置B（后期能力）</li>
+    </ul></div>
   </div>
 
   <!-- 配置B：设备端算法（暂不实现 · 移至最后；UI 保留备用） -->
@@ -1782,6 +2004,11 @@
     <div class="screen-label"><span class="num">配置B</span> 设备端算法 · 暂不实现</div>
     <div class="screen-note">后期能力，移至最后实现；当前不计入交付</div>
     <div class="screen-flow">勾选算法 → 协议 <b>下发</b> → 结果随数据流回传；关闭则只回<b>原始信号</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互（暂不实现）</div><ul>
+      <li><b>本屏暂不实现、后期能力</b></li>
+      <li>（规划）勾选算法 → 协议下发 → 结果随数据流回传</li>
+      <li>关闭则只回原始信号</li>
+    </ul></div>
   </div>
 
 </div>
