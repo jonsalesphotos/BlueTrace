@@ -810,6 +810,7 @@
         <div class="sec-h">建议 · 可跳过</div>
         <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl">定位（GNSS 一路）</div><div class="sub">while-in-use · 缺则本次无 GPS</div></div><button class="btn xs tonal">授权</button></div>
         <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">通知</div><div class="sub">采集前台服务常驻通知</div></div><button class="btn xs tonal">授权</button></div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="8" width="16" height="9" rx="2" stroke="currentColor" stroke-width="2"/><rect x="19.5" y="10.5" width="2" height="4" rx="1" fill="currentColor"/><path d="M10 9.5l-2.2 3.2H11l-2.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">后台不省电（保活）</div><div class="sub">系统设置 · 防长时间采集被杀</div></div><button class="btn xs tonal">去设置</button></div>
       </div>
       <div class="footer-bar" style="flex-direction:column;gap:8px">
         <button class="btn block">全部授权</button>
@@ -902,6 +903,32 @@
       <li><b>区别于权限</b>：蓝牙是系统开关，监听 adapter 状态而非申请权限</li>
       <li>进扫描 / 开始采集前检测：关 → 拦截 + 「开启蓝牙」（拉起系统启用对话框 / 引导快捷开关）</li>
       <li>开启后自动复检回到设备列表；<b>采集进行中</b>关闭 → 走横切A <b>暂停 · 自动重连</b>（不丢数据）</li>
+    </ul></div>
+  </div>
+
+  <!-- 启动F 后台省电设置指南（保活 · F-BG-5；系统设置≠权限，需手动切到不省电；建议不阻断） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">后台运行设置</div><div class="subtitle">保活 · 防采集被系统杀</div></div></div>
+      <div class="content">
+        <div class="banner info"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div class="txt"><b>采集需长时间后台运行</b>系统省电可能杀进程致中断；请把本应用切到「不省电 / 不受限」</div></div>
+        <div class="sec-h">按这几步切换（系统设置 · 非权限）</div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="8" width="16" height="9" rx="2" stroke="currentColor" stroke-width="2"/><rect x="19.5" y="10.5" width="2" height="4" rx="1" fill="currentColor"/><path d="M10 9.5l-2.2 3.2H11l-2.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">忽略电池优化</div><div class="sub">允许后台不受限运行（系统标准开关）</div></div><button class="btn xs tonal">去开启</button></div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">允许自启动 / 关联启动</div><div class="sub">国产 ROM：自启动管理</div></div><span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">最近任务锁定</div><div class="sub">上锁防一键清理后台</div></div><span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="card ghost"><div class="card-sub">各家 ROM 路径不同（小米 / 华为 / OPPO / vivo）：电池 · 省电 → 应用启动管理 → BlueTrace → 手动管理（自启动 + 后台活动 + 关联启动）。此项<b>建议但不阻断</b>，不设置也能采、只是更易被系统杀。</div></div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">稍后</button><button class="btn">去系统电池设置</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动F</span> 后台省电设置指南（保活）</div>
+    <div class="screen-note">系统设置 ≠ 权限 · 建议不阻断 · F-BG-5</div>
+    <div class="screen-flow">从门控「后台不省电」进入；「忽略电池优化」拉系统 allowlist 对话框；自启动/锁后台 → 跳各 ROM 设置；不设也能采、只是更易被杀</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li><b>系统设置 ≠ 权限</b>：需用户手动把本应用切到「不省电 / 不受限」后台</li>
+      <li>「忽略电池优化」拉起系统 allowlist 对话框（<span class="k">REQUEST_IGNORE_BATTERY_OPTIMIZATIONS</span>）；自启动 / 关联启动 / 锁后台 → 跳各 ROM 设置（路径各异）</li>
+      <li><b>建议不阻断</b>：不设置也能采集，只是长时间后台更易被杀 —— 配合前台服务 + <span class="k">START_STICKY</span> 自恢复 + 进程恢复弹层（横切D）兜底</li>
+      <li>从设置返回自动复检；可在 设置 Tab「环境与权限检查」再次进入</li>
     </ul></div>
   </div>
 
