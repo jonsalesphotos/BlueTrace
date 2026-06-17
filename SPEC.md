@@ -443,7 +443,7 @@ enum SensorId {
 - **低空间启动提示**：可用 < **1 GB** 时启动给一次提示（不阻断，建议清理/导出）。
 - **采集中写满 → 自动结束**（见 §5.4），不要求用户处理。
 
-**全局诊断日志**：无法处理的（坏包/CRC/解码失败/未知 msgType/重连）写 app 私有的**全局滚动日志**，跨会话一份、**不进会话文件夹**、滚动上限自动截断；供调试/排错。**设置 → 应用日志**（设置E）查看 / **导出**（写 `Download/BlueTrace/logs/` 或系统分享）/ 清空。
+**应用日志（运行错误/事件 · 非开发调试日志）**：记录**运行期的出错与关键事件** —— 连接/通信、解析（CRC/解码/未知 msgType）、存储、导出、权限、（二期）服务器访问等；写 app 私有的**全局滚动日志**，跨会话一份、**不进会话文件夹**、滚动上限自动截断；供现场排错 / 报问题，**不是 app 的开发调试日志（logcat/verbose）**。**设置 → 应用日志**（设置E）查看 / **导出**（写 `Download/BlueTrace/logs/` 或系统分享）/ 清空。
 
 **设备维护（DUT · 后期）**：设置 → 设备维护（设置F）是预留入口，承载设备端能力——设备对时（同步 unix 时间到 DUT）/ 写设备用户信息 / 读取固件日志 / OTA 固件升级；**入口预留、具体内容后期**（对时/用户信息/固件日志走协议 Command·Ack §4；OTA 属二期），需连接 DUT 才启用。
 
@@ -631,7 +631,7 @@ RootNavHost
    ├─[Tab] DataGraph（数据）
    │   ├─ DataHome（顶级）│ DataSelect（多选）│ SessionDetail → Export 态（子页·隐藏 Bar）
    └─[Tab] SettingsGraph（设置）
-       └─ SettingsHome（顶级）│ EnvPermissionCheck / GnssSource / ExportLocation / Storage / About（子页·隐藏 Bar）
+       └─ SettingsHome（顶级）│ EnvPermissionCheck / GnssSource / ExportLocation / Storage / AppLog(运行日志·导出) / DeviceMaintenance(DUT·后期) / PowerSaveGuide / About（子页·隐藏 Bar）
 
 横切覆盖（非独立目的地·状态驱动）：前台服务常驻通知（在场感·点回运行）· 进程恢复 = 服务重绑续采 / 开口会话自动收尾（无对话框，见 §5.10）
 ```
