@@ -20,6 +20,7 @@
 7. [工程执行要点（minSdk / 三 Tab 脚手架 / 对齐锚点 / iOS 分叉）](#7-工程执行要点)
 8. [设计系统要点（token 以原型为准）](#8-设计系统要点)
 9. [引用与归档](#9-引用与归档)
+10. [开发就绪（KMP · Android-first）](#10-开发就绪kmp--android-first)
 
 ---
 
@@ -117,7 +118,7 @@
 | D-4 | DUT 通信协议 = 外层 TLV 信封 + 内层 protobuf，双向（数据流 + 控制/ACK），含 sequence/时间戳、类型注册表可扩展；我方设计交付物（v0.1 草案已过评审）。 |
 | D-5 | **全部链路参数（连接间隔 + MTU）由设备按功耗驱动，App 完全不参与、只解包**；删除打包策略配置页。 |
 | D-6 | 每会话一文件夹 = 原始 HEX 行日志（source of truth，后期 zstd）+ 按模块解码 CSV + 组合包兼容 CSV + `manifest.json`；Sink 放宽为「1 消息类型 → 1..N 文件」。 |
-| D-7 | Android **minSdk 29 / target 35**；iOS 15+。简化红利：纯 MediaStore 导出、`java.time` 原生可用（去 desugaring）。 |
+| D-7 | Android **minSdk 29 / target 35**；iOS 15+。简化红利：纯 MediaStore 导出、`java.time` 原生可用（去 desugaring）。*（target 后由 D-V4-19 跟进 36）* |
 | D-8 | 混合编码（高频批包紧凑 `bytes`/`packed`、低频/控制结构化 protobuf）+ 标准头部支持分片/重组（大消息超 MTU 跨包，按 `msgId+fragIdx` 组包）。 |
 | D-9 | 控制面留可选 `CMD_SET_PACKING`（仅固件调试）；**去掉「带宽超阈值阻止开始」硬闸**（V4 进一步将观测面降后期）。 |
 | D-10 | Wire + `.proto` 单一事实源；固件自研（同团队），`.proto` 内部共管、双端同一 schema，无外部依赖。 |
@@ -142,8 +143,9 @@
 | D-V4-14 | 标签区：内嵌 X 清空 + Pin 瞬时点 + Start/Stop 区间。 |
 | D-V4-15 | 实时流 = `[时间戳] HEX` 每条一行 · 锚定底部 · 无滚动条（等宽小字号；justify-end + overflow hidden；数据框 flex 填充）。 |
 | D-V4-16 | 配置两屏（传感器总控/设备端算法）暂不实现、移文档末尾；原型升级为 **UI + 交互双真源**（`.screen-ux` 37 屏全覆盖）。 |
-| D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截）+ edge-to-edge（targetSdk 35）。详见 §7.2 + 导航链路图。 |
+| D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截）+ edge-to-edge（targetSdk 36）。详见 §7.2 + 导航链路图。 |
 | D-V4-18 | **异常模型再精简 + 硬锁定 + 前台服务恢复**（2026-06-17 共识）：断联交 SDK 自动重连（内联「重连中」·不弹屏不阻断）；无法处理的进**全局诊断日志**（不入会话夹）；存储满**自动结束**（开始前预检 + <1GB 启动提示 + 不足禁开 + toast）；采集运行**硬锁定**（app 内不可退，在场感 = 前台服务通知）；进程被杀→数据已落盘，重启**服务活则重绑续采 / 全杀则开口会话自动收尾**（`stopReason=interrupted` + toast，无恢复弹层）；时间全用 **unix 时间戳**，manifest 记时区 + 起点 + 质量小结。横切状态组屏暂不实现。 |
+| D-V4-19 | **技术栈选型（KMP · Android-first，2026-06-17 拍板）**：现在即 KMP 化（`:shared` commonMain 共享协议/会话/CSV/manifest/repo 接口 + `:app` Android）；BLE = androidMain Nordic Kotlin-BLE 藏在 commonMain 接口后（iOS 后期 Core Bluetooth）；protobuf = Wire（高频批包走手写字节解析）；文件 IO = okio；序列化 = kotlinx.serialization；DI = Koin；导航 = Navigation Compose 类型安全；prefs = DataStore；**SDK target/compile 跟进发布 = 36**（minSdk 29 不变）。详见 §10。 |
 
 ### 3.3 真源分工
 
@@ -582,7 +584,7 @@ files/sessions/
 
 ### 6.4 导出走 MediaStore 公共目录
 
-- **minSdk = 29 / targetSdk = 35 / compileSdk = 35**（D-7，Android 10–15）。
+- **minSdk = 29 / targetSdk = compileSdk = 36**（D-V4-19 跟进发布；原 D-7 为 35）。
 - 导出**统一走 MediaStore**，落到公共 `Download/BlueTrace/`，**无需任何存储运行时权限**。导出对象为整个 D-6 会话文件夹（打包后写入）。
 - 实现要点：`MediaStore.Downloads.getContentUri(VOLUME_EXTERNAL_PRIMARY)` → `ContentValues` 设 `DISPLAY_NAME` / `MIME_TYPE` / `RELATIVE_PATH = Download/BlueTrace` / `IS_PENDING=1` → `insert` 拿 uri → `openOutputStream` 写入 → 清 `IS_PENDING=0` `update`。SAF 的 `ActivityResultLauncher` 不入侵 ViewModel/Repository。
 - **作废分支**：API 24–28 直接复制 + `WRITE_EXTERNAL_STORAGE(maxSdk≤28)` 降级、`coreLibraryDesugaring`（java.time）——minSdk 29 起 `java.time.*` 原生可用，全部移除。
@@ -600,7 +602,7 @@ files/sessions/
 ## 7. 工程执行要点
 
 ### 7.1 SDK / 平台
-- **Android**：minSdk 29 / target 35 / compile 35（D-7）。简化红利：纯 MediaStore 导出、`java.time` 原生可用（去 desugaring）；删 `WRITE_EXTERNAL_STORAGE(≤28)` 分支。
+- **Android**：minSdk 29 / target 36 / compile 36（D-V4-19 跟进发布，原 D-7 为 35）。简化红利：纯 MediaStore 导出、`java.time` 原生可用（去 desugaring）；删 `WRITE_EXTERNAL_STORAGE(≤28)` 分支。
 - **iOS**：15+（紧随一期，见 §7.4）。
 
 ### 7.2 导航架构（最新 Android · Material 3 Adaptive）
@@ -612,7 +614,7 @@ files/sessions/
 - **类型安全 Navigation Compose**（2.8+）：路由用 `@Serializable` object/class，编译期检查、带参传递；不用字符串路由。
 - **每个顶级 Tab = 一个独立嵌套 NavGraph + 独立返回栈**；切 Tab 保留各自栈与滚动位置（`saveState`/`restoreState`），**重选当前 Tab → 弹回该 Tab 根**（`popUpTo(rootGraph){saveState=true}; launchSingleTop=true; restoreState=true`）。
 - **预测返回（Predictive Back）**：`enableOnBackInvokedCallback=true`；跨屏用系统预测返回动画；采集运行用 `PredictiveBackHandler` 拦截（见④）。
-- **Edge-to-edge**（targetSdk 35 强制）：内容绘到系统栏后；NavigationBar 消费底部 inset，列表/CTA 用 `WindowInsets` 留安全区。
+- **Edge-to-edge**（targetSdk 35+ 强制）：内容绘到系统栏后；NavigationBar 消费底部 inset，列表/CTA 用 `WindowInsets` 留安全区。
 - 模块边界：`ui/`（Screen 渲染状态 + 收集操作）、`viewmodel/`、`domain/`、`service/`、`worker/`。
 
 **② 导航图（NavGraph 树）**
@@ -758,3 +760,52 @@ RootNavHost
 - `Docs/legacy/BlueTrace_V4_设计契约_2026-06-16.md`、`Docs/legacy/BlueTrace_V4_决策追踪_2026-06-16.md` —— 决策记录（D-* / D-V4-* 已内联 §3）
 - `Docs/legacy/BlueTrace_设计审查_2026-06-16.md` —— 早期设计审查（10 维）
 - `Docs/legacy/BlueTrace_PRD.md`、`Docs/legacy/BlueTrace_UX_Flows.md`、`Docs/legacy/BlueTrace_UI_Design.md` 等 —— 更早归档
+
+---
+
+## 10. 开发就绪（KMP · Android-first）
+
+> 一句话：**设计完备、可以开工**。Android 端已起步（P1 骨架），但要先补两件结构性的事再往下铺。本节是「从这里开始写代码」的总纲。
+
+### 10.1 现状盘点
+
+- **设计**：SPEC + 原型（37+ 屏）+ `bluetrace_v0.proto` 草案，一期 Android 完备。
+- **实现已起步**：`app/` 是整洁架构的 Android 骨架（domain model · repository · mock 假实现 · 权限屏 · 扫描屏 · 单元测试），进度约 **P1**；Kotlin 2.2.x / AGP 9.x / Compose。
+- **两处偏差（待修）**：
+  1. **未 KMP** —— 单 `:app` Android 模块（`com.android.application`），无 `:shared`/commonMain，不符合"用 KMP"目标。
+  2. **部分模型为 V4 前口径** —— 如 `DeviceAssignment = Map<DeviceRole, Device>`（每角色一台、单 DUT）、注释引用**已归档的旧 REQUIREMENTS §10**；V4（D-V4-3）应为**扁平列表 DUT≤3 + 参考≤1**。
+
+### 10.2 技术栈（D-V4-19）
+
+| 层 | 选型 |
+| --- | --- |
+| 工程结构 | **KMP**：`:shared`（commonMain 纯 Kotlin：协议解析 / 会话状态机 / CSV 行格式 / manifest 模型 / repository 接口；可 JVM 单测）+ `:app`（Android：Compose UI / BLE / 前台服务 / MediaStore / 权限）；iOS 后期加 `iosMain` |
+| BLE | androidMain **Nordic Kotlin-BLE**（Flow 化、重连/MTU 稳健），藏在 commonMain `BleClient` 接口后；iOS 后期 Core Bluetooth 实现同接口 |
+| protobuf | **Wire**（`.proto`→Kotlin，commonMain，D-10 单一事实源）；**高频批包 `bytes` 走手写字节解析**（§4.7 定宽布局），protobuf 仅控制/低频/事件/能力 |
+| 文件 IO | **okio**（commonMain 共享 raw HEX / CSV append 写入）；MediaStore 导出在 androidMain |
+| 序列化 | **kotlinx.serialization**（manifest.json） |
+| DI | **Koin**（KMP） |
+| 导航 | **Navigation Compose 类型安全**（`@Serializable` 路由）+ `NavigationSuiteScaffold`（见 §7.2） |
+| prefs | **DataStore**（首启标记等） |
+| 并发 | kotlinx.coroutines（数据管线 `Flow<SensorSample>`） |
+| SDK | minSdk **29** / target·compile **36**（跟进发布）/ Kotlin 2.2.x / AGP 9.x / Compose BOM |
+
+### 10.3 开工前先做两件结构性的事（P0）
+
+- **KMP 化**：新建 `:shared`，把 domain + 协议 + 会话状态机 + CSV/manifest 模型迁到 commonMain（接口与纯逻辑），`:app` 依赖 `:shared`；趁 P1 代码量小、迁移便宜。
+- **V4 校准**：设备模型 `Map<Role,Device>` → **扁平列表 + 限额（DUT≤3 + 参考≤1）**；补 `Subject`（用户）/`Mode`（Wear/Unwear）实体；三 Tab 脚手架（`NavigationSuiteScaffold`）+ 隐藏 Bar 规则；清理对已归档旧 REQUIREMENTS 的引用。
+
+### 10.4 协议冻结清单（并行轨 · 与固件共同冻结，gates 解码层 P2/P5）
+
+ver 值 · 字节序（小端待确认）· `DUT_NOTIFY/WRITE` 服务/特征 UUID · `SensorId` 枚举 · `msgType` 注册表定版 · 各传感器 `SampleFormat`/通道/采样率 · `hdrCrc8`/payload CRC 开关。冻结前用 **Fake Controller + 录制回放**推进 UI 与状态机（§7.3）。
+
+### 10.5 开发顺序（沿用 §2.8 P1–P5 + P0 结构）
+
+- **P0（新增·结构）**：KMP 化 + V4 校准（§10.3）。
+- **P1** 权限/扫描骨架（已起步 → 迁 commonMain 接口 + Nordic 实现）。
+- **P2** 设备/纯开关/三态状态机（Fake Controller 跑通导航与三态）。
+- **P3** 持久化/D-6 文件/导出/GNSS（okio 写 + MediaStore + manifest）。
+- **P4** 后台/前台服务/进程恢复（硬锁定 + 服务重绑 + 开口会话自动收尾）。
+- **P5** 固件联调（协议冻结后接真机解码）。
+
+> 实现骨架现状见 `app/`（待 KMP 化 + V4 校准）；机器契约见 `Docs/architecture/bluetrace_v0.proto`。
