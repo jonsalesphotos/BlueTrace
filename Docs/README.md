@@ -27,6 +27,7 @@ Docs/
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开）|
 | protobuf 消息契约 | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) |
 | 某个决策的历史来龙去脉 | [`legacy/`](legacy/README.md)（仅历史参考，口径以 SPEC 为准）|
+| 让 agent 跑出第一版 app | [`agent_build_prompt_v1.md`](agent_build_prompt_v1.md)（Mock BLE · `/goal` 驱动的构建 prompt）|
 
 ## 真源分工
 
