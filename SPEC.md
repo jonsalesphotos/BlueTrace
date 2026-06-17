@@ -142,7 +142,8 @@
 | D-V4-14 | 标签区：内嵌 X 清空 + Pin 瞬时点 + Start/Stop 区间。 |
 | D-V4-15 | 实时流 = `[时间戳] HEX` 每条一行 · 锚定底部 · 无滚动条（等宽小字号；justify-end + overflow hidden；数据框 flex 填充）。 |
 | D-V4-16 | 配置两屏（传感器总控/设备端算法）暂不实现、移文档末尾；原型升级为 **UI + 交互双真源**（`.screen-ux` 37 屏全覆盖）。 |
-| D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截软锁定）+ edge-to-edge（targetSdk 35）。详见 §7.2 + 导航链路图。 |
+| D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截）+ edge-to-edge（targetSdk 35）。详见 §7.2 + 导航链路图。 |
+| D-V4-18 | **异常模型再精简 + 硬锁定 + 前台服务恢复**（2026-06-17 共识）：断联交 SDK 自动重连（内联「重连中」·不弹屏不阻断）；无法处理的进**全局诊断日志**（不入会话夹）；存储满**自动结束**（开始前预检 + <1GB 启动提示 + 不足禁开 + toast）；采集运行**硬锁定**（app 内不可退，在场感 = 前台服务通知）；进程被杀→数据已落盘，重启**服务活则重绑续采 / 全杀则开口会话自动收尾**（`stopReason=interrupted` + toast，无恢复弹层）；时间全用 **unix 时间戳**，manifest 记时区 + 起点 + 质量小结。横切状态组屏暂不实现。 |
 
 ### 3.3 真源分工
 
@@ -401,8 +402,8 @@ enum SensorId {
 
 - **Tab 可见性**：仅三个顶级中枢显示底部 Tab；**进入任一子页（push 带返回）或采集运行（全屏）一律隐藏 Tab**，避免强状态任务被误切走。
 - **采集是向前 push 的强状态任务链**：采集 Tab →（设备 / 用户 / 模式）→ 采集类型 → 运行 → 摘要，全程隐藏 Tab。
-- **唯一例外**：「正在采集」全局提示条是唯一在采集运行中**仍保留底部 Tab** 的横切态，常驻采集 Tab 顶部。
-- **采集运行中的导航软锁定**：返回键/手势 ≠ 停止；离开运行页 → 采集 Tab 顶部蓝色提示条 + 新会话入口灰显锁定；点「返回采集」回运行界面。**唯一退出 = 长按结束 2 秒**。
+- **在场感 = 前台服务常驻通知**（非 app 内 Banner）：退后台后服务续采，点通知回运行页。
+- **采集运行硬锁定**：App 内**不允许退出**运行界面（返回键/手势拦截，提示"长按结束退出"，不切 Tab / 不 push）。OS Home 退后台 → 前台服务续采、再进 app 直接落运行界面。**唯一退出 = 长按结束 2 秒**。
 - **跳转一致性**：会话卡单击→会话详情（隐藏 Tab）；用户行单击=即时选中并返回采集页（无确认按钮）；子页均 push + 返回。
 
 **启动落地**：**启动屏一闪而过** + 静默环境检查（蓝牙开关 / 权限 / 可恢复会话）→
@@ -437,6 +438,13 @@ enum SensorId {
 - 采集需长时间后台运行；门控「建议」组提供入口，引导用户把本应用切到「不省电 / 不受限」：忽略电池优化（`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` 拉系统 allowlist 对话框）+ 国产 ROM 自启动 / 关联启动 / 最近任务锁定（各家路径不同，跳系统设置）。
 - **建议不阻断**：不设置也能采集，只是长时间后台更易被系统回收；配合前台服务 + `START_STICKY` 自恢复 + 进程恢复弹层（§5.10）兜底。
 
+**存储空间（开始前门控 · 2026-06-17 共识）**
+- **不足不允许开始**：开始前预检可用空间；不足时「开始采集」拦截 → toast 提示去清理。
+- **低空间启动提示**：可用 < **1 GB** 时启动给一次提示（不阻断，建议清理/导出）。
+- **采集中写满 → 自动结束**（见 §5.4），不要求用户处理。
+
+**全局诊断日志**：无法处理的（坏包/CRC/解码失败/未知 msgType/重连）写 app 私有的**全局滚动日志**，跨会话一份、**不进会话文件夹**；仅供调试/排错，可在设置里查看/导出（入口后期）。
+
 设置 Tab 提供「环境与权限检查」手动复查入口（带返回）。
 
 → 屏级细节：v4_android.html「启动B/C/D 权限」「启动E 蓝牙已关闭」「启动F 后台省电设置指南」「设置A 环境与权限检查」「GNSS A/B/C」。
@@ -451,25 +459,24 @@ enum SensorId {
 
 → 屏级细节：v4_android.html「设备A 设备列表 / 设备B 连接上限 / 设备C 扫描无结果」。
 
-### 5.4 采集运行状态机（三态）
+### 5.4 采集运行状态机（精简 · 2026-06-17 共识）
 
-运行只有三态，连接断开一律暂停 + 自动重连续写，只有不可继续才停止：
+不再设独立"暂停·重连"屏；异常压到最薄——专业采集核心是把数据收回来：
 
-| 状态 | 触发 | 行为 |
-| --- | --- | --- |
-| **采集中** | 开始采集 | 计时启动；每收到一条写一行实时流并落盘 |
-| **暂停 · 重连中** | 蓝牙关 / 设备走远 / 通信报错 | 自动暂停→自动重连（无需用户操作）；重连成功后原始 HEX **append-only 续写续解析，不丢数据** |
-| **已停止** | 唯一语义=不可继续（存储满 / 写入失败） | 停的瞬间数据已安全保存（HEX + CSV + manifest 完整）；「导出」腾空间后再开新会话 |
+| 情况 | 处理 |
+| --- | --- |
+| **采集中** | 计时（unix 墙钟）持续走；每收到一条写一行 `[unix] HEX` 并落盘 |
+| **断联**（蓝牙关 / 走远 / 通信错） | **交给 BLE SDK / 协议栈自动重连**，App 不弹屏、不阻断、无需操作；设备卡内联「重连中」（琥珀点）；重连成功 → 原始 HEX append-only **续写续解析**；断联期是数据空档（时间戳体现），计时照走 |
+| **存储满**（唯一被迫停） | **自动结束**并安全落盘（HEX + CSV + manifest 完整）+ toast「存储满，已停止并保存」（开始前预检见 §5.2） |
+| **结束**（任何时候，含断联/重连中） | 长按 2 秒 → 收尾落盘 → 结束摘要；可立即开下一轮 |
 
-**区分两个「暂停」**：
-- **状态机的暂停** = 连接断开的自动重连态；
-- **运行界面底部「暂停」按钮** = **仅停数据框滚动显示，数据照常接收/落盘**，再点恢复跟随（就绪态此按钮禁用，无流可停）。
+**硬锁定**：采集中 App 内**不允许退出运行界面**（返回键/手势拦截，提示"长按结束退出"，不切 Tab / 不 push）。OS Home / 手势挡不住 → 退后台后**前台服务继续采集**，**前台服务常驻通知**即"正在采集"的在场感（点通知回运行页）；再进 app 直接落运行界面，**无 app 内 Banner**。
 
-**运行日志 = 记录并丢弃**：坏包/CRC 错/解码失败/未知消息类型/协议不识别/重连 → 一律进运行日志（ok/warn/err 三色），**不弹分级 Banner、不打断采集**；原始 HEX 始终保留可重放。从运行页 ⚙ 进入查看。已替代 v3 红黄蓝分级 Banner，不做单路降级 / 协议对账。
+**底部「暂停」按钮** = 仅停数据框滚动显示，数据照常接收/落盘，再点恢复跟随（与"断联"无关）。
 
-运行头：用户 · Wear/Unwear · 计时 + 状态药丸。
+**无法处理的 → 全局诊断日志**：坏包 / CRC 错 / 解码失败 / 未知 msgType / 重连事件 → 写**全局滚动诊断日志**（app 私有、跨会话一份，**不进会话文件夹**）；不弹分级 Banner、不打断采集。原始 HEX 始终在会话文件夹、可重放；会话级质量小结（重连次数 / 断联时长 / 丢包数）写 manifest（§6.2）。
 
-→ 屏级细节：v4_android.html「运行A 就绪 / 运行B 采集中 / 横切A 暂停重连 / 横切B 已停止 / 横切C 运行日志」。
+→ 屏级细节：v4_android.html「运行A 就绪 / 运行B 采集中」（断联 = 设备卡内联「重连中」）。横切状态组屏已精简、暂不实现。
 
 ### 5.5 标签（Pin 瞬时 + Start/Stop 区间，D-V4-14）
 
@@ -520,12 +527,14 @@ enum SensorId {
 
 → 屏级细节：v4_android.html 各对应屏的 UX 交互。
 
-### 5.10 进程恢复弹层（横切D，F-BG-4）
+### 5.10 进程恢复（无对话框 · 2026-06-17 共识）
 
-- 启动检测到可恢复会话 → 弹进程恢复弹层（子页隐藏 Tab，复用 v3 P5 外壳）。
-- **单设备逐设备恢复**：MAC 命中 → **直接续采**（append 续写）；地址失效 → **定向重扫**；放弃则归档已采数据为独立会话。
+前台服务是「会话 + BLE」的持有者，UI 只是连上它的薄客户端：
+- **服务仍活着（仅 UI/Activity 被回收）** → 重启 app **重新绑定服务** → 直接回采集运行界面，会话无缝继续、零丢失、**无弹层**。
+- **进程整体被杀（app + 服务都没）** → 无活会话；重启时扫到一个**没写结束标记的"开口"会话** → **自动收尾**（`endEpochMs` = 最后一条记录时间、`stopReason=interrupted`），变成数据 Tab 一条正常会话 + **toast「上次采集异常中断，已保存」**；用户开新的即可。
+- **数据安全**：原始 HEX append-only + 及时 flush，被杀最坏丢"最后未刷盘的 <1s / 最后半行"（重启截到最后换行）；manifest 关键信息（时区/起点/用户/模式/设备配置）**开始时即写** → 会话自描述。
 
-→ 屏级细节：v4_android.html「横切D 进程恢复弹层」。
+去掉 v3「逐角色 DUT 续采 / REFERENCE 重扫」恢复弹层（横切D 暂不实现）。
 
 ---
 
@@ -552,23 +561,22 @@ files/sessions/
 
 ### 6.2 manifest 字段（session_manifest.json）
 
-至少包含：
-- `sessionId`、`startTime / endTime`（`startEpochMillis` / `endEpochMillis`）。
+**开始采集即写关键信息**（会话自描述、被杀也能解）：
+- `sessionId`、`startEpochMs`（unix 毫秒·起点）、**`timezone`**（如 `Asia/Shanghai` / `+08:00`）、`endEpochMs`（结束 / 自动收尾时写）。
 - **`subject`（用户，原"受试者"）**：别名 / 性别 / 生日 / 身高 / 体重。
 - **`mode`**：Wear / Unwear。
-- sampling config（启用的传感器 / 采样率 / 设备端算法；**不含 BLE 链路参数**，D-5）。
+- sampling config（启用的传感器 / 设备端算法；**不含 BLE 链路参数**，D-5）。
 - device roles（每角色：`role` / `address` / `name` / `csvFiles[]` / `profileId` 如 `"HeartRate.SIG.0x180D"`）。
-- file list、app version、permission / GNSS 快照、stop reason、error summary。
-- **对齐锚点**：`startEpochMillis`（绝对墙钟锚点）+ `startMonotonicNanos`（monotonic 锚点）。
+- file list、app version、permission / GNSS 快照、`stopReason`（`normal` / `storage_full` / `interrupted`）。
+- **会话质量小结**：`reconnectCount`、`disconnectTotalMs`、`droppedPackets`（按 `pktSeq`/`batch_seq` 缺口估）—— 供离线判断数据完整度，与全局诊断日志是两回事。
 
-### 6.3 monotonic 对齐锚点（跨设备时间对齐）
+### 6.3 时间模型（unix 时间戳为准 · 2026-06-17 共识）
 
-每个 sample 同时记 `receivedAtEpochMillis`（墙钟）与 `monotonicNanos`（`System.nanoTime()`）。manifest 记会话起点的 `startMonotonicNanos` 作为锚点，所有 `sample.monotonicNanos` 减它即落到统一时间轴 `(t - t0)/1e9` 秒。
-
-关键性质：
-- 写入端**不做对齐**（对齐留给后期 Python/Pandas 分析）。
-- 多台设备的 sample 都用**同一台手机的 `System.nanoTime()`** 打戳，天然同一时间轴，对齐误差≈BLE 通知到达 App 的时延差（典型 < 50 ms，对 PPG 评测足够）。
-- 用 monotonic 差对齐可规避系统墙钟跳变（NITZ / 用户改时间）。更高精度需设备侧时间戳同步，超出文档范围。
+- **所有记录时间 = unix epoch**：原始 HEX 行 `<epochMs>: HEX`、解码 CSV 每行带 `epoch_ms` 列、计时 / 时长全用 unix；**不存设备本地字符串时间**。
+- **manifest 记时区 + 起点**：`timezone` + `startEpochMs`，离线还原本地时间用（见 §6.2）。
+- **断联期间计时照走**（unix 墙钟）；数据空档由相邻记录的时间戳间隔体现。
+- 多台设备的样本都由**同一台手机**打 unix 戳（接收时刻 `receivedAtEpochMs`），天然同一时间轴；对齐误差 ≈ BLE 通知到达时延差（典型 < 50 ms，对 PPG 评测足够），**对齐留给离线分析**（写入端不做对齐）。
+- *（可选安全网）* 可同时存 `monotonicNanos`(`System.nanoTime`) 以防会话中途墙钟被改 / NITZ 跳变；离线若发现 unix 跳变可改用单调差。非必需。
 
 ### 6.4 导出走 MediaStore 公共目录
 
@@ -615,7 +623,7 @@ RootNavHost
    ├─[Tab] CollectGraph（采集，start）
    │   ├─ CollectHome（顶级·显示 Bar）
    │   ├─ DeviceConnect / SubjectSelect→SubjectEdit / SensorConfig(暂不)（子页·隐藏 Bar）
-   │   └─ CollectionRun（全屏·隐藏 Bar·软锁定）
+   │   └─ CollectionRun（全屏·隐藏 Bar·硬锁定）
    │        ├─[Sheet] CollectTypeSheet · LongPressEnd
    │        └─ SessionSummary → Export
    ├─[Tab] DataGraph（数据）
@@ -623,16 +631,16 @@ RootNavHost
    └─[Tab] SettingsGraph（设置）
        └─ SettingsHome（顶级）│ EnvPermissionCheck / GnssSource / ExportLocation / Storage / About（子页·隐藏 Bar）
 
-横切覆盖（非独立目的地）：ProcessRecoverySheet（启动可恢复会话）· GlobalCollectingBanner（运行中离开→采集 Tab 顶部，唯一保留 Bar）
+横切覆盖（非独立目的地·状态驱动）：前台服务常驻通知（在场感·点回运行）· 进程恢复 = 服务重绑续采 / 开口会话自动收尾（无对话框，见 §5.10）
 ```
 
 **③ Bar 可见性 / 返回栈**：底部 Bar **仅在 3 个顶级目的地**（CollectHome / DataHome / SettingsHome）显示——通过观察 `currentBackStackEntry` 的 destination 判定；进任何子页 / 采集运行 → 隐藏。每 Tab 独立返回栈、切 Tab 保状态、重选回根（见①）。
 
-**④ 采集运行软锁定 + 预测返回**：采集运行是强状态全屏，**系统返回 / 手势 ≠ 停止**。用 `PredictiveBackHandler` 拦截：返回 → 不退出运行，而是"离开运行页回采集 Tab 并在顶部挂 `GlobalCollectingBanner`"（会话后台续采）、新会话入口锁定灰显；**唯一真正退出 = 长按结束 2 秒**（防误触）。拦截后给"已转后台采集中"反馈，避免预测返回动画误导成"返回=停止"。
+**④ 采集运行硬锁定 + 预测返回**：采集运行全屏，App 内**不允许退出**。`PredictiveBackHandler` 拦截返回手势 → 不退出、给"长按结束退出"提示（不切 Tab / 不 push）。OS Home 退后台 → 前台服务续采，**前台服务常驻通知**作在场感（点回运行页）、再进 app 直接落运行界面；**无 app 内 Banner**。**唯一退出 = 长按结束 2 秒**（防误触）。
 
 **⑤ 深链 / 进程恢复 / 状态保存**：`rememberSaveable` + ViewModel(`SavedStateHandle`) 保各 Tab 滚动/输入；进程被杀重启 → Splash 静默检查检测到活跃/可恢复会话 → 直接路由 `CollectionRun` 或弹 `ProcessRecoverySheet`（横切D）。Sheet（采集类型 / 长按结束 / 进程恢复）用 `ModalBottomSheet`，dismiss 即关、不进主返回栈。首启标记用 `AppPreferences`（DataStore）持久化。
 
-**⑥ iOS 对位**（一句）：SwiftUI 用 `TabView`（底部）+ 每 Tab 一个 `NavigationStack` + `fullScreenCover` 承载采集运行；Bar 可见性 / 软锁定 / 状态保存 行为与 Android 一致（逻辑层在 commonMain 共享，见 §7.5）。
+**⑥ iOS 对位**（一句）：SwiftUI 用 `TabView`（底部）+ 每 Tab 一个 `NavigationStack` + `fullScreenCover` 承载采集运行；Bar 可见性 / 硬锁定 / 状态保存 行为与 Android 一致（逻辑层在 commonMain 共享，见 §7.5）。
 
 ### 7.3 领域层契约
 - **SubjectRepository**：domain 层，用户（原受试者）本地 CRUD，V4 一期功能；配套屏 `SubjectSelectScreen` / `SubjectEditScreen`（别名/性别/生日/身高/体重）。实体 `Subject { id, alias, sex, birthMonth, heightCm, weightKg, note? }`，本地存储、可多条、可选当前；隐私=建议用别名、不上传不出设备。
