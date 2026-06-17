@@ -142,6 +142,7 @@
 | D-V4-14 | 标签区：内嵌 X 清空 + Pin 瞬时点 + Start/Stop 区间。 |
 | D-V4-15 | 实时流 = `[时间戳] HEX` 每条一行 · 锚定底部 · 无滚动条（等宽小字号；justify-end + overflow hidden；数据框 flex 填充）。 |
 | D-V4-16 | 配置两屏（传感器总控/设备端算法）暂不实现、移文档末尾；原型升级为 **UI + 交互双真源**（`.screen-ux` 37 屏全覆盖）。 |
+| D-V4-17 | **导航按最新 Android / Material 3 落地**（2026-06-17）：`NavigationSuiteScaffold` 自适应（Bar→Rail→Drawer）+ 类型安全 Navigation Compose（`@Serializable` 路由）+ 每 Tab 独立返回栈/重选回根 + 预测返回（采集运行用 `PredictiveBackHandler` 拦截软锁定）+ edge-to-edge（targetSdk 35）。详见 §7.2 + 导航链路图。 |
 
 ### 3.3 真源分工
 
@@ -396,7 +397,7 @@ enum SensorId {
 
 ### 5.1 页面地图与导航规则
 
-**主 IA = 底部三 Tab（采集 / 数据 / 设置）**，三者平行切换。v3 向导式 Home 已降 legacy。
+**主 IA = 底部三 Tab（采集 / 数据 / 设置）**，三者平行切换。v3 向导式 Home 已降 legacy。导航**组件策略 / NavGraph 树 / 返回栈 / 预测返回**的完整落地见 **§7.2 导航架构（Material 3 Adaptive）+ 导航链路图**；本节只列交互行为规则。
 
 - **Tab 可见性**：仅三个顶级中枢显示底部 Tab；**进入任一子页（push 带返回）或采集运行（全屏）一律隐藏 Tab**，避免强状态任务被误切走。
 - **采集是向前 push 的强状态任务链**：采集 Tab →（设备 / 用户 / 模式）→ 采集类型 → 运行 → 摘要，全程隐藏 Tab。
@@ -592,11 +593,46 @@ files/sessions/
 - **Android**：minSdk 29 / target 35 / compile 35（D-7）。简化红利：纯 MediaStore 导出、`java.time` 原生可用（去 desugaring）；删 `WRITE_EXTERNAL_STORAGE(≤28)` 分支。
 - **iOS**：15+（紧随一期，见 §7.4）。
 
-### 7.2 三 Tab 脚手架 + 导航
-- **底部三 Tab 为唯一主 IA**（覆盖 v3 向导式，后者仅 legacy 参考）：采集 / 数据 / 设置；进入任一子页或采集运行时**隐藏底部 Tab**，返回键 ≠ 停止采集。
-- **MainTabsScaffold** 落地到「采集 Tab」。启动先做**静默环境检查**，仅"首启"或"硬权限缺失"才门控弹 `PermissionGateScreen`（无返回），否则直接进采集 Tab。首启标记用 `AppPreferences`（SharedPreferences）持久化。
-- type-safe NavHost routes：`PermissionGate` / `MainTabs` / `DeviceConnect`（扁平设备列表 DUT≤3 + 参考≤1）/ `SubjectSelect` / `SensorConfig`（纯开关）/ `DataCollection`（全屏隐藏 Tab，长按 2 秒结束）。
-- 模块边界：`ui/`（Screen 渲染状态+收集操作）、`viewmodel/`、`domain/`、`service/`、`worker/`。
+### 7.2 导航架构（最新 Android · Material 3 Adaptive）
+
+> 唯一主 IA = 底部三 Tab（采集 / 数据 / 设置）。本节按 2024–2025 官方推荐落地：Material 3 自适应导航 + 类型安全 Navigation Compose + 预测返回 + edge-to-edge。导航链路全图见随附「导航链路图」。
+
+**① 组件策略**
+- **`NavigationSuiteScaffold`**（`material3-adaptive-navigation-suite`）统一承载顶级导航，按 `WindowSizeClass` 自适应：Compact（手机竖屏，一期主形态）→ **底部 NavigationBar**（3 项，M3 药丸选中指示 + 活动态填充图标）；Medium（折叠展开/平板竖屏）→ **NavigationRail**；Expanded（平板横屏）→ **NavigationDrawer**。一期只需保证 Compact 正确，Suite 让 Rail/Drawer 零成本未来兼容。
+- **类型安全 Navigation Compose**（2.8+）：路由用 `@Serializable` object/class，编译期检查、带参传递；不用字符串路由。
+- **每个顶级 Tab = 一个独立嵌套 NavGraph + 独立返回栈**；切 Tab 保留各自栈与滚动位置（`saveState`/`restoreState`），**重选当前 Tab → 弹回该 Tab 根**（`popUpTo(rootGraph){saveState=true}; launchSingleTop=true; restoreState=true`）。
+- **预测返回（Predictive Back）**：`enableOnBackInvokedCallback=true`；跨屏用系统预测返回动画；采集运行用 `PredictiveBackHandler` 拦截（见④）。
+- **Edge-to-edge**（targetSdk 35 强制）：内容绘到系统栏后；NavigationBar 消费底部 inset，列表/CTA 用 `WindowInsets` 留安全区。
+- 模块边界：`ui/`（Screen 渲染状态 + 收集操作）、`viewmodel/`、`domain/`、`service/`、`worker/`。
+
+**② 导航图（NavGraph 树）**
+
+```text
+RootNavHost
+├─ Splash（启动屏·一闪而过，无导航 UI）
+├─ PermissionGate（首启请求·无返回；非首启不入，仅缺权限弹 ModalSheet）
+└─ MainScaffold（NavigationSuiteScaffold）
+   ├─[Tab] CollectGraph（采集，start）
+   │   ├─ CollectHome（顶级·显示 Bar）
+   │   ├─ DeviceConnect / SubjectSelect→SubjectEdit / SensorConfig(暂不)（子页·隐藏 Bar）
+   │   └─ CollectionRun（全屏·隐藏 Bar·软锁定）
+   │        ├─[Sheet] CollectTypeSheet · LongPressEnd
+   │        └─ SessionSummary → Export
+   ├─[Tab] DataGraph（数据）
+   │   ├─ DataHome（顶级）│ DataSelect（多选）│ SessionDetail → Export 态（子页·隐藏 Bar）
+   └─[Tab] SettingsGraph（设置）
+       └─ SettingsHome（顶级）│ EnvPermissionCheck / GnssSource / ExportLocation / Storage / About（子页·隐藏 Bar）
+
+横切覆盖（非独立目的地）：ProcessRecoverySheet（启动可恢复会话）· GlobalCollectingBanner（运行中离开→采集 Tab 顶部，唯一保留 Bar）
+```
+
+**③ Bar 可见性 / 返回栈**：底部 Bar **仅在 3 个顶级目的地**（CollectHome / DataHome / SettingsHome）显示——通过观察 `currentBackStackEntry` 的 destination 判定；进任何子页 / 采集运行 → 隐藏。每 Tab 独立返回栈、切 Tab 保状态、重选回根（见①）。
+
+**④ 采集运行软锁定 + 预测返回**：采集运行是强状态全屏，**系统返回 / 手势 ≠ 停止**。用 `PredictiveBackHandler` 拦截：返回 → 不退出运行，而是"离开运行页回采集 Tab 并在顶部挂 `GlobalCollectingBanner`"（会话后台续采）、新会话入口锁定灰显；**唯一真正退出 = 长按结束 2 秒**（防误触）。拦截后给"已转后台采集中"反馈，避免预测返回动画误导成"返回=停止"。
+
+**⑤ 深链 / 进程恢复 / 状态保存**：`rememberSaveable` + ViewModel(`SavedStateHandle`) 保各 Tab 滚动/输入；进程被杀重启 → Splash 静默检查检测到活跃/可恢复会话 → 直接路由 `CollectionRun` 或弹 `ProcessRecoverySheet`（横切D）。Sheet（采集类型 / 长按结束 / 进程恢复）用 `ModalBottomSheet`，dismiss 即关、不进主返回栈。首启标记用 `AppPreferences`（DataStore）持久化。
+
+**⑥ iOS 对位**（一句）：SwiftUI 用 `TabView`（底部）+ 每 Tab 一个 `NavigationStack` + `fullScreenCover` 承载采集运行；Bar 可见性 / 软锁定 / 状态保存 行为与 Android 一致（逻辑层在 commonMain 共享，见 §7.5）。
 
 ### 7.3 领域层契约
 - **SubjectRepository**：domain 层，用户（原受试者）本地 CRUD，V4 一期功能；配套屏 `SubjectSelectScreen` / `SubjectEditScreen`（别名/性别/生日/身高/体重）。实体 `Subject { id, alias, sex, birthMonth, heightCm, weightKg, note? }`，本地存储、可多条、可选当前；隐私=建议用别名、不上传不出设备。
