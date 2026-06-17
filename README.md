@@ -29,8 +29,8 @@ truth and plan tracker. It consolidates requirements, milestones, the requiremen
 matrix, and the resolved key decisions (D-1…D-10). Detailed docs below are downstream of it.
 
 **Product (what & why):**
-- [Product Requirements (PRD)](Docs/product/BlueTrace_PRD.md)
-- [UX / Interaction Flows](Docs/product/BlueTrace_UX_Flows.md)
+- [Product Requirements (PRD)](Docs/legacy/BlueTrace_PRD.md) _(legacy — requirements now in [REQUIREMENTS.md](REQUIREMENTS.md))_
+- [UX / Interaction Flows](Docs/legacy/BlueTrace_UX_Flows.md) _(legacy — flows now in the [prototype](Docs/prototypes/v4_android.html))_
 - [Design System](Docs/product/BlueTrace_Design_System.md)
 - [V4 Design Contract](Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md) — authoritative bottom-3-tab IA & scope convergence (V4)
 

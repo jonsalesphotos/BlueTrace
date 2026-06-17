@@ -2,7 +2,7 @@
 
 > **⚠️ V4 精简 UI 口径（2026-06-16）**：iOS 同样按 [V4 设计契约 §九](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 的精简 UI 对齐 —— 扁平设备连接（DUT ≤3 + 参考 ≤1）· 纯开关采集类型 · Creek 式数据采集（简单实时数据区 + Start/End + 暂停 + 长按结束）· 异常三态 + 运行日志 · 用户。波形/分包流/观测/控制面板/采样率为后期。
 
-> 主架构（Android 详版）见 [BlueTrace_Architecture.md](BlueTrace_Architecture.md)。本文聚焦**把 BlueTrace 扩到 iOS 时真正分叉的技术点**，以及跨平台代码组织建议。产品/交互层的平台差异见 [../product/BlueTrace_UX_Flows.md §6](../product/BlueTrace_UX_Flows.md)。
+> 主架构（Android 详版）见 [BlueTrace_Architecture.md](BlueTrace_Architecture.md)。本文聚焦**把 BlueTrace 扩到 iOS 时真正分叉的技术点**，以及跨平台代码组织建议。产品/交互层的平台差异见 [BlueTrace_UX_Flows.md §6](../legacy/BlueTrace_UX_Flows.md)（已归档 legacy）。
 
 ---
 

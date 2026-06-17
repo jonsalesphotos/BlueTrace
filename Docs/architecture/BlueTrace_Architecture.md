@@ -1937,7 +1937,7 @@ class DataCollectionViewModel @Inject constructor(
 
 ### 14.3 页面流与各屏
 
-> **页面流、各屏视觉与状态以 [v4_android.html 原型](../prototypes/v4_android.html)（当前 · 底部三 Tab）+ [UX_Flows §1/§4](../product/BlueTrace_UX_Flows.md) + [V4 设计契约 §九](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准**，本架构文不再重复描述各屏长什么样。ViewModel 只暴露 `SessionState` + 最新样本，UI 照原型渲染。
+> **页面流、各屏视觉与状态以 [v4_android.html 原型](../prototypes/v4_android.html)（当前 · 底部三 Tab）+ [V4 设计契约 §九/§十](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准**（UX_Flows 已归档 [legacy](../legacy/BlueTrace_UX_Flows.md)，原型现内置每屏 UX 交互规格），本架构文不再重复描述各屏长什么样。ViewModel 只暴露 `SessionState` + 最新样本，UI 照原型渲染。
 >
 > 要点（细节看原型）：设备连接为**扁平列表**（DUT ≤3 + 参考心率带 ≤1，单击连/断）；数据采集页为**竞品 Data Collection 式**（采集类型勾选 + 简单实时数据区 + Start/End 标签 + 暂停 + 长按 2 秒结束），**不含**角色分组 / Send Command 运行中控制面板（后期）。
 

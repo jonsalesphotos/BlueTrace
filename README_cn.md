@@ -19,8 +19,8 @@ BlueTrace 面向 BLE 传感器数据采集，一期核心场景是 PPG 信号评
 所有文档按**关注点分层**放入 [Docs](Docs)，完整导航见 [Docs/README.md](Docs/README.md)。
 
 **产品（做什么 / 为什么）：**
-- [产品需求 PRD](Docs/product/BlueTrace_PRD.md)
-- [交互 / UX 规格](Docs/product/BlueTrace_UX_Flows.md)
+- [产品需求 PRD](Docs/legacy/BlueTrace_PRD.md) （legacy 归档 · 需求以 [REQUIREMENTS.md](REQUIREMENTS.md) 为准）
+- [交互 / UX 规格](Docs/legacy/BlueTrace_UX_Flows.md) （legacy 归档 · 交互以 [原型](Docs/prototypes/v4_android.html) 为准）
 - [设计系统](Docs/product/BlueTrace_Design_System.md)
 
 **原型（手机墙）：**

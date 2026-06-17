@@ -78,8 +78,8 @@
 | `Docs/product/BlueTrace_Design_System.md` | 回灌 V4 字阶 + 新 token；补 9 个组件；移除 BandwidthBar 配置、降为只读观测；GNSS 升正式 | ✅ 本轮已改 |
 | `Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md` | 本契约（IA / 页面地图 / 冲突修正 / 范围） | ✅ 本轮新建 |
 | `REQUIREMENTS.md` | ① §3 IA 声明 V4 底部三 Tab 唯一；② 新增 F-SUBJ-*（受试者）、F-MODE-*（Wear/Unwear）；③ F-GPS-1：一期预留→**一期实现**，§9 矩阵状态同步；④ F-CTRL-4 明确"只观测无硬闸"、删打包页；⑤ 离线收集移出一期、记二期在线/离线；⑥ 抬头确认 minSdk 29；⑦ 加变更记录 | ✅ 已落地（F-SUBJ/F-MODE/F-GPS-1 一期、minSdk 29、§9 矩阵） |
-| `Docs/product/BlueTrace_PRD.md` | ① 抬头 minSdk 24→**29**；② §3 增"受试者/Subject"为**数据主体实体**（区别于 App 使用者三角色）；③ §5 增受试者 + Wear/Unwear 需求，GNSS 升一期；④ §2.2 注明在线/离线属二期；⑤ §9 术语加 受试者 / Wear/Unwear / 采集模式 | ✅ 已落地（minSdk 29、受试者实体、术语） |
-| `Docs/product/BlueTrace_UX_Flows.md` | ① §1 页面地图换成 V4（本契约 §二）；② §2 导航改"底部三 Tab + 子页隐藏 Tab + 采集软锁定"；③ §4 逐屏表重映射到 V4；④ §5 边界删"带宽超限阻止开始"(D-9)、补 空态/连接中/连接失败/协议不匹配/配置对账；⑤ 删打包策略页(D-5)；⑥ 增受试者 + Wear/Unwear 流 | ✅ 已落地（V4 IA/导航/逐屏/边界、删 D-9 硬闸） |
+| `Docs/legacy/BlueTrace_PRD.md`（已归档） | ① 抬头 minSdk 24→**29**；② §3 增"受试者/Subject"为**数据主体实体**（区别于 App 使用者三角色）；③ §5 增受试者 + Wear/Unwear 需求，GNSS 升一期；④ §2.2 注明在线/离线属二期；⑤ §9 术语加 受试者 / Wear/Unwear / 采集模式 | ✅ 已落地（minSdk 29、受试者实体、术语） |
+| `Docs/legacy/BlueTrace_UX_Flows.md`（已归档） | ① §1 页面地图换成 V4（本契约 §二）；② §2 导航改"底部三 Tab + 子页隐藏 Tab + 采集软锁定"；③ §4 逐屏表重映射到 V4；④ §5 边界删"带宽超限阻止开始"(D-9)、补 空态/连接中/连接失败/协议不匹配/配置对账；⑤ 删打包策略页(D-5)；⑥ 增受试者 + Wear/Unwear 流 | ✅ 已落地（V4 IA/导航/逐屏/边界、删 D-9 硬闸） |
 | `Docs/architecture/BlueTrace_UI_Implementation.md` | ① 修失效引用（`BlueTrace_UI_Design.md`→ UX_Flows + Design_System）；② 模块从 HomeScreen 改三 Tab 脚手架（CollectTab/DataTab/SettingsTab + 嵌套），加 SubjectRepository、SessionConfig.mode；③ 文件层改 D-6（文件夹 + 原始 HEX 日志主体）；④ 导航规则改 Tab + 子页隐藏 | ✅ 已落地（三 Tab 脚手架、SubjectRepository、D-6、导航规则） |
 | `Docs/architecture/BlueTrace_Architecture.md` | ① minSdk 24→29，删 desugaring / `WRITE_EXTERNAL_STORAGE`(≤28) 分支；② manifest/会话模型加 subject + mode；③ GNSS 升一期；④ 文件模型对齐 D-6 | ✅ 顶部加 V4/D-7 覆盖标注（minSdk 29 / MediaStore / D-6 / GNSS 一期，作废 API24-28 主线）；inline 历史代码段保留为参考（建议后续逐段就近清理） |
 | `Docs/README.md` + 根 `README.md` | 原型区：v3 标 legacy 参考、v4_android 标当前、v4_ios 标 TODO；更新屏数/描述 | ✅ 已落地（v4_android 当前 / v3 legacy / v4_ios 待补） |

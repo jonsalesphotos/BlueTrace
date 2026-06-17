@@ -16,7 +16,7 @@
 | 目标平台 | **Android**（minSdk 29 / target 35）+ **iOS**（iOS 15+） |
 | 设计策略 | 统一设计语言 + 平台自适应 |
 | 信息架构 | **V4 底部三 Tab（采集 / 数据 / 设置）为唯一主线**；v3 向导式仅 legacy 参考 |
-| 详版入口 | [README](README.md) · [文档导航](Docs/README.md) · [PRD](Docs/product/BlueTrace_PRD.md) · [交互](Docs/product/BlueTrace_UX_Flows.md) · [设计系统](Docs/product/BlueTrace_Design_System.md) · [V4 设计契约](Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md) · [架构](Docs/architecture/BlueTrace_Architecture.md) · [跨平台](Docs/architecture/BlueTrace_CrossPlatform_Notes.md) |
+| 详版入口 | [README](README.md) · [文档导航](Docs/README.md) · [原型 v4_android](Docs/prototypes/v4_android.html) · [设计系统](Docs/product/BlueTrace_Design_System.md) · [V4 设计契约](Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md) · [决策追踪](Docs/reviews/BlueTrace_V4_决策追踪_2026-06-16.md) · [架构](Docs/architecture/BlueTrace_Architecture.md) · [跨平台](Docs/architecture/BlueTrace_CrossPlatform_Notes.md) · [legacy(PRD/UX)](Docs/legacy/) |
 
 ---
 
@@ -60,7 +60,7 @@ BlueTrace 是一个 **BLE 多传感器数据采集 App**：在一次会话中，
 ## 5. 需求清单（带编号与优先级）
 
 > 优先级：**P0** = 一期必做（缺了不可用）；**P1** = 一期应做（体验关键）；**P2** = 可延后。
-> 编号沿用 PRD，作为 §9 追踪矩阵与后续提交/分支的引用锚点。详细交互见 [UX Flows](Docs/product/BlueTrace_UX_Flows.md)。
+> 编号为本文自有（曾沿用 PRD），作为 §9 追踪矩阵与后续提交/分支的引用锚点。逐屏交互见 [v4_android.html 原型](Docs/prototypes/v4_android.html)（UX_Flows 已归档 [legacy](Docs/legacy/BlueTrace_UX_Flows.md)）。
 
 ### 5.1 权限与环境
 | 编号 | 需求 | 优先级 |
@@ -135,7 +135,7 @@ BlueTrace 是一个 **BLE 多传感器数据采集 App**：在一次会话中，
 
 ## 6. 关键规则（不可违背的产品约束）
 
-来自 [UX Flows §7](Docs/product/BlueTrace_UX_Flows.md)，作为开发统一依据：
+来自 [UX_Flows §7](Docs/legacy/BlueTrace_UX_Flows.md)（已归档 legacy），作为开发统一依据：
 
 1. 用户必须随时知道是否正在采集（运行中全局提示条）。
 2. 采集中返回键/手势 ≠ 停止；停止必须明确确认（长按 2 秒）。

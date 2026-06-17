@@ -1,7 +1,9 @@
 # BlueTrace 产品需求文档（PRD）
 
+> ⚠️ **已归档（legacy · 2026-06-17）**：本文不再作为主线追踪。需求基线以 [REQUIREMENTS.md](../../REQUIREMENTS.md) 为准，界面与逐屏交互以 [v4_android.html 原型](../prototypes/v4_android.html) 为准，决策见 [V4 设计契约](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) / [决策追踪](../reviews/BlueTrace_V4_决策追踪_2026-06-16.md)。以下仅作历史参考。
+>
 > **这份文档回答"做什么、为谁做、为什么"，平台无关。**
-> 怎么交互见 [BlueTrace_UX_Flows.md](BlueTrace_UX_Flows.md)，长什么样见 [BlueTrace_Design_System.md](BlueTrace_Design_System.md) 与 [../prototypes/](../prototypes/)，怎么实现见 [../architecture/](../architecture/)。
+> 怎么交互见 [BlueTrace_UX_Flows.md](BlueTrace_UX_Flows.md)，长什么样见 [BlueTrace_Design_System.md](../product/BlueTrace_Design_System.md) 与 [../prototypes/](../prototypes/)，怎么实现见 [../architecture/](../architecture/)。
 
 | 项 | 内容 |
 | --- | --- |

@@ -5,8 +5,6 @@
 ```
 Docs/
 ├── product/          产品 / 设计文字（相对稳定的"契约"）
-│   ├── BlueTrace_PRD.md            产品需求：做什么、为谁、为什么、范围/优先级（平台无关）
-│   ├── BlueTrace_UX_Flows.md       交互规格：页面流、状态机、边界、平台差异
 │   └── BlueTrace_Design_System.md  设计系统：色板/字号/组件 + Android↔iOS 映射
 ├── prototypes/       视觉原型（会频繁改的"活产物" = 手机墙）
 │   ├── v4_android.html             **v4 · Android（当前）**：底部三 Tab（采集/数据/设置）
@@ -23,7 +21,9 @@ Docs/
 │   ├── BlueTrace_设计审查_2026-06-16.md            设计审查报告（10 维）
 │   └── BlueTrace_V4_设计契约_2026-06-16.md          V4 收敛契约（权威 IA / 范围 / 冲突修正）
 ├── legacy/           被取代的旧文档
-│   ├── BlueTrace_UI_Design.md                      （已由 product/PRD + UX_Flows 取代）
+│   ├── BlueTrace_PRD.md                            （归档 2026-06-17 · 需求以 ../REQUIREMENTS.md 为准）
+│   ├── BlueTrace_UX_Flows.md                       （归档 2026-06-17 · 交互以 prototypes/v4_android.html 为准）
+│   ├── BlueTrace_UI_Design.md                      （更早的 UI 文字，已被取代）
 │   └── BlueTrace_Architecture_v1_single_device.md  （单设备第一版，已由 architecture/BlueTrace_Architecture.md 取代）
 └── assets/           图标 / 截图 / svg
 ```
@@ -32,7 +32,7 @@ Docs/
 
 | 你是… | 先读 |
 | --- | --- |
-| 产品 / 业务 / 第一次做需求 | `product/BlueTrace_PRD.md` → `product/BlueTrace_UX_Flows.md` |
+| 产品 / 业务 / 第一次做需求 | [`../REQUIREMENTS.md`](../REQUIREMENTS.md) → [`prototypes/v4_android.html`](prototypes/v4_android.html)（PRD / UX_Flows 已归档 `legacy/`） |
 | 设计 / 前端 | `product/BlueTrace_Design_System.md` + `prototypes/v4_android.html`（当前；v3 仅 legacy 参考）+ `reviews/BlueTrace_V4_设计契约_2026-06-16.md` |
 | Android 开发 | `architecture/BlueTrace_Architecture.md` |
 | 跨平台 / iOS 开发 | `architecture/BlueTrace_CrossPlatform_Notes.md` |
@@ -41,8 +41,10 @@ Docs/
 ## 四层关系
 
 ```text
-PRD（需求）──▶ UX Flows（交互）──▶ Design System + 原型（视觉）──▶ Architecture（实现）
-   做什么          怎么操作            长什么样、用什么搭           怎么落地
+REQUIREMENTS（需求）──▶ Design System + v4_android.html 原型（视觉 + 逐屏交互）──▶ Architecture（实现）
+      做什么                   长什么样 / 怎么操作 / 用什么搭                    怎么落地
+
+（PRD / UX_Flows 已归档 legacy/，仅作历史参考；原型现内置每屏 UX 交互规格）
 ```
 
 改东西时遵循"就近最小改动"：能改 token 不改组件，能改需求文字不改原型代码。

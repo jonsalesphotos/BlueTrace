@@ -4,7 +4,7 @@
 
 > 本文档面向 Android 开发与项目排期，描述 BlueTrace 一期的导航状态机、页面与服务边界、Fake 到真实 BLE 的替换路径，以及前台服务、后台任务、文件系统的接入顺序。**本文只讲"怎么搭"，不重复描述界面视觉与各屏状态——各屏长什么样、有哪些状态以 [v4_android.html 原型](../prototypes/v4_android.html) 为准。**
 >
-> 页面范围、用户流程和产品规则见 [BlueTrace_UX_Flows.md](../product/BlueTrace_UX_Flows.md) 与 [BlueTrace_Design_System.md](../product/BlueTrace_Design_System.md)；V4 收敛口径以 [V4 设计契约](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准（底部三 Tab）。
+> 页面范围、用户流程和产品规则见 [v4_android.html 原型](../prototypes/v4_android.html)（含每屏 UX 交互规格）与 [BlueTrace_Design_System.md](../product/BlueTrace_Design_System.md)；V4 收敛口径以 [V4 设计契约](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准（底部三 Tab）。需求见 [REQUIREMENTS.md](../../REQUIREMENTS.md)；UX_Flows 已归档 [legacy](../legacy/BlueTrace_UX_Flows.md)。
 
 ---
 
@@ -160,7 +160,7 @@ sealed interface RoleRuntimeState {
 
 第一阶段目标：用 `FakeSessionController`（不接真实 BLE）跑通完整 Navigation Graph 与各屏状态分支。
 
-> **页面流、各屏视觉与状态以 [v4_android.html 原型](../prototypes/v4_android.html)（当前）+ [UX_Flows §1/§4](../product/BlueTrace_UX_Flows.md) + [V4 设计契约 §九](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准**，本文不再重复描述（导航骨架见 §3 导航规则表，已 V4 对齐：底部三 Tab + 子页/采集运行隐藏 Tab）。
+> **页面流、各屏视觉与状态以 [v4_android.html 原型](../prototypes/v4_android.html)（当前 · 含每屏 UX 交互规格）+ [V4 设计契约 §九/§十](../reviews/BlueTrace_V4_设计契约_2026-06-16.md) 为准**（UX_Flows 已归档 [legacy](../legacy/BlueTrace_UX_Flows.md)），本文不再重复描述（导航骨架见 §3 导航规则表，已 V4 对齐：底部三 Tab + 子页/采集运行隐藏 Tab）。
 
 验收（用 Fake 数据驱动，对照原型）：
 
