@@ -508,6 +508,17 @@
 
   /* 卡内标题（此前无样式，补齐：与 CardTitle 字阶一致 14/700） */
   .card-title { font-size: 13.5px; font-weight: 700; color: var(--on-surface); display: flex; align-items: center; gap: 6px; }
+
+  /* 启动屏 Splash（移植 v3，对齐 V4 密度） */
+  .splash-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
+  .splash-logo { width: 86px; height: 86px; border-radius: 24px; background: linear-gradient(135deg, var(--primary), var(--tertiary)); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-3); }
+  .splash-logo svg { width: 46px; height: 46px; color: #fff; }
+  .splash-name { font-size: 25px; font-weight: 800; letter-spacing: -.01em; background: linear-gradient(120deg, var(--primary), var(--tertiary)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .splash-tag { font-size: 12px; color: var(--on-surface-v); margin-top: -8px; }
+  .dots { display: inline-flex; gap: 6px; margin-top: 8px; }
+  .dots i { width: 7px; height: 7px; border-radius: 999px; background: var(--primary); animation: blink 1.2s infinite; }
+  .dots i:nth-child(2) { animation-delay: .2s; }
+  .dots i:nth-child(3) { animation-delay: .4s; }
 </style>
 </head>
 <body>
@@ -756,6 +767,145 @@
 
 </div>
 
+
+<!-- 启动与权限 页组（流程上位于主界面之前；按用户要求放主界面之后展示）：
+     ① 启动屏一闪而过 ② 首启请求(无返回·可跳过) ③ 后续启动静默检查·缺权限才弹 ④ 按需请求 + 权限不足处理(永久拒绝→系统设置) ⑤ 蓝牙开关检测(≠权限)。
+     权限模型：硬性(扫描/连接)缺→门控可跳过，但触发扫描/开始采集就地拦截、直接弹该权限；系统永久拒绝→引导应用设置页。建议(通知/定位GNSS)缺不阻断。蓝牙开关是系统开关非权限，单独检测；采集中关闭走横切A 暂停·重连。 -->
+<section class="section">
+  <h2>启动与权限</h2>
+  <p class="desc">流程上在主界面<b>之前</b>（此处置于主界面后展示）。<b>启动屏一闪而过</b>，背后做静默环境检查：<b>首次启动</b>弹权限请求；<b>后续启动</b>静默检查、仅<b>缺权限才弹</b>。权限<b>可跳过</b>进主界面，用到时再就地请求该权限（系统永久拒绝则引导去应用设置页）。硬性权限（BLE 扫描/连接）缺则在扫描/开始采集处拦截；建议权限（通知、定位/GNSS）缺<b>不阻断</b>。<b>蓝牙开关 ≠ 权限</b>，单独检测与处理。</p>
+</section>
+<div class="grid">
+
+  <!-- 启动A 启动屏 Splash（一闪而过） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="splash-wrap">
+        <div class="splash-logo"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h3l2-7 3 14 2-7h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="splash-name">BlueTrace</div>
+        <div class="splash-tag">多传感器 BLE 数据采集</div>
+        <div class="dots"><i></i><i></i><i></i></div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动</span> 启动屏 Splash</div>
+    <div class="screen-note">一闪而过 · 背后做静默环境/权限检查</div>
+    <div class="screen-flow">冷启动 → 极短停留 → 首启弹<b>权限请求</b>（启动B）/ 否则<b>静默检查</b>直接进采集 Tab；可恢复会话 → 进程恢复弹层</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>仅一闪而过（不可交互）；同时并行做环境检查（蓝牙开关 / 权限 / 可恢复会话）</li>
+      <li>首启 → 权限请求（启动B，无返回）；非首启 → 静默检查，全 OK 直接进采集 Tab</li>
+      <li>静默检查发现缺权限 → 进采集 Tab 后弹（启动C）；检测到可恢复会话 → 进程恢复弹层（横切D）</li>
+    </ul></div>
+  </div>
+
+  <!-- 启动B 权限门控 · 首启请求（无返回 · 可跳过） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">需要一些权限</div><div class="subtitle">首次启动 · 一次性授权更顺</div></div></div>
+      <div class="content">
+        <div class="sec-h">硬性 · 采集必需</div>
+        <div class="list-tile"><div class="ico warn"><svg viewBox="0 0 24 24" fill="none"><path d="M8 7l8 10-4 3V4l4 3-8 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">蓝牙开关</div><div class="sub">系统蓝牙未开启（非权限）</div></div><button class="btn xs warn">去开启</button></div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl">附近设备（扫描 / 连接）</div><div class="sub">BLUETOOTH_SCAN · CONNECT</div></div><button class="btn xs tonal">授权</button></div>
+        <div class="sec-h">建议 · 可跳过</div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl">定位（GNSS 一路）</div><div class="sub">while-in-use · 缺则本次无 GPS</div></div><button class="btn xs tonal">授权</button></div>
+        <div class="list-tile"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">通知</div><div class="sub">采集前台服务常驻通知</div></div><button class="btn xs tonal">授权</button></div>
+      </div>
+      <div class="footer-bar" style="flex-direction:column;gap:8px">
+        <button class="btn block">全部授权</button>
+        <button class="btn text">暂时跳过</button>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动B</span> 权限门控 · 首启请求</div>
+    <div class="screen-note">无返回 · 硬性/建议分组 · 可「暂时跳过」</div>
+    <div class="screen-flow">「全部授权」逐项拉起系统弹窗 → 完成进采集 Tab；「暂时跳过」也进采集 Tab（用到时再就地请求）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>仅首启出现、<b>无返回</b>；逐项「授权」拉起系统弹窗，「去开启」跳系统蓝牙</li>
+      <li><b>暂时跳过</b> → 直接进采集 Tab（不强制）；硬性缺到用时再就地拦截请求</li>
+      <li>硬性（扫描/连接）= 采集必需；建议（定位 GNSS / 通知）缺不阻断</li>
+      <li>蓝牙开关单列、用「去开启」而非「授权」（系统开关 ≠ 权限）</li>
+    </ul></div>
+  </div>
+
+  <!-- 启动C 后续启动 · 静默检查缺权限弹出（Sheet over 采集 Tab） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="title-block"><div class="title">采集</div><div class="subtitle">多传感器 BLE 数据采集 · 准备会话</div></div><span class="status-pill warn"><span class="pulse"></span>待授权</span></div>
+      <div class="content" style="filter:blur(.6px);opacity:.5">
+        <div class="entry-tile"><div class="head"><div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h2l2-6 3 12 2-6h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="body"><div class="ttl">设备</div><div class="sub">DUT · 多传感器</div></div></div></div>
+        <div class="entry-tile"><div class="head"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="body"><div class="ttl">用户</div><div class="sub">采集用户档案</div></div></div></div>
+      </div>
+      <div class="scrim"><div class="sheet">
+        <div class="grab"></div>
+        <h3>有 1 项权限待授权</h3>
+        <p>静默检查发现缺少「附近设备（扫描/连接）」。授权后即可扫描连接设备；也可跳过，扫描时再请求。</p>
+        <div class="list-tile" style="box-shadow:none;padding:10px 4px;margin-bottom:0"><div class="ico tonal"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg></div><div class="body"><div class="ttl" style="font-size:14px">附近设备</div><div class="sub">BLUETOOTH_SCAN · CONNECT</div></div><span class="status-pill warn">缺失</span></div>
+        <div class="btn-group" style="margin-top:14px"><button class="btn outline">跳过</button><button class="btn">去授权</button></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动C</span> 后续启动 · 缺权限弹出</div>
+    <div class="screen-note">非首启静默检查 · 仅缺项才弹（叠在采集 Tab 上）</div>
+    <div class="screen-flow">静默检查有缺 → 进采集 Tab 后弹此 Sheet；「去授权」拉系统弹窗，「跳过」关闭、用到时再请求</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>非首启<b>不再走门控页</b>；静默检查只在<b>有缺项</b>时弹此轻量 Sheet</li>
+      <li><b>去授权</b> → 系统弹窗；<b>跳过</b> → 关闭进采集 Tab（采集入口处再就地拦截）</li>
+      <li>全 OK 时此 Sheet 不出现，启动后直接可用</li>
+    </ul></div>
+  </div>
+
+  <!-- 启动D 按需请求 + 权限不足处理（永久拒绝 → 系统设置） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">设备连接</div><div class="subtitle">扫描需要权限</div></div></div>
+      <div class="content fit">
+        <div class="banner warn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.3 4.3l-7 12A2 2 0 005 19h14a2 2 0 001.7-2.7l-7-12a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="txt"><b>扫描需要「附近设备」权限</b>系统已不再弹窗（此前选了拒绝）</div></div>
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="e-ttl">需在系统设置里开启</div>
+          <div class="e-sub">设置 → 应用 → BlueTrace → 权限 → 附近的设备 → 允许；返回后自动复检</div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn outline">取消</button><button class="btn">去系统设置</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动D</span> 按需请求 / 权限不足处理</div>
+    <div class="screen-note">跳过后用到时就地请求 · 永久拒绝 → 引导系统设置</div>
+    <div class="screen-flow">点扫描/开始采集且缺硬性权限 → 直接弹系统请求；曾永久拒绝（系统不再弹）→ 本页引导<b>去系统设置</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li><b>权限不足处理</b>：硬性权限（扫描/连接）缺 → 在扫描/开始采集入口<b>就地拦截</b>，直接弹该权限系统请求</li>
+      <li>系统弹窗能弹 → 授予即继续原操作；用户选「永久拒绝」后系统不再弹 → 引导<b>去系统设置</b>（应用详情页）</li>
+      <li>建议权限（通知/定位）缺不拦截：通知缺仅提示后台更易被回收；定位缺则本次会话不含 GNSS 一路</li>
+      <li>从系统设置返回 → 自动复检，齐了回到原操作</li>
+    </ul></div>
+  </div>
+
+  <!-- 启动E 蓝牙已关闭 检测与处理（≠权限） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">设备连接</div><div class="subtitle">蓝牙未开启</div></div></div>
+      <div class="content fit">
+        <div class="banner err"><svg viewBox="0 0 24 24" fill="none"><path d="M8 7l8 10-4 3V4l4 3-8 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div class="txt"><b>蓝牙已关闭</b>无法扫描 / 连接设备</div><span class="b-act">去开启</span></div>
+        <div class="empty-state">
+          <div class="e-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M8 7l8 10-4 3V4l4 3-8 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+          <div class="e-ttl">请先打开蓝牙</div>
+          <div class="e-sub">蓝牙是系统开关（不是权限）。开启后自动回到设备列表。</div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block"><svg viewBox="0 0 24 24" fill="none"><path d="M8 7l8 10-4 3V4l4 3-8 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>开启蓝牙</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">启动E</span> 蓝牙已关闭（≠ 权限）</div>
+    <div class="screen-note">系统开关检测 · 采集中关闭走横切A 暂停·重连</div>
+    <div class="screen-flow">进扫描/开始采集前检测 adapter；关 → 拦截 + 「开启蓝牙」（系统启用对话框）；开启后自动回设备列表</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li><b>区别于权限</b>：蓝牙是系统开关，监听 adapter 状态而非申请权限</li>
+      <li>进扫描 / 开始采集前检测：关 → 拦截 + 「开启蓝牙」（拉起系统启用对话框 / 引导快捷开关）</li>
+      <li>开启后自动复检回到设备列表；<b>采集进行中</b>关闭 → 走横切A <b>暂停 · 自动重连</b>（不丢数据）</li>
+    </ul></div>
+  </div>
+
+</div>
 
 <!-- 设备连接 页组：采集 Tab 子页（隐藏底部 Tab，App Bar 带返回箭头）。
      扁平设备列表：单击一行后台连接（未连接→连接中(动画)→已连接），再点断开；右上角连接计数；天然支持 1..N。
