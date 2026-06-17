@@ -615,6 +615,17 @@ files/sessions/
 - **文件导出**：写沙盒 `Documents/` + `UIDocumentPicker`/分享 Sheet，用户经 **Files App** 访问（需 `LSSupportsOpeningDocumentsInPlace`）；CSV 行格式与目录命名两端共享。
 - **里程碑 X0–X4**：先抽 commonMain 领域层（JVM 单测）→ Android actual → iOS Core Bluetooth actual → iOS 后台+State Restoration → iOS Files 导出 + 双端一致性走查。
 
+### 7.6 国际化（i18n）—— 从第一行代码就做，禁止后期补
+
+> 一期 UI 文案为中文，但**从一开始就走资源化**，避免到后期再返工抠字符串。原型 `v4_android.html` 的中文是 **zh-CN 参考文案**，落地时映射到字符串资源键。
+
+- **严禁硬编码用户可见文案**：Android 走 `strings.xml`；KMP 共享文案放 commonMain（moko-resources 或 expect/actual provider），Compose/SwiftUI 不写死中文。
+- **带参数 / 复数用模板与 plurals**，不靠字符串拼接（语序随语言变）；如「已连 N」「已选 N」「N 行」用占位符。
+- **locale 目录结构先建好**：一期只填 zh，预留 `values-en/` 等；新增语言只加资源、不改代码。
+- **机器口径不本地化**：协议字段（`*_mhz`/`*_us`/`*_ns`、HEX）、文件夹/文件名时间戳（固定 `yyyyMMdd_HHmmss`）保持 locale 无关；仅 UI 展示用 locale 格式化数字/日期/时间。
+- **布局抗文案膨胀**：英文/长词不裁切（呼应 §8.3 动态字号）；方向用 `start/end` 而非 `left/right`，为 RTL 留空间（一期不做 RTL）。
+- 单位与符号（HR ♥、Wear/Unwear 等枚举）走资源，便于后续按语言调整显示名。
+
 ---
 
 ## 8. 设计系统要点
