@@ -21,29 +21,15 @@ persistence separated so the app can evolve from prototype UI to real device wor
 
 ## Documentation
 
-All design and planning materials live under [Docs](Docs), organized by concern.
-See [Docs/README.md](Docs/README.md) for the full map.
+The working set is **two files** (plus one machine contract):
 
-**Start here — control document:** [REQUIREMENTS.md](REQUIREMENTS.md) is the single source of
-truth and plan tracker. It consolidates requirements, milestones, the requirement↔phase status
-matrix, and the resolved key decisions (D-1…D-10). Detailed docs below are downstream of it.
+- **[`SPEC.md`](SPEC.md)** — consolidated, self-sufficient spec: what to build, BLE protocol, interaction behaviour, data/file model, engineering notes.
+- **[`Docs/prototypes/v4_android.html`](Docs/prototypes/v4_android.html)** — single source of truth for UI + per-screen UX (37 screens, each with a `.screen-ux` interaction block). iOS prototype TBD.
+- **[`Docs/architecture/bluetrace_v0.proto`](Docs/architecture/bluetrace_v0.proto)** — machine-readable protobuf contract (referenced by SPEC §4).
 
-**Product (what & why):**
-- [Product Requirements (PRD)](Docs/legacy/BlueTrace_PRD.md) _(legacy — requirements now in [REQUIREMENTS.md](REQUIREMENTS.md))_
-- [UX / Interaction Flows](Docs/legacy/BlueTrace_UX_Flows.md) _(legacy — flows now in the [prototype](Docs/prototypes/v4_android.html))_
-- [Design System](Docs/product/BlueTrace_Design_System.md)
-- [V4 Design Contract](Docs/reviews/BlueTrace_V4_设计契约_2026-06-16.md) — authoritative bottom-3-tab IA & scope convergence (V4)
+Everything else (former REQUIREMENTS / PRD / UX_Flows / Protocol / Architecture / Design System / V4 contract & decision log) is **archived under [`Docs/legacy/`](Docs/legacy/README.md)** for history — its content is inlined into `SPEC.md`. Full map: [Docs/README.md](Docs/README.md).
 
-**Prototypes (the phone walls):**
-- **Current — [v4 · Android](Docs/prototypes/v4_android.html)**: bottom 3-tab IA (Collect / Data / Settings). iOS v4 TBD.
-- Legacy reference: [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html) — reuse mature exception / collection-runtime / recovery visuals only, not the wizard IA.
-- Archive: [v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
-
-**Architecture (how):**
-- [Android Architecture](Docs/architecture/BlueTrace_Architecture.md)
-- [UI Implementation Notes](Docs/architecture/BlueTrace_UI_Implementation.md)
-- [Cross-Platform Notes (Android + iOS)](Docs/architecture/BlueTrace_CrossPlatform_Notes.md)
-- [Device Protocol v0](Docs/architecture/BlueTrace_Protocol.md) · [bluetrace_v0.proto](Docs/architecture/bluetrace_v0.proto)
+**Prototypes:** current **[v4 · Android](Docs/prototypes/v4_android.html)** (bottom 3-tab IA: Collect / Data / Settings); legacy reference [v3 Android](Docs/prototypes/v3_android.html) · [v3 iOS](Docs/prototypes/v3_ios.html).
 
 ## Assets
 

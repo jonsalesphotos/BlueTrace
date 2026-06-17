@@ -16,21 +16,15 @@ BlueTrace 面向 BLE 传感器数据采集，一期核心场景是 PPG 信号评
 
 ## 文档目录
 
-所有文档按**关注点分层**放入 [Docs](Docs)，完整导航见 [Docs/README.md](Docs/README.md)。
+主线工作集 = **两份文件**（外加一份机器契约）：
 
-**产品（做什么 / 为什么）：**
-- [产品需求 PRD](Docs/legacy/BlueTrace_PRD.md) （legacy 归档 · 需求以 [REQUIREMENTS.md](REQUIREMENTS.md) 为准）
-- [交互 / UX 规格](Docs/legacy/BlueTrace_UX_Flows.md) （legacy 归档 · 交互以 [原型](Docs/prototypes/v4_android.html) 为准）
-- [设计系统](Docs/product/BlueTrace_Design_System.md)
+- **[`SPEC.md`](SPEC.md)** —— 合并规格（自足）：做什么 / BLE 通信协议 / 交互行为 / 数据与文件模型 / 工程要点。
+- **[`Docs/prototypes/v4_android.html`](Docs/prototypes/v4_android.html)** —— UI + 逐屏交互单一真源（37 屏，每屏带 `.screen-ux` 交互块）。iOS 原型待补。
+- **[`Docs/architecture/bluetrace_v0.proto`](Docs/architecture/bluetrace_v0.proto)** —— protobuf 机器契约（SPEC §4 引用）。
 
-**原型（手机墙）：**
-- [v3 · Android](Docs/prototypes/v3_android.html) · [v3 · iOS](Docs/prototypes/v3_ios.html)
-- 历史版本：[v1](Docs/prototypes/legacy/v1.html) · [v2](Docs/prototypes/legacy/v2.html) · [Codex](Docs/prototypes/legacy/codex.html)
+其余文档（原 REQUIREMENTS / PRD / UX_Flows / Protocol / Architecture / Design System / V4 契约与决策追踪）**已归档 [`Docs/legacy/`](Docs/legacy/README.md)**，内容已内联进 `SPEC.md`，仅作历史参考。完整导航见 [Docs/README.md](Docs/README.md)。
 
-**技术架构（怎么做）：**
-- [Android 架构设计](Docs/architecture/BlueTrace_Architecture.md)
-- [UI 技术实施说明](Docs/architecture/BlueTrace_UI_Implementation.md)
-- [跨平台技术说明（Android + iOS）](Docs/architecture/BlueTrace_CrossPlatform_Notes.md)
+**原型（手机墙）：** 当前 **[v4 · Android](Docs/prototypes/v4_android.html)**（底部三 Tab：采集 / 数据 / 设置）；legacy 参考 [v3 Android](Docs/prototypes/v3_android.html) · [v3 iOS](Docs/prototypes/v3_ios.html)。
 
 ## 设计资源
 
