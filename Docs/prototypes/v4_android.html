@@ -520,6 +520,17 @@
   .dots i { width: 7px; height: 7px; border-radius: 999px; background: var(--primary); animation: blink 1.2s infinite; }
   .dots i:nth-child(2) { animation-delay: .2s; }
   .dots i:nth-child(3) { animation-delay: .4s; }
+
+  /* 导航链路图（Material 3 Adaptive） */
+  .nav-diagram { max-width: 1040px; margin: 0 auto; background: var(--surface); border: 1px solid var(--outline-v); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 18px; }
+  .nav-diagram svg { width: 100%; height: auto; display: block; }
+  .nav-legend { max-width: 1040px; margin: 10px auto 0; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 11.5px; color: var(--on-surface-v); }
+  .nav-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .nav-legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1.5px solid; }
+  .nav-legend i.top { background: var(--primary-c); border-color: var(--primary); }
+  .nav-legend i.sub { background: var(--surface); border-color: var(--outline-v); }
+  .nav-legend i.lock { background: var(--error-c); border-color: var(--error); }
+  .nav-legend i.over { background: var(--surface); border-color: var(--outline-v); border-style: dashed; }
 </style>
 </head>
 <body>
@@ -538,6 +549,97 @@
     <span class="chip tert"><span class="dot"></span>底部三 Tab：采集 / 数据 / 设置</span>
   </div>
 </header>
+
+<section class="section">
+  <h2>导航链路 · Material 3 Adaptive</h2>
+  <p class="desc">最新 Android 导航落地：<b>NavigationSuiteScaffold</b> 自适应（手机 Bar → 折叠 Rail → 平板 Drawer）+ 类型安全 Navigation Compose（<code>@Serializable</code> 路由）+ <b>每 Tab 独立返回栈</b>（切换保状态 · 重选回根）+ <b>预测返回</b>（采集运行用 <code>PredictiveBackHandler</code> 软锁定）+ edge-to-edge（targetSdk 35）。下图为完整链路；权威规格见 SPEC §7.2。</p>
+</section>
+<div class="section" style="padding-top:4px">
+  <div class="nav-diagram">
+    <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="navT navD" font-family="var(--font)">
+    <title id="navT">BlueTrace 导航链路图</title>
+    <desc id="navD">启动屏经权限门控进入主脚手架；底部 NavigationBar 承载采集/数据/设置三个顶级目的地，各自有隐藏 Bar 的子页流，采集运行为全屏软锁定；横切覆盖层由全局会话状态驱动。</desc>
+    <defs>
+    <marker id="nvar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L8 4.5L0 9z" fill="var(--outline)"/></marker>
+    <style>
+    .nbox{fill:var(--surface);stroke:var(--outline-v);stroke-width:1.5;}
+    .nacc{fill:var(--primary-c);stroke:var(--primary);stroke-width:1.6;}
+    .nlock{fill:var(--error-c);stroke:var(--error);stroke-width:1.6;}
+    .nt{fill:var(--on-surface);font-size:14px;font-weight:600;}
+    .ns{fill:var(--on-surface-v);font-size:11.5px;}
+    .nh{fill:var(--primary-deep);font-size:12px;font-weight:700;letter-spacing:.03em;}
+    .nli{fill:var(--on-surface);font-size:12.5px;}
+    .ncap{fill:var(--outline);font-size:11px;}
+    .nconn{stroke:var(--outline);stroke-width:1.5;fill:none;}
+    </style>
+    </defs>
+
+    <rect class="nbox" x="36" y="24" width="150" height="44" rx="11"/>
+    <text class="nt" x="111" y="44" text-anchor="middle">启动屏 Splash</text>
+    <text class="ns" x="111" y="60" text-anchor="middle">一闪而过</text>
+    <line class="nconn" x1="186" y1="46" x2="246" y2="46" marker-end="url(#nvar)"/>
+    <text class="ncap" x="216" y="38" text-anchor="middle">静默检查</text>
+    <rect class="nbox" x="248" y="24" width="186" height="44" rx="11"/>
+    <text class="nt" x="341" y="44" text-anchor="middle">权限门控</text>
+    <text class="ns" x="341" y="60" text-anchor="middle">首启请求 / 缺权限弹 · 可跳过</text>
+    <line class="nconn" x1="434" y1="46" x2="494" y2="46" marker-end="url(#nvar)"/>
+    <rect class="nbox" x="496" y="24" width="210" height="44" rx="11"/>
+    <text class="nt" x="601" y="43" text-anchor="middle">主脚手架 RootNavHost</text>
+    <text class="ns" x="601" y="60" text-anchor="middle">NavigationSuiteScaffold</text>
+
+    <rect class="nacc" x="36" y="104" width="888" height="58" rx="14"/>
+    <text class="nh" x="52" y="124">底部 NAVIGATIONBAR · M3 · 3 顶级 · 自适应 Bar→Rail→Drawer · 每 Tab 独立返回栈 · 重选回根</text>
+    <rect class="nbox" x="120" y="130" width="180" height="26" rx="13"/><text class="nt" x="210" y="148" text-anchor="middle">采集 CollectHome</text>
+    <rect class="nbox" x="392" y="130" width="176" height="26" rx="13"/><text class="nt" x="480" y="148" text-anchor="middle">数据 DataHome</text>
+    <rect class="nbox" x="660" y="130" width="176" height="26" rx="13"/><text class="nt" x="748" y="148" text-anchor="middle">设置 SettingsHome</text>
+    <line class="nconn" x1="210" y1="162" x2="210" y2="196" marker-end="url(#nvar)"/>
+    <line class="nconn" x1="480" y1="162" x2="480" y2="196" marker-end="url(#nvar)"/>
+    <line class="nconn" x1="748" y1="162" x2="748" y2="196" marker-end="url(#nvar)"/>
+
+    <rect class="nbox" x="36" y="198" width="348" height="300" rx="14"/>
+    <text class="nh" x="52" y="220">采集 · 子页（push · 隐藏 Bar）</text>
+    <text class="nli" x="52" y="246">› 设备连接（DUT ≤3 + 参考 ≤1）</text>
+    <text class="nli" x="52" y="268">› 用户选择 → 用户编辑</text>
+    <text class="nli" x="52" y="290">› 传感器配置（暂不实现）</text>
+    <rect class="nlock" x="52" y="306" width="316" height="56" rx="11"/>
+    <text class="nt" x="64" y="328">采集运行（全屏 · 软锁定）</text>
+    <text class="ns" x="64" y="348">返回 ≠ 停止 · 长按 2 秒唯一退出</text>
+    <text class="nli" x="52" y="386">› 采集类型选择 / 长按结束（ModalSheet）</text>
+    <text class="nli" x="52" y="408">› 结束摘要 → 导出</text>
+    <text class="ncap" x="52" y="448">预测返回 PredictiveBackHandler 拦截：</text>
+    <text class="ncap" x="52" y="466">返回 → 回采集 Tab + 顶部「正在采集」条</text>
+    <text class="ncap" x="52" y="484">（会话后台续采，不停止）</text>
+
+    <rect class="nbox" x="404" y="198" width="232" height="300" rx="14"/>
+    <text class="nh" x="420" y="220">数据 · 子页（隐藏 Bar）</text>
+    <text class="nli" x="420" y="248">› 会话列表（根 · 顶级）</text>
+    <text class="nli" x="420" y="272">› 多选 / 选择态</text>
+    <text class="nli" x="420" y="296">› 会话详情</text>
+    <text class="nli" x="420" y="320">› 导出态</text>
+    <text class="ns" x="438" y="340">中 / 完成 / 失败 / 空间不足</text>
+
+    <rect class="nbox" x="656" y="198" width="268" height="172" rx="14"/>
+    <text class="nh" x="672" y="220">设置 · 子页（隐藏 Bar）</text>
+    <text class="nli" x="672" y="248">› 环境与权限检查</text>
+    <text class="nli" x="672" y="272">› GNSS 数据源</text>
+    <text class="nli" x="672" y="296">› 导出位置 · 存储占用</text>
+    <text class="nli" x="672" y="320">› 关于（二期项灰显）</text>
+    <text class="nli" x="672" y="344">› 后台省电设置指南</text>
+
+    <rect class="nbox" x="404" y="392" width="520" height="106" rx="14" stroke-dasharray="5 4"/>
+    <text class="nh" x="420" y="414">横切覆盖层（全局状态驱动 · 非目的地）</text>
+    <text class="nli" x="420" y="440">› 进程恢复弹层（启动检测可恢复会话 → ModalSheet）</text>
+    <text class="nli" x="420" y="464">› 正在采集 Banner（运行中离开 → 采集 Tab 顶部 · 唯一保留 Bar）</text>
+    <text class="ncap" x="420" y="486">不进返回栈 · 跟随用户跨屏 · 是后台会话的可见锚点</text>
+    </svg>
+  </div>
+  <div class="nav-legend">
+    <span><i class="top"></i>顶级目的地（显示 Bar）</span>
+    <span><i class="sub"></i>子页（push · 隐藏 Bar）</span>
+    <span><i class="lock"></i>采集运行（全屏软锁定）</span>
+    <span><i class="over"></i>横切覆盖层（状态驱动 · 非目的地 · 不进返回栈）</span>
+  </div>
+</div>
 
 <section class="section">
   <h2>主界面 · 底部三 Tab 中枢</h2>
