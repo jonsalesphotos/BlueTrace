@@ -633,7 +633,7 @@ RootNavHost
    └─[Tab] SettingsGraph（设置）
        └─ SettingsHome（顶级）│ EnvPermissionCheck / GnssSource / ExportLocation / Storage / AppLog(运行日志·导出) / DeviceMaintenance(DUT·后期) / PowerSaveGuide / About（子页·隐藏 Bar）
 
-横切覆盖（非独立目的地·状态驱动）：前台服务常驻通知（在场感·点回运行）· 进程恢复 = 服务重绑续采 / 开口会话自动收尾（无对话框，见 §5.10）
+系统/启动机制（非目的地·非 app 内覆盖层）：在场感 = 前台服务常驻通知（点回运行）· 进程恢复 = 服务重绑续采 / 开口会话自动收尾（无对话框，见 §5.10）
 ```
 
 **③ Bar 可见性 / 返回栈**：底部 Bar **仅在 3 个顶级目的地**（CollectHome / DataHome / SettingsHome）显示——通过观察 `currentBackStackEntry` 的 destination 判定；进任何子页 / 采集运行 → 隐藏。每 Tab 独立返回栈、切 Tab 保状态、重选回根（见①）。
