@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +45,7 @@ fun CollectHomeScreen(
     vm: CollectHomeViewModel = koinViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -96,7 +98,16 @@ fun CollectHomeScreen(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
-            PrimaryButton("开始采集", onClick = { if (vm.startSession()) onStart() }, enabled = ui.canStart)
+            PrimaryButton(
+                "开始采集",
+                onClick = {
+                    if (vm.startSession()) {
+                        com.example.bluetrace.service.CollectionService.start(context)
+                        onStart()
+                    }
+                },
+                enabled = ui.canStart,
+            )
         }
     }
 }

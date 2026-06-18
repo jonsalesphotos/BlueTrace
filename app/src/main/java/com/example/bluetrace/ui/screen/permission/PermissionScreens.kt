@@ -59,13 +59,28 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-/** 启动A · 启动屏（一闪而过 + 静默检查）。 */
+/** 启动A · 启动屏（一闪而过 + 静默检查 + 进程恢复，§5.10）。 */
 @Composable
 fun SplashScreen(onGate: () -> Unit, onMain: () -> Unit) {
     val prefs = koinInject<AppPreferences>()
     val env = koinInject<EnvironmentRepository>()
+    val store = koinInject<com.example.bluetrace.shared.data.SessionStore>()
+    val clock = koinInject<com.example.bluetrace.shared.util.EpochClock>()
+    val controller = koinInject<com.example.bluetrace.shared.session.SessionController>()
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         env.refresh()
+        // 进程被全杀（无活会话）→ 扫到"开口"会话自动收尾（stopReason=interrupted + toast，§5.10）
+        if (controller.state.value.status != com.example.bluetrace.shared.session.RunStatus.COLLECTING) {
+            val recovered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val opens = store.openSessions()
+                opens.forEach { store.autoFinalizeOpenSession(it, clock.nowMs()) }
+                opens.size
+            }
+            if (recovered > 0) {
+                android.widget.Toast.makeText(context, "上次采集异常中断，已保存", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         delay(700)
         if (prefs.firstLaunchCompleted.first()) onMain() else onGate()
     }

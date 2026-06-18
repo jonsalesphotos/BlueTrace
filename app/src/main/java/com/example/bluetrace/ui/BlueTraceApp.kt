@@ -101,6 +101,13 @@ private fun MainScaffold() {
 @Composable
 private fun BlueTraceNavHost(nav: NavHostController) {
     val context = LocalContext.current
+    // 进程恢复（服务活则重绑续采，§5.10）：进入主界面时若会话仍在采集，直接落运行页。
+    val controller = org.koin.compose.koinInject<com.example.bluetrace.shared.session.SessionController>()
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (controller.state.value.status == com.example.bluetrace.shared.session.RunStatus.COLLECTING) {
+            nav.navigate(Route.CollectionRun)
+        }
+    }
     NavHost(navController = nav, startDestination = Route.CollectHome) {
         // ---- 采集 Tab ----
         composable<Route.CollectHome> {
