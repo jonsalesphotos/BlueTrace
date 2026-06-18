@@ -413,6 +413,8 @@ enum SensorId {
 - **后续启动** → 静默检查：全 OK 直接进采集 Tab；仅当缺权限，进采集 Tab 后弹轻量 Sheet（可跳过）；
 - 检测到可恢复会话 → 叠加进程恢复弹层（见 §5.10）。
 
+**启动屏展示规则（仅冷启动一次）**：启动屏**只在冷启动展示一次**（进程级 flag）。**app 已在后台存活**（暖/热启动，如采集中切走再回来）→ **不再展示启动屏，直接回当前界面**（采集中 → 运行页；否则 → 采集 Tab）。用 **Android 12 `SplashScreen` API**（系统冷启动画 app 图标，一闪而过），不做长停留。
+
 → 屏级细节：v4_android.html「启动A 启动屏 / 启动B 首启请求 / 启动C 后续缺权限弹出」+「采集 / 数据 / 设置 Tab」。
 
 ### 5.2 权限与蓝牙开关（D-V4-6 全局硬门 · 2026-06-17 细化）
@@ -679,6 +681,8 @@ RootNavHost
 ## 8. 设计系统要点
 
 > **视觉细节（token / 间距 / 字阶 / 像素）以 `v4_android.html` 原型为准**，本节只给组件语义与配色/可达性约束。
+
+**App 图标 / 启动页图标**：品牌标识 = **脉冲/心跳 logo**（原型 splash-logo 同款，白色描边脉冲线，蓝→紫渐变底）。需出：① **自适应启动器图标**（前景=白色脉冲 logo / 背景=蓝紫渐变或纯品牌色 + Android 13+ monochrome themed 版）替换模板 `ic_launcher`；② **Android 12 `SplashScreen` 图标**（`windowSplashScreenAnimatedIcon` = 同 logo，`windowSplashScreenBackground` = 品牌底），与原型启动屏一致；展示规则见 §5.1（仅冷启动一次）。
 
 ### 8.1 组件清单（名称 · 用途 · 关键状态）
 
