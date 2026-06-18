@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +38,7 @@ import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.CollectHomeViewModel
+import io.bluetrace.viewmodel.StartOutcome
 import org.koin.androidx.compose.koinViewModel
 
 /** 采集A · 采集 Tab 主界面（设备/用户/模式入口 + 开始采集）。 */
@@ -50,9 +52,13 @@ fun CollectHomeScreen(
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var lowSpace by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    // 回前台/进入时复检蓝牙开关 + 权限（设备入口据此分流到 启动E）
-    androidx.compose.runtime.LaunchedEffect(Unit) { vm.refreshEnv() }
+    // 回前台/进入时复检蓝牙开关 + 权限（设备入口据此分流到 启动E）+ 低空间提示（§5.2）
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        vm.refreshEnv()
+        lowSpace = vm.isLowSpace()
+    }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -97,6 +103,9 @@ fun CollectHomeScreen(
             }
         }
         Column(Modifier.padding(16.dp)) {
+            if (lowSpace) {
+                Text(stringResource(R.string.storage_low_hint), fontSize = 12.sp, color = BT.warning, modifier = Modifier.padding(bottom = 8.dp))
+            }
             if (!ui.canStart) {
                 val hint = when {
                     ui.currentSubject == null -> stringResource(R.string.collect_hint_need_user)
@@ -110,9 +119,14 @@ fun CollectHomeScreen(
             PrimaryButton(
                 stringResource(R.string.collect_start),
                 onClick = {
-                    if (vm.startSession()) {
-                        io.bluetrace.service.CollectionService.start(context)
-                        onStart()
+                    when (vm.startSession()) {
+                        StartOutcome.STARTED -> {
+                            io.bluetrace.service.CollectionService.start(context)
+                            onStart()
+                        }
+                        StartOutcome.STORAGE_FULL ->
+                            android.widget.Toast.makeText(context, context.getString(R.string.storage_insufficient_start), android.widget.Toast.LENGTH_LONG).show()
+                        StartOutcome.NOT_READY -> Unit
                     }
                 },
                 enabled = ui.canStart,

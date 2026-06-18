@@ -59,6 +59,7 @@ class SettingsViewModel(
             _toast.value = when (r) {
                 is ExportResult.Success -> context.getString(R.string.log_export_done, r.displayPath)
                 is ExportResult.Error -> context.getString(R.string.log_export_failed, r.message)
+                is ExportResult.InsufficientSpace -> context.getString(R.string.export_need_space_title)
             }
         }
     }

@@ -8,12 +8,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/** 导出态（导出A 进度 / B 完成 Toast / C 失败，§5.8）。 */
+/** 导出态（导出A 进度 / B 完成 Toast / C 失败 / D 存储不足，§5.8）。 */
 sealed interface ExportUiState {
     data object Idle : ExportUiState
     data class InProgress(val current: String, val progress: Float) : ExportUiState
     data class Done(val displayPath: String) : ExportUiState
     data class Failed(val message: String) : ExportUiState
+    data class InsufficientSpace(val requiredBytes: Long, val availableBytes: Long) : ExportUiState
 }
 
 /** 单会话/批量导出（MediaStore → Download/BlueTrace/，§6.4）。 */
@@ -29,6 +30,7 @@ class ExportViewModel(private val exporter: MediaStoreExporter) : ViewModel() {
             }) {
                 is ExportResult.Success -> _state.value = ExportUiState.Done(r.displayPath)
                 is ExportResult.Error -> _state.value = ExportUiState.Failed(r.message)
+                is ExportResult.InsufficientSpace -> _state.value = ExportUiState.InsufficientSpace(r.requiredBytes, r.availableBytes)
             }
         }
     }
@@ -42,6 +44,10 @@ class ExportViewModel(private val exporter: MediaStoreExporter) : ViewModel() {
                     is ExportResult.Success -> lastPath = r.displayPath
                     is ExportResult.Error -> {
                         _state.value = ExportUiState.Failed(r.message)
+                        return@launch
+                    }
+                    is ExportResult.InsufficientSpace -> {
+                        _state.value = ExportUiState.InsufficientSpace(r.requiredBytes, r.availableBytes)
                         return@launch
                     }
                 }

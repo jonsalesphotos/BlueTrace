@@ -74,6 +74,13 @@
     <string name="collect_start">开始采集</string>
     <string name="collect_hint_need_user">请先选择用户</string>
     <string name="collect_hint_need_device">请先连接至少一台设备</string>
+    <string name="storage_insufficient_start">存储空间不足，无法开始采集，请先清理或导出后删除旧会话</string>
+    <string name="storage_low_hint">存储空间偏低（&lt; 1GB），建议清理或导出后再采</string>
+
+    <!-- 导出D 存储不足（导出前预检阻断） -->
+    <string name="export_need_space_title">存储空间不足</string>
+    <string name="export_need_space_body">导出需约 %1$s MB，可用仅 %2$s MB。请先清理空间或删除旧会话。</string>
+    <string name="export_go_clean">去清理空间</string>
 
     <!-- ===== 设备连接 ===== -->
     <string name="device_title">设备连接</string>

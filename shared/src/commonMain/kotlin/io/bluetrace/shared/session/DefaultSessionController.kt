@@ -54,6 +54,7 @@ class DefaultSessionController(
     private val zone: TimeZoneProvider,
     private val diagnostics: DiagnosticsLog,
     private val scope: CoroutineScope,
+    private val storageMonitor: io.bluetrace.shared.data.StorageMonitor = io.bluetrace.shared.data.StorageMonitor { Long.MAX_VALUE },
     private val appVersion: String = "1.0",
 ) : SessionController {
 
@@ -132,7 +133,14 @@ class DefaultSessionController(
             when (e) {
                 is RunEvent.Notif -> handleNotif(e)
                 is RunEvent.Link -> handleLink(e)
-                RunEvent.Tick -> pushState()
+                RunEvent.Tick -> {
+                    // 采集中存储写满 → 自动结束并安全落盘（§5.4 / v2-C③）
+                    if (storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.MIN_FREE_DURING) {
+                        diagnostics.add(LogLevel.WARN, "storage", "usable space low → auto-stop")
+                        finishInternal(StopReason.STORAGE_FULL); runScope?.cancel(); return
+                    }
+                    pushState()
+                }
                 is RunEvent.Pin -> handlePin(e.text)
                 is RunEvent.Interval -> handleInterval(e.text)
                 is RunEvent.Pause -> { displayPaused = e.paused; pushState() }

@@ -42,12 +42,27 @@ class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRe
     private val _state = MutableStateFlow(compute())
     override val state: StateFlow<EnvironmentState> = _state
 
+    /** 被用户"永久拒绝"的条目（系统不再弹）→ BLOCKED。授予后自动清除。 */
+    private val blocked = mutableSetOf<RequirementId>()
+
     override fun refresh() {
+        _state.value = compute()
+    }
+
+    override fun markPermanentlyDenied(id: RequirementId) {
+        blocked.add(id)
         _state.value = compute()
     }
 
     private fun granted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    /** 缺失态再细分：若该条被标记永久拒绝则 BLOCKED；否则 MISSING。授予则清除标记。 */
+    private fun missingOrBlocked(id: RequirementId, isGranted: Boolean): RequirementStatus = when {
+        isGranted -> { blocked.remove(id); RequirementStatus.GRANTED }
+        id in blocked -> RequirementStatus.BLOCKED
+        else -> RequirementStatus.MISSING
+    }
 
     private fun compute(): EnvironmentState {
         val reqs = buildList {
@@ -67,17 +82,16 @@ class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRe
     }
 
     private fun scanConnectStatus(): RequirementStatus =
-        if (BlueTracePermissions.hardScanConnect.all { granted(it) }) RequirementStatus.GRANTED
-        else RequirementStatus.MISSING
+        missingOrBlocked(RequirementId.BLE_SCAN_CONNECT, BlueTracePermissions.hardScanConnect.all { granted(it) })
 
     private fun locationStatus(): RequirementStatus =
-        if (granted(Manifest.permission.ACCESS_FINE_LOCATION)) RequirementStatus.GRANTED
-        else RequirementStatus.MISSING
+        missingOrBlocked(RequirementId.LOCATION, granted(Manifest.permission.ACCESS_FINE_LOCATION))
 
     private fun notificationsStatus(): RequirementStatus =
-        if (BlueTracePermissions.notifications.isEmpty() || BlueTracePermissions.notifications.all { granted(it) })
-            RequirementStatus.GRANTED
-        else RequirementStatus.MISSING
+        missingOrBlocked(
+            RequirementId.NOTIFICATIONS,
+            BlueTracePermissions.notifications.isEmpty() || BlueTracePermissions.notifications.all { granted(it) },
+        )
 
     private fun batteryStatus(): RequirementStatus {
         val pm = context.getSystemService(PowerManager::class.java) ?: return RequirementStatus.MISSING

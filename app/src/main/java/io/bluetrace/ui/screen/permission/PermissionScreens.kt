@@ -1,6 +1,10 @@
 package io.bluetrace.ui.screen.permission
 
+import android.Manifest
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -27,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,20 +75,27 @@ fun PermissionGateScreen(
     val prefs = koinInject<AppPreferences>()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
 
     fun finish() {
         scope.launch { prefs.setFirstLaunchCompleted(true) }
         onContinue()
     }
 
-    // 逐项「授权」：请求后停留并复检
-    val itemLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refresh() }
+    // 逐项「授权」：请求后检测永久拒绝 → 标 BLOCKED，复检
+    val itemLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        markBlockedFromResult(activity, result, vm); vm.refresh()
+    }
     // 「全部授权」：逐项拉起系统弹窗 → 完成进采集 Tab（原型语义）
-    val grantAllLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        vm.refresh(); finish()
+    val grantAllLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        markBlockedFromResult(activity, result, vm); vm.refresh(); finish()
     }
 
     fun requestFor(id: RequirementId) {
+        // 永久拒绝（BLOCKED）→ 引导去应用设置页（系统不再弹，§5.2 启动D）
+        if (state.status(id) == RequirementStatus.BLOCKED) {
+            openAppSettings(context); return
+        }
         when (id) {
             RequirementId.BLUETOOTH_ON -> context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             RequirementId.BLE_SCAN_CONNECT -> itemLauncher.launch(BlueTracePermissions.hardScanConnect)
@@ -129,9 +141,10 @@ private fun PermRow(id: RequirementId, status: RequirementStatus, onRequest: () 
             if (status == RequirementStatus.GRANTED) {
                 StatusPill(stringResource(R.string.env_status_granted), BT.onSuccessC, BT.successC)
             } else {
-                val actionLabel = when (id) {
-                    RequirementId.BLUETOOTH_ON -> stringResource(R.string.perm_act_enable)
-                    RequirementId.BATTERY_UNRESTRICTED -> stringResource(R.string.perm_act_settings)
+                val actionLabel = when {
+                    status == RequirementStatus.BLOCKED -> stringResource(R.string.perm_act_settings) // 永久拒绝 → 去设置
+                    id == RequirementId.BLUETOOTH_ON -> stringResource(R.string.perm_act_enable)
+                    id == RequirementId.BATTERY_UNRESTRICTED -> stringResource(R.string.perm_act_settings)
                     else -> stringResource(R.string.perm_act_grant)
                 }
                 Text(
@@ -236,4 +249,36 @@ fun GnssScreen(
             Text(stringResource(R.string.gnss_note), fontSize = 12.sp, color = BT.onSurfaceV)
         }
     }
+}
+
+// ===== 权限永久拒绝检测 + 应用设置（§5.2 启动D）=====
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+/** 请求结果里被拒且系统不再弹（!shouldShowRationale）→ 标记该权限 BLOCKED。 */
+private fun markBlockedFromResult(activity: Activity?, result: Map<String, Boolean>, vm: EnvironmentViewModel) {
+    if (activity == null) return
+    result.forEach { (perm, granted) ->
+        if (!granted && !activity.shouldShowRequestPermissionRationale(perm)) {
+            reqIdForPermission(perm)?.let { vm.markBlocked(it) }
+        }
+    }
+}
+
+private fun reqIdForPermission(perm: String): RequirementId? = when (perm) {
+    Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT -> RequirementId.BLE_SCAN_CONNECT
+    Manifest.permission.ACCESS_FINE_LOCATION -> RequirementId.LOCATION
+    Manifest.permission.POST_NOTIFICATIONS -> RequirementId.NOTIFICATIONS
+    else -> null
+}
+
+private fun openAppSettings(context: Context) {
+    context.startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }

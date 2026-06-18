@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.stateIn
 class EnvironmentViewModel(private val env: EnvironmentRepository) : ViewModel() {
     val state = env.state
     fun refresh() = env.refresh()
+    fun markBlocked(id: io.bluetrace.shared.domain.RequirementId) = env.markPermanentlyDenied(id)
 }
 
 data class CollectHomeUiState(
@@ -39,6 +40,9 @@ data class CollectHomeUiState(
     val canStart: Boolean get() = currentSubject != null && connectedDevices.isNotEmpty()
 }
 
+/** 开始采集结果（含存储预检，§5.2）。 */
+enum class StartOutcome { STARTED, NOT_READY, STORAGE_FULL }
+
 /** 采集主界面（采集A）：用户 / 已连设备 / 模式 / GNSS + 开始采集。 */
 class CollectHomeViewModel(
     subjectRepo: SubjectRepository,
@@ -46,6 +50,7 @@ class CollectHomeViewModel(
     private val prefs: AppPreferences,
     private val controller: SessionController,
     private val env: EnvironmentRepository,
+    private val storageMonitor: io.bluetrace.shared.data.StorageMonitor,
     private val clock: EpochClock,
     private val zone: TimeZoneProvider,
 ) : ViewModel() {
@@ -86,11 +91,18 @@ class CollectHomeViewModel(
 
     fun refreshEnv() = env.refresh()
 
-    /** 构建 SessionConfig 并开始采集（§7.3）。返回 false 表示前置条件不足。 */
-    fun startSession(): Boolean {
+    /** 启动/进入时是否低空间（< 1GB，§5.2 一次性提示）。 */
+    fun isLowSpace(): Boolean = storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.LOW_SPACE_HINT
+
+    /** 构建 SessionConfig 并开始采集（§7.3 + 存储预检 §5.2）。 */
+    fun startSession(): StartOutcome {
         val s = uiState.value
-        val subject = s.currentSubject ?: return false
-        if (s.connectedDevices.isEmpty()) return false
+        val subject = s.currentSubject ?: return StartOutcome.NOT_READY
+        if (s.connectedDevices.isEmpty()) return StartOutcome.NOT_READY
+        // 开始前真实存储预检：不足则拦截不允许开始
+        if (storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.MIN_FREE_TO_START) {
+            return StartOutcome.STORAGE_FULL
+        }
         val now = clock.nowMs()
         val config = SessionConfig(
             subject = subject,
@@ -103,6 +115,6 @@ class CollectHomeViewModel(
             utcOffsetSeconds = zone.offsetSeconds(),
         )
         controller.start(config)
-        return true
+        return StartOutcome.STARTED
     }
 }

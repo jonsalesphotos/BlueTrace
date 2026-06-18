@@ -97,6 +97,28 @@ class MockBleClient(
         }
     }
 
+    private val btOffDevices = HashSet<String>()
+
+    /**
+     * 系统蓝牙开关变化（app 监听 ACTION_STATE_CHANGED 广播驱动，§5.4 横切A）：
+     * 关 → 已连设备转"重连中"（暂停接收，不自动续）；开 → 恢复已连。
+     */
+    fun setBluetoothOff(off: Boolean) {
+        if (off) {
+            links.forEach { (id, flow) ->
+                if (flow.value == LinkState.CONNECTED) {
+                    flow.value = LinkState.RECONNECTING
+                    btOffDevices.add(id)
+                }
+            }
+        } else {
+            btOffDevices.forEach { id ->
+                links[id]?.let { if (it.value == LinkState.RECONNECTING) it.value = LinkState.CONNECTED }
+            }
+            btOffDevices.clear()
+        }
+    }
+
     override fun notifications(deviceId: String): Flow<BleNotification> = flow {
         val device = byId[deviceId] ?: return@flow
         val baseMs = clock.nowMs()

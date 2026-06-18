@@ -155,7 +155,31 @@ fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit) {
         }
         is ExportUiState.Done -> Toast(stringResource(R.string.export_done, state.displayPath), onDismiss)
         is ExportUiState.Failed -> Toast(stringResource(R.string.export_failed, state.message), onDismiss, error = true)
+        is ExportUiState.InsufficientSpace -> InsufficientSpaceDialog(state.requiredBytes, state.availableBytes, onDismiss)
         ExportUiState.Idle -> Unit
+    }
+}
+
+/** 导出D · 存储不足（导出前预检阻断，§5.8）。 */
+@Composable
+private fun InsufficientSpaceDialog(requiredBytes: Long, availableBytes: Long, onDismiss: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0x66000000)), contentAlignment = Alignment.Center) {
+        Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.padding(32.dp)) {
+            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.export_need_space_title), fontSize = 16.sp, fontWeight = FontWeight.W700, color = BT.error)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(
+                        R.string.export_need_space_body,
+                        "%.1f".format(requiredBytes / 1024.0 / 1024.0),
+                        "%.1f".format(availableBytes / 1024.0 / 1024.0),
+                    ),
+                    fontSize = 12.sp, color = BT.onSurfaceV, textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(14.dp))
+                PrimaryButton(stringResource(R.string.export_go_clean), onClick = onDismiss)
+            }
+        }
     }
 }
 

@@ -48,6 +48,7 @@ val appModule = module {
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single<FileSystem> { FileSystem.SYSTEM }
     single<Path> { sessionsRoot(androidContext()) }
+    single<io.bluetrace.shared.data.StorageMonitor> { io.bluetrace.data.android.AndroidStorageMonitor(androidContext()) }
 
     // ---- 共享核心（KMP commonMain）----
     single { SessionStore(get(), get()).also { it.ensureRoot() } }
@@ -66,6 +67,7 @@ val appModule = module {
             zone = get(),
             diagnostics = get(),
             scope = get(),
+            storageMonitor = get(),
         )
     }
 
@@ -74,7 +76,7 @@ val appModule = module {
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     single<SubjectRepository> { DataStoreSubjectRepository(androidContext()) }
     single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext()) }
-    single { MediaStoreExporter(androidContext()) }
+    single { MediaStoreExporter(androidContext(), get()) }
 
     // ---- ViewModels ----
     viewModelOf(::EnvironmentViewModel)

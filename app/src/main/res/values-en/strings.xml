@@ -74,6 +74,13 @@
     <string name="collect_start">Start collection</string>
     <string name="collect_hint_need_user">Select a user first</string>
     <string name="collect_hint_need_device">Connect at least one device first</string>
+    <string name="storage_insufficient_start">Not enough storage to start; clear space or delete old sessions first</string>
+    <string name="storage_low_hint">Storage is low (&lt; 1GB); consider clearing or exporting before collecting</string>
+
+    <!-- Export D: storage insufficient (pre-export check) -->
+    <string name="export_need_space_title">Not enough storage</string>
+    <string name="export_need_space_body">Export needs ~%1$s MB but only %2$s MB is free. Clear space or delete old sessions.</string>
+    <string name="export_go_clean">Free up space</string>
 
     <!-- ===== Device connect ===== -->
     <string name="device_title">Device connection</string>

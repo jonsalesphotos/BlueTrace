@@ -21,6 +21,8 @@ interface EnvironmentRepository {
     val state: StateFlow<EnvironmentState>
     /** 静默复检（启动/回前台/系统设置返回后调用）。 */
     fun refresh()
+    /** 标记某权限被"永久拒绝"（系统不再弹）→ 该条转 BLOCKED 态，引导去应用设置（§5.2 启动D）。 */
+    fun markPermanentlyDenied(id: RequirementId)
 }
 
 /** 首启标记等偏好（app 用 DataStore 实现）。 */

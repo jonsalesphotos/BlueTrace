@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import io.bluetrace.R
+import io.bluetrace.shared.data.StorageMonitor
+import io.bluetrace.shared.data.StoragePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -15,13 +17,18 @@ import java.util.zip.ZipOutputStream
 sealed interface ExportResult {
     data class Success(val displayPath: String) : ExportResult
     data class Error(val message: String) : ExportResult
+    /** 导出D：存储不足（导出前预检阻断，§5.8）。 */
+    data class InsufficientSpace(val requiredBytes: Long, val availableBytes: Long) : ExportResult
 }
 
 /**
  * 整会话文件夹经 MediaStore 导出为 zip 到公共 `Download/BlueTrace/`（§6.4），无需任何存储运行时权限。
- * 流程：插入 IS_PENDING 记录 → openOutputStream 写 zip → 清 IS_PENDING。
+ * 流程：导出前存储预检 → 插入 IS_PENDING 记录 → openOutputStream 写 zip → 清 IS_PENDING。
  */
-class MediaStoreExporter(private val context: Context) {
+class MediaStoreExporter(
+    private val context: Context,
+    private val storageMonitor: StorageMonitor,
+) {
 
     private fun sessionsDir(): File {
         val base = context.getExternalFilesDir(null) ?: context.filesDir
@@ -36,6 +43,13 @@ class MediaStoreExporter(private val context: Context) {
             }
             val files = srcDir.walkTopDown().filter { it.isFile }.toList()
             if (files.isEmpty()) return@withContext ExportResult.Error(context.getString(R.string.export_err_empty))
+
+            // 导出前真实存储预检（§5.8）：需 ≥ 待导出大小 × 余量系数
+            val required = (files.sumOf { it.length() } * StoragePolicy.EXPORT_HEADROOM_FACTOR).toLong()
+            val available = storageMonitor.usableBytes()
+            if (available < required) {
+                return@withContext ExportResult.InsufficientSpace(required, available)
+            }
 
             val displayName = "$folderName.zip"
             val resolver = context.contentResolver

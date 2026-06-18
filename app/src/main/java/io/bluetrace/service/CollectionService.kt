@@ -5,8 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -14,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.bluetrace.MainActivity
 import io.bluetrace.R
+import io.bluetrace.shared.ble.MockBleClient
 import io.bluetrace.shared.session.RunStatus
 import io.bluetrace.shared.session.SessionController
 import io.bluetrace.shared.util.formatDurationHms
@@ -33,11 +37,27 @@ import org.koin.android.ext.android.inject
 class CollectionService : Service() {
 
     private val controller: SessionController by inject()
+    private val bleClient: MockBleClient by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    /** 采集中蓝牙关 → 设备转"重连中"（§5.4 横切A）；开 → 恢复。 */
+    private val btReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_TURNING_OFF -> bleClient.setBluetoothOff(true)
+                BluetoothAdapter.STATE_ON -> bleClient.setBluetoothOff(false)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
+        ContextCompat.registerReceiver(
+            this, btReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -58,6 +78,7 @@ class CollectionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(btReceiver) }
         scope.cancel()
         super.onDestroy()
     }

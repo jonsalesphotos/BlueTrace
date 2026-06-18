@@ -146,4 +146,31 @@ class DefaultSessionControllerTest {
         val layout = SessionLayout(f.root / summary.folderName)
         assertTrue(f.fs.exists(layout.gpsCsv), "gps.csv should exist when GNSS enabled")
     }
+
+    @Test
+    fun lowUsableSpace_autoEndsOnTick() = runTest {
+        val f = Fixture(this)
+        // 注入"几乎没空间"的存储监视 → 采集中 Tick 检测自动结束（§5.4 / v2-C③）
+        val lowStorageController = DefaultSessionController(
+            bleClient = f.mock,
+            decoder = MockSampleDecoder(),
+            fileSystem = f.fs,
+            sessionsRoot = f.root,
+            sessionStore = f.store,
+            clock = f.clock,
+            zone = TestZone(),
+            diagnostics = f.diag,
+            scope = backgroundScope,
+            storageMonitor = io.bluetrace.shared.data.StorageMonitor { 1L },
+        )
+        backgroundScope.launch { f.mock.connect(f.dut) }
+        advanceTimeBy(700); runCurrent()
+        lowStorageController.start(sessionConfig(listOf(dutAssigned()), start = f.clock.nowMs()))
+        advanceTimeBy(300); runCurrent() // 首个 200ms Tick → 低空间 → 自动结束
+
+        val fin = lowStorageController.finished.value
+        assertNotNull(fin)
+        assertEquals(StopReason.STORAGE_FULL, fin.stopReason)
+        assertEquals(RunStatus.STOPPED, lowStorageController.state.value.status)
+    }
 }
