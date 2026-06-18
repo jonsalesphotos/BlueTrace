@@ -1,9 +1,9 @@
 package com.example.bluetrace.ui.screen.data
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.SessionSummary
 import com.example.bluetrace.shared.util.formatDurationHms
 import com.example.bluetrace.ui.components.BtTopBar
@@ -70,31 +72,34 @@ fun DataHomeScreen(
         Column(Modifier.fillMaxSize()) {
             if (ui.selectionMode) {
                 BtTopBar(
-                    title = "已选 ${ui.selected.size}",
+                    title = stringResource(R.string.data_selected_title, ui.selected.size),
                     onBack = { vm.exitSelection() },
-                    actions = { Text("全选", fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { vm.selectAll() }) },
+                    actions = { Text(stringResource(R.string.action_select_all), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { vm.selectAll() }) },
                 )
             } else {
                 BtTopBar(
-                    title = "数据",
-                    subtitle = "采集会话 · ${ui.totalCount} 个 · ${"%.1f".format(ui.totalBytes / 1024.0 / 1024.0)} MB",
+                    title = stringResource(R.string.data_title),
+                    subtitle = pluralStringResource(R.plurals.session_count, ui.totalCount, ui.totalCount) + " · ${"%.1f".format(ui.totalBytes / 1024.0 / 1024.0)} MB",
                     actions = {
                         if (ui.sessions.isNotEmpty()) {
-                            Text("选择", fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { ui.sessions.firstOrNull()?.let { vm.enterSelection(it.folderName) } })
+                            Text(stringResource(R.string.action_select), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { ui.sessions.firstOrNull()?.let { vm.enterSelection(it.folderName) } })
                         }
                     },
                 )
             }
 
-            // 搜索 + 模式筛选
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = ui.query, onValueChange = vm::setQuery,
-                    placeholder = { Text("搜索会话 / 用户 / 设备", fontSize = 13.sp) },
+                    placeholder = { Text(stringResource(R.string.data_search_hint), fontSize = 13.sp) },
                     singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(BT.radius),
                 )
                 Row(Modifier.background(BT.surface2, RoundedCornerShape(999.dp)).padding(2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    listOf(ModeFilter.ALL to "全部", ModeFilter.WEAR to "Wear", ModeFilter.UNWEAR to "Unwear").forEach { (f, label) ->
+                    listOf(
+                        ModeFilter.ALL to stringResource(R.string.data_filter_all),
+                        ModeFilter.WEAR to stringResource(R.string.data_filter_wear),
+                        ModeFilter.UNWEAR to stringResource(R.string.data_filter_unwear),
+                    ).forEach { (f, label) ->
                         val sel = ui.modeFilter == f
                         Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(if (sel) BT.surface else Color.Transparent).clickable { vm.setFilter(f) }.padding(vertical = 7.dp), contentAlignment = Alignment.Center) {
                             Text(label, fontSize = 12.sp, fontWeight = if (sel) FontWeight.W700 else FontWeight.W500, color = if (sel) BT.onSurface else BT.onSurfaceV)
@@ -107,15 +112,15 @@ fun DataHomeScreen(
                 val searching = ui.query.isNotBlank()
                 EmptyState(
                     icon = if (searching) Icons.Filled.SearchOff else Icons.Filled.FolderOff,
-                    title = if (searching) "未搜到结果" else "还没有采集数据",
-                    subtitle = if (searching) "换个关键词试试" else "采集结束后会在这里按会话文件夹归档",
+                    title = if (searching) stringResource(R.string.data_search_empty_title) else stringResource(R.string.data_empty_title),
+                    subtitle = if (searching) stringResource(R.string.data_search_empty_sub) else stringResource(R.string.data_empty_sub),
                     modifier = Modifier.padding(top = 40.dp),
                 )
             } else {
-                val grouped = ui.sessions.groupBy { dayLabel(it.startEpochMs) }
+                val grouped = ui.sessions.groupBy { dayKey(it.startEpochMs) }
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
                     grouped.forEach { (day, sessions) ->
-                        item(key = "h_$day") { SectionHeader("$day · 会话文件夹") }
+                        item(key = "h_$day") { SectionHeader(dayHeader(day)) }
                         items(sessions, key = { it.folderName }) { session ->
                             SessionCard(
                                 session = session,
@@ -129,8 +134,8 @@ fun DataHomeScreen(
                 }
                 if (ui.selectionMode) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlineBtn("删除", { vm.deleteSelected() }, Modifier.weight(1f), color = BT.error)
-                        PrimaryButton("导出所选 (${ui.selected.size})", { exportVm.exportMany(ui.selected.toList()) }, Modifier.weight(1f))
+                        OutlineBtn(stringResource(R.string.action_delete), { vm.deleteSelected() }, Modifier.weight(1f), color = BT.error)
+                        PrimaryButton(pluralStringResource(R.plurals.export_selected, ui.selected.size, ui.selected.size), { exportVm.exportMany(ui.selected.toList()) }, Modifier.weight(1f))
                     }
                 }
             }
@@ -164,7 +169,7 @@ private fun SessionCard(
                     }
                 }
                 Text(
-                    "${"%.2f".format(session.totalBytes / 1024.0 / 1024.0)} MB · ${formatDurationHms(session.durationMs)}",
+                    stringResource(R.string.data_meta, "%.2f".format(session.totalBytes / 1024.0 / 1024.0), formatDurationHms(session.durationMs)),
                     fontSize = 11.sp, color = BT.onSurfaceV, modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -172,11 +177,18 @@ private fun SessionCard(
     }
 }
 
-private fun dayLabel(epochMs: Long): String {
-    val date = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalDate()
-    return when (date) {
-        LocalDate.now() -> "今天 · $date"
-        LocalDate.now().minusDays(1) -> "昨天 · $date"
-        else -> date.toString()
+/** 稳定的日期分组键（yyyy-MM-dd）。 */
+private fun dayKey(epochMs: Long): String =
+    Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+
+/** 分组头本地化："今天/昨天 · date · 会话文件夹"。 */
+@Composable
+private fun dayHeader(dayKey: String): String {
+    val date = LocalDate.parse(dayKey)
+    val rel = when (date) {
+        LocalDate.now() -> stringResource(R.string.data_today) + " · "
+        LocalDate.now().minusDays(1) -> stringResource(R.string.data_yesterday) + " · "
+        else -> ""
     }
+    return "$rel$dayKey · ${stringResource(R.string.data_group_suffix)}"
 }

@@ -12,20 +12,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,10 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.data.android.BlueTracePermissions
 import com.example.bluetrace.shared.domain.AppPreferences
 import com.example.bluetrace.shared.domain.EnvironmentRepository
@@ -78,7 +77,7 @@ fun SplashScreen(onGate: () -> Unit, onMain: () -> Unit) {
                 opens.size
             }
             if (recovered > 0) {
-                android.widget.Toast.makeText(context, "上次采集异常中断，已保存", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.recovery_toast), android.widget.Toast.LENGTH_LONG).show()
             }
         }
         delay(700)
@@ -89,13 +88,15 @@ fun SplashScreen(onGate: () -> Unit, onMain: () -> Unit) {
             Box(Modifier.size(86.dp).clip(RoundedCornerShape(24.dp)).background(BT.primary), contentAlignment = Alignment.Center) {
                 Text("BT", fontSize = 28.sp, fontWeight = FontWeight.W800, color = Color.White)
             }
-            Text("BlueTrace", fontSize = 25.sp, fontWeight = FontWeight.W800, color = BT.onSurface)
-            Text("多传感器 BLE 数据采集", fontSize = 12.sp, color = BT.onSurfaceV)
+            Text(stringResource(R.string.app_name), fontSize = 25.sp, fontWeight = FontWeight.W800, color = BT.onSurface)
+            Text(stringResource(R.string.splash_tagline), fontSize = 12.sp, color = BT.onSurfaceV)
         }
     }
 }
 
-/** 启动B · 权限门控（首启请求 · 无返回 · 可暂时跳过）。 */
+/**
+ * 启动B · 权限门控（首启请求 · 无返回 · 仅「全部授权」+「暂时跳过」，对齐 v4 原型）。
+ */
 @Composable
 fun PermissionGateScreen(
     onContinue: () -> Unit,
@@ -106,45 +107,48 @@ fun PermissionGateScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refresh() }
-
     fun finish() {
         scope.launch { prefs.setFirstLaunchCompleted(true) }
         onContinue()
     }
 
+    // 逐项「授权」：请求后停留并复检
+    val itemLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refresh() }
+    // 「全部授权」：逐项拉起系统弹窗 → 完成进采集 Tab（原型语义）
+    val grantAllLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        vm.refresh(); finish()
+    }
+
+    fun requestFor(id: RequirementId) {
+        when (id) {
+            RequirementId.BLUETOOTH_ON -> context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            RequirementId.BLE_SCAN_CONNECT -> itemLauncher.launch(BlueTracePermissions.hardScanConnect)
+            RequirementId.LOCATION -> itemLauncher.launch(BlueTracePermissions.location)
+            RequirementId.NOTIFICATIONS -> if (BlueTracePermissions.notifications.isNotEmpty()) itemLauncher.launch(BlueTracePermissions.notifications)
+            RequirementId.BATTERY_UNRESTRICTED -> context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+    }
+
     Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = "需要一些权限", subtitle = "首次启动 · 一次性授权更顺")
+        BtTopBar(title = stringResource(R.string.gate_title), subtitle = stringResource(R.string.gate_subtitle))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionHeader("硬性 · 采集必需")
+            SectionHeader(stringResource(R.string.gate_sec_hard))
             state.requirements.filter { it.severity == RequirementSeverity.HARD }.forEach { req ->
-                PermRow(req.id, req.status) {
-                    when (req.id) {
-                        RequirementId.BLUETOOTH_ON -> context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                        RequirementId.BLE_SCAN_CONNECT -> permLauncher.launch(BlueTracePermissions.hardScanConnect)
-                        else -> {}
-                    }
-                }
+                PermRow(req.id, req.status) { requestFor(req.id) }
             }
-            SectionHeader("建议 · 可跳过")
+            SectionHeader(stringResource(R.string.gate_sec_suggested))
             state.requirements.filter { it.severity == RequirementSeverity.SUGGESTED }.forEach { req ->
-                PermRow(req.id, req.status) {
-                    when (req.id) {
-                        RequirementId.LOCATION -> permLauncher.launch(BlueTracePermissions.location)
-                        RequirementId.NOTIFICATIONS -> if (BlueTracePermissions.notifications.isNotEmpty()) permLauncher.launch(BlueTracePermissions.notifications)
-                        RequirementId.BATTERY_UNRESTRICTED -> context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                        else -> {}
-                    }
-                }
+                PermRow(req.id, req.status) { requestFor(req.id) }
             }
         }
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PrimaryButton("全部授权", onClick = {
-                permLauncher.launch(BlueTracePermissions.hardScanConnect + BlueTracePermissions.location + BlueTracePermissions.notifications)
+        // 底部：全部授权（主） + 暂时跳过（文本）—— 与原型一致，无第三个按钮
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            PrimaryButton(stringResource(R.string.gate_grant_all), onClick = {
+                grantAllLauncher.launch(BlueTracePermissions.hardScanConnect + BlueTracePermissions.location + BlueTracePermissions.notifications)
             })
-            OutlineBtn("暂时跳过", { finish() }, Modifier.fillMaxWidth())
-            // 继续（授权后）
-            PrimaryButton("进入采集", { finish() })
+            TextButton(onClick = { finish() }) {
+                Text(stringResource(R.string.action_skip_now), color = BT.onSurfaceV, fontSize = 13.sp)
+            }
         }
     }
 }
@@ -158,10 +162,15 @@ private fun PermRow(id: RequirementId, status: RequirementStatus, onRequest: () 
                 Text(permHint(id), fontSize = 11.sp, color = BT.onSurfaceV)
             }
             if (status == RequirementStatus.GRANTED) {
-                StatusPill("已满足", BT.onSuccessC, BT.successC)
+                StatusPill(stringResource(R.string.env_status_granted), BT.onSuccessC, BT.successC)
             } else {
+                val actionLabel = when (id) {
+                    RequirementId.BLUETOOTH_ON -> stringResource(R.string.perm_act_enable)
+                    RequirementId.BATTERY_UNRESTRICTED -> stringResource(R.string.perm_act_settings)
+                    else -> stringResource(R.string.perm_act_grant)
+                }
                 Text(
-                    when (id) { RequirementId.BLUETOOTH_ON -> "去开启"; RequirementId.BATTERY_UNRESTRICTED -> "去设置"; else -> "授权" },
+                    actionLabel,
                     fontSize = 13.sp, fontWeight = FontWeight.W700, color = BT.primary,
                     modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(BT.primaryC).clickable(onClick = onRequest).padding(horizontal = 12.dp, vertical = 6.dp),
                 )
@@ -170,36 +179,43 @@ private fun PermRow(id: RequirementId, status: RequirementStatus, onRequest: () 
     }
 }
 
-private fun permTitle(id: RequirementId) = when (id) {
-    RequirementId.BLUETOOTH_ON -> "蓝牙开关"
-    RequirementId.BLE_SCAN_CONNECT -> "附近设备（扫描 / 连接）"
-    RequirementId.LOCATION -> "定位（GNSS 一路）"
-    RequirementId.NOTIFICATIONS -> "通知"
-    RequirementId.BATTERY_UNRESTRICTED -> "后台不省电（保活）"
-}
+@Composable
+private fun permTitle(id: RequirementId): String = stringResource(
+    when (id) {
+        RequirementId.BLUETOOTH_ON -> R.string.perm_bluetooth_title
+        RequirementId.BLE_SCAN_CONNECT -> R.string.perm_scan_title
+        RequirementId.LOCATION -> R.string.perm_location_title
+        RequirementId.NOTIFICATIONS -> R.string.perm_notification_title
+        RequirementId.BATTERY_UNRESTRICTED -> R.string.perm_battery_title
+    },
+)
 
-private fun permHint(id: RequirementId) = when (id) {
-    RequirementId.BLUETOOTH_ON -> "系统开关 ≠ 权限"
-    RequirementId.BLE_SCAN_CONNECT -> "BLUETOOTH_SCAN + CONNECT"
-    RequirementId.LOCATION -> "while-in-use 即可，不申请后台定位"
-    RequirementId.NOTIFICATIONS -> "前台服务常驻通知"
-    RequirementId.BATTERY_UNRESTRICTED -> "系统设置 ≠ 权限"
-}
+@Composable
+private fun permHint(id: RequirementId): String = stringResource(
+    when (id) {
+        RequirementId.BLUETOOTH_ON -> R.string.perm_bluetooth_sub
+        RequirementId.BLE_SCAN_CONNECT -> R.string.perm_scan_sub
+        RequirementId.LOCATION -> R.string.perm_location_sub
+        RequirementId.NOTIFICATIONS -> R.string.perm_notification_sub
+        RequirementId.BATTERY_UNRESTRICTED -> R.string.perm_battery_sub
+    },
+)
 
 /** 启动E · 蓝牙已关闭（≠ 权限）。 */
 @Composable
 fun BluetoothOffScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = "设备连接", subtitle = "蓝牙未开启", onBack = onBack)
+        BtTopBar(title = stringResource(R.string.device_title), subtitle = stringResource(R.string.bt_off_subtitle), onBack = onBack)
         Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(color = BT.errorC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
-                Text("蓝牙已关闭。无法扫描 / 连接设备。", fontSize = 12.sp, color = BT.error, modifier = Modifier.padding(12.dp))
+                Text(stringResource(R.string.bt_off_banner), fontSize = 12.sp, color = BT.error, modifier = Modifier.padding(12.dp))
             }
-            Text("蓝牙是系统开关（不是权限）。开启后自动回到设备列表。", fontSize = 12.sp, color = BT.onSurfaceV)
+            Text(stringResource(R.string.bt_off_empty_title), fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+            Text(stringResource(R.string.bt_off_empty_sub), fontSize = 12.sp, color = BT.onSurfaceV)
         }
         Column(Modifier.padding(16.dp)) {
-            PrimaryButton("开启蓝牙", onClick = { context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) })
+            PrimaryButton(stringResource(R.string.bt_off_enable), onClick = { context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) })
         }
     }
 }
@@ -209,16 +225,16 @@ fun BluetoothOffScreen(onBack: () -> Unit) {
 fun PowerSaveGuideScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = "后台运行设置", subtitle = "保活 · 防采集被系统杀", onBack = onBack)
+        BtTopBar(title = stringResource(R.string.power_title), subtitle = stringResource(R.string.power_subtitle), onBack = onBack)
         Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(color = BT.primaryC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
-                Text("采集需长时间后台运行。系统省电可能杀进程致中断；请把本应用切到「不省电 / 不受限」。", fontSize = 12.sp, color = BT.onPrimaryC, modifier = Modifier.padding(12.dp))
+                Text(stringResource(R.string.power_banner), fontSize = 12.sp, color = BT.onPrimaryC, modifier = Modifier.padding(12.dp))
             }
-            PrimaryButton("忽略电池优化", onClick = { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) })
-            OutlineBtn("应用详情设置", {
+            PrimaryButton(stringResource(R.string.power_ignore_battery), onClick = { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) })
+            OutlineBtn(stringResource(R.string.power_app_details), {
                 context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName)))
             }, Modifier.fillMaxWidth())
-            Text("各家 ROM 路径不同（小米 / 华为 / OPPO / vivo）：自启动 / 关联启动 / 最近任务锁定，需各自在系统设置开启。", fontSize = 11.5.sp, color = BT.onSurfaceV)
+            Text(stringResource(R.string.power_rom_hint), fontSize = 11.5.sp, color = BT.onSurfaceV)
         }
     }
 }
@@ -238,21 +254,21 @@ fun GnssScreen(
     LaunchedEffect(Unit) { envVm.refresh() }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = "本机 GNSS", subtitle = "采集会话含 gps.csv", onBack = onBack)
+        BtTopBar(title = stringResource(R.string.gnss_title), subtitle = stringResource(R.string.gnss_subtitle), onBack = onBack)
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("GNSS 数据源", fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
-                        Text(if (locationGranted) "已授定位（while-in-use）" else "缺定位权限", fontSize = 11.sp, color = BT.onSurfaceV)
+                        Text(stringResource(R.string.gnss_source), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
+                        Text(if (locationGranted) stringResource(R.string.gnss_granted) else stringResource(R.string.gnss_missing), fontSize = 11.sp, color = BT.onSurfaceV)
                     }
                     Switch(checked = gnssEnabled && locationGranted, enabled = locationGranted, onCheckedChange = { settingsVm.setGnss(it) })
                 }
             }
             if (!locationGranted) {
-                PrimaryButton("去授权", onClick = { permLauncher.launch(BlueTracePermissions.location) })
+                PrimaryButton(stringResource(R.string.gnss_request), onClick = { permLauncher.launch(BlueTracePermissions.location) })
             }
-            Text("开启后本机 GNSS 作一路写入会话：落地 gps.csv + manifest，共用同一时间轴。要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路。", fontSize = 12.sp, color = BT.onSurfaceV)
+            Text(stringResource(R.string.gnss_note), fontSize = 12.sp, color = BT.onSurfaceV)
         }
     }
 }

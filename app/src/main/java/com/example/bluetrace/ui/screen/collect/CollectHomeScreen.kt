@@ -22,10 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.CollectMode
 import com.example.bluetrace.ui.components.BtTopBar
 import com.example.bluetrace.ui.components.EntryTile
@@ -49,26 +52,29 @@ fun CollectHomeScreen(
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
-            title = "采集",
-            subtitle = "多传感器 BLE 数据采集 · 准备会话",
-            actions = { StatusPill(if (ui.canStart) "就绪" else "未就绪", fg = if (ui.canStart) BT.onSuccessC else BT.onWarningC, bg = if (ui.canStart) BT.successC else BT.warningC) },
+            title = stringResource(R.string.tab_collect),
+            subtitle = stringResource(R.string.collect_subtitle),
+            actions = {
+                StatusPill(
+                    if (ui.canStart) stringResource(R.string.status_ready) else stringResource(R.string.status_not_ready),
+                    fg = if (ui.canStart) BT.onSuccessC else BT.onWarningC,
+                    bg = if (ui.canStart) BT.successC else BT.warningC,
+                )
+            },
         )
-        Column(
-            Modifier.padding(16.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        Column(Modifier.padding(16.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             EntryTile(
                 icon = Icons.Filled.Bluetooth,
                 iconColor = BT.primary,
                 iconBg = BT.primaryC,
-                title = "设备 · DUT 多传感器",
-                subtitle = "扁平列表 · DUT≤3 + 参考心率带≤1",
+                title = stringResource(R.string.collect_entry_device_title),
+                subtitle = stringResource(R.string.collect_entry_device_sub),
                 onClick = onOpenDevice,
                 trailing = {
                     if (ui.connectedCount > 0) {
-                        PillTag("${ui.connectedCount} 已连接", BT.onSuccessC, BT.successC)
+                        PillTag(pluralStringResource(R.plurals.connected_count, ui.connectedCount, ui.connectedCount), BT.onSuccessC, BT.successC)
                     } else {
-                        PillTag("去连接", BT.onSurfaceV, BT.surface2)
+                        PillTag(stringResource(R.string.collect_entry_device_goto), BT.onSurfaceV, BT.surface2)
                     }
                 },
             )
@@ -76,30 +82,29 @@ fun CollectHomeScreen(
                 icon = Icons.Filled.Person,
                 iconColor = BT.tertiary,
                 iconBg = BT.tertiaryC,
-                title = "用户 · 写入文件名与 manifest",
-                subtitle = ui.currentSubject?.let { "${it.alias} · ${it.bioLine()}" } ?: "未选择用户",
+                title = stringResource(R.string.collect_entry_user_title),
+                subtitle = ui.currentSubject?.let { "${it.alias} · ${it.bioLine()}" } ?: stringResource(R.string.collect_entry_user_empty),
                 onClick = onOpenSubject,
             )
             ModeTile(mode = ui.mode, onSelect = vm::setMode)
 
             if (ui.gnssEnabled) {
-                Text("· 本次会话含本机 GNSS（gps.csv）", fontSize = 11.sp, color = BT.tertiary, modifier = Modifier.padding(start = 4.dp))
+                Text(stringResource(R.string.collect_gnss_note), fontSize = 11.sp, color = BT.tertiary, modifier = Modifier.padding(start = 4.dp))
             }
         }
         Column(Modifier.padding(16.dp)) {
             if (!ui.canStart) {
-                Text(
-                    when {
-                        ui.currentSubject == null -> "请先选择用户"
-                        ui.connectedCount == 0 -> "请先连接至少一台设备"
-                        else -> ""
-                    },
-                    fontSize = 12.sp, color = BT.warning,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                val hint = when {
+                    ui.currentSubject == null -> stringResource(R.string.collect_hint_need_user)
+                    ui.connectedCount == 0 -> stringResource(R.string.collect_hint_need_device)
+                    else -> ""
+                }
+                if (hint.isNotEmpty()) {
+                    Text(hint, fontSize = 12.sp, color = BT.warning, modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
             PrimaryButton(
-                "开始采集",
+                stringResource(R.string.collect_start),
                 onClick = {
                     if (vm.startSession()) {
                         com.example.bluetrace.service.CollectionService.start(context)
@@ -114,12 +119,12 @@ fun CollectHomeScreen(
 
 @Composable
 private fun ModeTile(mode: CollectMode, onSelect: (CollectMode) -> Unit) {
-    com.example.bluetrace.ui.components.EntryTile(
+    EntryTile(
         icon = Icons.Filled.GraphicEq,
         iconColor = BT.success,
         iconBg = BT.successC,
-        title = "采集模式 · 自动命名会话文件夹",
-        subtitle = "Wear / Unwear（写文件名前缀与 manifest）",
+        title = stringResource(R.string.collect_entry_mode_title),
+        subtitle = stringResource(R.string.collect_entry_mode_sub),
         trailing = {
             Row(
                 Modifier.clip(RoundedCornerShape(999.dp)).background(BT.surface2).padding(2.dp),

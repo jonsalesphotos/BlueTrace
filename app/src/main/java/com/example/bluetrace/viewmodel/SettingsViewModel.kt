@@ -3,6 +3,7 @@ package com.example.bluetrace.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.bluetrace.R
 import com.example.bluetrace.data.android.ExportResult
 import com.example.bluetrace.data.android.MediaStoreExporter
 import com.example.bluetrace.shared.domain.AppPreferences
@@ -56,8 +57,8 @@ class SettingsViewModel(
         viewModelScope.launch {
             val r = exporter.exportLog(diagnostics.export(), "bluetrace_log.txt")
             _toast.value = when (r) {
-                is ExportResult.Success -> "日志已导出到 ${r.displayPath}"
-                is ExportResult.Error -> "日志导出失败：${r.message}"
+                is ExportResult.Success -> context.getString(R.string.log_export_done, r.displayPath)
+                is ExportResult.Error -> context.getString(R.string.log_export_failed, r.message)
             }
         }
     }

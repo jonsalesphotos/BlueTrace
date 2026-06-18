@@ -27,11 +27,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.SessionSummary
 import com.example.bluetrace.shared.domain.StopReason
 import com.example.bluetrace.shared.util.formatDurationHms
@@ -61,37 +63,35 @@ fun SessionSummaryScreen(
     Box(Modifier.fillMaxSize().background(BT.bg)) {
         Column(Modifier.fillMaxSize()) {
             BtTopBar(
-                title = "采集已结束",
+                title = stringResource(R.string.summary_title),
                 subtitle = summary?.folderName ?: "",
                 onBack = { runVm.reset(); exportVm.reset(); onDone() },
             )
             if (summary == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("无会话数据", color = BT.onSurfaceV) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.summary_no_data), color = BT.onSurfaceV) }
             } else {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SummaryCard(summary)
-                    SectionHeader("会话文件夹构成")
-                    FileTile(Icons.Filled.Storage, BT.warning, BT.warningC, "原始 HEX 行日志", "append-only · 可重放 · 1 份/来源 · source of truth", "OK")
-                    FileTile(Icons.Filled.CheckCircle, BT.success, BT.successC, "解码 CSV（每模块）", "PPG_G / PPG_IR / ACC / HR …", null)
-                    FileTile(Icons.Filled.Inventory2, BT.primary, BT.primaryC, "组合包兼容 CSV", "汇顶 PPG+ACC 合并", null)
-                    if (summary.gnssEnabled) FileTile(Icons.Filled.DataObject, BT.tertiary, BT.tertiaryC, "gps.csv", "本机 GNSS 一路", null)
-                    FileTile(Icons.Filled.Description, BT.tertiary, BT.tertiaryC, "session_manifest.json", "unix 起点 · 时区 · 用户 · 设备 · 质量小结", null)
+                    SectionHeader(stringResource(R.string.summary_sec_files))
+                    FileTile(Icons.Filled.Storage, BT.warning, BT.warningC, stringResource(R.string.summary_file_raw), stringResource(R.string.summary_file_raw_sub), stringResource(R.string.badge_ok))
+                    FileTile(Icons.Filled.CheckCircle, BT.success, BT.successC, stringResource(R.string.summary_file_csv), stringResource(R.string.summary_file_csv_sub), null)
+                    FileTile(Icons.Filled.Inventory2, BT.primary, BT.primaryC, stringResource(R.string.summary_file_combo), stringResource(R.string.summary_file_combo_sub), null)
+                    if (summary.gnssEnabled) FileTile(Icons.Filled.DataObject, BT.tertiary, BT.tertiaryC, stringResource(R.string.summary_file_gps), stringResource(R.string.summary_file_gps_sub), null)
+                    FileTile(Icons.Filled.Description, BT.tertiary, BT.tertiaryC, stringResource(R.string.summary_file_manifest), stringResource(R.string.summary_file_manifest_sub), null)
                     if (summary.stopReason != StopReason.NORMAL) {
+                        val reasonText = when (summary.stopReason) {
+                            StopReason.STORAGE_FULL -> stringResource(R.string.summary_stop_storage_full)
+                            StopReason.INTERRUPTED -> stringResource(R.string.summary_stop_interrupted)
+                            else -> ""
+                        }
                         Surface(color = BT.warningC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                when (summary.stopReason) {
-                                    StopReason.STORAGE_FULL -> "存储满，已停止并保存"
-                                    StopReason.INTERRUPTED -> "上次采集异常中断，已保存"
-                                    else -> ""
-                                },
-                                fontSize = 12.sp, color = BT.onWarningC, modifier = Modifier.padding(12.dp),
-                            )
+                            Text(reasonText, fontSize = 12.sp, color = BT.onWarningC, modifier = Modifier.padding(12.dp))
                         }
                     }
                 }
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlineBtn("查看详情", { onViewDetail(summary.folderName) }, Modifier.weight(1f))
-                    PrimaryButton("导出", { exportVm.export(summary.folderName) }, Modifier.weight(1f))
+                    OutlineBtn(stringResource(R.string.summary_view_detail), { onViewDetail(summary.folderName) }, Modifier.weight(1f))
+                    PrimaryButton(stringResource(R.string.action_export), { exportVm.export(summary.folderName) }, Modifier.weight(1f))
                 }
             }
         }
@@ -106,14 +106,14 @@ private fun SummaryCard(summary: SessionSummary) {
         Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(formatDurationHms(summary.durationMs), fontSize = 32.sp, fontWeight = FontWeight.W800, color = BT.onPrimaryC)
             Text(
-                "${summary.subjectAlias} · ${summary.mode.label} · ${summary.deviceCount} 设备 · ${summary.sensorCount} 路",
+                stringResource(R.string.summary_meta, summary.subjectAlias, summary.mode.label, summary.deviceCount, summary.sensorCount),
                 fontSize = 12.sp, color = BT.onPrimaryC,
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillTag("${summary.totalLines} 行", BT.onPrimaryC, BT.surface)
+                PillTag(stringResource(R.string.pill_lines, summary.totalLines.toInt()), BT.onPrimaryC, BT.surface)
                 PillTag("${"%.2f".format(summary.totalBytes / 1024.0 / 1024.0)} MB", BT.onPrimaryC, BT.surface)
-                PillTag("1 会话", BT.onPrimaryC, BT.surface)
+                PillTag(stringResource(R.string.pill_one_session), BT.onPrimaryC, BT.surface)
             }
         }
     }
@@ -123,10 +123,8 @@ private fun SummaryCard(summary: SessionSummary) {
 private fun FileTile(icon: androidx.compose.ui.graphics.vector.ImageVector, color: androidx.compose.ui.graphics.Color, bg: androidx.compose.ui.graphics.Color, title: String, subtitle: String, badge: String?) {
     Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.height(36.dp).padding(0.dp), contentAlignment = Alignment.Center) {
-                Surface(color = bg, shape = RoundedCornerShape(9.dp)) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(8.dp).height(20.dp))
-                }
+            Surface(color = bg, shape = RoundedCornerShape(9.dp)) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(8.dp).height(20.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(title, fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
@@ -145,7 +143,7 @@ fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius)) {
                     Column(Modifier.padding(20.dp).fillMaxWidth(0.8f)) {
-                        Text("导出中…", fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                        Text(stringResource(R.string.export_in_progress), fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(6.dp))
@@ -154,8 +152,8 @@ fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit) {
                 }
             }
         }
-        is ExportUiState.Done -> Toast("✓ 已导出到 ${state.displayPath}", onDismiss)
-        is ExportUiState.Failed -> Toast("导出失败：${state.message}", onDismiss, error = true)
+        is ExportUiState.Done -> Toast(stringResource(R.string.export_done, state.displayPath), onDismiss)
+        is ExportUiState.Failed -> Toast(stringResource(R.string.export_failed, state.message), onDismiss, error = true)
         ExportUiState.Idle -> Unit
     }
 }

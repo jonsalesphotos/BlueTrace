@@ -1,0 +1,312 @@
+<resources>
+    <string name="app_name">BlueTrace</string>
+
+    <!-- ===== Common ===== -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">OK</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_export">Export</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_select">Select</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_skip_now">Skip for now</string>
+    <string name="cd_checked">Selected</string>
+    <string name="cd_clear">Clear</string>
+
+    <!-- ===== Tabs ===== -->
+    <string name="tab_collect">Collect</string>
+    <string name="tab_data">Data</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- ===== Splash / recovery ===== -->
+    <string name="splash_tagline">Multi-sensor BLE data collection</string>
+    <string name="recovery_toast">Last session was interrupted and has been saved</string>
+
+    <!-- ===== Permission gate ===== -->
+    <string name="gate_title">A few permissions needed</string>
+    <string name="gate_subtitle">First launch · granting once is smoother</string>
+    <string name="gate_sec_hard">Required · for collection</string>
+    <string name="gate_sec_suggested">Suggested · skippable</string>
+    <string name="gate_grant_all">Grant all</string>
+    <string name="perm_act_grant">Grant</string>
+    <string name="perm_act_enable">Enable</string>
+    <string name="perm_act_settings">Open settings</string>
+    <string name="perm_bluetooth_title">Bluetooth toggle</string>
+    <string name="perm_bluetooth_sub">System Bluetooth is off (not a permission)</string>
+    <string name="perm_scan_title">Nearby devices (scan / connect)</string>
+    <string name="perm_scan_sub">BLUETOOTH_SCAN · CONNECT</string>
+    <string name="perm_location_title">Location (one GNSS source)</string>
+    <string name="perm_location_sub">while-in-use · no GPS this session if missing</string>
+    <string name="perm_notification_title">Notifications</string>
+    <string name="perm_notification_sub">Ongoing foreground-service notification</string>
+    <string name="perm_battery_title">Unrestricted background (keep-alive)</string>
+    <string name="perm_battery_sub">System setting · avoid being killed</string>
+
+    <!-- ===== Bluetooth off ===== -->
+    <string name="bt_off_subtitle">Bluetooth is off</string>
+    <string name="bt_off_banner">Bluetooth is off. Cannot scan / connect devices.</string>
+    <string name="bt_off_empty_title">Turn on Bluetooth first</string>
+    <string name="bt_off_empty_sub">Bluetooth is a system toggle (not a permission). Returns to the device list once on.</string>
+    <string name="bt_off_enable">Turn on Bluetooth</string>
+
+    <!-- ===== Power save guide ===== -->
+    <string name="power_title">Background settings</string>
+    <string name="power_subtitle">Keep-alive · avoid being killed</string>
+    <string name="power_banner">Collection runs long in the background. Battery saver may kill the process; set this app to "unrestricted".</string>
+    <string name="power_ignore_battery">Ignore battery optimization</string>
+    <string name="power_app_details">App details settings</string>
+    <string name="power_rom_hint">ROM paths differ (Xiaomi / Huawei / OPPO / vivo): autostart / linked-start / recent-task lock must each be enabled in system settings.</string>
+
+    <!-- ===== Collect home ===== -->
+    <string name="collect_subtitle">Multi-sensor BLE data collection · prepare session</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_not_ready">Not ready</string>
+    <string name="collect_entry_device_title">Devices · DUT multi-sensor</string>
+    <string name="collect_entry_device_sub">Flat list · DUT≤3 + reference HR≤1</string>
+    <string name="collect_entry_device_goto">Connect</string>
+    <string name="collect_entry_user_title">User · written to filename and manifest</string>
+    <string name="collect_entry_user_empty">No user selected</string>
+    <string name="collect_entry_mode_title">Collection mode · auto-names session folder</string>
+    <string name="collect_entry_mode_sub">Wear / Unwear (filename prefix and manifest)</string>
+    <string name="collect_gnss_note">· This session includes device GNSS (gps.csv)</string>
+    <string name="collect_start">Start collection</string>
+    <string name="collect_hint_need_user">Select a user first</string>
+    <string name="collect_hint_need_device">Connect at least one device first</string>
+
+    <!-- ===== Device connect ===== -->
+    <string name="device_title">Device connection</string>
+    <string name="device_subtitle">Tap to connect · tap again to disconnect</string>
+    <string name="device_filter_hint">Filter by name / MAC</string>
+    <string name="device_rssi_filter">RSSI filter · show stronger than %1$d dBm</string>
+    <string name="device_limit_banner">3 DUTs connected (max) · link may be unstable. Up to 3 DUT + 1 reference HR.</string>
+    <string name="device_empty_title">No devices found</string>
+    <string name="device_empty_sub">Make sure the DUT is powered and in range, then rescan.</string>
+    <string name="device_rescan">Rescan</string>
+    <string name="device_stop_scan">Stop scan</string>
+    <string name="device_tag_reference">Ref</string>
+    <string name="link_connected">Connected</string>
+    <string name="link_connecting">Connecting</string>
+    <string name="link_reconnecting">Reconnecting</string>
+    <string name="link_disconnected">Not connected</string>
+    <string name="link_at_limit">At limit</string>
+
+    <!-- ===== Subject ===== -->
+    <string name="subject_select_title">Select user</string>
+    <string name="subject_select_subtitle">Alias is written to filename and manifest</string>
+    <string name="subject_sec_profiles">User profiles</string>
+    <string name="subject_tag_current">Current</string>
+    <string name="subject_new">+ New user</string>
+    <string name="subject_empty_title">No users yet</string>
+    <string name="subject_empty_sub">The alias is written to filename and manifest for offline grouping</string>
+    <string name="subject_edit_new_title">New user</string>
+    <string name="subject_edit_title">Edit user</string>
+    <string name="subject_edit_subtitle">Alias · profile</string>
+    <string name="subject_field_alias">Alias</string>
+    <string name="subject_field_alias_hint">e.g. shb (alias suggested, not real name)</string>
+    <string name="subject_field_sex">Sex</string>
+    <string name="subject_field_birth">Birth month</string>
+    <string name="subject_field_birth_hint">e.g. 1992-5</string>
+    <string name="subject_field_height">Height cm</string>
+    <string name="subject_field_weight">Weight kg</string>
+    <string name="subject_privacy_note">Profiles are stored locally only; not uploaded or shared in phase 1, used only for filename and manifest grouping.</string>
+    <string name="subject_save">Save user</string>
+    <string name="sex_male">Male</string>
+    <string name="sex_female">Female</string>
+    <string name="sex_other">Other</string>
+
+    <!-- ===== Run ===== -->
+    <string name="run_title">Data collection</string>
+    <string name="status_collecting">Collecting</string>
+    <string name="run_device_online">Online</string>
+    <string name="run_device_online_with">Online · %1$s</string>
+    <string name="run_device_reconnecting">Reconnecting… (gap in data, timer keeps running)</string>
+    <string name="run_label_hint">Label</string>
+    <string name="run_label_pin">Pin</string>
+    <string name="run_label_start">Start Label</string>
+    <string name="run_label_stop">Stop Label</string>
+    <string name="run_pause">Pause</string>
+    <string name="run_resume">Resume</string>
+    <string name="run_end_hint">End (long-press 2s)</string>
+    <string name="run_end_releasing">Release to cancel…</string>
+    <string name="run_end_overlay_hint">Release to cancel · hold 2s to stop</string>
+    <string name="run_hardlock_hint">Long-press End to exit</string>
+    <string name="run_demo_disconnect">Inject disconnect</string>
+    <string name="run_demo_storage_full">Simulate storage full</string>
+    <string name="run_collect_type_title">Collection types</string>
+    <string name="run_collect_type_sub">Toggle = whether the path is uploaded/saved · transparent transport, no rate control</string>
+
+    <!-- ===== Summary ===== -->
+    <string name="summary_title">Collection ended</string>
+    <string name="summary_no_data">No session data</string>
+    <string name="summary_meta">%1$s · %2$s · %3$d devices · %4$d paths</string>
+    <string name="summary_sec_files">Session folder contents</string>
+    <string name="summary_file_raw">Raw HEX line log</string>
+    <string name="summary_file_raw_sub">append-only · replayable · 1 per source · source of truth</string>
+    <string name="summary_file_csv">Decoded CSV (per module)</string>
+    <string name="summary_file_csv_sub">PPG_G / PPG_IR / ACC / HR …</string>
+    <string name="summary_file_combo">Combined-packet CSV</string>
+    <string name="summary_file_combo_sub">Goodix PPG+ACC merged</string>
+    <string name="summary_file_gps">gps.csv</string>
+    <string name="summary_file_gps_sub">Device GNSS source</string>
+    <string name="summary_file_manifest">session_manifest.json</string>
+    <string name="summary_file_manifest_sub">unix start · timezone · user · devices · quality</string>
+    <string name="summary_view_detail">View detail</string>
+    <string name="summary_stop_storage_full">Storage full, stopped and saved</string>
+    <string name="summary_stop_interrupted">Last session interrupted, saved</string>
+
+    <!-- ===== Export ===== -->
+    <string name="export_in_progress">Exporting…</string>
+    <string name="export_done">✓ Exported to %1$s</string>
+    <string name="export_failed">Export failed: %1$s</string>
+
+    <!-- ===== Data ===== -->
+    <string name="data_title">Data</string>
+    <string name="data_search_hint">Search session / user / device</string>
+    <string name="data_filter_all">All</string>
+    <string name="data_filter_wear">Wear</string>
+    <string name="data_filter_unwear">Unwear</string>
+    <string name="data_group_suffix">session folders</string>
+    <string name="data_today">Today</string>
+    <string name="data_yesterday">Yesterday</string>
+    <string name="data_empty_title">No collected data yet</string>
+    <string name="data_empty_sub">Finished sessions are archived here as folders</string>
+    <string name="data_search_empty_title">No results</string>
+    <string name="data_search_empty_sub">Try another keyword</string>
+    <string name="data_meta">%1$s MB · %2$s</string>
+    <string name="data_selected_title">%1$d selected</string>
+
+    <!-- ===== Detail ===== -->
+    <string name="detail_title">Session detail</string>
+    <string name="detail_loading">Loading…</string>
+    <string name="detail_sec_files">Folder contents</string>
+    <string name="detail_export_folder">Export selected (whole folder)</string>
+    <string name="detail_metric_user_mode">User / mode</string>
+    <string name="detail_metric_duration">Duration</string>
+    <string name="detail_metric_lines_size">Lines / size</string>
+    <string name="detail_metric_device_paths">Devices / paths</string>
+    <string name="detail_metric_quality">Quality</string>
+    <string name="detail_metric_quality_value">reconnects %1$d · offline %2$d ms · dropped %3$d</string>
+    <string name="detail_metric_stop_reason">Stop reason</string>
+    <string name="detail_device_paths_value">%1$d devices · %2$d paths</string>
+    <string name="detail_lines_size_value">%1$s lines · %2$s MB</string>
+    <string name="detail_file_meta">%1$s · %2$s lines · %3$d B</string>
+
+    <!-- ===== Settings ===== -->
+    <string name="settings_subtitle">BlueTrace · v1.0.0</string>
+    <string name="settings_sec_env">Environment &amp; permissions</string>
+    <string name="settings_sec_data">Data</string>
+    <string name="settings_sec_diag">Diagnostics &amp; maintenance</string>
+    <string name="settings_sec_about">About</string>
+    <string name="settings_env_check">Environment &amp; permission check</string>
+    <string name="settings_env_check_sub">Bluetooth toggle / permissions / keep-alive</string>
+    <string name="settings_gnss">Device GNSS</string>
+    <string name="settings_gnss_sub">Optional source · while-in-use location</string>
+    <string name="settings_export_loc">Export location</string>
+    <string name="settings_export_loc_sub">Download/BlueTrace/</string>
+    <string name="settings_storage">Storage usage</string>
+    <string name="settings_storage_sub">Raw HEX + decoded CSV</string>
+    <string name="settings_log">App log</string>
+    <string name="settings_log_sub">Runtime errors/events · export/clear</string>
+    <string name="settings_device_maint">Device maintenance (DUT)</string>
+    <string name="settings_device_maint_sub">time-sync/user-info/firmware/OTA · later</string>
+    <string name="settings_about">About BlueTrace</string>
+    <string name="settings_about_sub">v1.0.0 · multi-sensor BLE collection</string>
+    <string name="settings_phase2">Server sync / remote push</string>
+    <string name="settings_phase2_sub">Phase 2</string>
+
+    <string name="env_title">Environment &amp; permissions</string>
+    <string name="env_subtitle">One-stop permission and environment status</string>
+    <string name="env_hard">Required · for collection</string>
+    <string name="env_suggested">Suggested · skippable</string>
+    <string name="env_status_granted">Granted</string>
+    <string name="env_status_missing">Missing</string>
+    <string name="env_status_blocked">Blocked</string>
+    <string name="env_status_off">Off</string>
+    <string name="env_req_bluetooth">Bluetooth toggle (system toggle ≠ permission)</string>
+    <string name="env_req_scan">Nearby devices (scan / connect)</string>
+    <string name="env_req_location">Location (one GNSS source · while-in-use)</string>
+    <string name="env_req_notification">Notifications (ongoing during collection)</string>
+    <string name="env_req_battery">Unrestricted background (keep-alive)</string>
+
+    <string name="export_loc_title">Export location</string>
+    <string name="export_loc_subtitle">Session folder export path</string>
+    <string name="export_loc_path">Download/BlueTrace/</string>
+    <string name="export_loc_note">All session folders are exported via MediaStore to the public Downloads dir (no storage permission). App log goes to Download/BlueTrace/logs/.</string>
+
+    <string name="storage_title">Storage usage</string>
+    <string name="storage_subtitle">%1$s MB · %2$d sessions · %3$d files</string>
+    <string name="storage_raw">Raw HEX log</string>
+    <string name="storage_csv">Decoded CSV</string>
+    <string name="storage_combo">Combined CSV</string>
+    <string name="storage_gnss">GNSS CSV</string>
+    <string name="storage_manifest">manifest</string>
+
+    <string name="log_title">App log</string>
+    <string name="log_subtitle">Runtime errors/events · not a debug log</string>
+    <string name="log_clear">Clear log</string>
+    <string name="log_export">Export log</string>
+    <string name="log_export_done">Log exported to %1$s</string>
+    <string name="log_export_failed">Log export failed: %1$s</string>
+
+    <string name="maint_title">Device maintenance (DUT)</string>
+    <string name="maint_subtitle">time-sync / user-info / firmware / OTA</string>
+    <string name="maint_item_time">Device time-sync (push unix time to DUT)</string>
+    <string name="maint_item_user">Write device user info</string>
+    <string name="maint_item_firmware">Read firmware log</string>
+    <string name="maint_item_ota">OTA firmware update</string>
+    <string name="maint_deferred">Later feature · requires DUT connection</string>
+    <string name="maint_note">Entry reserved; content comes later (via protocol Command·Ack; OTA is phase 2).</string>
+
+    <string name="about_title">About BlueTrace</string>
+    <string name="about_version">v1.0.0</string>
+    <string name="about_desc">Multi-sensor BLE data collection (KMP · Android-first). Raw HEX line log is the single source of truth; one folder per session (D-6).</string>
+    <string name="about_credit">Powered by Jetpack Compose · Material 3 · Koin · okio</string>
+    <string name="about_copyright">© 2026 BlueTrace</string>
+
+    <!-- ===== GNSS ===== -->
+    <string name="gnss_title">Device GNSS</string>
+    <string name="gnss_subtitle">Session includes gps.csv</string>
+    <string name="gnss_source">GNSS source</string>
+    <string name="gnss_granted">Location granted (while-in-use)</string>
+    <string name="gnss_missing">Location permission missing</string>
+    <string name="gnss_request">Grant</string>
+    <string name="gnss_note">When on, device GNSS is written as one source: gps.csv + manifest on the same timeline. Grant before starting, otherwise this session has no GPS path.</string>
+
+    <!-- ===== Export errors (MediaStore) ===== -->
+    <string name="export_err_no_folder">Session folder not found</string>
+    <string name="export_err_empty">Session is empty, nothing to export</string>
+    <string name="export_err_create">Cannot create export file (storage unavailable)</string>
+    <string name="export_err_write">Cannot write export file</string>
+    <string name="export_err_log_create">Cannot create log file</string>
+    <string name="export_err_generic">Export failed</string>
+    <string name="export_many_done">Download/BlueTrace/</string>
+
+    <!-- ===== Notification ===== -->
+    <string name="notif_channel_name">Collection running</string>
+    <string name="notif_channel_desc">Ongoing notification while a session runs</string>
+    <string name="notif_title">BlueTrace collecting</string>
+    <string name="notif_text">%1$s elapsed · %2$d lines (tap to return)</string>
+
+    <!-- ===== Pills / badges ===== -->
+    <string name="pill_lines">%1$d lines</string>
+    <string name="pill_one_session">1 session</string>
+    <string name="badge_ok">OK</string>
+    <string name="stream_label_datas">Datas</string>
+    <string name="stream_label_time">Time</string>
+
+    <!-- ===== Plurals ===== -->
+    <plurals name="connected_count">
+        <item quantity="one">%d connected</item>
+        <item quantity="other">%d connected</item>
+    </plurals>
+    <plurals name="export_selected">
+        <item quantity="one">Export selected (%d)</item>
+        <item quantity="other">Export selected (%d)</item>
+    </plurals>
+    <plurals name="session_count">
+        <item quantity="one">Sessions · %1$d</item>
+        <item quantity="other">Sessions · %1$d</item>
+    </plurals>
+</resources>

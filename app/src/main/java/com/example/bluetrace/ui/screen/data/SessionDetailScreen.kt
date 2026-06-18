@@ -18,11 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.SessionSummary
 import com.example.bluetrace.shared.util.formatDurationHms
 import com.example.bluetrace.ui.components.BtTopBar
@@ -50,17 +52,17 @@ fun SessionDetailScreen(
 
     Box(Modifier.fillMaxSize().background(BT.bg)) {
         Column(Modifier.fillMaxSize()) {
-            BtTopBar(title = "会话详情", subtitle = folderName, onBack = onBack)
+            BtTopBar(title = stringResource(R.string.detail_title), subtitle = folderName, onBack = onBack)
             val s = summary
             if (s == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("加载中…", color = BT.onSurfaceV) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.detail_loading), color = BT.onSurfaceV) }
             } else {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
                     item { ManifestSummary(s) }
                     item {
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            SectionHeader("文件夹构成")
-                            Text("全选", fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.padding(top = 14.dp).clickable { vm.selectAllFiles() })
+                            SectionHeader(stringResource(R.string.detail_sec_files))
+                            Text(stringResource(R.string.action_select_all), fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.padding(top = 14.dp).clickable { vm.selectAllFiles() })
                         }
                     }
                     items(s.files, key = { it.relativePath }) { file ->
@@ -69,7 +71,7 @@ fun SessionDetailScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(file.relativePath, fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.onSurface, fontFamily = FontFamily.Monospace)
                                     Text(
-                                        "${file.category.name} · ${file.lineCount} 行 · ${file.sizeBytes} B",
+                                        stringResource(R.string.detail_file_meta, file.category.name, file.lineCount.toString(), file.sizeBytes.toInt()),
                                         fontSize = 10.5.sp, color = BT.onSurfaceV,
                                     )
                                 }
@@ -79,7 +81,7 @@ fun SessionDetailScreen(
                     }
                 }
                 Column(Modifier.padding(16.dp)) {
-                    PrimaryButton("导出所选（整夹）", { exportVm.export(folderName) })
+                    PrimaryButton(stringResource(R.string.detail_export_folder), { exportVm.export(folderName) })
                 }
             }
         }
@@ -91,12 +93,12 @@ fun SessionDetailScreen(
 private fun ManifestSummary(s: SessionSummary) {
     Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            MetricRow("用户 / 模式", "${s.subjectAlias} · ${s.mode.label}")
-            MetricRow("时长", formatDurationHms(s.durationMs))
-            MetricRow("行数 / 大小", "${s.totalLines} 行 · ${"%.2f".format(s.totalBytes / 1024.0 / 1024.0)} MB")
-            MetricRow("设备 / 路数", "${s.deviceCount} 设备 · ${s.sensorCount} 路")
-            MetricRow("质量小结", "重连 ${s.quality.reconnectCount} · 断联 ${s.quality.disconnectTotalMs} ms · 丢包 ${s.quality.droppedPackets}")
-            MetricRow("结束原因", s.stopReason.id)
+            MetricRow(stringResource(R.string.detail_metric_user_mode), "${s.subjectAlias} · ${s.mode.label}")
+            MetricRow(stringResource(R.string.detail_metric_duration), formatDurationHms(s.durationMs))
+            MetricRow(stringResource(R.string.detail_metric_lines_size), stringResource(R.string.detail_lines_size_value, s.totalLines.toString(), "%.2f".format(s.totalBytes / 1024.0 / 1024.0)))
+            MetricRow(stringResource(R.string.detail_metric_device_paths), stringResource(R.string.detail_device_paths_value, s.deviceCount, s.sensorCount))
+            MetricRow(stringResource(R.string.detail_metric_quality), stringResource(R.string.detail_metric_quality_value, s.quality.reconnectCount, s.quality.disconnectTotalMs.toInt(), s.quality.droppedPackets.toInt()))
+            MetricRow(stringResource(R.string.detail_metric_stop_reason), s.stopReason.id)
         }
     }
 }

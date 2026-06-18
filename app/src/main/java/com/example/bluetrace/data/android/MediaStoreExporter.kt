@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.example.bluetrace.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,10 +32,10 @@ class MediaStoreExporter(private val context: Context) {
         withContext(Dispatchers.IO) {
             val srcDir = File(sessionsDir(), folderName)
             if (!srcDir.exists() || !srcDir.isDirectory) {
-                return@withContext ExportResult.Error("会话文件夹不存在")
+                return@withContext ExportResult.Error(context.getString(R.string.export_err_no_folder))
             }
             val files = srcDir.walkTopDown().filter { it.isFile }.toList()
-            if (files.isEmpty()) return@withContext ExportResult.Error("会话为空，无可导出内容")
+            if (files.isEmpty()) return@withContext ExportResult.Error(context.getString(R.string.export_err_empty))
 
             val displayName = "$folderName.zip"
             val resolver = context.contentResolver
@@ -49,7 +50,7 @@ class MediaStoreExporter(private val context: Context) {
             }
 
             val uri = resolver.insert(collection, values)
-                ?: return@withContext ExportResult.Error("无法创建导出文件（存储不可用）")
+                ?: return@withContext ExportResult.Error(context.getString(R.string.export_err_create))
 
             try {
                 resolver.openOutputStream(uri)?.use { os ->
@@ -64,7 +65,7 @@ class MediaStoreExporter(private val context: Context) {
                     }
                 } ?: run {
                     resolver.delete(uri, null, null)
-                    return@withContext ExportResult.Error("无法写入导出文件")
+                    return@withContext ExportResult.Error(context.getString(R.string.export_err_write))
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -75,7 +76,7 @@ class MediaStoreExporter(private val context: Context) {
                 ExportResult.Success("Download/BlueTrace/$displayName")
             } catch (e: Exception) {
                 runCatching { resolver.delete(uri, null, null) }
-                ExportResult.Error(e.message ?: "导出失败")
+                ExportResult.Error(e.message ?: context.getString(R.string.export_err_generic))
             }
         }
 
@@ -89,7 +90,7 @@ class MediaStoreExporter(private val context: Context) {
             put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/BlueTrace/logs")
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
-        val uri = resolver.insert(collection, values) ?: return@withContext ExportResult.Error("无法创建日志文件")
+        val uri = resolver.insert(collection, values) ?: return@withContext ExportResult.Error(context.getString(R.string.export_err_log_create))
         try {
             resolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
             values.clear()
@@ -98,7 +99,7 @@ class MediaStoreExporter(private val context: Context) {
             ExportResult.Success("Download/BlueTrace/logs/$fileName")
         } catch (e: Exception) {
             runCatching { resolver.delete(uri, null, null) }
-            ExportResult.Error(e.message ?: "日志导出失败")
+            ExportResult.Error(e.message ?: context.getString(R.string.export_err_generic))
         }
     }
 }

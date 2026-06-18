@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -83,8 +84,8 @@ private fun MainScaffold() {
                 item(
                     selected = tab == topLevel,
                     onClick = { navigateTab(nav, tab) },
-                    icon = { Icon(tabIcon(tab), contentDescription = tab.label) },
-                    label = { Text(tab.label) },
+                    icon = { Icon(tabIcon(tab), contentDescription = stringResource(tabLabelRes(tab))) },
+                    label = { Text(stringResource(tabLabelRes(tab))) },
                 )
             }
         },
@@ -128,7 +129,7 @@ private fun BlueTraceNavHost(nav: NavHostController) {
         composable<Route.CollectionRun> {
             CollectionRunScreen(
                 onFinished = { nav.navigate(Route.SessionSummary) { popUpTo(Route.CollectionRun) { inclusive = true } } },
-                onHardLockHint = { Toast.makeText(context, "长按结束退出", Toast.LENGTH_SHORT).show() },
+                onHardLockHint = { Toast.makeText(context, context.getString(com.example.bluetrace.R.string.run_hardlock_hint), Toast.LENGTH_SHORT).show() },
             )
         }
         composable<Route.SessionSummary> {
@@ -194,4 +195,10 @@ private fun tabIcon(tab: TopLevel): ImageVector = when (tab) {
     TopLevel.COLLECT -> Icons.Filled.Bluetooth
     TopLevel.DATA -> Icons.Filled.Folder
     TopLevel.SETTINGS -> Icons.Filled.Settings
+}
+
+private fun tabLabelRes(tab: TopLevel): Int = when (tab) {
+    TopLevel.COLLECT -> com.example.bluetrace.R.string.tab_collect
+    TopLevel.DATA -> com.example.bluetrace.R.string.tab_data
+    TopLevel.SETTINGS -> com.example.bluetrace.R.string.tab_settings
 }

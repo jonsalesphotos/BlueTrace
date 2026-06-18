@@ -17,9 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.CollectType
 import com.example.bluetrace.ui.components.CircleCheck
 import com.example.bluetrace.ui.components.OutlineBtn
@@ -40,8 +42,8 @@ fun CollectTypeSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("采集类型选择", fontSize = 17.sp, fontWeight = FontWeight.W700, color = BT.onSurface, modifier = Modifier.padding(bottom = 4.dp))
-            Text("开关 = 该路是否上传(需通信)/落盘 · 透明传输，不控采样率", fontSize = 11.sp, color = BT.onSurfaceV, modifier = Modifier.padding(bottom = 10.dp))
+            Text(stringResource(R.string.run_collect_type_title), fontSize = 17.sp, fontWeight = FontWeight.W700, color = BT.onSurface, modifier = Modifier.padding(bottom = 4.dp))
+            Text(stringResource(R.string.run_collect_type_sub), fontSize = 11.sp, color = BT.onSurfaceV, modifier = Modifier.padding(bottom = 10.dp))
 
             CollectType.entries.forEach { type ->
                 val checked = type in working
@@ -58,8 +60,8 @@ fun CollectTypeSheet(
             }
 
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlineBtn("取消", onDismiss, Modifier.weight(1f))
-                PrimaryButton("确定", { onConfirm(working) }, Modifier.weight(1f))
+                OutlineBtn(stringResource(R.string.action_cancel), onDismiss, Modifier.weight(1f))
+                PrimaryButton(stringResource(R.string.action_confirm), { onConfirm(working) }, Modifier.weight(1f))
             }
         }
     }

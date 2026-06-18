@@ -31,11 +31,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.DeviceKind
 import com.example.bluetrace.shared.domain.LinkState
 import com.example.bluetrace.shared.domain.PROFILE_HRS
@@ -63,22 +66,22 @@ fun DeviceConnectScreen(
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
-            title = "设备连接",
-            subtitle = "单击连接 · 再点断开",
+            title = stringResource(R.string.device_title),
+            subtitle = stringResource(R.string.device_subtitle),
             onBack = onBack,
-            actions = { CountBadge("已连 ${ui.connectedCount}") },
+            actions = { CountBadge(pluralStringResource(R.plurals.connected_count, ui.connectedCount, ui.connectedCount)) },
         )
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = ui.query,
                 onValueChange = vm::setQuery,
-                placeholder = { Text("按名称 / MAC 过滤", fontSize = 13.sp) },
+                placeholder = { Text(stringResource(R.string.device_filter_hint), fontSize = 13.sp) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(BT.radius),
             )
-            Text("RSSI 过滤 · 仅显示强于 ${ui.rssiThreshold} dBm", fontSize = 11.sp, color = BT.onSurfaceV)
+            Text(stringResource(R.string.device_rssi_filter, ui.rssiThreshold), fontSize = 11.sp, color = BT.onSurfaceV)
             Slider(
                 value = ui.rssiThreshold.toFloat(),
                 onValueChange = { vm.setRssiThreshold(it.toInt()) },
@@ -86,10 +89,7 @@ fun DeviceConnectScreen(
             )
             if (ui.atDutLimit) {
                 Surface(color = BT.warningC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "DUT 已连 3 台（上限）· 链路可能不稳定。DUT 最多 3 + 参考心率带 1。",
-                        fontSize = 11.5.sp, color = BT.onWarningC, modifier = Modifier.padding(10.dp),
-                    )
+                    Text(stringResource(R.string.device_limit_banner), fontSize = 11.5.sp, color = BT.onWarningC, modifier = Modifier.padding(10.dp))
                 }
             }
         }
@@ -97,9 +97,9 @@ fun DeviceConnectScreen(
         if (ui.showEmpty) {
             EmptyState(
                 icon = Icons.Filled.SearchOff,
-                title = "未发现设备",
-                subtitle = "确认 DUT 已上电并在范围内，再重新扫描。",
-                actionText = "重新扫描",
+                title = stringResource(R.string.device_empty_title),
+                subtitle = stringResource(R.string.device_empty_sub),
+                actionText = stringResource(R.string.device_rescan),
                 onAction = { vm.startScan() },
                 modifier = Modifier.padding(top = 40.dp),
             )
@@ -118,7 +118,7 @@ fun DeviceConnectScreen(
 
         Column(Modifier.padding(16.dp)) {
             OutlineBtn(
-                text = if (ui.scanning) "停止扫描" else "重新扫描",
+                text = if (ui.scanning) stringResource(R.string.device_stop_scan) else stringResource(R.string.device_rescan),
                 onClick = { if (ui.scanning) vm.stopScan() else vm.startScan() },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -154,7 +154,7 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
-                    if (isRef) PillTag("参考", BT.onTertiaryC, BT.tertiaryC)
+                    if (isRef) PillTag(stringResource(R.string.device_tag_reference), BT.onTertiaryC, BT.tertiaryC)
                 }
                 Text(
                     buildString {
@@ -174,13 +174,13 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
 @Composable
 private fun LinkBadge(link: LinkState, disabled: Boolean) {
     if (disabled) {
-        PillTag("已达上限", BT.onSurfaceV, BT.surface2)
+        PillTag(stringResource(R.string.link_at_limit), BT.onSurfaceV, BT.surface2)
         return
     }
     when (link) {
-        LinkState.CONNECTED -> StatusPill("已连接", BT.onSuccessC, BT.successC)
-        LinkState.CONNECTING -> StatusPill("连接中", BT.onPrimaryC, BT.primaryC)
-        LinkState.RECONNECTING -> StatusPill("重连中", BT.onWarningC, BT.warningC)
-        LinkState.DISCONNECTED -> StatusPill("未连接", BT.onSurfaceV, BT.surface2, showDot = false)
+        LinkState.CONNECTED -> StatusPill(stringResource(R.string.link_connected), BT.onSuccessC, BT.successC)
+        LinkState.CONNECTING -> StatusPill(stringResource(R.string.link_connecting), BT.onPrimaryC, BT.primaryC)
+        LinkState.RECONNECTING -> StatusPill(stringResource(R.string.link_reconnecting), BT.onWarningC, BT.warningC)
+        LinkState.DISCONNECTED -> StatusPill(stringResource(R.string.link_disconnected), BT.onSurfaceV, BT.surface2, showDot = false)
     }
 }

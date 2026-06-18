@@ -35,9 +35,9 @@ sealed interface Route {
     @Serializable data object BluetoothOff : Route
 }
 
-/** 顶级目的地（仅这三个显示底部 Bar，§5.1 / ③）。 */
-enum class TopLevel(val label: String) {
-    COLLECT("采集"),
-    DATA("数据"),
-    SETTINGS("设置"),
+/** 顶级目的地（仅这三个显示底部 Bar，§5.1 / ③）。显示名走 strings 资源（见 BlueTraceApp.tabLabelRes）。 */
+enum class TopLevel {
+    COLLECT,
+    DATA,
+    SETTINGS,
 }

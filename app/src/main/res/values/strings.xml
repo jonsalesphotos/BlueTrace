@@ -1,3 +1,309 @@
 <resources>
     <string name="app_name">BlueTrace</string>
+
+    <!-- ===== 通用 ===== -->
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_save">保存</string>
+    <string name="action_delete">删除</string>
+    <string name="action_export">导出</string>
+    <string name="action_select_all">全选</string>
+    <string name="action_select">选择</string>
+    <string name="action_retry">重试</string>
+    <string name="action_skip_now">暂时跳过</string>
+    <string name="cd_checked">已选</string>
+    <string name="cd_clear">清空</string>
+
+    <!-- ===== 底部 Tab ===== -->
+    <string name="tab_collect">采集</string>
+    <string name="tab_data">数据</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- ===== 启动屏 / 进程恢复 ===== -->
+    <string name="splash_tagline">多传感器 BLE 数据采集</string>
+    <string name="recovery_toast">上次采集异常中断，已保存</string>
+
+    <!-- ===== 启动B 权限门控（首启请求） ===== -->
+    <string name="gate_title">需要一些权限</string>
+    <string name="gate_subtitle">首次启动 · 一次性授权更顺</string>
+    <string name="gate_sec_hard">硬性 · 采集必需</string>
+    <string name="gate_sec_suggested">建议 · 可跳过</string>
+    <string name="gate_grant_all">全部授权</string>
+    <string name="perm_act_grant">授权</string>
+    <string name="perm_act_enable">去开启</string>
+    <string name="perm_act_settings">去设置</string>
+    <string name="perm_bluetooth_title">蓝牙开关</string>
+    <string name="perm_bluetooth_sub">系统蓝牙未开启（非权限）</string>
+    <string name="perm_scan_title">附近设备（扫描 / 连接）</string>
+    <string name="perm_scan_sub">BLUETOOTH_SCAN · CONNECT</string>
+    <string name="perm_location_title">定位（GNSS 一路）</string>
+    <string name="perm_location_sub">while-in-use · 缺则本次无 GPS</string>
+    <string name="perm_notification_title">通知</string>
+    <string name="perm_notification_sub">采集前台服务常驻通知</string>
+    <string name="perm_battery_title">后台不省电（保活）</string>
+    <string name="perm_battery_sub">系统设置 · 防长时间采集被杀</string>
+
+    <!-- ===== 启动E 蓝牙已关闭 ===== -->
+    <string name="bt_off_subtitle">蓝牙未开启</string>
+    <string name="bt_off_banner">蓝牙已关闭。无法扫描 / 连接设备。</string>
+    <string name="bt_off_empty_title">请先打开蓝牙</string>
+    <string name="bt_off_empty_sub">蓝牙是系统开关（不是权限）。开启后自动回到设备列表。</string>
+    <string name="bt_off_enable">开启蓝牙</string>
+
+    <!-- ===== 启动F 后台省电指南 ===== -->
+    <string name="power_title">后台运行设置</string>
+    <string name="power_subtitle">保活 · 防采集被系统杀</string>
+    <string name="power_banner">采集需长时间后台运行。系统省电可能杀进程致中断；请把本应用切到「不省电 / 不受限」。</string>
+    <string name="power_ignore_battery">忽略电池优化</string>
+    <string name="power_app_details">应用详情设置</string>
+    <string name="power_rom_hint">各家 ROM 路径不同（小米 / 华为 / OPPO / vivo）：自启动 / 关联启动 / 最近任务锁定，需各自在系统设置开启。</string>
+
+    <!-- ===== 采集A 主界面 ===== -->
+    <string name="collect_subtitle">多传感器 BLE 数据采集 · 准备会话</string>
+    <string name="status_ready">就绪</string>
+    <string name="status_not_ready">未就绪</string>
+    <string name="collect_entry_device_title">设备 · DUT 多传感器</string>
+    <string name="collect_entry_device_sub">扁平列表 · DUT≤3 + 参考心率带≤1</string>
+    <string name="collect_entry_device_goto">去连接</string>
+    <string name="collect_entry_user_title">用户 · 写入文件名与 manifest</string>
+    <string name="collect_entry_user_empty">未选择用户</string>
+    <string name="collect_entry_mode_title">采集模式 · 自动命名会话文件夹</string>
+    <string name="collect_entry_mode_sub">Wear / Unwear（写文件名前缀与 manifest）</string>
+    <string name="collect_gnss_note">· 本次会话含本机 GNSS（gps.csv）</string>
+    <string name="collect_start">开始采集</string>
+    <string name="collect_hint_need_user">请先选择用户</string>
+    <string name="collect_hint_need_device">请先连接至少一台设备</string>
+
+    <!-- ===== 设备连接 ===== -->
+    <string name="device_title">设备连接</string>
+    <string name="device_subtitle">单击连接 · 再点断开</string>
+    <string name="device_filter_hint">按名称 / MAC 过滤</string>
+    <string name="device_rssi_filter">RSSI 过滤 · 仅显示强于 %1$d dBm</string>
+    <string name="device_limit_banner">DUT 已连 3 台（上限）· 链路可能不稳定。DUT 最多 3 + 参考心率带 1。</string>
+    <string name="device_empty_title">未发现设备</string>
+    <string name="device_empty_sub">确认 DUT 已上电并在范围内，再重新扫描。</string>
+    <string name="device_rescan">重新扫描</string>
+    <string name="device_stop_scan">停止扫描</string>
+    <string name="device_tag_reference">参考</string>
+    <string name="link_connected">已连接</string>
+    <string name="link_connecting">连接中</string>
+    <string name="link_reconnecting">重连中</string>
+    <string name="link_disconnected">未连接</string>
+    <string name="link_at_limit">已达上限</string>
+
+    <!-- ===== 用户 ===== -->
+    <string name="subject_select_title">选择用户</string>
+    <string name="subject_select_subtitle">别名将写入文件名与 manifest</string>
+    <string name="subject_sec_profiles">用户档案</string>
+    <string name="subject_tag_current">当前</string>
+    <string name="subject_new">+ 新建用户</string>
+    <string name="subject_empty_title">还没有用户</string>
+    <string name="subject_empty_sub">用户别名会写入文件名与 manifest，用于离线分类</string>
+    <string name="subject_edit_new_title">新建用户</string>
+    <string name="subject_edit_title">编辑用户</string>
+    <string name="subject_edit_subtitle">别名 · 体征档案</string>
+    <string name="subject_field_alias">别名</string>
+    <string name="subject_field_alias_hint">如 shb（建议别名，非真实姓名）</string>
+    <string name="subject_field_sex">性别</string>
+    <string name="subject_field_birth">出生年月</string>
+    <string name="subject_field_birth_hint">如 1992-5</string>
+    <string name="subject_field_height">身高 cm</string>
+    <string name="subject_field_weight">体重 kg</string>
+    <string name="subject_privacy_note">档案仅本地存储，一期不上传、不出设备，仅用于文件名与 manifest 离线分类。</string>
+    <string name="subject_save">保存用户</string>
+    <string name="sex_male">男</string>
+    <string name="sex_female">女</string>
+    <string name="sex_other">其他</string>
+
+    <!-- ===== 采集运行 ===== -->
+    <string name="run_title">数据采集</string>
+    <string name="status_collecting">采集中</string>
+    <string name="run_device_online">在线</string>
+    <string name="run_device_online_with">在线 · %1$s</string>
+    <string name="run_device_reconnecting">重连中…（断联期为数据空档，计时照走）</string>
+    <string name="run_label_hint">标签</string>
+    <string name="run_label_pin">Pin</string>
+    <string name="run_label_start">Start Label</string>
+    <string name="run_label_stop">Stop Label</string>
+    <string name="run_pause">暂停</string>
+    <string name="run_resume">继续</string>
+    <string name="run_end_hint">结束（长按 2 秒）</string>
+    <string name="run_end_releasing">松开取消…</string>
+    <string name="run_end_overlay_hint">松手取消 · 按满 2 秒停止</string>
+    <string name="run_hardlock_hint">长按结束退出</string>
+    <string name="run_demo_disconnect">注入断联</string>
+    <string name="run_demo_storage_full">模拟存储满</string>
+    <string name="run_collect_type_title">采集类型选择</string>
+    <string name="run_collect_type_sub">开关 = 该路是否上传(需通信)/落盘 · 透明传输，不控采样率</string>
+
+    <!-- ===== 结束摘要 ===== -->
+    <string name="summary_title">采集已结束</string>
+    <string name="summary_no_data">无会话数据</string>
+    <string name="summary_meta">%1$s · %2$s · %3$d 设备 · %4$d 路</string>
+    <string name="summary_sec_files">会话文件夹构成</string>
+    <string name="summary_file_raw">原始 HEX 行日志</string>
+    <string name="summary_file_raw_sub">append-only · 可重放 · 1 份/来源 · source of truth</string>
+    <string name="summary_file_csv">解码 CSV（每模块）</string>
+    <string name="summary_file_csv_sub">PPG_G / PPG_IR / ACC / HR …</string>
+    <string name="summary_file_combo">组合包兼容 CSV</string>
+    <string name="summary_file_combo_sub">汇顶 PPG+ACC 合并</string>
+    <string name="summary_file_gps">gps.csv</string>
+    <string name="summary_file_gps_sub">本机 GNSS 一路</string>
+    <string name="summary_file_manifest">session_manifest.json</string>
+    <string name="summary_file_manifest_sub">unix 起点 · 时区 · 用户 · 设备 · 质量小结</string>
+    <string name="summary_view_detail">查看详情</string>
+    <string name="summary_stop_storage_full">存储满，已停止并保存</string>
+    <string name="summary_stop_interrupted">上次采集异常中断，已保存</string>
+
+    <!-- ===== 导出 ===== -->
+    <string name="export_in_progress">导出中…</string>
+    <string name="export_done">✓ 已导出到 %1$s</string>
+    <string name="export_failed">导出失败：%1$s</string>
+
+    <!-- ===== 数据 Tab ===== -->
+    <string name="data_title">数据</string>
+    <string name="data_search_hint">搜索会话 / 用户 / 设备</string>
+    <string name="data_filter_all">全部</string>
+    <string name="data_filter_wear">Wear</string>
+    <string name="data_filter_unwear">Unwear</string>
+    <string name="data_group_suffix">会话文件夹</string>
+    <string name="data_today">今天</string>
+    <string name="data_yesterday">昨天</string>
+    <string name="data_empty_title">还没有采集数据</string>
+    <string name="data_empty_sub">采集结束后会在这里按会话文件夹归档</string>
+    <string name="data_search_empty_title">未搜到结果</string>
+    <string name="data_search_empty_sub">换个关键词试试</string>
+    <string name="data_meta">%1$s MB · %2$s</string>
+    <string name="data_selected_title">已选 %1$d</string>
+
+    <!-- ===== 会话详情 ===== -->
+    <string name="detail_title">会话详情</string>
+    <string name="detail_loading">加载中…</string>
+    <string name="detail_sec_files">文件夹构成</string>
+    <string name="detail_export_folder">导出所选（整夹）</string>
+    <string name="detail_metric_user_mode">用户 / 模式</string>
+    <string name="detail_metric_duration">时长</string>
+    <string name="detail_metric_lines_size">行数 / 大小</string>
+    <string name="detail_metric_device_paths">设备 / 路数</string>
+    <string name="detail_metric_quality">质量小结</string>
+    <string name="detail_metric_quality_value">重连 %1$d · 断联 %2$d ms · 丢包 %3$d</string>
+    <string name="detail_metric_stop_reason">结束原因</string>
+    <string name="detail_device_paths_value">%1$d 设备 · %2$d 路</string>
+    <string name="detail_lines_size_value">%1$s 行 · %2$s MB</string>
+    <string name="detail_file_meta">%1$s · %2$s 行 · %3$d B</string>
+
+    <!-- ===== 设置 ===== -->
+    <string name="settings_subtitle">BlueTrace · v1.0.0</string>
+    <string name="settings_sec_env">环境与权限</string>
+    <string name="settings_sec_data">数据</string>
+    <string name="settings_sec_diag">诊断与维护</string>
+    <string name="settings_sec_about">关于</string>
+    <string name="settings_env_check">环境与权限检查</string>
+    <string name="settings_env_check_sub">蓝牙开关 / 权限 / 后台保活</string>
+    <string name="settings_gnss">本机 GNSS</string>
+    <string name="settings_gnss_sub">可选一路 · while-in-use 定位</string>
+    <string name="settings_export_loc">导出位置</string>
+    <string name="settings_export_loc_sub">Download/BlueTrace/</string>
+    <string name="settings_storage">存储占用</string>
+    <string name="settings_storage_sub">原始 HEX + 解码 CSV</string>
+    <string name="settings_log">应用日志</string>
+    <string name="settings_log_sub">运行错误/事件 · 可导出/清空</string>
+    <string name="settings_device_maint">设备维护（DUT）</string>
+    <string name="settings_device_maint_sub">对时/用户信息/固件日志/OTA · 后期</string>
+    <string name="settings_about">关于 BlueTrace</string>
+    <string name="settings_about_sub">v1.0.0 · 多传感器 BLE 数据采集</string>
+    <string name="settings_phase2">服务器同步 / 远程下发</string>
+    <string name="settings_phase2_sub">二期</string>
+
+    <string name="env_title">环境与权限检查</string>
+    <string name="env_subtitle">一站式权限与环境状态</string>
+    <string name="env_hard">硬性 · 采集必需</string>
+    <string name="env_suggested">建议 · 可跳过</string>
+    <string name="env_status_granted">已满足</string>
+    <string name="env_status_missing">缺失</string>
+    <string name="env_status_blocked">被拒</string>
+    <string name="env_status_off">已关闭</string>
+    <string name="env_req_bluetooth">蓝牙开关（系统开关 ≠ 权限）</string>
+    <string name="env_req_scan">附近设备（扫描 / 连接）</string>
+    <string name="env_req_location">定位（GNSS 一路 · while-in-use）</string>
+    <string name="env_req_notification">通知（前台采集常驻）</string>
+    <string name="env_req_battery">后台不省电（保活）</string>
+
+    <string name="export_loc_title">导出位置</string>
+    <string name="export_loc_subtitle">会话文件夹导出路径</string>
+    <string name="export_loc_path">Download/BlueTrace/</string>
+    <string name="export_loc_note">所有会话文件夹经 MediaStore 导出到公共下载目录（无需存储权限）。应用日志导出到 Download/BlueTrace/logs/。</string>
+
+    <string name="storage_title">存储占用</string>
+    <string name="storage_subtitle">%1$s MB · %2$d 会话 · %3$d 文件</string>
+    <string name="storage_raw">原始 HEX 日志</string>
+    <string name="storage_csv">解码 CSV</string>
+    <string name="storage_combo">组合包 CSV</string>
+    <string name="storage_gnss">GNSS CSV</string>
+    <string name="storage_manifest">manifest</string>
+
+    <string name="log_title">应用日志</string>
+    <string name="log_subtitle">运行错误/事件 · 非开发调试日志</string>
+    <string name="log_clear">清除日志</string>
+    <string name="log_export">导出日志</string>
+    <string name="log_export_done">日志已导出到 %1$s</string>
+    <string name="log_export_failed">日志导出失败：%1$s</string>
+
+    <string name="maint_title">设备维护（DUT）</string>
+    <string name="maint_subtitle">对时 / 用户信息 / 固件日志 / OTA</string>
+    <string name="maint_item_time">设备对时（同步 unix 时间到 DUT）</string>
+    <string name="maint_item_user">写设备用户信息</string>
+    <string name="maint_item_firmware">读取固件日志</string>
+    <string name="maint_item_ota">OTA 固件升级</string>
+    <string name="maint_deferred">后期功能 · 需连接 DUT</string>
+    <string name="maint_note">入口预留，具体内容后期（走协议 Command·Ack；OTA 属二期）。</string>
+
+    <string name="about_title">关于 BlueTrace</string>
+    <string name="about_version">v1.0.0</string>
+    <string name="about_desc">多传感器 BLE 数据采集系统（KMP · Android 优先）。原始 HEX 行日志为唯一权威源，每会话一文件夹（D-6）。</string>
+    <string name="about_credit">Powered by Jetpack Compose · Material 3 · Koin · okio</string>
+    <string name="about_copyright">© 2026 BlueTrace</string>
+
+    <!-- ===== GNSS ===== -->
+    <string name="gnss_title">本机 GNSS</string>
+    <string name="gnss_subtitle">采集会话含 gps.csv</string>
+    <string name="gnss_source">GNSS 数据源</string>
+    <string name="gnss_granted">已授定位（while-in-use）</string>
+    <string name="gnss_missing">缺定位权限</string>
+    <string name="gnss_request">去授权</string>
+    <string name="gnss_note">开启后本机 GNSS 作一路写入会话：落地 gps.csv + manifest，共用同一时间轴。要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路。</string>
+
+    <!-- ===== 导出错误（MediaStore） ===== -->
+    <string name="export_err_no_folder">会话文件夹不存在</string>
+    <string name="export_err_empty">会话为空，无可导出内容</string>
+    <string name="export_err_create">无法创建导出文件（存储不可用）</string>
+    <string name="export_err_write">无法写入导出文件</string>
+    <string name="export_err_log_create">无法创建日志文件</string>
+    <string name="export_err_generic">导出失败</string>
+    <string name="export_many_done">Download/BlueTrace/</string>
+
+    <!-- ===== 通知 ===== -->
+    <string name="notif_channel_name">采集运行</string>
+    <string name="notif_channel_desc">采集会话进行中的常驻通知</string>
+    <string name="notif_title">BlueTrace 采集中</string>
+    <string name="notif_text">已采 %1$s · %2$d 行（点按返回）</string>
+
+    <!-- ===== 小标签/徽章 ===== -->
+    <string name="pill_lines">%1$d 行</string>
+    <string name="pill_one_session">1 会话</string>
+    <string name="badge_ok">OK</string>
+    <string name="stream_label_datas">Datas</string>
+    <string name="stream_label_time">Time</string>
+
+    <!-- ===== plurals（计数模板，§7.6）===== -->
+    <plurals name="connected_count">
+        <item quantity="other">已连 %d</item>
+    </plurals>
+    <plurals name="export_selected">
+        <item quantity="other">导出所选 (%d)</item>
+    </plurals>
+    <plurals name="session_count">
+        <item quantity="other">采集会话 · %1$d 个</item>
+    </plurals>
 </resources>

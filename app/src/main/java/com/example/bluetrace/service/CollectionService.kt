@@ -82,8 +82,8 @@ class CollectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("BlueTrace 采集中")
-            .setContentText("已采 ${formatDurationHms(elapsedMs)} · $datas 行（点按返回）")
+            .setContentTitle(getString(R.string.notif_title))
+            .setContentText(getString(R.string.notif_text, formatDurationHms(elapsedMs), datas))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
             .setContentIntent(openIntent)
@@ -102,8 +102,8 @@ class CollectionService : Service() {
 
     private fun createChannel() {
         val nm = getSystemService(NotificationManager::class.java) ?: return
-        val channel = NotificationChannel(CHANNEL_ID, "采集运行", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "采集会话进行中的常驻通知"
+        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.notif_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+            description = getString(R.string.notif_channel_desc)
         }
         nm.createNotificationChannel(channel)
     }

@@ -46,7 +46,7 @@ class ExportViewModel(private val exporter: MediaStoreExporter) : ViewModel() {
                     }
                 }
             }
-            _state.value = ExportUiState.Done(if (folders.size == 1) lastPath else "Download/BlueTrace/（${folders.size} 个会话）")
+            _state.value = ExportUiState.Done(if (folders.size == 1) lastPath else "Download/BlueTrace/")
         }
     }
 

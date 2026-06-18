@@ -48,11 +48,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.bluetrace.R
 import com.example.bluetrace.shared.domain.CollectType
 import com.example.bluetrace.shared.domain.DeviceKind
 import com.example.bluetrace.shared.domain.LinkState
@@ -97,13 +99,13 @@ fun CollectionRunScreen(
             // 顶栏
             Row(Modifier.fillMaxWidth().background(BT.surface).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("数据采集", fontSize = 19.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                    Text(stringResource(R.string.run_title), fontSize = 19.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
                     val subjectAlias = config?.subject?.alias ?: "—"
                     val modeLabel = config?.mode?.label ?: "—"
                     Text("$subjectAlias · $modeLabel · ${formatDurationHms(state.elapsedMs)}", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
                 }
-                StatusPill("采集中", BT.onSuccessC, BT.successC)
-                IconButton(onClick = { showTypeSheet = true }) { Icon(Icons.Filled.Tune, contentDescription = "采集类型", tint = BT.onSurfaceV) }
+                StatusPill(stringResource(R.string.status_collecting), BT.onSuccessC, BT.successC)
+                IconButton(onClick = { showTypeSheet = true }) { Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.run_collect_type_title), tint = BT.onSurfaceV) }
             }
 
             Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -138,7 +140,7 @@ fun CollectionRunScreen(
             // 底栏：暂停 + 长按结束
             Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlineBtn(
-                    text = if (state.displayPaused) "继续" else "暂停",
+                    text = if (state.displayPaused) stringResource(R.string.run_resume) else stringResource(R.string.run_pause),
                     onClick = { vm.setPaused(!state.displayPaused) },
                 )
                 LongPressEndButton(onEnd = { scope.launch { vm.stop() } }, modifier = Modifier.weight(1f))
@@ -147,8 +149,8 @@ fun CollectionRunScreen(
 
         // 演示钩子（异常清单 §5.4）：注入断联 / 模拟存储满
         Row(Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            DemoChip("注入断联") { vm.injectDisconnect() }
-            DemoChip("模拟存储满") { vm.simulateStorageFull() }
+            DemoChip(stringResource(R.string.run_demo_disconnect)) { vm.injectDisconnect() }
+            DemoChip(stringResource(R.string.run_demo_storage_full)) { vm.simulateStorageFull() }
         }
     }
 
@@ -181,9 +183,13 @@ private fun DeviceCard(device: RunDeviceState) {
             Column(Modifier.weight(1f)) {
                 Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
                 if (reconnecting) {
-                    Text("重连中…（断联期为数据空档，计时照走）", fontSize = 11.sp, color = BT.warning)
+                    Text(stringResource(R.string.run_device_reconnecting), fontSize = 11.sp, color = BT.warning)
                 } else {
-                    val sensors = if (device.activeSensors.isEmpty()) "在线" else "在线 · " + device.activeSensors.joinToString(" · ")
+                    val sensors = if (device.activeSensors.isEmpty()) {
+                        stringResource(R.string.run_device_online)
+                    } else {
+                        stringResource(R.string.run_device_online_with, device.activeSensors.joinToString(" · "))
+                    }
                     Text(sensors, fontSize = 11.sp, color = BT.success)
                 }
             }
@@ -205,8 +211,8 @@ private fun DataStreamWindow(datas: Long, elapsedMs: Long, lines: List<RunLogLin
     Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Datas: $datas", fontSize = 12.sp, color = BT.primaryDeep, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.W600)
-                Text("Time: ${formatDurationHms(elapsedMs)}", fontSize = 12.sp, color = BT.onSurface, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.W600)
+                Text("${stringResource(R.string.stream_label_datas)}: $datas", fontSize = 12.sp, color = BT.primaryDeep, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.W600)
+                Text("${stringResource(R.string.stream_label_time)}: ${formatDurationHms(elapsedMs)}", fontSize = 12.sp, color = BT.onSurface, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.W600)
             }
             Spacer(Modifier.height(6.dp))
             // 锚底：reverseLayout=true + 倒序，最新在底，旧行自顶裁切，无滚动条
@@ -239,11 +245,11 @@ private fun LabelRow(
             TextField(
                 value = text,
                 onValueChange = onTextChange,
-                placeholder = { Text("标签", fontSize = 13.sp) },
+                placeholder = { Text(stringResource(R.string.run_label_hint), fontSize = 13.sp) },
                 singleLine = true,
                 trailingIcon = {
                     if (text.isNotEmpty()) {
-                        IconButton(onClick = { onTextChange("") }) { Icon(Icons.Filled.Clear, contentDescription = "清空", modifier = Modifier.size(18.dp)) }
+                        IconButton(onClick = { onTextChange("") }) { Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.cd_clear), modifier = Modifier.size(18.dp)) }
                     }
                 },
                 colors = TextFieldDefaults.colors(focusedContainerColor = BT.surface, unfocusedContainerColor = BT.surface),
@@ -253,7 +259,7 @@ private fun LabelRow(
             Surface(color = BT.primaryC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.clickable { onPin() }) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Icon(Icons.Filled.PushPin, contentDescription = null, tint = BT.primaryDeep, modifier = Modifier.size(15.dp))
-                    Text("Pin", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = BT.primaryDeep)
+                    Text(stringResource(R.string.run_label_pin), fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = BT.primaryDeep)
                 }
             }
         }
@@ -264,7 +270,7 @@ private fun LabelRow(
             modifier = Modifier.fillMaxWidth().clickable { onToggleInterval() },
         ) {
             Text(
-                if (intervalOpen) "Stop Label" else "Start Label",
+                if (intervalOpen) stringResource(R.string.run_label_stop) else stringResource(R.string.run_label_start),
                 fontSize = 13.sp, fontWeight = FontWeight.W700,
                 color = if (intervalOpen) Color.White else BT.primaryDeep,
                 modifier = Modifier.padding(vertical = 10.dp).fillMaxWidth(),
@@ -296,7 +302,7 @@ private fun LongPressEndButton(onEnd: () -> Unit, modifier: Modifier = Modifier)
         },
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(if (pressing) "松开取消…" else "结束（长按 2 秒）", fontSize = 14.sp, fontWeight = FontWeight.W700, color = Color.White)
+            Text(if (pressing) stringResource(R.string.run_end_releasing) else stringResource(R.string.run_end_hint), fontSize = 14.sp, fontWeight = FontWeight.W700, color = Color.White)
         }
     }
 
@@ -306,7 +312,7 @@ private fun LongPressEndButton(onEnd: () -> Unit, modifier: Modifier = Modifier)
                 CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(120.dp), color = BT.primary, strokeWidth = 8.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("${"%.1f".format(progress * 2)}s", fontSize = 26.sp, fontWeight = FontWeight.W800, color = BT.primaryDeep)
-                    Text("松手取消 · 按满 2 秒停止", fontSize = 11.sp, color = BT.onSurfaceV)
+                    Text(stringResource(R.string.run_end_overlay_hint), fontSize = 11.sp, color = BT.onSurfaceV)
                 }
             }
         }
