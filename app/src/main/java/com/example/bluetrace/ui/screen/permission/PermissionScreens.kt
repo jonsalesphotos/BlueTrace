@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -142,7 +143,7 @@ fun PermissionGateScreen(
             }
         }
         // 底部：全部授权（主） + 暂时跳过（文本）—— 与原型一致，无第三个按钮
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             PrimaryButton(stringResource(R.string.gate_grant_all), onClick = {
                 grantAllLauncher.launch(BlueTracePermissions.hardScanConnect + BlueTracePermissions.location + BlueTracePermissions.notifications)
             })
@@ -214,7 +215,7 @@ fun BluetoothOffScreen(onBack: () -> Unit) {
             Text(stringResource(R.string.bt_off_empty_title), fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
             Text(stringResource(R.string.bt_off_empty_sub), fontSize = 12.sp, color = BT.onSurfaceV)
         }
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.navigationBarsPadding().padding(16.dp)) {
             PrimaryButton(stringResource(R.string.bt_off_enable), onClick = { context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) })
         }
     }

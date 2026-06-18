@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -96,8 +98,8 @@ fun CollectionRunScreen(
 
     Box(Modifier.fillMaxSize().background(BT.bg)) {
         Column(Modifier.fillMaxSize()) {
-            // 顶栏
-            Row(Modifier.fillMaxWidth().background(BT.surface).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            // 顶栏（edge-to-edge：让出状态栏安全区）
+            Row(Modifier.fillMaxWidth().background(BT.surface).statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.run_title), fontSize = 19.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
                     val subjectAlias = config?.subject?.alias ?: "—"
@@ -138,7 +140,7 @@ fun CollectionRunScreen(
             }
 
             // 底栏：暂停 + 长按结束
-            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlineBtn(
                     text = if (state.displayPaused) stringResource(R.string.run_resume) else stringResource(R.string.run_pause),
                     onClick = { vm.setPaused(!state.displayPaused) },

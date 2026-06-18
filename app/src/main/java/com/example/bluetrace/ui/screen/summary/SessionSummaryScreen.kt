@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -89,7 +90,7 @@ fun SessionSummaryScreen(
                         }
                     }
                 }
-                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.navigationBarsPadding().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlineBtn(stringResource(R.string.summary_view_detail), { onViewDetail(summary.folderName) }, Modifier.weight(1f))
                     PrimaryButton(stringResource(R.string.action_export), { exportVm.export(summary.folderName) }, Modifier.weight(1f))
                 }
