@@ -1,0 +1,57 @@
+package io.bluetrace.shared.domain
+
+import kotlinx.serialization.Serializable
+
+/** 采集模式（F-MODE-1，会话级，写文件名前缀 + manifest，数据 Tab 可筛选）。 */
+@Serializable
+enum class CollectMode(val fileToken: String, val label: String) {
+    WEAR("Wear", "Wear"),
+    UNWEAR("Unwear", "Unwear"),
+}
+
+/**
+ * 采集类型（运行C 采集类型选择，D-V4-12）：纯开关 = 该路是否落盘/上传（透明传输、不控采样率）。
+ * 注：传感器总控 / 设备端算法（配置A/B）暂不实现，选择能力并入此处。
+ */
+@Serializable
+enum class CollectType(
+    val id: String,
+    val label: String,
+    val defaultOn: Boolean,
+) {
+    PPG_G("ppg_g", "PPG_G", true),
+    PPG_IR("ppg_ir", "PPG_IR", true),
+    ACC("acc", "ACC", true),
+    GYRO("gyro", "GYRO", false),
+    MAG("mag", "地磁", false),
+    TEMP("temp", "温度", false);
+
+    companion object {
+        val defaults: Set<CollectType> get() = entries.filter { it.defaultOn }.toSet()
+    }
+}
+
+/**
+ * 解码后的数据流标识 —— 每路落一个 CSV（§6.1 "每模块解码 CSV"）。
+ * HR 来自参考心率带（不属 CollectType）。
+ */
+enum class DecodedStream(val csvName: String, val channels: List<String>) {
+    PPG_G("ppg_g", listOf("ppg")),
+    PPG_IR("ppg_ir", listOf("ppg")),
+    ACC("acc", listOf("x", "y", "z")),
+    GYRO("gyro", listOf("x", "y", "z")),
+    MAG("mag", listOf("x", "y", "z")),
+    TEMP("temp", listOf("temp")),
+    HR("hr", listOf("bpm"));
+
+    companion object {
+        fun ofCollectType(t: CollectType): DecodedStream = when (t) {
+            CollectType.PPG_G -> PPG_G
+            CollectType.PPG_IR -> PPG_IR
+            CollectType.ACC -> ACC
+            CollectType.GYRO -> GYRO
+            CollectType.MAG -> MAG
+            CollectType.TEMP -> TEMP
+        }
+    }
+}

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.bluetrace"
+    namespace = "io.bluetrace"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.bluetrace"
+        applicationId = "io.bluetrace"
         // D-7 / D-V4-19: minSdk 29 (Android 10); compile/target 36 跟进发布。
         minSdk = 29
         targetSdk = 36

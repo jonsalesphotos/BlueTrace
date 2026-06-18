@@ -12,7 +12,7 @@ syntax = "proto3";
 
 package bluetrace.protocol.v0;
 
-option java_package = "com.example.bluetrace.protocol.v0";
+option java_package = "io.bluetrace.protocol.v0";
 
 // ============ 设备 → app：数据 ============
 

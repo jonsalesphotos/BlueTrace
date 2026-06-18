@@ -9,7 +9,7 @@ kotlin {
 
     // AGP 9 KMP android target: com.android.kotlin.multiplatform.library
     android {
-        namespace = "com.example.bluetrace.shared"
+        namespace = "io.bluetrace.shared"
         compileSdk = 36
         minSdk = 29
     }
