@@ -40,8 +40,33 @@ Icons and screenshots are under [Docs/assets](Docs/assets):
 - [First-screen preview](Docs/assets/%E9%A6%96%E5%B1%8F.png)
 - [Reference images](Docs/assets/pic)
 
-## Repository Status
+## Implementation (v1 · Mock BLE)
 
-This repository currently contains design documents and prototypes only. Android source
-code can be added later using the architecture and implementation documents as the build
-guide.
+The first Android version is implemented as a **KMP project** (BLE is mocked; real protocol
+decoding is left behind an interface). Built strictly from `SPEC.md` + the v4 prototype.
+
+### Modules
+
+- **`:shared`** (`commonMain`, pure Kotlin, no Android deps, JVM-testable)
+  - `protocol/` — frame-header / msgType stubs + `SampleDecoder` interface + `MockSampleDecoder` + `MockPacketCodec`
+  - `ble/` — `BleClient` interface + `MockBleClient` (fake devices + continuous data + disconnect injection)
+  - `session/` — `SessionController` interface + `DefaultSessionController` (single-channel orchestration, 3-state machine) + global diagnostics log
+  - `data/` — okio raw-HEX / CSV writers, D-6 folder layout, `kotlinx.serialization` manifest, `SessionStore`
+  - `domain/` — flat device model (DUT≤3 + reference≤1), `Subject`, `Mode`, `CollectType`, session entities + repository interfaces
+- **`:app`** (Android) — Jetpack Compose UI (per-screen), `NavigationSuiteScaffold` 3-tab + type-safe routes, Koin DI, DataStore, MediaStore export, foreground service, permission/bluetooth gating. BLE is bound to `MockBleClient` (swap for the real Nordic impl later — interface unchanged).
+
+### Tech stack (SPEC §10.2)
+
+Kotlin 2.2 · AGP 9 · Compose + Material3 adaptive · Navigation Compose (type-safe `@Serializable` routes) · Koin · okio · kotlinx.serialization · DataStore · coroutines. `minSdk 29 / target·compile 36`.
+
+### Build / test / run
+
+```bash
+./gradlew :shared:jvmTest        # shared logic unit tests (state machine, D-6 writers, manifest, MockBleClient)
+./gradlew :app:assembleDebug     # build debug APK
+./gradlew installDebug           # install to a connected device/emulator
+```
+
+### Deferred to later phases
+
+Real BLE (Nordic) + Wire protocol decoding · sensor master-control / device-side algorithms (config A/B, placeholder) · device maintenance (time-sync / firmware / OTA, placeholder) · iOS · server / upload (phase 2). Entry points/placeholders exist and do not block the main flow.
