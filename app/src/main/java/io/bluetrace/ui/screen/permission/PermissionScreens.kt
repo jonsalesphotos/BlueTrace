@@ -41,7 +41,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
 import io.bluetrace.data.android.BlueTracePermissions
 import io.bluetrace.shared.domain.AppPreferences
-import io.bluetrace.shared.domain.EnvironmentRepository
 import io.bluetrace.shared.domain.RequirementId
 import io.bluetrace.shared.domain.RequirementSeverity
 import io.bluetrace.shared.domain.RequirementStatus
@@ -53,54 +52,18 @@ import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.EnvironmentViewModel
 import io.bluetrace.viewmodel.SettingsViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-/** 启动A · 启动屏（一闪而过 + 静默检查 + 进程恢复，§5.10）。 */
-@Composable
-fun SplashScreen(onGate: () -> Unit, onMain: () -> Unit) {
-    val prefs = koinInject<AppPreferences>()
-    val env = koinInject<EnvironmentRepository>()
-    val store = koinInject<io.bluetrace.shared.data.SessionStore>()
-    val clock = koinInject<io.bluetrace.shared.util.EpochClock>()
-    val controller = koinInject<io.bluetrace.shared.session.SessionController>()
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        env.refresh()
-        // 进程被全杀（无活会话）→ 扫到"开口"会话自动收尾（stopReason=interrupted + toast，§5.10）
-        if (controller.state.value.status != io.bluetrace.shared.session.RunStatus.COLLECTING) {
-            val recovered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val opens = store.openSessions()
-                opens.forEach { store.autoFinalizeOpenSession(it, clock.nowMs()) }
-                opens.size
-            }
-            if (recovered > 0) {
-                android.widget.Toast.makeText(context, context.getString(R.string.recovery_toast), android.widget.Toast.LENGTH_LONG).show()
-            }
-        }
-        delay(700)
-        if (prefs.firstLaunchCompleted.first()) onMain() else onGate()
-    }
-    Box(Modifier.fillMaxSize().background(BT.bg), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(86.dp).clip(RoundedCornerShape(24.dp)).background(BT.primary), contentAlignment = Alignment.Center) {
-                Text("BT", fontSize = 28.sp, fontWeight = FontWeight.W800, color = Color.White)
-            }
-            Text(stringResource(R.string.app_name), fontSize = 25.sp, fontWeight = FontWeight.W800, color = BT.onSurface)
-            Text(stringResource(R.string.splash_tagline), fontSize = 12.sp, color = BT.onSurfaceV)
-        }
-    }
-}
-
 /**
  * 启动B · 权限门控（首启请求 · 无返回 · 仅「全部授权」+「暂时跳过」，对齐 v4 原型）。
+ * 启动屏由 Android12 SplashScreen 承载（见 MainActivity / AppStartup），不再有 Compose Splash。
  */
 @Composable
 fun PermissionGateScreen(
     onContinue: () -> Unit,
+    onPowerSaveGuide: () -> Unit,
     vm: EnvironmentViewModel = koinViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -126,7 +89,8 @@ fun PermissionGateScreen(
             RequirementId.BLE_SCAN_CONNECT -> itemLauncher.launch(BlueTracePermissions.hardScanConnect)
             RequirementId.LOCATION -> itemLauncher.launch(BlueTracePermissions.location)
             RequirementId.NOTIFICATIONS -> if (BlueTracePermissions.notifications.isNotEmpty()) itemLauncher.launch(BlueTracePermissions.notifications)
-            RequirementId.BATTERY_UNRESTRICTED -> context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            // 后台不省电 → 启动F 后台省电指南（in-app 引导，§5.2 / v2-D）
+            RequirementId.BATTERY_UNRESTRICTED -> onPowerSaveGuide()
         }
     }
 

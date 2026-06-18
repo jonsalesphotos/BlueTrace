@@ -58,9 +58,12 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DeviceConnectScreen(
     onBack: () -> Unit,
+    onBluetoothOff: () -> Unit,
     vm: DeviceScanViewModel = koinViewModel(),
+    envVm: io.bluetrace.viewmodel.EnvironmentViewModel = koinViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
+    val env by envVm.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { vm.startScan() }
     DisposableEffect(Unit) { onDispose { vm.stopScan() } }
@@ -120,7 +123,13 @@ fun DeviceConnectScreen(
         Column(Modifier.navigationBarsPadding().padding(16.dp)) {
             OutlineBtn(
                 text = if (ui.scanning) stringResource(R.string.device_stop_scan) else stringResource(R.string.device_rescan),
-                onClick = { if (ui.scanning) vm.stopScan() else vm.startScan() },
+                onClick = {
+                    when {
+                        ui.scanning -> vm.stopScan()
+                        env.status(io.bluetrace.shared.domain.RequirementId.BLUETOOTH_ON) != io.bluetrace.shared.domain.RequirementStatus.GRANTED -> onBluetoothOff() // 蓝牙关 → 启动E
+                        else -> vm.startScan()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

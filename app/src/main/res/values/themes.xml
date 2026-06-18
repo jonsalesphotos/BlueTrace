@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- 主题（Compose 承载实际样式）。edge-to-edge 由 enableEdgeToEdge() + Compose insets 处理。 -->
     <style name="Theme.BlueTrace" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Android 12 SplashScreen：冷启动系统画品牌脉冲 logo（一闪而过），随后切到正式主题。 -->
+    <style name="Theme.BlueTrace.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.BlueTrace</item>
+    </style>
 </resources>

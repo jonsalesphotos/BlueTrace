@@ -1,6 +1,6 @@
 package io.bluetrace.ui.screen.run
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -84,8 +84,16 @@ fun CollectionRunScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val finished by vm.finished.collectAsStateWithLifecycle()
 
-    // 硬锁定：返回拦截，提示"长按结束退出"（§5.4），不退出。
-    BackHandler(enabled = finished == null) { onHardLockHint() }
+    // 硬锁定 + 预测返回（§5.4 / D-V4-17）：拦截返回手势，跟随预测进度但绝不退出，
+    // 手势提交时仅提示"长按结束退出"；取消则无操作。
+    PredictiveBackHandler(enabled = finished == null) { progress ->
+        try {
+            progress.collect { /* 跟随预测返回手势进度（硬锁定，不实际退出） */ }
+            onHardLockHint() // 手势提交 → 提示，不退出
+        } catch (_: kotlin.coroutines.cancellation.CancellationException) {
+            // 取消返回手势 → 无操作
+        }
+    }
 
     // 结束（长按 / 存储满）→ finished 置非空 → 跳结束摘要。
     LaunchedEffect(finished) { if (finished != null) onFinished() }

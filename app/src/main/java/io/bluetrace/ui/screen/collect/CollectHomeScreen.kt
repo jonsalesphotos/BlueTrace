@@ -45,10 +45,14 @@ fun CollectHomeScreen(
     onOpenDevice: () -> Unit,
     onOpenSubject: () -> Unit,
     onStart: () -> Unit,
+    onBluetoothOff: () -> Unit,
     vm: CollectHomeViewModel = koinViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // 回前台/进入时复检蓝牙开关 + 权限（设备入口据此分流到 启动E）
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.refreshEnv() }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -69,7 +73,7 @@ fun CollectHomeScreen(
                 iconBg = BT.primaryC,
                 title = stringResource(R.string.collect_entry_device_title),
                 subtitle = stringResource(R.string.collect_entry_device_sub),
-                onClick = onOpenDevice,
+                onClick = { if (ui.bluetoothOn) onOpenDevice() else onBluetoothOff() }, // 蓝牙关 → 启动E
                 trailing = {
                     if (ui.connectedCount > 0) {
                         PillTag(pluralStringResource(R.plurals.connected_count, ui.connectedCount, ui.connectedCount), BT.onSuccessC, BT.successC)

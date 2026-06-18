@@ -12,19 +12,30 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import io.bluetrace.R
+import io.bluetrace.shared.domain.AppPreferences
+import io.bluetrace.shared.session.SessionController
+import io.bluetrace.shared.data.SessionStore
+import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.ui.nav.Route
 import io.bluetrace.ui.nav.TopLevel
 import io.bluetrace.ui.screen.collect.CollectHomeScreen
@@ -35,7 +46,6 @@ import io.bluetrace.ui.screen.permission.BluetoothOffScreen
 import io.bluetrace.ui.screen.permission.GnssScreen
 import io.bluetrace.ui.screen.permission.PermissionGateScreen
 import io.bluetrace.ui.screen.permission.PowerSaveGuideScreen
-import io.bluetrace.ui.screen.permission.SplashScreen
 import io.bluetrace.ui.screen.run.CollectionRunScreen
 import io.bluetrace.ui.screen.settings.AboutScreen
 import io.bluetrace.ui.screen.settings.AppLogScreen
@@ -47,36 +57,62 @@ import io.bluetrace.ui.screen.settings.StorageScreen
 import io.bluetrace.ui.screen.subject.SubjectEditScreen
 import io.bluetrace.ui.screen.subject.SubjectSelectScreen
 import io.bluetrace.ui.screen.summary.SessionSummaryScreen
+import io.bluetrace.ui.startup.AppStartup
+import io.bluetrace.ui.startup.StartDecision
 import io.bluetrace.ui.theme.BlueTraceTheme
+import org.koin.compose.koinInject
 
-/** 根导航：Splash → 权限门控 → Main（三 Tab 脚手架）。 */
+/**
+ * 根导航：启动决策（[AppStartup]）就绪后再渲染。冷启动一次性走首启/恢复；暖/热启动直落当前界面（§5.1）。
+ * 系统 SplashScreen 在决策就绪前一直保持（见 MainActivity）。
+ */
 @Composable
-fun BlueTraceApp() {
+fun BlueTraceApp(onReady: () -> Unit) {
     BlueTraceTheme {
+        val prefs = koinInject<AppPreferences>()
+        val store = koinInject<SessionStore>()
+        val clock = koinInject<EpochClock>()
+        val controller = koinInject<SessionController>()
+        val context = LocalContext.current
+
+        var decision by remember { mutableStateOf<StartDecision?>(null) }
+        LaunchedEffect(Unit) {
+            decision = AppStartup.decide(prefs, store, clock, controller)
+            onReady()
+        }
+        val d = decision ?: return@BlueTraceTheme // 决策未就绪 → 保持系统 SplashScreen
+
+        LaunchedEffect(d) {
+            if (d.recoveredCount > 0) {
+                Toast.makeText(context, context.getString(R.string.recovery_toast), Toast.LENGTH_LONG).show()
+            }
+        }
+
         val rootNav = rememberNavController()
-        NavHost(navController = rootNav, startDestination = Route.Splash) {
-            composable<Route.Splash> {
-                SplashScreen(
-                    onGate = { rootNav.navigate(Route.PermissionGate) { popUpTo(Route.Splash) { inclusive = true } } },
-                    onMain = { rootNav.navigate(Route.Main) { popUpTo(Route.Splash) { inclusive = true } } },
+        NavHost(
+            navController = rootNav,
+            startDestination = if (d.firstLaunch) Route.PermissionGate else Route.Main,
+        ) {
+            composable<Route.PermissionGate> {
+                PermissionGateScreen(
+                    onContinue = { rootNav.navigate(Route.Main) { popUpTo(Route.PermissionGate) { inclusive = true } } },
+                    onPowerSaveGuide = { rootNav.navigate(Route.PowerSaveGuide) },
                 )
             }
-            composable<Route.PermissionGate> {
-                PermissionGateScreen(onContinue = { rootNav.navigate(Route.Main) { popUpTo(Route.PermissionGate) { inclusive = true } } })
-            }
-            composable<Route.Main> { MainScaffold() }
+            composable<Route.PowerSaveGuide> { PowerSaveGuideScreen(onBack = { rootNav.popBackStack() }) }
+            composable<Route.Main> { MainScaffold(initialToRun = d.collecting) }
         }
     }
 }
 
-/** 三 Tab 自适应脚手架（NavigationSuiteScaffold，§7.2）。仅顶级显示 Bar，子页/运行隐藏。 */
+/** 三 Tab 自适应脚手架（NavigationSuiteScaffold，§7.2）。每 Tab 独立嵌套 NavGraph + 独立返回栈。 */
 @Composable
-private fun MainScaffold() {
+private fun MainScaffold(initialToRun: Boolean) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val dest = backStack?.destination
     val topLevel = topLevelOf(dest)
-    val showBar = topLevel != null
+    val showBar = isTopLevelRoot(dest)
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -97,94 +133,114 @@ private fun MainScaffold() {
     ) {
         BlueTraceNavHost(nav)
     }
+
+    // 进程恢复（服务活、会话仍采集中）→ 直落运行页（§5.10 / v2-B）。
+    LaunchedEffect(Unit) {
+        if (initialToRun) nav.navigate(Route.CollectionRun)
+    }
 }
 
 @Composable
 private fun BlueTraceNavHost(nav: NavHostController) {
     val context = LocalContext.current
-    // 进程恢复（服务活则重绑续采，§5.10）：进入主界面时若会话仍在采集，直接落运行页。
-    val controller = org.koin.compose.koinInject<io.bluetrace.shared.session.SessionController>()
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        if (controller.state.value.status == io.bluetrace.shared.session.RunStatus.COLLECTING) {
-            nav.navigate(Route.CollectionRun)
-        }
-    }
-    NavHost(navController = nav, startDestination = Route.CollectHome) {
-        // ---- 采集 Tab ----
-        composable<Route.CollectHome> {
-            CollectHomeScreen(
-                onOpenDevice = { nav.navigate(Route.DeviceConnect) },
-                onOpenSubject = { nav.navigate(Route.SubjectSelect) },
-                onStart = { nav.navigate(Route.CollectionRun) },
-            )
-        }
-        composable<Route.DeviceConnect> { DeviceConnectScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.SubjectSelect> {
-            SubjectSelectScreen(onBack = { nav.popBackStack() }, onNew = { nav.navigate(Route.SubjectEdit()) })
-        }
-        composable<Route.SubjectEdit> { entry ->
-            val r = entry.toRoute<Route.SubjectEdit>()
-            SubjectEditScreen(subjectId = r.subjectId, onBack = { nav.popBackStack() })
-        }
-        composable<Route.CollectionRun> {
-            CollectionRunScreen(
-                onFinished = { nav.navigate(Route.SessionSummary) { popUpTo(Route.CollectionRun) { inclusive = true } } },
-                onHardLockHint = { Toast.makeText(context, context.getString(io.bluetrace.R.string.run_hardlock_hint), Toast.LENGTH_SHORT).show() },
-            )
-        }
-        composable<Route.SessionSummary> {
-            SessionSummaryScreen(
-                onViewDetail = { folder -> nav.navigate(Route.SessionDetail(folder)) },
-                onDone = { navigateTab(nav, TopLevel.DATA) },
-            )
+    NavHost(navController = nav, startDestination = Route.CollectGraph) {
+
+        // ===== 采集 Tab 子图（独立返回栈）=====
+        navigation<Route.CollectGraph>(startDestination = Route.CollectHome) {
+            composable<Route.CollectHome> {
+                CollectHomeScreen(
+                    onOpenDevice = { nav.navigate(Route.DeviceConnect) },
+                    onOpenSubject = { nav.navigate(Route.SubjectSelect) },
+                    onStart = { nav.navigate(Route.CollectionRun) },
+                    onBluetoothOff = { nav.navigate(Route.BluetoothOff) },
+                )
+            }
+            composable<Route.DeviceConnect> {
+                DeviceConnectScreen(
+                    onBack = { nav.popBackStack() },
+                    onBluetoothOff = { nav.navigate(Route.BluetoothOff) },
+                )
+            }
+            composable<Route.SubjectSelect> {
+                SubjectSelectScreen(onBack = { nav.popBackStack() }, onNew = { nav.navigate(Route.SubjectEdit()) })
+            }
+            composable<Route.SubjectEdit> { entry ->
+                val r = entry.toRoute<Route.SubjectEdit>()
+                SubjectEditScreen(subjectId = r.subjectId, onBack = { nav.popBackStack() })
+            }
+            composable<Route.CollectionRun> {
+                CollectionRunScreen(
+                    onFinished = { nav.navigate(Route.SessionSummary) { popUpTo(Route.CollectionRun) { inclusive = true } } },
+                    onHardLockHint = { Toast.makeText(context, context.getString(R.string.run_hardlock_hint), Toast.LENGTH_SHORT).show() },
+                )
+            }
+            composable<Route.SessionSummary> {
+                SessionSummaryScreen(
+                    onViewDetail = { folder -> nav.navigate(Route.SessionDetail(folder)) },
+                    onDone = { navigateTab(nav, TopLevel.DATA) },
+                )
+            }
+            composable<Route.BluetoothOff> { BluetoothOffScreen(onBack = { nav.popBackStack() }) }
         }
 
-        // ---- 数据 Tab ----
-        composable<Route.DataHome> { DataHomeScreen(onOpenDetail = { folder -> nav.navigate(Route.SessionDetail(folder)) }) }
-        composable<Route.SessionDetail> { entry ->
-            val r = entry.toRoute<Route.SessionDetail>()
-            SessionDetailScreen(folderName = r.folderName, onBack = { nav.popBackStack() })
+        // ===== 数据 Tab 子图 =====
+        navigation<Route.DataGraph>(startDestination = Route.DataHome) {
+            composable<Route.DataHome> { DataHomeScreen(onOpenDetail = { folder -> nav.navigate(Route.SessionDetail(folder)) }) }
+            composable<Route.SessionDetail> { entry ->
+                val r = entry.toRoute<Route.SessionDetail>()
+                SessionDetailScreen(folderName = r.folderName, onBack = { nav.popBackStack() })
+            }
         }
 
-        // ---- 设置 Tab ----
-        composable<Route.SettingsHome> {
-            SettingsHomeScreen(
-                onEnv = { nav.navigate(Route.EnvCheck) },
-                onGnss = { nav.navigate(Route.Gnss) },
-                onExportLoc = { nav.navigate(Route.ExportLocation) },
-                onStorage = { nav.navigate(Route.Storage) },
-                onLog = { nav.navigate(Route.AppLog) },
-                onDeviceMaint = { nav.navigate(Route.DeviceMaintenance) },
-                onAbout = { nav.navigate(Route.About) },
-            )
+        // ===== 设置 Tab 子图 =====
+        navigation<Route.SettingsGraph>(startDestination = Route.SettingsHome) {
+            composable<Route.SettingsHome> {
+                SettingsHomeScreen(
+                    onEnv = { nav.navigate(Route.EnvCheck) },
+                    onGnss = { nav.navigate(Route.Gnss) },
+                    onExportLoc = { nav.navigate(Route.ExportLocation) },
+                    onStorage = { nav.navigate(Route.Storage) },
+                    onLog = { nav.navigate(Route.AppLog) },
+                    onDeviceMaint = { nav.navigate(Route.DeviceMaintenance) },
+                    onAbout = { nav.navigate(Route.About) },
+                )
+            }
+            composable<Route.EnvCheck> { EnvCheckScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.Gnss> { GnssScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.ExportLocation> { ExportLocationScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.Storage> { StorageScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.AppLog> { AppLogScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.DeviceMaintenance> { DeviceMaintenanceScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.About> { AboutScreen(onBack = { nav.popBackStack() }) }
         }
-        composable<Route.EnvCheck> { EnvCheckScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.Gnss> { GnssScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.ExportLocation> { ExportLocationScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.Storage> { StorageScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.AppLog> { AppLogScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.DeviceMaintenance> { DeviceMaintenanceScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.About> { AboutScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.PowerSaveGuide> { PowerSaveGuideScreen(onBack = { nav.popBackStack() }) }
-        composable<Route.BluetoothOff> { BluetoothOffScreen(onBack = { nav.popBackStack() }) }
     }
 }
 
+/** 仅三个顶级 Tab 根目的地显示底部 Bar（子页/运行隐藏，§5.1 ③）。 */
+private fun isTopLevelRoot(dest: NavDestination?): Boolean =
+    dest != null && (
+        dest.hasRoute(Route.CollectHome::class) ||
+            dest.hasRoute(Route.DataHome::class) ||
+            dest.hasRoute(Route.SettingsHome::class)
+        )
+
+/** 当前所属 Tab（按嵌套子图归属，子页也高亮所在 Tab）。 */
 private fun topLevelOf(dest: NavDestination?): TopLevel? = when {
     dest == null -> null
-    dest.hasRoute(Route.CollectHome::class) -> TopLevel.COLLECT
-    dest.hasRoute(Route.DataHome::class) -> TopLevel.DATA
-    dest.hasRoute(Route.SettingsHome::class) -> TopLevel.SETTINGS
+    dest.hierarchy.any { it.hasRoute(Route.CollectGraph::class) } -> TopLevel.COLLECT
+    dest.hierarchy.any { it.hasRoute(Route.DataGraph::class) } -> TopLevel.DATA
+    dest.hierarchy.any { it.hasRoute(Route.SettingsGraph::class) } -> TopLevel.SETTINGS
     else -> null
 }
 
+/** 切 Tab：导航到该 Tab 子图 → 保存/恢复各自返回栈与滚动位（§7.2②），重选回根。 */
 private fun navigateTab(nav: NavHostController, tab: TopLevel) {
-    val route: Route = when (tab) {
-        TopLevel.COLLECT -> Route.CollectHome
-        TopLevel.DATA -> Route.DataHome
-        TopLevel.SETTINGS -> Route.SettingsHome
+    val graph: Route = when (tab) {
+        TopLevel.COLLECT -> Route.CollectGraph
+        TopLevel.DATA -> Route.DataGraph
+        TopLevel.SETTINGS -> Route.SettingsGraph
     }
-    nav.navigate(route) {
+    nav.navigate(graph) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
@@ -198,7 +254,7 @@ private fun tabIcon(tab: TopLevel): ImageVector = when (tab) {
 }
 
 private fun tabLabelRes(tab: TopLevel): Int = when (tab) {
-    TopLevel.COLLECT -> io.bluetrace.R.string.tab_collect
-    TopLevel.DATA -> io.bluetrace.R.string.tab_data
-    TopLevel.SETTINGS -> io.bluetrace.R.string.tab_settings
+    TopLevel.COLLECT -> R.string.tab_collect
+    TopLevel.DATA -> R.string.tab_data
+    TopLevel.SETTINGS -> R.string.tab_settings
 }

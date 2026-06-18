@@ -33,6 +33,7 @@ data class CollectHomeUiState(
     val mode: CollectMode = CollectMode.WEAR,
     val gnssEnabled: Boolean = false,
     val hardSatisfied: Boolean = true,
+    val bluetoothOn: Boolean = true,
 ) {
     val connectedCount: Int get() = connectedDevices.size
     val canStart: Boolean get() = currentSubject != null && connectedDevices.isNotEmpty()
@@ -51,19 +52,39 @@ class CollectHomeViewModel(
 
     private val _mode = MutableStateFlow(CollectMode.WEAR)
 
+    private data class Base(
+        val subject: Subject?,
+        val connected: List<ScannedDevice>,
+        val mode: CollectMode,
+        val gnss: Boolean,
+    )
+
     val uiState: StateFlow<CollectHomeUiState> =
         combine(
-            subjectRepo.subjects,
-            subjectRepo.currentId,
+            combine(subjectRepo.subjects, subjectRepo.currentId) { subjects, currentId ->
+                subjects.firstOrNull { it.id == currentId } ?: subjects.firstOrNull()
+            },
             registry.connected,
             _mode,
             prefs.gnssEnabled,
-        ) { subjects, currentId, connected, mode, gnss ->
-            val cur = subjects.firstOrNull { it.id == currentId } ?: subjects.firstOrNull()
-            CollectHomeUiState(cur, connected, mode, gnss, env.state.value.hardSatisfied)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CollectHomeUiState())
+        ) { subject, connected, mode, gnss -> Base(subject, connected, mode, gnss) }
+            .let { base ->
+                combine(base, env.state) { b, envState ->
+                    CollectHomeUiState(
+                        currentSubject = b.subject,
+                        connectedDevices = b.connected,
+                        mode = b.mode,
+                        gnssEnabled = b.gnss,
+                        hardSatisfied = envState.hardSatisfied,
+                        bluetoothOn = envState.bluetoothOn,
+                    )
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CollectHomeUiState())
 
     fun setMode(mode: CollectMode) { _mode.value = mode }
+
+    fun refreshEnv() = env.refresh()
 
     /** 构建 SessionConfig 并开始采集（§7.3）。返回 false 表示前置条件不足。 */
     fun startSession(): Boolean {

@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 品牌色（清掉模板紫/teal 残留，v2 清理项）。视觉真源仍是原型/Compose tokens（BT）。 -->
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="brand_primary">#2BAEEA</color>
+    <color name="brand_tertiary">#7C5BC9</color>
+    <!-- 启动屏底色 = app 背景（原型启动屏浅底），脉冲 logo 圆居中其上 -->
+    <color name="splash_bg">#F3F5F8</color>
 </resources>

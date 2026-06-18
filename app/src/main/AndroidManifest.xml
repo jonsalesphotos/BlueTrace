@@ -28,10 +28,14 @@
     <!-- 前台采集常驻通知（建议项，API 33+） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- 前台服务托管采集（§7.4）：connectedDevice + location(F-GPS-1) -->
+    <!-- 前台服务托管采集（§7.4）：connectedDevice + location(F-GPS-1) + dataSync(§6.5,二期上传) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- 后台保活引导（F-BG-5）：忽略电池优化 allowlist 直达对话框 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".BlueTraceApplication"
@@ -47,7 +51,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.BlueTrace">
+            android:theme="@style/Theme.BlueTrace.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -58,7 +62,7 @@
         <service
             android:name=".service.CollectionService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|location" />
+            android:foregroundServiceType="connectedDevice|location|dataSync" />
     </application>
 
 </manifest>
