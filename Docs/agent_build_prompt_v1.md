@@ -65,7 +65,7 @@
 ### 6. 工作方式
 - 先**通读** SPEC + 原型，列实现计划（可用 TaskCreate 跟踪）。
 - 按 **P1→P4** 增量（P5 真机协议联调跳过）：P1 KMP 骨架 + 权限/扫描 + 三 Tab 导航 + `BleClient`/Mock 跑通；P2 扁平设备/采集类型/三态状态机；P3 D-6 落盘/导出/GNSS；P4 前台服务/进程恢复。
-- 每完成一块在**模拟器**跑或用 Compose Preview 自测；commonMain 逻辑写 **JVM 单测**。
+- 每完成一块在**真机**跑自测（优先真机；标准心率带参考路可用真实 BLE，DUT 仍 Mock）、必要时模拟器/Compose Preview；commonMain 逻辑写 **JVM 单测**。
 - 提交遵循仓库习惯（直接推 main、约定式提交信息）；偏离 SPEC 处在提交说明里列出并说明原因。
 
 ---
@@ -73,7 +73,7 @@
 ## 三、验收清单（Definition of Done · 即 `/goal` 达成条件）
 
 1. **构建**：`./gradlew :app:assembleDebug` 成功；`:shared` 的 JVM 单测全绿（至少覆盖：状态机三态、D-6 写入器、manifest 生成、MockBleClient 产数据）。
-2. **闭环可跑**（模拟器）：启动 → 权限 → 三 Tab；扫描见 mock 设备并连接（计数/上限生效）；选用户 + 模式；开始采集 → 运行页**实时流滚动（`[unixMs] HEX`）**、Datas/Time 递增、HR 跳动、可打 Pin/区间标签、**硬锁定生效**（返回拦截）；长按 2 秒 → 结束摘要 → 数据 Tab 出现该会话。
+2. **闭环可跑**（真机优先，模拟器亦可）：启动 → 权限 → 三 Tab；扫描见 mock 设备并连接（计数/上限生效）；选用户 + 模式；开始采集 → 运行页**实时流滚动（`[unixMs] HEX`）**、Datas/Time 递增、HR 跳动、可打 Pin/区间标签、**硬锁定生效**（返回拦截）；长按 2 秒 → 结束摘要 → 数据 Tab 出现该会话。
 3. **数据落地**：会话为 **D-6 文件夹**（raw HEX + 解码 CSV + `session_manifest.json` 含 unix 起点 / 时区 / 质量小结）；**导出** 到 `Download/BlueTrace/` 成功（Toast）。
 4. **异常演示**：注入断联 → 内联「重连中」→ 自动续写不丢数据；模拟存储满 → 自动结束并保存；杀进程重启 → 开口会话自动收尾（toast）。
 5. **结构合规**：commonMain 无 Android 依赖；BLE 在 `BleClient` 接口后、`MockBleClient` 可换真实实现；技术栈符合 §10.2；UI 与原型/ SPEC 一致。

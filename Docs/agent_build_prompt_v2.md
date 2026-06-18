@@ -1,7 +1,8 @@
 # BlueTrace 继续开发 · Agent 构建 Prompt（v2 · 收口 + 图标 + 启动页规则）
 
 > 接 [v1](agent_build_prompt_v1.md)：现有 `app/` demo 已到 **P1 末**、与文档**高度吻合**（KMP `:shared`+`:app`、扁平设备、三 Tab、Mock BLE 接口化、i18n 资源化、29 个 commonMain 单测）。本轮**在现有 app 基础上继续开发**：补 app/启动页图标、定下启动页展示规则、修审计出的结构性差距、补缺失屏、清理项，并按 SPEC §10.5 推进 P3/P4。
-> 权威依据：[`/SPEC.md`](../SPEC.md) + [`prototypes/v4_android.html`](prototypes/v4_android.html) + 本文档。真实通信协议仍未冻结 → **BLE/解码继续用 Mock**（接口不变，协议冻结后再换）。
+> 权威依据：[`/SPEC.md`](../SPEC.md) + [`prototypes/v4_android.html`](prototypes/v4_android.html) + 本文档。真实通信协议仍未冻结 → **DUT 的 BLE/解码继续用 Mock**（接口不变，协议冻结后再换）。
+> **有真机可测**：验收以**真机**为准（模拟器/Preview 仅快速回归）；标准心率带（HRS `0x180D`）是 SIG 标准、**不依赖协议冻结**，参考路可现在就用**真实 BLE** 验证（`BleClient` 接口不变，仅参考路换真实实现），DUT 仍 Mock。见 SPEC §10.6。
 
 ---
 
@@ -10,7 +11,7 @@
 在实现 agent 的会话里执行：
 
 ```
-/goal 在现有 app 基础上继续开发 BlueTrace，依据 SPEC.md + Docs/prototypes/v4_android.html + Docs/agent_build_prompt_v2.md 的本轮范围与验收清单：完成 ① app 图标 + 启动页图标 ② 启动页冷启动仅展示一次的规则 ③ 修审计 4 条结构性差距 ④ 补缺失/孤儿屏 ⑤ 清理项，并按 SPEC §10.5 推进 P3/P4（协议解码仍用 Mock，待冻结）。直到「验收清单」全部满足；每完成一块在模拟器自测、按仓库习惯提交推 main。
+/goal 在现有 app 基础上继续开发 BlueTrace，依据 SPEC.md + Docs/prototypes/v4_android.html + Docs/agent_build_prompt_v2.md 的本轮范围与验收清单：完成 ① app 图标 + 启动页图标 ② 启动页冷启动仅展示一次的规则 ③ 修审计 4 条结构性差距 ④ 补缺失/孤儿屏 ⑤ 清理项，并按 SPEC §10.5 推进 P3/P4（协议解码仍用 Mock，待冻结）。直到「验收清单」全部满足；每完成一块在真机自测（优先真机，标准心率带参考路可用真实 BLE）、按仓库习惯提交推 main。
 ```
 
 ---
@@ -59,7 +60,7 @@
 ## 四、验收清单（Definition of Done · `/goal` 达成条件）
 
 1. **图标**：启动器图标 = 品牌脉冲 logo（自适应 + monochrome，无模板残留）；Android 12 SplashScreen 显同款 logo；包名为正式域名。
-2. **启动页规则**：冷启动展示一次后进主流程；**app 在后台存活时再进入不再展示启动屏**，直接落当前界面（采集中→运行页，否则采集 Tab）—— 可在模拟器复现验证。
+2. **启动页规则**：冷启动展示一次后进主流程；**app 在后台存活时再进入不再展示启动屏**，直接落当前界面（采集中→运行页，否则采集 Tab）—— **在真机复现验证**（冷/暖启动真机更真实）。
 3. **导航**：三 Tab 各自嵌套 NavGraph + 独立返回栈（切 Tab 保状态、重选回根、子页栈隔离）；采集运行用 `PredictiveBackHandler` 硬锁定。
 4. **存储/环境**：开始前 + 导出前真实存储预检（不足阻断 + 提示）；权限永久拒绝→`BLOCKED`→引导设置；采集中关蓝牙（广播监听）→ 暂停·自动重连。
 5. **屏覆盖**：启动C/导出D/GNSS C 补齐；启动E/F 有可达入口；无孤儿屏。
