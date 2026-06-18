@@ -98,7 +98,7 @@ fun SubjectSelectScreen(
                                     Text(subject.alias, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
                                     if (current) PillTag(stringResource(R.string.subject_tag_current), BT.onTertiaryC, BT.tertiaryC)
                                 }
-                                Text(subjectBio(subject), fontSize = 11.sp, color = BT.onSurfaceV)
+                                Text(subjectBioLine(subject), fontSize = 11.sp, color = BT.onSurfaceV)
                             }
                             CircleCheck(checked = current, color = BT.tertiary)
                         }
@@ -112,9 +112,9 @@ fun SubjectSelectScreen(
     }
 }
 
-/** 体征摘要行（性别本地化 + 其余字段）。 */
+/** 体征摘要行（性别本地化 + 其余字段）。i18n 拼接放 UI 层（不在 commonMain，§7.6）。 */
 @Composable
-private fun subjectBio(subject: Subject): String {
+fun subjectBioLine(subject: Subject): String {
     val parts = buildList {
         add(sexLabel(subject.sex))
         if (subject.birth.isNotBlank()) add(subject.birth)

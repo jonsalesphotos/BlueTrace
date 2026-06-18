@@ -87,7 +87,7 @@ fun CollectHomeScreen(
                 iconColor = BT.tertiary,
                 iconBg = BT.tertiaryC,
                 title = stringResource(R.string.collect_entry_user_title),
-                subtitle = ui.currentSubject?.let { "${it.alias} · ${it.bioLine()}" } ?: stringResource(R.string.collect_entry_user_empty),
+                subtitle = ui.currentSubject?.let { "${it.alias} · ${io.bluetrace.ui.screen.subject.subjectBioLine(it)}" } ?: stringResource(R.string.collect_entry_user_empty),
                 onClick = onOpenSubject,
             )
             ModeTile(mode = ui.mode, onSelect = vm::setMode)

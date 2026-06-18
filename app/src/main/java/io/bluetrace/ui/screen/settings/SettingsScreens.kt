@@ -142,7 +142,7 @@ private fun reqTitle(id: RequirementId): String = stringResource(
 fun ExportLocationScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.export_loc_title), subtitle = stringResource(R.string.export_loc_subtitle), onBack = onBack)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(color = BT.surface2, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.export_loc_path), fontFamily = FontFamily.Monospace, fontSize = 13.sp, color = BT.onSurface, modifier = Modifier.padding(14.dp))
             }
@@ -158,7 +158,7 @@ fun StorageScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     LaunchedEffect(Unit) { vm.refreshStorage() }
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.storage_title), subtitle = stringResource(R.string.storage_subtitle, "%.2f".format(storage.totalBytes / 1024.0 / 1024.0), storage.sessionCount, storage.fileCount), onBack = onBack)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             UsageBar(storage)
             Legend(stringResource(R.string.storage_raw), BT.warning, storage.rawBytes)
             Legend(stringResource(R.string.storage_csv), BT.success, storage.csvBytes)

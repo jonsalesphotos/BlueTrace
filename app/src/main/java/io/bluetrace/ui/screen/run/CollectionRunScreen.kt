@@ -157,10 +157,13 @@ fun CollectionRunScreen(
             }
         }
 
-        // 演示钩子（异常清单 §5.4）：注入断联 / 模拟存储满
-        Row(Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            DemoChip(stringResource(R.string.run_demo_disconnect)) { vm.injectDisconnect() }
-            DemoChip(stringResource(R.string.run_demo_storage_full)) { vm.simulateStorageFull() }
+        // 演示钩子仅 DEBUG 构建可见（v2 清理项）：注入断联 / 模拟存储满。
+        // 正式构建走真实异常：蓝牙关广播(§5.4) + 存储写满预检(§5.2)。
+        if (io.bluetrace.BuildConfig.DEBUG) {
+            Row(Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DemoChip(stringResource(R.string.run_demo_disconnect)) { vm.injectDisconnect() }
+                DemoChip(stringResource(R.string.run_demo_storage_full)) { vm.simulateStorageFull() }
+            }
         }
     }
 

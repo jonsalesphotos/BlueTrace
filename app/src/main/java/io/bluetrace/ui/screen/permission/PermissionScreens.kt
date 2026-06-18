@@ -220,7 +220,7 @@ fun GnssScreen(
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.gnss_title), subtitle = stringResource(R.string.gnss_subtitle), onBack = onBack)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
