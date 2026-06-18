@@ -32,6 +32,9 @@ interface SessionController {
     /** Start ⇄ Stop 区间标签切换（§5.5）。 */
     fun toggleIntervalLabel(text: String)
 
+    /** 采集中重选采集类型（运行C 可重开，D-V4-12）。 */
+    fun setEnabledTypes(types: Set<com.example.bluetrace.shared.domain.CollectType>)
+
     /** 长按 2 秒结束 → 收尾落盘 → 结束摘要（§5.8）。 */
     suspend fun stop(reason: StopReason = StopReason.NORMAL): SessionSummary
 

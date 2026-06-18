@@ -22,8 +22,13 @@ class SessionRecorder(
     enabledTypes: Set<CollectType>,
     private val gnssEnabled: Boolean,
 ) {
-    private val enabledStreams: Set<DecodedStream> =
+    private var enabledStreams: Set<DecodedStream> =
         enabledTypes.map { DecodedStream.ofCollectType(it) }.toSet()
+
+    /** 采集中重选采集类型（运行C 重开，D-V4-12）：之后启用路才落 CSV。 */
+    fun setEnabledTypes(types: Set<CollectType>) {
+        enabledStreams = types.map { DecodedStream.ofCollectType(it) }.toSet()
+    }
 
     private val rawWriters = HashMap<DeviceKind, RawHexWriter>()
     private val csvWriters = HashMap<DecodedStream, CsvWriter>()

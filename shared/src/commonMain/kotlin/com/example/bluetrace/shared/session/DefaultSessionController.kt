@@ -136,6 +136,12 @@ class DefaultSessionController(
                 is RunEvent.Pin -> handlePin(e.text)
                 is RunEvent.Interval -> handleInterval(e.text)
                 is RunEvent.Pause -> { displayPaused = e.paused; pushState() }
+                is RunEvent.SetEnabled -> {
+                    recorder?.setEnabledTypes(e.types)
+                    enabledStreamNames = e.types.map { com.example.bluetrace.shared.domain.DecodedStream.ofCollectType(it).csvName }.toSet()
+                    activeConfig = activeConfig?.copy(enabledTypes = e.types)
+                    pushState()
+                }
                 is RunEvent.Gps -> recorder?.recordGps(e.epochMs, e.lat, e.lon, e.alt, e.speed, e.accuracy)
                 RunEvent.StorageFull -> { finishInternal(StopReason.STORAGE_FULL); runScope?.cancel(); return }
                 is RunEvent.Stop -> { val s = finishInternal(e.reason); e.ack.complete(s); runScope?.cancel(); return }
@@ -236,6 +242,9 @@ class DefaultSessionController(
     override fun setDisplayPaused(paused: Boolean) { events?.trySend(RunEvent.Pause(paused)) }
     override fun pin(text: String) { events?.trySend(RunEvent.Pin(text)) }
     override fun toggleIntervalLabel(text: String) { events?.trySend(RunEvent.Interval(text)) }
+    override fun setEnabledTypes(types: Set<com.example.bluetrace.shared.domain.CollectType>) {
+        events?.trySend(RunEvent.SetEnabled(types))
+    }
     override fun simulateStorageFull() { events?.trySend(RunEvent.StorageFull) }
 
     override fun injectDisconnect() {
@@ -369,6 +378,7 @@ private sealed interface RunEvent {
     data class Pin(val text: String) : RunEvent
     data class Interval(val text: String) : RunEvent
     data class Pause(val paused: Boolean) : RunEvent
+    data class SetEnabled(val types: Set<com.example.bluetrace.shared.domain.CollectType>) : RunEvent
     data class Gps(
         val epochMs: Long, val lat: Double, val lon: Double,
         val alt: Double, val speed: Double, val accuracy: Double,
