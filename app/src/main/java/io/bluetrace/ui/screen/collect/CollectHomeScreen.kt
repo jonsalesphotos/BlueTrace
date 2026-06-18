@@ -15,9 +15,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Person
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
+import io.bluetrace.data.android.BlueTracePermissions
 import io.bluetrace.shared.domain.CollectMode
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.EntryTile
@@ -42,6 +50,7 @@ import io.bluetrace.viewmodel.StartOutcome
 import org.koin.androidx.compose.koinViewModel
 
 /** 采集A · 采集 Tab 主界面（设备/用户/模式入口 + 开始采集）。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectHomeScreen(
     onOpenDevice: () -> Unit,
@@ -52,12 +61,19 @@ fun CollectHomeScreen(
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var lowSpace by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var lowSpace by remember { mutableStateOf(false) }
+    var showMissingSheet by remember { mutableStateOf(false) }
+    var missingHandled by remember { mutableStateOf(false) }
+    val scanPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refreshEnv() }
 
     // 回前台/进入时复检蓝牙开关 + 权限（设备入口据此分流到 启动E）+ 低空间提示（§5.2）
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         vm.refreshEnv()
         lowSpace = vm.isLowSpace()
+    }
+    // 启动C：后续启动静默检查发现缺「附近设备」→ 弹一次 ModalSheet（§5.1）
+    LaunchedEffect(ui.scanConnectMissing) {
+        if (ui.scanConnectMissing && !missingHandled) showMissingSheet = true
     }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
@@ -132,6 +148,19 @@ fun CollectHomeScreen(
                 enabled = ui.canStart,
             )
         }
+    }
+
+    // 启动C · 缺权限弹层
+    if (showMissingSheet) {
+        io.bluetrace.ui.screen.permission.MissingPermsSheet(
+            sheetState = rememberModalBottomSheetState(),
+            onGrant = {
+                scanPermLauncher.launch(BlueTracePermissions.hardScanConnect)
+                showMissingSheet = false; missingHandled = true
+            },
+            onSkip = { showMissingSheet = false; missingHandled = true },
+            onDismiss = { showMissingSheet = false; missingHandled = true },
+        )
     }
 }
 

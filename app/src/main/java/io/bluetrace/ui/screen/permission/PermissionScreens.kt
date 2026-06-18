@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -31,8 +34,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -217,7 +222,7 @@ fun PowerSaveGuideScreen(onBack: () -> Unit) {
     }
 }
 
-/** GNSS A/B · 本机 GNSS（可选一路 · while-in-use）。 */
+/** GNSS A/B/C · 本机 GNSS（可选一路 · while-in-use）。C = 权限已授但系统定位总开关关闭。 */
 @Composable
 fun GnssScreen(
     onBack: () -> Unit,
@@ -227,28 +232,58 @@ fun GnssScreen(
     val env by envVm.state.collectAsStateWithLifecycle()
     val gnssEnabled by settingsVm.gnssEnabled.collectAsStateWithLifecycle()
     val locationGranted = env.status(RequirementId.LOCATION) == RequirementStatus.GRANTED
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { envVm.refresh() }
+    val context = LocalContext.current
+    var systemLocationOn by remember { mutableStateOf(true) }
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        envVm.refresh(); systemLocationOn = isSystemLocationOn(context)
+    }
 
-    LaunchedEffect(Unit) { envVm.refresh() }
+    LaunchedEffect(Unit) {
+        envVm.refresh()
+        systemLocationOn = isSystemLocationOn(context)
+    }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.gnss_title), subtitle = stringResource(R.string.gnss_subtitle), onBack = onBack)
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val statusSub = when {
+                !locationGranted -> stringResource(R.string.gnss_missing)
+                !systemLocationOn -> stringResource(R.string.gnss_system_off)
+                else -> stringResource(R.string.gnss_granted)
+            }
             Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.gnss_source), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
-                        Text(if (locationGranted) stringResource(R.string.gnss_granted) else stringResource(R.string.gnss_missing), fontSize = 11.sp, color = BT.onSurfaceV)
+                        Text(statusSub, fontSize = 11.sp, color = BT.onSurfaceV)
                     }
-                    Switch(checked = gnssEnabled && locationGranted, enabled = locationGranted, onCheckedChange = { settingsVm.setGnss(it) })
+                    Switch(
+                        checked = gnssEnabled && locationGranted && systemLocationOn,
+                        enabled = locationGranted && systemLocationOn,
+                        onCheckedChange = { settingsVm.setGnss(it) },
+                    )
                 }
             }
-            if (!locationGranted) {
-                PrimaryButton(stringResource(R.string.gnss_request), onClick = { permLauncher.launch(BlueTracePermissions.location) })
+            when {
+                !locationGranted ->
+                    PrimaryButton(stringResource(R.string.gnss_request), onClick = { permLauncher.launch(BlueTracePermissions.location) })
+                !systemLocationOn -> {
+                    // GNSS C：权限已授但系统定位总开关关闭 → 去系统定位设置
+                    Text(stringResource(R.string.gnss_system_off_note), fontSize = 12.sp, color = BT.onSurfaceV)
+                    PrimaryButton(stringResource(R.string.gnss_open_location_settings), onClick = {
+                        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    })
+                }
             }
             Text(stringResource(R.string.gnss_note), fontSize = 12.sp, color = BT.onSurfaceV)
         }
     }
+}
+
+/** 系统定位总开关是否开启（GNSS C 检测）。 */
+private fun isSystemLocationOn(context: Context): Boolean {
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return false
+    return runCatching { androidx.core.location.LocationManagerCompat.isLocationEnabled(lm) }.getOrDefault(false)
 }
 
 // ===== 权限永久拒绝检测 + 应用设置（§5.2 启动D）=====
@@ -281,4 +316,25 @@ private fun openAppSettings(context: Context) {
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
+}
+
+/** 启动C · 后续启动缺权限弹出（ModalSheet over 采集 Tab，§5.1）。可「去授权」/「跳过」。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MissingPermsSheet(
+    sheetState: SheetState,
+    onGrant: () -> Unit,
+    onSkip: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.gatec_title), fontSize = 17.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+            Text(stringResource(R.string.gatec_body), fontSize = 12.sp, color = BT.onSurfaceV)
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlineBtn(stringResource(R.string.gatec_skip), onSkip, Modifier.weight(1f))
+                PrimaryButton(stringResource(R.string.gatec_grant), onGrant, Modifier.weight(1f))
+            }
+        }
+    }
 }

@@ -35,6 +35,7 @@ data class CollectHomeUiState(
     val gnssEnabled: Boolean = false,
     val hardSatisfied: Boolean = true,
     val bluetoothOn: Boolean = true,
+    val scanConnectMissing: Boolean = false,
 ) {
     val connectedCount: Int get() = connectedDevices.size
     val canStart: Boolean get() = currentSubject != null && connectedDevices.isNotEmpty()
@@ -82,6 +83,8 @@ class CollectHomeViewModel(
                         gnssEnabled = b.gnss,
                         hardSatisfied = envState.hardSatisfied,
                         bluetoothOn = envState.bluetoothOn,
+                        scanConnectMissing = envState.status(io.bluetrace.shared.domain.RequirementId.BLE_SCAN_CONNECT) !=
+                            io.bluetrace.shared.domain.RequirementStatus.GRANTED,
                     )
                 }
             }

@@ -280,6 +280,16 @@
     <string name="gnss_missing">缺定位权限</string>
     <string name="gnss_request">去授权</string>
     <string name="gnss_note">开启后本机 GNSS 作一路写入会话：落地 gps.csv + manifest，共用同一时间轴。要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路。</string>
+    <!-- GNSS C：权限已授但系统定位总开关关闭 -->
+    <string name="gnss_system_off">系统定位已关闭</string>
+    <string name="gnss_system_off_note">应用已获定位权限，但系统定位总开关关闭。开启系统定位后回此页即可记录。</string>
+    <string name="gnss_open_location_settings">去系统设置</string>
+
+    <!-- 启动C：后续启动缺权限弹出（ModalSheet over 采集 Tab） -->
+    <string name="gatec_title">有权限待授权</string>
+    <string name="gatec_body">静默检查发现缺少「附近设备（扫描/连接）」。授权后即可扫描连接设备；也可跳过，用到时再请求。</string>
+    <string name="gatec_grant">去授权</string>
+    <string name="gatec_skip">跳过</string>
 
     <!-- ===== 导出错误（MediaStore） ===== -->
     <string name="export_err_no_folder">会话文件夹不存在</string>

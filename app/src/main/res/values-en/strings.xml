@@ -280,6 +280,16 @@
     <string name="gnss_missing">Location permission missing</string>
     <string name="gnss_request">Grant</string>
     <string name="gnss_note">When on, device GNSS is written as one source: gps.csv + manifest on the same timeline. Grant before starting, otherwise this session has no GPS path.</string>
+    <!-- GNSS C: granted but system location toggle off -->
+    <string name="gnss_system_off">System location is off</string>
+    <string name="gnss_system_off_note">Location permission is granted, but the system location toggle is off. Turn it on and return here to record.</string>
+    <string name="gnss_open_location_settings">Open system settings</string>
+
+    <!-- Startup C: missing permission sheet over Collect tab -->
+    <string name="gatec_title">Permissions pending</string>
+    <string name="gatec_body">A silent check found "Nearby devices (scan/connect)" missing. Grant to scan/connect; or skip and request when needed.</string>
+    <string name="gatec_grant">Grant</string>
+    <string name="gatec_skip">Skip</string>
 
     <!-- ===== Export errors (MediaStore) ===== -->
     <string name="export_err_no_folder">Session folder not found</string>
