@@ -35,6 +35,9 @@ interface SessionController {
     /** 采集中重选采集类型（运行C 可重开，D-V4-12）。 */
     fun setEnabledTypes(types: Set<io.bluetrace.shared.domain.CollectType>)
 
+    /** 采集中开关本机 GNSS 一路（运行C 勾选 GNSS，§6.5）：开→起订阅续写 gps.csv，关→停订阅。 */
+    fun setGnss(enabled: Boolean)
+
     /** 长按 2 秒结束 → 收尾落盘 → 结束摘要（§5.8）。 */
     suspend fun stop(reason: StopReason = StopReason.NORMAL): SessionSummary
 

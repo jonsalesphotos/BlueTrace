@@ -146,6 +146,9 @@
     <string name="run_demo_storage_full">模拟存储满</string>
     <string name="run_collect_type_title">采集类型选择</string>
     <string name="run_collect_type_sub">开关 = 该路是否上传(需通信)/落盘 · 透明传输，不控采样率</string>
+    <string name="run_type_gnss">本机定位 GNSS</string>
+    <string name="run_type_gnss_sub">独立一路 · gps.csv（while-in-use，按需授权定位）</string>
+    <string name="gnss_denied_toast">未授予定位权限，本次采集不含 GPS 一路</string>
 
     <!-- ===== 结束摘要 ===== -->
     <string name="summary_title">采集已结束</string>
@@ -293,7 +296,7 @@
     <string name="gnss_granted">已授定位（while-in-use）</string>
     <string name="gnss_missing">缺定位权限</string>
     <string name="gnss_request">去授权</string>
-    <string name="gnss_note">开启后本机 GNSS 作一路写入会话：落地 gps.csv + manifest，共用同一时间轴。要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路。</string>
+    <string name="gnss_note">本机 GNSS 作独立一路写入会话（gps.csv + manifest，共用同一时间轴）。启用方式：进入采集后在「采集类型」里勾选 GNSS（按需授权定位）；本屏仅显示定位权限 / 系统定位状态。</string>
     <!-- GNSS C：权限已授但系统定位总开关关闭 -->
     <string name="gnss_system_off">系统定位已关闭</string>
     <string name="gnss_system_off_note">应用已获定位权限，但系统定位总开关关闭。开启系统定位后回此页即可记录。</string>

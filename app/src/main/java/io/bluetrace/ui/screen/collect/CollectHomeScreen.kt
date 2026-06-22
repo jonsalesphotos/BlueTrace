@@ -130,10 +130,6 @@ fun CollectHomeScreen(
                 },
             )
             ModeTile(mode = ui.mode, onSelect = vm::setMode)
-
-            if (ui.gnssEnabled) {
-                Text(stringResource(R.string.collect_gnss_note), fontSize = 11.sp, color = BT.tertiary, modifier = Modifier.padding(start = 4.dp))
-            }
         }
         Column(Modifier.padding(16.dp)) {
             if (lowSpace) {

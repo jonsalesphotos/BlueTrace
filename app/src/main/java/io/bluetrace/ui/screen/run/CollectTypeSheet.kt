@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -29,16 +30,18 @@ import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.ui.theme.sensorColor
 
-/** 运行C · 采集类型选择（下抽屉；开关 = 该路是否上传/落盘，D-V4-12）。 */
+/** 运行C · 采集类型选择（下抽屉；开关 = 该路是否上传/落盘，D-V4-12）。末行 = 本机 GNSS 一路（§6.5）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectTypeSheet(
     selected: Set<CollectType>,
+    gnssOn: Boolean,
     sheetState: SheetState,
     onDismiss: () -> Unit,
-    onConfirm: (Set<CollectType>) -> Unit,
+    onConfirm: (Set<CollectType>, Boolean) -> Unit,
 ) {
     var working by remember { mutableStateOf(selected) }
+    var workingGnss by remember { mutableStateOf(gnssOn) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
@@ -59,9 +62,26 @@ fun CollectTypeSheet(
                 }
             }
 
+            HorizontalDivider(Modifier.padding(vertical = 6.dp), color = BT.outlineV)
+
+            // 本机 GNSS：独立一路 → gps.csv（§6.5）；勾选后开始前按需授权定位（拒绝则本次无 GPS 一路，不阻断）。
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { workingGnss = !workingGnss }
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.run_type_gnss), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
+                    Text(stringResource(R.string.run_type_gnss_sub), fontSize = 11.sp, color = BT.onSurfaceV)
+                }
+                CircleCheck(checked = workingGnss, color = BT.tertiary)
+            }
+
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlineBtn(stringResource(R.string.action_cancel), onDismiss, Modifier.weight(1f))
-                PrimaryButton(stringResource(R.string.action_confirm), { onConfirm(working) }, Modifier.weight(1f))
+                PrimaryButton(stringResource(R.string.action_confirm), { onConfirm(working, workingGnss) }, Modifier.weight(1f))
             }
         }
     }

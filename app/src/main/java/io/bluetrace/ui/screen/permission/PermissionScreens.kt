@@ -222,15 +222,14 @@ fun PowerSaveGuideScreen(onBack: () -> Unit) {
     }
 }
 
-/** GNSS A/B/C · 本机 GNSS（可选一路 · while-in-use）。C = 权限已授但系统定位总开关关闭。 */
+/** GNSS · 本机定位（while-in-use）。启用改为「采集 → 采集类型」里勾选（Q1）；本屏只读状态/权限。
+ *  状态：缺定位权限（去请求）/ 系统定位总开关关闭（去系统设置）/ 已就绪。 */
 @Composable
 fun GnssScreen(
     onBack: () -> Unit,
     envVm: EnvironmentViewModel = koinViewModel(),
-    settingsVm: SettingsViewModel = koinViewModel(),
 ) {
     val env by envVm.state.collectAsStateWithLifecycle()
-    val gnssEnabled by settingsVm.gnssEnabled.collectAsStateWithLifecycle()
     val locationGranted = env.status(RequirementId.LOCATION) == RequirementStatus.GRANTED
     val context = LocalContext.current
     var systemLocationOn by remember { mutableStateOf(true) }
@@ -251,17 +250,11 @@ fun GnssScreen(
                 !systemLocationOn -> stringResource(R.string.gnss_system_off)
                 else -> stringResource(R.string.gnss_granted)
             }
+            // 只读状态卡（启用开关已移除 → 采集类型勾选，Q1）
             Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.gnss_source), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
-                        Text(statusSub, fontSize = 11.sp, color = BT.onSurfaceV)
-                    }
-                    Switch(
-                        checked = gnssEnabled && locationGranted && systemLocationOn,
-                        enabled = locationGranted && systemLocationOn,
-                        onCheckedChange = { settingsVm.setGnss(it) },
-                    )
+                Column(Modifier.padding(14.dp)) {
+                    Text(stringResource(R.string.gnss_source), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
+                    Text(statusSub, fontSize = 11.sp, color = BT.onSurfaceV)
                 }
             }
             when {

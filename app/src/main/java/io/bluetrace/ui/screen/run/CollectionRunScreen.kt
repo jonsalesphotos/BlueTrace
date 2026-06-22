@@ -1,6 +1,12 @@
 package io.bluetrace.ui.screen.run
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -50,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
+import io.bluetrace.data.android.BlueTracePermissions
 import io.bluetrace.shared.domain.CollectType
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
@@ -103,6 +111,17 @@ fun CollectionRunScreen(
     var showTypeSheet by remember { mutableStateOf(true) } // 进入自动弹（D-V4-12）
     var selectedTypes by remember { mutableStateOf(config?.enabledTypes ?: CollectType.defaults) }
     var labelText by remember { mutableStateOf("") }
+    var gnssOn by remember { mutableStateOf(config?.gnssEnabled ?: false) }
+    val context = LocalContext.current
+    // 运行C 勾选 GNSS 但缺定位权限 → 按需请求；授予则起 GNSS 一路，拒绝则本次不含 GPS（不阻断，§5.2）
+    val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.values.any { it } || locationGranted(context)) {
+            vm.setGnss(true); gnssOn = true
+        } else {
+            Toast.makeText(context, context.getString(R.string.gnss_denied_toast), Toast.LENGTH_LONG).show()
+            gnssOn = false
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(BT.bg)) {
         Column(Modifier.fillMaxSize()) {
@@ -129,6 +148,11 @@ fun CollectionRunScreen(
                         selectedTypes.sortedBy { it.ordinal }.forEach { t ->
                             Surface(color = sensorColor(t.id).copy(alpha = 0.16f), shape = RoundedCornerShape(999.dp)) {
                                 Text(t.id, fontSize = 11.sp, fontWeight = FontWeight.W600, color = sensorColor(t.id), modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                            }
+                        }
+                        if (gnssOn) {
+                            Surface(color = BT.tertiary.copy(alpha = 0.16f), shape = RoundedCornerShape(999.dp)) {
+                                Text("gps", fontSize = 11.sp, fontWeight = FontWeight.W600, color = BT.tertiary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                             }
                         }
                     }
@@ -170,12 +194,27 @@ fun CollectionRunScreen(
     if (showTypeSheet) {
         CollectTypeSheet(
             selected = selectedTypes,
+            gnssOn = gnssOn,
             sheetState = rememberModalBottomSheetState(),
             onDismiss = { showTypeSheet = false },
-            onConfirm = { sel -> selectedTypes = sel; vm.setEnabledTypes(sel); showTypeSheet = false },
+            onConfirm = { sel, gnss ->
+                selectedTypes = sel
+                vm.setEnabledTypes(sel)
+                if (gnss && !gnssOn) {
+                    if (locationGranted(context)) { vm.setGnss(true); gnssOn = true }
+                    else locationLauncher.launch(BlueTracePermissions.location)
+                } else if (!gnss && gnssOn) {
+                    vm.setGnss(false); gnssOn = false
+                }
+                showTypeSheet = false
+            },
         )
     }
 }
+
+/** 当前是否已授予 FINE 定位（运行C 勾选 GNSS 时按需请求的前置判断）。 */
+private fun locationGranted(context: android.content.Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 @Composable
 private fun DemoChip(text: String, onClick: () -> Unit) {

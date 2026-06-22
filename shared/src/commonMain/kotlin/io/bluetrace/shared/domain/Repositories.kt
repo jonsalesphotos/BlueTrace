@@ -32,8 +32,6 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 interface AppPreferences {
     val firstLaunchCompleted: Flow<Boolean>
     suspend fun setFirstLaunchCompleted(value: Boolean)
-    val gnssEnabled: Flow<Boolean>
-    suspend fun setGnssEnabled(value: Boolean)
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(value: ThemeMode)
 }

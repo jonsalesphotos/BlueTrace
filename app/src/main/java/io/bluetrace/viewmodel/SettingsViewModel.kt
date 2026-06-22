@@ -6,13 +6,10 @@ import androidx.lifecycle.viewModelScope
 import io.bluetrace.R
 import io.bluetrace.data.android.ExportResult
 import io.bluetrace.data.android.MediaStoreExporter
-import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.session.DiagnosticsLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,13 +28,9 @@ data class StorageBreakdown(
 /** 设置 Tab + 子页（环境/GNSS/导出位置/存储/应用日志/关于）。 */
 class SettingsViewModel(
     private val context: Context,
-    private val prefs: AppPreferences,
     private val diagnostics: DiagnosticsLog,
     private val exporter: MediaStoreExporter,
 ) : ViewModel() {
-
-    val gnssEnabled: StateFlow<Boolean> =
-        prefs.gnssEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val logEntries = diagnostics.entries
 
@@ -46,10 +39,6 @@ class SettingsViewModel(
 
     private val _toast = MutableStateFlow<String?>(null)
     val toast: StateFlow<String?> = _toast
-
-    fun setGnss(value: Boolean) {
-        viewModelScope.launch { prefs.setGnssEnabled(value) }
-    }
 
     fun clearLog() = diagnostics.clear()
 

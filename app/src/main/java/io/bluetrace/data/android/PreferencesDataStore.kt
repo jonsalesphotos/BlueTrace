@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.map
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "bluetrace")
 
 private val KEY_FIRST_LAUNCH = booleanPreferencesKey("first_launch_completed")
-private val KEY_GNSS = booleanPreferencesKey("gnss_enabled")
 private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 private val KEY_SUBJECTS = stringPreferencesKey("subjects_json")
 private val KEY_CURRENT_SUBJECT = stringPreferencesKey("current_subject_id")
@@ -30,13 +29,6 @@ class DataStoreAppPreferences(private val context: Context) : AppPreferences {
 
     override suspend fun setFirstLaunchCompleted(value: Boolean) {
         context.dataStore.edit { it[KEY_FIRST_LAUNCH] = value }
-    }
-
-    override val gnssEnabled: Flow<Boolean> =
-        context.dataStore.data.map { it[KEY_GNSS] ?: false }
-
-    override suspend fun setGnssEnabled(value: Boolean) {
-        context.dataStore.edit { it[KEY_GNSS] = value }
     }
 
     override val themeMode: Flow<ThemeMode> =

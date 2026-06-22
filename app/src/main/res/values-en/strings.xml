@@ -146,6 +146,9 @@
     <string name="run_demo_storage_full">Simulate storage full</string>
     <string name="run_collect_type_title">Collection types</string>
     <string name="run_collect_type_sub">Toggle = whether the path is uploaded/saved · transparent transport, no rate control</string>
+    <string name="run_type_gnss">Device GNSS</string>
+    <string name="run_type_gnss_sub">Separate source · gps.csv (while-in-use, location on demand)</string>
+    <string name="gnss_denied_toast">Location not granted; this session has no GPS path</string>
 
     <!-- ===== Summary ===== -->
     <string name="summary_title">Collection ended</string>
@@ -293,7 +296,7 @@
     <string name="gnss_granted">Location granted (while-in-use)</string>
     <string name="gnss_missing">Location permission missing</string>
     <string name="gnss_request">Grant</string>
-    <string name="gnss_note">When on, device GNSS is written as one source: gps.csv + manifest on the same timeline. Grant before starting, otherwise this session has no GPS path.</string>
+    <string name="gnss_note">Device GNSS is written as a separate source (gps.csv + manifest, same timeline). To enable: during collection, check GNSS in “Collect types” (location requested on demand). This screen only shows location permission / system location status.</string>
     <!-- GNSS C: granted but system location toggle off -->
     <string name="gnss_system_off">System location is off</string>
     <string name="gnss_system_off_note">Location permission is granted, but the system location toggle is off. Turn it on and return here to record.</string>

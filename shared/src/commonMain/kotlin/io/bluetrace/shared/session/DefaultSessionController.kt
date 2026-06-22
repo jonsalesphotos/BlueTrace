@@ -55,6 +55,7 @@ class DefaultSessionController(
     private val diagnostics: DiagnosticsLog,
     private val scope: CoroutineScope,
     private val storageMonitor: io.bluetrace.shared.data.StorageMonitor = io.bluetrace.shared.data.StorageMonitor { Long.MAX_VALUE },
+    private val gnssSource: io.bluetrace.shared.data.GnssSource = io.bluetrace.shared.data.GnssSource.None,
     private val appVersion: String = "1.0",
 ) : SessionController {
 
@@ -91,6 +92,7 @@ class DefaultSessionController(
     private var runScope: CoroutineScope? = null
     private var recorder: SessionRecorder? = null
     private var layout: SessionLayout? = null
+    private var gnssJob: Job? = null
 
     override fun start(config: SessionConfig) {
         if (status == RunStatus.COLLECTING) return
@@ -125,7 +127,19 @@ class DefaultSessionController(
             rs.launch { bleClient.linkState(d.deviceId).collect { ch.send(RunEvent.Link(d.deviceId, d.kind, it)) } }
         }
         rs.launch { while (isActive) { delay(TICK_MS); ch.trySend(RunEvent.Tick) } }
-        if (config.gnssEnabled) rs.launch { gpsLoop(ch) }
+        // 本机 GNSS 一路（F-GPS-1）：勾选 GNSS 时订阅真实 GnssSource（运行中可经 setGnss 起/停），样本 → gps.csv
+        if (config.gnssEnabled) gnssJob = launchGnss()
+    }
+
+    /** 起本机 GNSS 订阅（while-in-use，D-3；缺权限/定位关时 GnssSource 自给空流）。每个定位样本 → gps.csv。 */
+    private fun launchGnss(): Job? {
+        val rs = runScope ?: return null
+        val ch = events ?: return null
+        return rs.launch {
+            gnssSource.samples().collect { s ->
+                ch.send(RunEvent.Gps(clock.nowMs(), s.lat, s.lon, s.altM, s.speedMps, s.accuracyM))
+            }
+        }
     }
 
     private suspend fun consume(ch: Channel<RunEvent>) {
@@ -148,6 +162,12 @@ class DefaultSessionController(
                     recorder?.setEnabledTypes(e.types)
                     enabledStreamNames = e.types.map { io.bluetrace.shared.domain.DecodedStream.ofCollectType(it).csvName }.toSet()
                     activeConfig = activeConfig?.copy(enabledTypes = e.types)
+                    pushState()
+                }
+                is RunEvent.SetGnss -> {
+                    recorder?.setGnssEnabled(e.enabled)
+                    if (e.enabled) { if (gnssJob == null) gnssJob = launchGnss() } else { gnssJob?.cancel(); gnssJob = null }
+                    activeConfig = activeConfig?.copy(gnssEnabled = e.enabled)
                     pushState()
                 }
                 is RunEvent.Gps -> recorder?.recordGps(e.epochMs, e.lat, e.lon, e.alt, e.speed, e.accuracy)
@@ -218,15 +238,6 @@ class DefaultSessionController(
         pushState()
     }
 
-    private suspend fun gpsLoop(ch: Channel<RunEvent>) {
-        var lat = 31.2304; var lon = 121.4737 // 上海，演示漂移
-        while (true) {
-            delay(1000) // cancellable：runScope 取消即退出
-            lat += 0.00001; lon += 0.00001
-            ch.trySend(RunEvent.Gps(clock.nowMs(), lat, lon, 12.0, 1.2, 5.0))
-        }
-    }
-
     private fun finishInternal(reason: StopReason): SessionSummary {
         status = RunStatus.STOPPED
         stopReason = reason
@@ -253,6 +264,7 @@ class DefaultSessionController(
     override fun setEnabledTypes(types: Set<io.bluetrace.shared.domain.CollectType>) {
         events?.trySend(RunEvent.SetEnabled(types))
     }
+    override fun setGnss(enabled: Boolean) { events?.trySend(RunEvent.SetGnss(enabled)) }
     override fun simulateStorageFull() { events?.trySend(RunEvent.StorageFull) }
 
     override fun injectDisconnect() {
@@ -285,6 +297,7 @@ class DefaultSessionController(
         reconnectCount = 0; disconnectTotalMs = 0
         labelIntervalOpen = false; displayPaused = false; stopReason = null
         deviceStates.clear(); disconnectStartMs.clear(); activeSensors.clear()
+        gnssJob = null
     }
 
     private fun pushState() {
@@ -387,6 +400,7 @@ private sealed interface RunEvent {
     data class Interval(val text: String) : RunEvent
     data class Pause(val paused: Boolean) : RunEvent
     data class SetEnabled(val types: Set<io.bluetrace.shared.domain.CollectType>) : RunEvent
+    data class SetGnss(val enabled: Boolean) : RunEvent
     data class Gps(
         val epochMs: Long, val lat: Double, val lon: Double,
         val alt: Double, val speed: Double, val accuracy: Double,

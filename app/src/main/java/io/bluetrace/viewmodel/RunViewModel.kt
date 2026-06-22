@@ -35,6 +35,7 @@ class RunViewModel(private val controller: SessionController) : ViewModel() {
     fun toggleIntervalLabel(text: String) = controller.toggleIntervalLabel(text)
     fun setPaused(paused: Boolean) = controller.setDisplayPaused(paused)
     fun setEnabledTypes(types: Set<CollectType>) = controller.setEnabledTypes(types)
+    fun setGnss(enabled: Boolean) = controller.setGnss(enabled)
 
     // 演示钩子（异常清单 §5.4）
     fun injectDisconnect() = controller.injectDisconnect()

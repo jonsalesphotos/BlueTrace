@@ -35,6 +35,15 @@ class DefaultSessionControllerTest {
         val store = SessionStore(fs, root)
         val diag = InMemoryDiagnosticsLog(clock)
         val mock = MockBleClient(clock, scope.backgroundScope, emitIntervalMs = 100, connectDelayMs = 600, reconnectDelayMs = 2000)
+        // 假 GNSS 源（仅 gnssEnabled 会话会订阅）：每 1s 一个样本
+        val gnss = io.bluetrace.shared.data.GnssSource {
+            kotlinx.coroutines.flow.flow {
+                while (true) {
+                    emit(io.bluetrace.shared.data.GpsSample(31.23, 121.47, 12.0, 1.0, 5.0))
+                    kotlinx.coroutines.delay(1000)
+                }
+            }
+        }
         val controller = DefaultSessionController(
             bleClient = mock,
             decoder = MockSampleDecoder(),
@@ -45,6 +54,7 @@ class DefaultSessionControllerTest {
             zone = TestZone(),
             diagnostics = diag,
             scope = scope.backgroundScope,
+            gnssSource = gnss,
         )
         val dut = ScannedDevice("dut-0427", "BT-DUT-0427", "C4:7B:8D:0A:04:27", -52, DeviceKind.DUT)
         val ref = ScannedDevice("ref-h10", "Polar H10", "A0:9E:1A:55:0D:10", -60, DeviceKind.REFERENCE)

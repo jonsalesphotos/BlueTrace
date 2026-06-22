@@ -20,15 +20,20 @@ class SessionRecorder(
     private val fileSystem: FileSystem,
     private val layout: SessionLayout,
     enabledTypes: Set<CollectType>,
-    private val gnssEnabled: Boolean,
+    gnssEnabled: Boolean,
 ) {
     private var enabledStreams: Set<DecodedStream> =
         enabledTypes.map { DecodedStream.ofCollectType(it) }.toSet()
+
+    private var gnssEnabled: Boolean = gnssEnabled
 
     /** 采集中重选采集类型（运行C 重开，D-V4-12）：之后启用路才落 CSV。 */
     fun setEnabledTypes(types: Set<CollectType>) {
         enabledStreams = types.map { DecodedStream.ofCollectType(it) }.toSet()
     }
+
+    /** 采集中开关本机 GNSS 落盘（运行C 勾选 GNSS，§6.5）：关→后续 recordGps 跳过；开→续写 gps.csv。 */
+    fun setGnssEnabled(on: Boolean) { gnssEnabled = on }
 
     private val rawWriters = HashMap<DeviceKind, RawHexWriter>()
     private val csvWriters = HashMap<DecodedStream, CsvWriter>()

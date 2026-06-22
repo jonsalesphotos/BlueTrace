@@ -3,7 +3,6 @@ package io.bluetrace.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.domain.ConnectionRegistry
-import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.AssignedDevice
 import io.bluetrace.shared.domain.CollectMode
 import io.bluetrace.shared.domain.CollectType
@@ -32,7 +31,6 @@ data class CollectHomeUiState(
     val currentSubject: Subject? = null,
     val connectedDevices: List<ScannedDevice> = emptyList(),
     val mode: CollectMode = CollectMode.WEAR,
-    val gnssEnabled: Boolean = false,
     val hardSatisfied: Boolean = true,
     val bluetoothOn: Boolean = true,
     val scanConnectMissing: Boolean = false,
@@ -48,7 +46,6 @@ enum class StartOutcome { STARTED, NOT_READY, STORAGE_FULL }
 class CollectHomeViewModel(
     subjectRepo: SubjectRepository,
     private val registry: ConnectionRegistry,
-    private val prefs: AppPreferences,
     private val controller: SessionController,
     private val env: EnvironmentRepository,
     private val storageMonitor: io.bluetrace.shared.data.StorageMonitor,
@@ -62,7 +59,6 @@ class CollectHomeViewModel(
         val subject: Subject?,
         val connected: List<ScannedDevice>,
         val mode: CollectMode,
-        val gnss: Boolean,
     )
 
     val uiState: StateFlow<CollectHomeUiState> =
@@ -72,15 +68,13 @@ class CollectHomeViewModel(
             },
             registry.connected,
             _mode,
-            prefs.gnssEnabled,
-        ) { subject, connected, mode, gnss -> Base(subject, connected, mode, gnss) }
+        ) { subject, connected, mode -> Base(subject, connected, mode) }
             .let { base ->
                 combine(base, env.state) { b, envState ->
                     CollectHomeUiState(
                         currentSubject = b.subject,
                         connectedDevices = b.connected,
                         mode = b.mode,
-                        gnssEnabled = b.gnss,
                         hardSatisfied = envState.hardSatisfied,
                         bluetoothOn = envState.bluetoothOn,
                         scanConnectMissing = envState.status(io.bluetrace.shared.domain.RequirementId.BLE_SCAN_CONNECT) !=
@@ -112,7 +106,7 @@ class CollectHomeViewModel(
             mode = s.mode,
             devices = s.connectedDevices.map { AssignedDevice(it.id, it.name, it.address, it.kind, it.profileId) },
             enabledTypes = CollectType.defaults,
-            gnssEnabled = s.gnssEnabled,
+            gnssEnabled = false, // GNSS 改为运行C 采集类型勾选（Q1）；开始默认关，进运行页 sheet 勾选 + 按需授权
             startEpochMs = now,
             timezoneId = zone.zoneId(),
             utcOffsetSeconds = zone.offsetSeconds(),

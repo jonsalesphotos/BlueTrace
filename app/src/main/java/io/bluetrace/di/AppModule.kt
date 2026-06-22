@@ -49,6 +49,7 @@ val appModule = module {
     single<FileSystem> { FileSystem.SYSTEM }
     single<Path> { sessionsRoot(androidContext()) }
     single<io.bluetrace.shared.data.StorageMonitor> { io.bluetrace.data.android.AndroidStorageMonitor(androidContext()) }
+    single<io.bluetrace.shared.data.GnssSource> { io.bluetrace.data.android.AndroidGnssSource(androidContext()) }
 
     // ---- 共享核心（KMP commonMain）----
     single { SessionStore(get(), get()).also { it.ensureRoot() } }
@@ -68,6 +69,7 @@ val appModule = module {
             diagnostics = get(),
             scope = get(),
             storageMonitor = get(),
+            gnssSource = get(),
         )
     }
 
@@ -87,5 +89,5 @@ val appModule = module {
     viewModelOf(::DataViewModel)
     viewModelOf(::ExportViewModel)
     viewModel { (folder: String) -> SessionDetailViewModel(folder, get()) }
-    viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
+    viewModel { SettingsViewModel(androidContext(), get(), get()) }
 }
