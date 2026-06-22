@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 透明占位：用作 windowSplashScreenAnimatedIcon，使 Android 12 系统 SplashScreen 只显纯底色（无图标）。
+     logo + 字标 + 副标 + 三点动画完全交给应用内 AppSplash → 整个冷启动只有"一个开屏"。
+     注：系统启动窗口无法被 app 取消（OS 强制），只能清空其内容到只剩 windowSplashScreenBackground。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M0,0h48v48h-48z"
+        android:fillColor="#00000000" />
+</vector>

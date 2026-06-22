@@ -415,9 +415,10 @@ enum SensorId {
 
 **启动屏展示规则（仅冷启动一次）**：启动屏**只在冷启动展示一次**（进程级 flag）。**app 已在后台存活**（暖/热启动，如采集中切走再回来）→ **不再展示启动屏，直接回当前界面**（采集中 → 运行页；否则 → 采集 Tab）。
 
-**启动屏两层落地**（实现细节，对齐原型「启动A」）：
-1. **系统 SplashScreen**（Android 12 API，OS 冷启动自动出一次）：只能画**单一背景色 + 图标**，一闪而过、不做长停留。⚠️ **深色模式坑**：`windowSplashScreenBackground` 在深色模式会被系统 **force-dark 压暗**（浅底 `#F3F5F8` → 脏深灰，观感像"黑框"），且 `android:forceDarkAllowed=false` 在部分 ROM（如 MIUI）拦不住 → 用 **`values-night/colors.xml` 给品牌深底**（而非浅底），让深色模式下也是"有意设计"的干净深底。
-2. **应用内 Compose 启动屏**（`AppSplash`，冷启动展示 ~0.9s 后进主流程）：承载系统层**画不了**的内容——**渐变圆角 logo（白脉冲）+ 渐变字标 BlueTrace + 副标 + 三点加载动画**，1:1 贴原型启动A。暖/热启动用进程级 `AppStartup.peekCold()` flag 跳过。
+**启动屏落地（实现细节，对齐原型「启动A」；目标：冷启动只有"一个开屏"）**：
+- **系统 SplashScreen 无法被 app 取消**（Android 12+ OS 强制画冷启动窗口），故**清空成只剩底色**：`windowSplashScreenAnimatedIcon` 设**透明占位**（`ic_splash_blank`，不显系统图标，否则会与应用内 logo 形成"两个开屏"），`windowSplashScreenBackground = splash_bg`。⚠️ **深色模式坑**：浅底 `#F3F5F8` 会被系统 **force-dark 压暗**成脏灰（像"黑框"），`android:forceDarkAllowed=false` 在部分 ROM（MIUI）拦不住 → 用 **`values-night` 给品牌深底 `#121A2E`**。
+- **应用内 Compose 启动屏 `AppSplash`** 承载全部品牌内容——**渐变圆角 logo（白脉冲）+ 渐变字标 BlueTrace + 副标 + 三点加载动画**，1:1 贴原型启动A；**底色随系统深浅**（与系统层 `splash_bg` 同底：浅 `#F3F5F8` / 深 `#121A2E`），系统 splash 首帧后立即退场（`onReady`）由 AppSplash 接管 ~0.9s → 两层同底无缝、只见一个开屏。
+- **只冷启动展示一次**：暖/热启动用进程级 `AppStartup.peekCold()` 跳过 AppSplash，直落当前界面。
 
 → 屏级细节：v4_android.html「启动A 启动屏 / 启动B 首启请求 / 启动C 后续缺权限弹出」+「采集 / 数据 / 设置 Tab」。
 

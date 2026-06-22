@@ -82,9 +82,11 @@ fun BlueTraceApp(onReady: () -> Unit) {
 
         val cold = remember { AppStartup.peekCold() }
         var decision by remember { mutableStateOf<StartDecision?>(null) }
+        // 系统 SplashScreen 立即退场 → 由应用内 AppSplash 接管（同底色），把"系统层 + 应用内"两段
+        // 合成一个开屏；decide() 期间正好让 AppSplash 的三点动画转。
+        LaunchedEffect(Unit) { onReady() }
         LaunchedEffect(Unit) {
             decision = AppStartup.decide(prefs, store, clock, controller)
-            onReady()
         }
         // 应用内启动屏（原型启动A：渐变 logo + 字标 + 副标 + 三点动画）。仅冷启动展示一次（§5.1）：
         // 暖/热启动 cold=false → 跳过直落当前界面；系统 SplashScreen 在 onReady 后退场，由此接管。

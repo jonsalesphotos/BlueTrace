@@ -9,12 +9,14 @@
         <item name="android:windowBackground">@color/bt_window_bg</item>
     </style>
 
-    <!-- Android 12 SplashScreen：冷启动系统画品牌脉冲 logo（一闪而过），随后切到正式主题。 -->
-    <!-- forceDarkAllowed=false：关键修复——否则深色模式下系统会把浅底 splash_bg(#F3F5F8) 反相成深灰，
-         看起来像"黑框"（中央渐变 logo 正常，仅背景被压暗）。设计就是浅底 + 渐变脉冲 logo。 -->
+    <!-- Android 12 SplashScreen：系统冷启动窗口无法被 app 取消（OS 强制），这里把它清空成"只剩底色、无图标"，
+         把 logo+字标+副标+三点动画完全交给应用内 AppSplash → 整个冷启动只有"一个开屏"。
+         · windowSplashScreenAnimatedIcon = 透明占位（不显系统图标，否则会与应用内 logo 形成"两个开屏"）
+         · windowSplashScreenBackground = splash_bg（与 AppSplash 同底色：浅色 #F3F5F8 / 深色 values-night #121A2E）
+         · forceDarkAllowed=false：避免深色模式 force-dark 把底色压暗（叠加 values-night 双保险）。 -->
     <style name="Theme.BlueTrace.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_bg</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_blank</item>
         <item name="postSplashScreenTheme">@style/Theme.BlueTrace</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
