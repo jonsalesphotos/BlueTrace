@@ -222,6 +222,17 @@
     <string name="settings_about_sub">v1.0.0 · multi-sensor BLE collection</string>
     <string name="settings_phase2">Server sync / remote push</string>
     <string name="settings_phase2_sub">Phase 2</string>
+    <string name="settings_sec_appearance">Appearance</string>
+    <string name="settings_appearance">Theme</string>
+    <string name="settings_appearance_sub">Light / Dark / System</string>
+    <string name="appearance_title">Theme</string>
+    <string name="appearance_subtitle">Choose light, dark, or follow system</string>
+    <string name="appearance_system">Follow system</string>
+    <string name="appearance_system_sub">Switch automatically with system dark mode</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_light_sub">Always use light theme</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_dark_sub">Always use dark theme</string>
 
     <string name="env_title">Environment &amp; permissions</string>
     <string name="env_subtitle">One-stop permission and environment status</string>

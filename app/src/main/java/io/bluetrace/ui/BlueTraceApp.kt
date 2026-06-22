@@ -48,6 +48,7 @@ import io.bluetrace.ui.screen.permission.PermissionGateScreen
 import io.bluetrace.ui.screen.permission.PowerSaveGuideScreen
 import io.bluetrace.ui.screen.run.CollectionRunScreen
 import io.bluetrace.ui.screen.settings.AboutScreen
+import io.bluetrace.ui.screen.settings.AppearanceScreen
 import io.bluetrace.ui.screen.settings.AppLogScreen
 import io.bluetrace.ui.screen.settings.DeviceMaintenanceScreen
 import io.bluetrace.ui.screen.settings.EnvCheckScreen
@@ -224,6 +225,7 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                     onLog = { nav.navigate(Route.AppLog) },
                     onDeviceMaint = { nav.navigate(Route.DeviceMaintenance) },
                     onAbout = { nav.navigate(Route.About) },
+                    onAppearance = { nav.navigate(Route.Appearance) },
                 )
             }
             composable<Route.EnvCheck> { EnvCheckScreen(onBack = { nav.popBackStack() }) }
@@ -233,6 +235,7 @@ private fun BlueTraceNavHost(nav: NavHostController) {
             composable<Route.AppLog> { AppLogScreen(onBack = { nav.popBackStack() }) }
             composable<Route.DeviceMaintenance> { DeviceMaintenanceScreen(onBack = { nav.popBackStack() }) }
             composable<Route.About> { AboutScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.Appearance> { AppearanceScreen(onBack = { nav.popBackStack() }) }
         }
     }
 }

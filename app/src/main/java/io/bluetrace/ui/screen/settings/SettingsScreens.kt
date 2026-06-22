@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -62,7 +63,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SettingsHomeScreen(
     onEnv: () -> Unit, onGnss: () -> Unit, onExportLoc: () -> Unit, onStorage: () -> Unit,
-    onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit,
+    onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit, onAppearance: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.tab_settings), subtitle = stringResource(R.string.settings_subtitle))
@@ -76,6 +77,8 @@ fun SettingsHomeScreen(
             item { SectionHeader(stringResource(R.string.settings_sec_diag)) }
             item { SettingsNavRow(Icons.Filled.Article, BT.primary, BT.primaryC, stringResource(R.string.settings_log), stringResource(R.string.settings_log_sub), onLog) }
             item { SettingsNavRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_device_maint), stringResource(R.string.settings_device_maint_sub), onDeviceMaint) }
+            item { SectionHeader(stringResource(R.string.settings_sec_appearance)) }
+            item { SettingsNavRow(Icons.Filled.DarkMode, BT.primary, BT.primaryC, stringResource(R.string.settings_appearance), stringResource(R.string.settings_appearance_sub), onAppearance) }
             item { SectionHeader(stringResource(R.string.settings_sec_about)) }
             item { SettingsNavRow(Icons.Filled.Info, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_about), stringResource(R.string.settings_about_sub), onAbout) }
             item {

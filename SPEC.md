@@ -687,7 +687,7 @@ RootNavHost
 
 > **视觉细节（token / 间距 / 字阶 / 像素）以 `v4_android.html` 原型为准**，本节只给组件语义与配色/可达性约束。
 
-**App 图标 / 启动页图标**：品牌标识 = **脉冲/心跳 logo**（原型 splash-logo 同款，白色描边脉冲线，蓝→紫渐变底）。需出：① **自适应启动器图标**（前景=白色脉冲 logo / 背景=蓝紫渐变或纯品牌色 + Android 13+ monochrome themed 版）替换模板 `ic_launcher`；② **Android 12 `SplashScreen` 图标**（`windowSplashScreenAnimatedIcon` = 同 logo，`windowSplashScreenBackground` = 品牌底），与原型启动屏一致；展示规则见 §5.1（仅冷启动一次）。
+**App 图标 / 启动页图标**：品牌标识 = **脉冲/心跳 logo**（原型 splash-logo 同款，白色描边脉冲线，蓝→紫渐变底）。需出：① **自适应启动器图标**（前景=白色脉冲 logo / 背景=蓝紫渐变或纯品牌色 + Android 13+ monochrome themed 版）替换模板 `ic_launcher`；② **应用内启动屏 `AppSplash`** 承载品牌 logo + 字标 + 副标 + 三点动画（系统 `SplashScreen` 受限只画底色、其图标设透明占位，二者同底无缝、只见一个开屏）；展示规则与两层落地见 §5.1（仅冷启动一次）。
 
 ### 8.1 组件清单（名称 · 用途 · 关键状态）
 
@@ -746,6 +746,13 @@ RootNavHost
 - **动态字号**：用相对字号支持系统 Dynamic Type / 字体大小调节。注意：V4「采集页一页放下不滚动」在大字号下需允许降级为可滚动，避免裁切。
 - **关键操作二次确认**：停止采集用长按 2 秒 + 触感反馈。
 - **语义角色与播报**：BottomNav `role=tab` + `aria-selected`；ModeSegment `role=radiogroup`；SettingsRow toggle 行 `role=switch`；Toast `role=status`（aria-live polite）；ProgressDialog `role=progressbar` + `aria-valuenow`；EntryTile/SubjectCard 以「键：值」播报。
+
+### 8.4 外观模式（亮 / 暗 / 跟随系统）
+
+- **全局主题模式**：设置 → 外观 → **主题模式**，三选一 **跟随系统 / 浅色 / 深色**（`ThemeMode`，DataStore 持久化，默认跟随系统）；点选**即时生效**（写偏好 → `BlueTraceTheme` 重组全局），可覆盖系统深色（如系统深色仍可强制浅色）。
+- **双色板**：表面 / 文本 / 容器色随模式切换（`BtScheme` 的 `LightScheme` / `DarkScheme` + `LocalBtScheme`）；品牌主色与传感器固定配色不随模式。`BT.*` 用 `@Composable` getter 读 CompositionLocal（同 Material3 `colorScheme` 写法）→ 各屏调用点不变即自动跟随。深色底 `#11151C` 与启动屏深底统一。
+- **系统栏**：状态栏 / 导航栏图标明暗随**解析后**的模式同步（深色界面 → 浅色图标），强制浅色（系统深色下）也正确。
+- **启动屏跟随**：`AppSplash` 底色用主题感知 `BT.bg`，系统层 `values-night` 深底与之一致（§5.1）。
 
 ---
 

@@ -25,10 +25,15 @@ interface EnvironmentRepository {
     fun markPermanentlyDenied(id: RequirementId)
 }
 
+/** 全局外观模式（§8）：跟随系统 / 强制浅色 / 强制深色。 */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 /** 首启标记等偏好（app 用 DataStore 实现）。 */
 interface AppPreferences {
     val firstLaunchCompleted: Flow<Boolean>
     suspend fun setFirstLaunchCompleted(value: Boolean)
     val gnssEnabled: Flow<Boolean>
     suspend fun setGnssEnabled(value: Boolean)
+    val themeMode: Flow<ThemeMode>
+    suspend fun setThemeMode(value: ThemeMode)
 }

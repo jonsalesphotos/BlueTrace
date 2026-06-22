@@ -4,5 +4,6 @@
      这里显式给深色模式一个干净的品牌深底(深蓝靛)，让启动屏在深色模式下也是"有意设计"的样子；
      中央渐变脉冲 logo(ic_splash, 自带渐变底)在深底上同样清晰。浅色模式仍用 values/colors.xml 的浅底。 -->
 <resources>
-    <color name="splash_bg">#FF121A2E</color>
+    <!-- = DarkScheme.bg（Tokens.kt），让系统 splash 底与应用内 AppSplash / 整个深色界面同底 -->
+    <color name="splash_bg">#FF11151C</color>
 </resources>

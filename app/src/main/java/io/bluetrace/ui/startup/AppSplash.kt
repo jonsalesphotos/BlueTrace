@@ -8,7 +8,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,17 +50,14 @@ import io.bluetrace.ui.theme.BT
  */
 @Composable
 fun AppSplash() {
-    // 底色随系统深/浅色，与系统 SplashScreen 同底（深色 = values-night 品牌深底 #121A2E，浅色 = 设计浅底）。
-    // 两层同底 → 系统 splash → 应用内 splash 无缝衔接，不再像"两个开屏"。
-    val dark = isSystemInDarkTheme()
-    val bgColor = if (dark) Color(0xFF121A2E) else BT.bg
-    val tagColor = if (dark) Color(0xFF9AA6B5) else BT.onSurfaceV
+    // 底色 / 副标色用主题感知 token（BT.bg / BT.onSurfaceV）→ 跟随全局外观模式；且与系统 SplashScreen
+    // 同底（深色 splash_bg = values-night #11151C = DarkScheme.bg）→ 系统层与应用内无缝、只见一个开屏。
     val logoGrad = Brush.linearGradient(
         colors = listOf(BT.primary, BT.tertiary),
         start = Offset(0f, 0f),
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY), // ≈135° 左上→右下
     )
-    Box(Modifier.fillMaxSize().background(bgColor), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(BT.bg), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier
@@ -84,7 +80,7 @@ fun AppSplash() {
                 ),
             )
             Spacer(Modifier.height(7.dp))
-            Text(text = stringResource(R.string.splash_tagline), color = tagColor, fontSize = 12.sp)
+            Text(text = stringResource(R.string.splash_tagline), color = BT.onSurfaceV, fontSize = 12.sp)
             Spacer(Modifier.height(16.dp))
             LoadingDots()
         }

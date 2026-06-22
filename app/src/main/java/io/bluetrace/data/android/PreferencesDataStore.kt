@@ -11,6 +11,7 @@ import io.bluetrace.shared.data.BlueTraceJson
 import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
+import io.bluetrace.shared.domain.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -18,6 +19,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "bl
 
 private val KEY_FIRST_LAUNCH = booleanPreferencesKey("first_launch_completed")
 private val KEY_GNSS = booleanPreferencesKey("gnss_enabled")
+private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 private val KEY_SUBJECTS = stringPreferencesKey("subjects_json")
 private val KEY_CURRENT_SUBJECT = stringPreferencesKey("current_subject_id")
 
@@ -35,6 +37,16 @@ class DataStoreAppPreferences(private val context: Context) : AppPreferences {
 
     override suspend fun setGnssEnabled(value: Boolean) {
         context.dataStore.edit { it[KEY_GNSS] = value }
+    }
+
+    override val themeMode: Flow<ThemeMode> =
+        context.dataStore.data.map { prefs ->
+            runCatching { ThemeMode.valueOf(prefs[KEY_THEME_MODE] ?: ThemeMode.SYSTEM.name) }
+                .getOrDefault(ThemeMode.SYSTEM)
+        }
+
+    override suspend fun setThemeMode(value: ThemeMode) {
+        context.dataStore.edit { it[KEY_THEME_MODE] = value.name }
     }
 }
 

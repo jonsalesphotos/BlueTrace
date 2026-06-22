@@ -222,6 +222,17 @@
     <string name="settings_about_sub">v1.0.0 · 多传感器 BLE 数据采集</string>
     <string name="settings_phase2">服务器同步 / 远程下发</string>
     <string name="settings_phase2_sub">二期</string>
+    <string name="settings_sec_appearance">外观</string>
+    <string name="settings_appearance">主题模式</string>
+    <string name="settings_appearance_sub">亮色 / 暗色 / 跟随系统</string>
+    <string name="appearance_title">主题模式</string>
+    <string name="appearance_subtitle">选择亮色、暗色或跟随系统</string>
+    <string name="appearance_system">跟随系统</string>
+    <string name="appearance_system_sub">随系统深色模式自动切换</string>
+    <string name="appearance_light">浅色</string>
+    <string name="appearance_light_sub">始终使用浅色界面</string>
+    <string name="appearance_dark">深色</string>
+    <string name="appearance_dark_sub">始终使用深色界面</string>
 
     <string name="env_title">环境与权限检查</string>
     <string name="env_subtitle">一站式权限与环境状态</string>
