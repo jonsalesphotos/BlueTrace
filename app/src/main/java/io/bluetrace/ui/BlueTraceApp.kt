@@ -57,10 +57,15 @@ import io.bluetrace.ui.screen.settings.StorageScreen
 import io.bluetrace.ui.screen.subject.SubjectEditScreen
 import io.bluetrace.ui.screen.subject.SubjectSelectScreen
 import io.bluetrace.ui.screen.summary.SessionSummaryScreen
+import io.bluetrace.ui.startup.AppSplash
 import io.bluetrace.ui.startup.AppStartup
 import io.bluetrace.ui.startup.StartDecision
 import io.bluetrace.ui.theme.BlueTraceTheme
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+
+/** 应用内启动屏最短展示时长（冷启动一闪而过，§5.1）。 */
+private const val SPLASH_MIN_MS = 900L
 
 /**
  * 根导航：启动决策（[AppStartup]）就绪后再渲染。冷启动一次性走首启/恢复；暖/热启动直落当前界面（§5.1）。
@@ -75,12 +80,26 @@ fun BlueTraceApp(onReady: () -> Unit) {
         val controller = koinInject<SessionController>()
         val context = LocalContext.current
 
+        val cold = remember { AppStartup.peekCold() }
         var decision by remember { mutableStateOf<StartDecision?>(null) }
         LaunchedEffect(Unit) {
             decision = AppStartup.decide(prefs, store, clock, controller)
             onReady()
         }
-        val d = decision ?: return@BlueTraceTheme // 决策未就绪 → 保持系统 SplashScreen
+        // 应用内启动屏（原型启动A：渐变 logo + 字标 + 副标 + 三点动画）。仅冷启动展示一次（§5.1）：
+        // 暖/热启动 cold=false → 跳过直落当前界面；系统 SplashScreen 在 onReady 后退场，由此接管。
+        var splashElapsed by remember { mutableStateOf(!cold) }
+        if (cold) {
+            LaunchedEffect(Unit) {
+                delay(SPLASH_MIN_MS)
+                splashElapsed = true
+            }
+        }
+        val d = decision
+        if (d == null || !splashElapsed) {
+            if (cold) AppSplash()
+            return@BlueTraceTheme // 系统 splash / 应用内 splash 展示期间
+        }
 
         LaunchedEffect(d) {
             if (d.recoveredCount > 0) {

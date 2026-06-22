@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色模式启动屏底色。设备处于系统深色模式时，系统(尤其 MIUI)会对 splash 窗口做 force-dark，
+     把浅底 #F3F5F8 压成脏深灰 → 观感像"黑框"，且 android:forceDarkAllowed=false 在该 ROM 上拦不住。
+     这里显式给深色模式一个干净的品牌深底(深蓝靛)，让启动屏在深色模式下也是"有意设计"的样子；
+     中央渐变脉冲 logo(ic_splash, 自带渐变底)在深底上同样清晰。浅色模式仍用 values/colors.xml 的浅底。 -->
+<resources>
+    <color name="splash_bg">#FF121A2E</color>
+</resources>

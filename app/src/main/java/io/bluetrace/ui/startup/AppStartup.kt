@@ -26,6 +26,9 @@ object AppStartup {
     @Volatile
     private var coldHandled = false
 
+    /** 冷启动探测（只读，不改状态）：true = 当前进程尚未处理过冷启动。用于应用内启动屏「只冷启展示一次」。 */
+    fun peekCold(): Boolean = !coldHandled
+
     suspend fun decide(
         prefs: AppPreferences,
         store: SessionStore,

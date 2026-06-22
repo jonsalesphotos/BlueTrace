@@ -3,6 +3,9 @@
 <resources>
     <color name="brand_primary">#2BAEEA</color>
     <color name="brand_tertiary">#7C5BC9</color>
-    <!-- 启动屏底色 = app 背景（原型启动屏浅底），脉冲 logo 圆居中其上 -->
+    <!-- 启动屏底色（浅色模式）= app 背景（原型启动屏浅底），脉冲 logo 居中其上。
+         深色模式见 values-night/colors.xml（品牌深底，避免 force-dark 把浅底压成脏灰="黑框"）。 -->
     <color name="splash_bg">#F3F5F8</color>
+    <!-- 正式主题窗口背景：恒定浅色（app 固定浅色 UI），与 splash_bg 解耦，避免深色模式下交接闪深底 -->
+    <color name="bt_window_bg">#F3F5F8</color>
 </resources>
