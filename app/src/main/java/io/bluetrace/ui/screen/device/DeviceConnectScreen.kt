@@ -148,16 +148,17 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
             .alpha(if (row.disabled) 0.5f else 1f)
             .clickable(enabled = !row.disabled, onClick = onClick),
     ) {
+        val connected = row.link == LinkState.CONNECTED
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(9.dp))
-                    .background(if (isRef) BT.tertiaryC else BT.primaryC),
+                Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(if (connected) BT.successC else if (isRef) BT.tertiaryC else BT.primaryC),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     if (isRef) Icons.Filled.Favorite else Icons.Filled.GraphicEq,
                     contentDescription = null,
-                    tint = if (isRef) BT.tertiary else BT.primary,
+                    tint = if (connected) BT.success else if (isRef) BT.tertiary else BT.primary,
                     modifier = Modifier.size(20.dp),
                 )
             }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -96,21 +98,36 @@ fun CollectHomeScreen(
                 title = stringResource(R.string.collect_entry_device_title),
                 subtitle = stringResource(R.string.collect_entry_device_sub),
                 onClick = { if (ui.bluetoothOn) onOpenDevice() else onBluetoothOff() }, // 蓝牙关 → 启动E
-                trailing = {
-                    if (ui.connectedCount > 0) {
-                        PillTag(pluralStringResource(R.plurals.connected_count, ui.connectedCount, ui.connectedCount), BT.onSuccessC, BT.successC)
-                    } else {
-                        PillTag(stringResource(R.string.collect_entry_device_goto), BT.onSurfaceV, BT.surface2)
+                value = if (ui.connectedCount > 0)
+                    pluralStringResource(R.plurals.connected_count, ui.connectedCount, ui.connectedCount)
+                else stringResource(R.string.collect_entry_device_goto),
+                valueColor = if (ui.connectedCount > 0) BT.success else BT.onSurfaceV,
+                showChevron = true,
+                belowContent = if (ui.connectedDevices.isNotEmpty()) {
+                    {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            ui.connectedDevices.forEach { d -> PillTag("● ${d.name}", BT.primary, BT.primaryC) }
+                        }
                     }
-                },
+                } else null,
             )
             EntryTile(
                 icon = Icons.Filled.Person,
                 iconColor = BT.tertiary,
                 iconBg = BT.tertiaryC,
                 title = stringResource(R.string.collect_entry_user_title),
-                subtitle = ui.currentSubject?.let { "${it.alias} · ${io.bluetrace.ui.screen.subject.subjectBioLine(it)}" } ?: stringResource(R.string.collect_entry_user_empty),
+                subtitle = stringResource(R.string.collect_entry_user_sub),
                 onClick = onOpenSubject,
+                value = ui.currentSubject?.alias ?: stringResource(R.string.collect_entry_user_empty),
+                valueColor = if (ui.currentSubject != null) BT.onSurface else BT.onSurfaceV,
+                showChevron = true,
+                belowContent = ui.currentSubject?.let { s ->
+                    {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            io.bluetrace.ui.screen.subject.subjectBioBadges(s).forEach { b -> PillTag(b, BT.onSurfaceV, BT.surface2) }
+                        }
+                    }
+                },
             )
             ModeTile(mode = ui.mode, onSelect = vm::setMode)
 
@@ -134,6 +151,7 @@ fun CollectHomeScreen(
             }
             PrimaryButton(
                 stringResource(R.string.collect_start),
+                leadingIcon = Icons.Filled.PlayArrow,
                 onClick = {
                     when (vm.startSession()) {
                         StartOutcome.STARTED -> {
@@ -171,7 +189,7 @@ private fun ModeTile(mode: CollectMode, onSelect: (CollectMode) -> Unit) {
         iconColor = BT.success,
         iconBg = BT.successC,
         title = stringResource(R.string.collect_entry_mode_title),
-        subtitle = stringResource(R.string.collect_entry_mode_sub),
+        subtitle = stringResource(R.string.collect_entry_mode_sub, mode.label),
         trailing = {
             Row(
                 Modifier.clip(RoundedCornerShape(999.dp)).background(BT.surface2).padding(2.dp),

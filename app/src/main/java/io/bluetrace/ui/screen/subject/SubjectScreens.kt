@@ -47,14 +47,16 @@ import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.SubjectViewModel
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * 性别显示名：按用户裁决(v3)照原型用英文枚举 Male/Female/Other，**不随语言本地化**。
+ * 这是对 SPEC §7.6(枚举走资源本地化)的有意偏离——用户口径优先于 SPEC/原型静态稿。
+ */
 @Composable
-fun sexLabel(sex: Sex): String = stringResource(
-    when (sex) {
-        Sex.MALE -> R.string.sex_male
-        Sex.FEMALE -> R.string.sex_female
-        Sex.OTHER -> R.string.sex_other
-    },
-)
+fun sexLabel(sex: Sex): String = when (sex) {
+    Sex.MALE -> "Male"
+    Sex.FEMALE -> "Female"
+    Sex.OTHER -> "Other"
+}
 
 /** 用户A/B · 用户选择（点行即时选中并返回，§5.1）。 */
 @Composable
@@ -78,30 +80,23 @@ fun SubjectSelectScreen(
                 modifier = Modifier.padding(top = 40.dp),
             )
         } else {
+            val currentSubject = ui.subjects.firstOrNull { it.id == ui.currentId }
+            val others = ui.subjects.filter { it.id != ui.currentId }
             LazyColumn(
                 Modifier.weight(1f).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp),
             ) {
-                item { SectionHeader(stringResource(R.string.subject_sec_profiles)) }
-                items(ui.subjects, key = { it.id }) { subject ->
-                    val current = subject.id == ui.currentId
-                    Surface(
-                        color = BT.surface,
-                        shape = RoundedCornerShape(BT.radius),
-                        border = if (current) androidx.compose.foundation.BorderStroke(1.5.dp, BT.tertiary) else null,
-                        modifier = Modifier.fillMaxWidth().clickable { vm.select(subject.id); onBack() },
-                    ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(subject.alias, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
-                                    if (current) PillTag(stringResource(R.string.subject_tag_current), BT.onTertiaryC, BT.tertiaryC)
-                                }
-                                Text(subjectBioLine(subject), fontSize = 11.sp, color = BT.onSurfaceV)
-                            }
-                            CircleCheck(checked = current, color = BT.tertiary)
-                        }
+                if (currentSubject != null) {
+                    item { SectionHeader(stringResource(R.string.subject_sec_current)) }
+                    item(key = currentSubject.id) {
+                        SubjectRow(currentSubject, current = true) { vm.select(currentSubject.id); onBack() }
+                    }
+                }
+                if (others.isNotEmpty()) {
+                    item { SectionHeader(stringResource(R.string.subject_sec_others)) }
+                    items(others, key = { it.id }) { subject ->
+                        SubjectRow(subject, current = false) { vm.select(subject.id); onBack() }
                     }
                 }
             }
@@ -112,17 +107,40 @@ fun SubjectSelectScreen(
     }
 }
 
+/** 用户选择列表行（当前=高亮边框 + 当前 pill + ✓）。 */
+@Composable
+private fun SubjectRow(subject: Subject, current: Boolean, onClick: () -> Unit) {
+    Surface(
+        color = if (current) BT.tertiaryC else BT.surface,
+        shape = RoundedCornerShape(BT.radius),
+        border = if (current) androidx.compose.foundation.BorderStroke(1.5.dp, BT.tertiary) else null,
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(subject.alias, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                    if (current) PillTag(stringResource(R.string.subject_tag_current), androidx.compose.ui.graphics.Color.White, BT.tertiary)
+                }
+                Text(subjectBioLine(subject), fontSize = 11.sp, color = BT.onSurfaceV)
+            }
+            CircleCheck(checked = current, color = BT.tertiary)
+        }
+    }
+}
+
+/** 体征摘要分项（性别本地化 + 出生/身高/体重）。供 badge pills 与摘要行复用。 */
+@Composable
+fun subjectBioBadges(subject: Subject): List<String> = buildList {
+    add(sexLabel(subject.sex))
+    if (subject.birth.isNotBlank()) add(subject.birth)
+    subject.heightCm?.let { add("${it}cm") }
+    subject.weightKg?.let { add("${it}kg") }
+}
+
 /** 体征摘要行（性别本地化 + 其余字段）。i18n 拼接放 UI 层（不在 commonMain，§7.6）。 */
 @Composable
-fun subjectBioLine(subject: Subject): String {
-    val parts = buildList {
-        add(sexLabel(subject.sex))
-        if (subject.birth.isNotBlank()) add(subject.birth)
-        subject.heightCm?.let { add("${it}cm") }
-        subject.weightKg?.let { add("${it}kg") }
-    }
-    return parts.joinToString(" · ")
-}
+fun subjectBioLine(subject: Subject): String = subjectBioBadges(subject).joinToString(" · ")
 
 /** 用户C · 用户编辑表单（别名/性别/出生年月/身高/体重，本地不上传）。 */
 @Composable

@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -32,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.ui.theme.BT
 
-/** 入口磁贴（EntryTile：设备/用户/模式，§8.1）。 */
+/**
+ * 入口磁贴（EntryTile：设备/用户/模式，§8.1）。对齐原型采集A：圆形图标 + 短粗标题 + 副标 +
+ * 右侧值/chevron（可导航），下方可挂 badge/chip 行。
+ */
 @Composable
 fun EntryTile(
     icon: ImageVector,
@@ -43,7 +49,11 @@ fun EntryTile(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
+    value: String? = null,
+    valueColor: Color = BT.onSurfaceV,
+    showChevron: Boolean = false,
     trailing: @Composable (() -> Unit)? = null,
+    belowContent: @Composable (() -> Unit)? = null,
 ) {
     Surface(
         color = BT.surface,
@@ -54,22 +64,39 @@ fun EntryTile(
             .alpha(if (enabled) 1f else 0.5f)
             .then(if (onClick != null && enabled) Modifier.clickable { onClick() } else Modifier),
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(iconBg),
-                contentAlignment = Alignment.Center,
+        Column(Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(iconBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                    Text(
+                        subtitle, fontSize = 11.sp, color = BT.onSurfaceV,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+                if (value != null) {
+                    Text(value, fontSize = 12.sp, fontWeight = FontWeight.W600, color = valueColor)
+                }
+                if (trailing != null) trailing()
+                if (showChevron) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null, tint = BT.outline, modifier = Modifier.size(20.dp),
+                    )
+                }
             }
-            Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
-                Text(subtitle, fontSize = 11.sp, color = BT.onSurfaceV)
+            if (belowContent != null) {
+                Spacer(Modifier.height(10.dp))
+                belowContent()
             }
-            if (trailing != null) trailing()
         }
     }
 }
@@ -101,7 +128,7 @@ fun ListTileRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).background(iconBg),
+                Modifier.size(36.dp).clip(CircleShape).background(iconBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
@@ -121,6 +148,7 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
 ) {
     Button(
         onClick = onClick,
@@ -129,6 +157,10 @@ fun PrimaryButton(
         shape = RoundedCornerShape(BT.radius),
         colors = ButtonDefaults.buttonColors(containerColor = BT.primary, contentColor = Color.White),
     ) {
+        if (leadingIcon != null) {
+            Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
+        }
         Text(text, fontSize = 15.sp, fontWeight = FontWeight.W700)
     }
 }
