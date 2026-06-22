@@ -24,6 +24,7 @@ Docs/
 | 你要… | 看 |
 | --- | --- |
 | 做什么 / 协议 / 交互 / 工程口径 | [`/SPEC.md`](../SPEC.md)（自足，一份搞定）|
+| 开发进度 / 里程碑 / 下一步 | [`MILESTONES.md`](MILESTONES.md)（P1–P4 ✅ · P5 待协议冻结 · iOS/服务器 二期）|
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开）|
 | protobuf 消息契约 | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) |
 | 某个决策的历史来龙去脉 | [`legacy/`](legacy/README.md)（仅历史参考，口径以 SPEC 为准）|
