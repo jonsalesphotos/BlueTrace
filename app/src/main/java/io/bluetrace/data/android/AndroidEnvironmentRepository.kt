@@ -39,11 +39,12 @@ object BlueTracePermissions {
 /** 真实环境/权限状态源（§5.2）：蓝牙开关 + 运行时权限 + 电池优化。 */
 class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRepository {
 
+    /** 被用户"永久拒绝"的条目（系统不再弹）→ BLOCKED。授予后自动清除。
+     *  注意：必须在 [_state] 之前声明 —— compute() 会读它，否则初始化顺序导致 NPE。 */
+    private val blocked = mutableSetOf<RequirementId>()
+
     private val _state = MutableStateFlow(compute())
     override val state: StateFlow<EnvironmentState> = _state
-
-    /** 被用户"永久拒绝"的条目（系统不再弹）→ BLOCKED。授予后自动清除。 */
-    private val blocked = mutableSetOf<RequirementId>()
 
     override fun refresh() {
         _state.value = compute()
