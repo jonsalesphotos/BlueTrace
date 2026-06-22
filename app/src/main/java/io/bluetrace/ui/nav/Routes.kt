@@ -32,7 +32,6 @@ sealed interface Route {
 
     // 设置子页（嵌 SettingsGraph）
     @Serializable data object EnvCheck : Route
-    @Serializable data object Gnss : Route
     @Serializable data object ExportLocation : Route
     @Serializable data object Storage : Route
     @Serializable data object AppLog : Route

@@ -71,7 +71,6 @@
     <string name="collect_entry_user_empty">None</string>
     <string name="collect_entry_mode_title">Collection mode</string>
     <string name="collect_entry_mode_sub">%1$s · auto-names session folder</string>
-    <string name="collect_gnss_note">· This session includes device GNSS (gps.csv)</string>
     <string name="collect_start">Start collection</string>
     <string name="collect_hint_need_user">Select a user first</string>
     <string name="collect_hint_need_device">Connect at least one device first</string>
@@ -214,8 +213,6 @@
     <string name="settings_sec_about">About</string>
     <string name="settings_env_check">Environment &amp; permission check</string>
     <string name="settings_env_check_sub">Bluetooth toggle / permissions / keep-alive</string>
-    <string name="settings_gnss">Device GNSS</string>
-    <string name="settings_gnss_sub">Optional source · while-in-use location</string>
     <string name="settings_export_loc">Export location</string>
     <string name="settings_export_loc_sub">Download/BlueTrace/</string>
     <string name="settings_storage">Storage usage</string>
@@ -288,19 +285,6 @@
     <string name="about_desc">Multi-sensor BLE data collection (KMP · Android-first). Raw HEX line log is the single source of truth; one folder per session (D-6).</string>
     <string name="about_credit">Powered by Jetpack Compose · Material 3 · Koin · okio</string>
     <string name="about_copyright">© 2026 BlueTrace</string>
-
-    <!-- ===== GNSS ===== -->
-    <string name="gnss_title">Device GNSS</string>
-    <string name="gnss_subtitle">Session includes gps.csv</string>
-    <string name="gnss_source">GNSS source</string>
-    <string name="gnss_granted">Location granted (while-in-use)</string>
-    <string name="gnss_missing">Location permission missing</string>
-    <string name="gnss_request">Grant</string>
-    <string name="gnss_note">Device GNSS is written as a separate source (gps.csv + manifest, same timeline). To enable: during collection, check GNSS in “Collect types” (location requested on demand). This screen only shows location permission / system location status.</string>
-    <!-- GNSS C: granted but system location toggle off -->
-    <string name="gnss_system_off">System location is off</string>
-    <string name="gnss_system_off_note">Location permission is granted, but the system location toggle is off. Turn it on and return here to record.</string>
-    <string name="gnss_open_location_settings">Open system settings</string>
 
     <!-- Startup C: missing permission sheet over Collect tab -->
     <string name="gatec_title">Permissions pending</string>

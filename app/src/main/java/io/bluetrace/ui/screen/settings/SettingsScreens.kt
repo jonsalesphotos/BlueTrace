@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Storage
@@ -62,7 +61,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SettingsHomeScreen(
-    onEnv: () -> Unit, onGnss: () -> Unit, onExportLoc: () -> Unit, onStorage: () -> Unit,
+    onEnv: () -> Unit, onExportLoc: () -> Unit, onStorage: () -> Unit,
     onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit, onAppearance: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(BT.bg)) {
@@ -70,7 +69,6 @@ fun SettingsHomeScreen(
         LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
             item { SectionHeader(stringResource(R.string.settings_sec_env)) }
             item { SettingsNavRow(Icons.Filled.Shield, BT.primary, BT.primaryC, stringResource(R.string.settings_env_check), stringResource(R.string.settings_env_check_sub), onEnv) }
-            item { SettingsNavRow(Icons.Filled.LocationOn, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_gnss), stringResource(R.string.settings_gnss_sub), onGnss) }
             item { SectionHeader(stringResource(R.string.settings_sec_data)) }
             item { SettingsNavRow(Icons.Filled.FolderOpen, BT.success, BT.successC, stringResource(R.string.settings_export_loc), stringResource(R.string.settings_export_loc_sub), onExportLoc) }
             item { SettingsNavRow(Icons.Filled.Storage, BT.warning, BT.warningC, stringResource(R.string.settings_storage), stringResource(R.string.settings_storage_sub), onStorage) }

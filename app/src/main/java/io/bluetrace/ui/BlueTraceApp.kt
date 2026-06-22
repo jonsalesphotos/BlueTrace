@@ -43,7 +43,6 @@ import io.bluetrace.ui.screen.data.DataHomeScreen
 import io.bluetrace.ui.screen.data.SessionDetailScreen
 import io.bluetrace.ui.screen.device.DeviceConnectScreen
 import io.bluetrace.ui.screen.permission.BluetoothOffScreen
-import io.bluetrace.ui.screen.permission.GnssScreen
 import io.bluetrace.ui.screen.permission.PermissionGateScreen
 import io.bluetrace.ui.screen.permission.PowerSaveGuideScreen
 import io.bluetrace.ui.screen.run.CollectionRunScreen
@@ -219,7 +218,6 @@ private fun BlueTraceNavHost(nav: NavHostController) {
             composable<Route.SettingsHome> {
                 SettingsHomeScreen(
                     onEnv = { nav.navigate(Route.EnvCheck) },
-                    onGnss = { nav.navigate(Route.Gnss) },
                     onExportLoc = { nav.navigate(Route.ExportLocation) },
                     onStorage = { nav.navigate(Route.Storage) },
                     onLog = { nav.navigate(Route.AppLog) },
@@ -229,7 +227,6 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                 )
             }
             composable<Route.EnvCheck> { EnvCheckScreen(onBack = { nav.popBackStack() }) }
-            composable<Route.Gnss> { GnssScreen(onBack = { nav.popBackStack() }) }
             composable<Route.ExportLocation> { ExportLocationScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Storage> { StorageScreen(onBack = { nav.popBackStack() }) }
             composable<Route.AppLog> { AppLogScreen(onBack = { nav.popBackStack() }) }

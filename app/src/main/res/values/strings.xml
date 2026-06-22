@@ -71,7 +71,6 @@
     <string name="collect_entry_user_empty">未选择</string>
     <string name="collect_entry_mode_title">采集模式</string>
     <string name="collect_entry_mode_sub">%1$s · 自动命名会话文件夹</string>
-    <string name="collect_gnss_note">· 本次会话含本机 GNSS（gps.csv）</string>
     <string name="collect_start">开始采集</string>
     <string name="collect_hint_need_user">请先选择用户</string>
     <string name="collect_hint_need_device">请先连接至少一台设备</string>
@@ -214,8 +213,6 @@
     <string name="settings_sec_about">关于</string>
     <string name="settings_env_check">环境与权限检查</string>
     <string name="settings_env_check_sub">蓝牙开关 / 权限 / 后台保活</string>
-    <string name="settings_gnss">本机 GNSS</string>
-    <string name="settings_gnss_sub">可选一路 · while-in-use 定位</string>
     <string name="settings_export_loc">导出位置</string>
     <string name="settings_export_loc_sub">Download/BlueTrace/</string>
     <string name="settings_storage">存储占用</string>
@@ -288,19 +285,6 @@
     <string name="about_desc">多传感器 BLE 数据采集系统（KMP · Android 优先）。原始 HEX 行日志为唯一权威源，每会话一文件夹（D-6）。</string>
     <string name="about_credit">Powered by Jetpack Compose · Material 3 · Koin · okio</string>
     <string name="about_copyright">© 2026 BlueTrace</string>
-
-    <!-- ===== GNSS ===== -->
-    <string name="gnss_title">本机 GNSS</string>
-    <string name="gnss_subtitle">采集会话含 gps.csv</string>
-    <string name="gnss_source">GNSS 数据源</string>
-    <string name="gnss_granted">已授定位（while-in-use）</string>
-    <string name="gnss_missing">缺定位权限</string>
-    <string name="gnss_request">去授权</string>
-    <string name="gnss_note">本机 GNSS 作独立一路写入会话（gps.csv + manifest，共用同一时间轴）。启用方式：进入采集后在「采集类型」里勾选 GNSS（按需授权定位）；本屏仅显示定位权限 / 系统定位状态。</string>
-    <!-- GNSS C：权限已授但系统定位总开关关闭 -->
-    <string name="gnss_system_off">系统定位已关闭</string>
-    <string name="gnss_system_off_note">应用已获定位权限，但系统定位总开关关闭。开启系统定位后回此页即可记录。</string>
-    <string name="gnss_open_location_settings">去系统设置</string>
 
     <!-- 启动C：后续启动缺权限弹出（ModalSheet over 采集 Tab） -->
     <string name="gatec_title">有权限待授权</string>
