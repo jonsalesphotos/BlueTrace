@@ -29,6 +29,7 @@ Docs/
 | 某个决策的历史来龙去脉 | [`legacy/`](legacy/README.md)（仅历史参考，口径以 SPEC 为准）|
 | 让 agent 跑出第一版 app | [`agent_build_prompt_v1.md`](agent_build_prompt_v1.md)（Mock BLE · `/goal` 驱动的构建 prompt）|
 | 让 agent 继续开发(收口+图标+启动页) | [`agent_build_prompt_v2.md`](agent_build_prompt_v2.md)（修结构性差距 + app/启动页图标 + P3/P4）|
+| 让 agent 做设计稿↔真机对照收敛 | [`agent_build_prompt_v3.md`](agent_build_prompt_v3.md)（逐屏对照 screenshots/ ↔ screenshots_device/，冲突先确认）|
 
 ## 真源分工
 
