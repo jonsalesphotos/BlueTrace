@@ -30,6 +30,7 @@ Docs/
 | 让 agent 跑出第一版 app | [`agent_build_prompt_v1.md`](agent_build_prompt_v1.md)（Mock BLE · `/goal` 驱动的构建 prompt）|
 | 让 agent 继续开发(收口+图标+启动页) | [`agent_build_prompt_v2.md`](agent_build_prompt_v2.md)（修结构性差距 + app/启动页图标 + P3/P4）|
 | 让 agent 做设计稿↔真机对照收敛 | [`agent_build_prompt_v3.md`](agent_build_prompt_v3.md)（逐屏对照 screenshots/ ↔ screenshots_device/，冲突先确认）|
+| 让 agent 收尾 GNSS 线 + Q1 入口迁移 | [`agent_build_prompt_v4.md`](agent_build_prompt_v4.md)（GNSS WIP 收尾 + 设置去开关→采集类型勾选 + 真机核验 gps.csv）|
 
 ## 真源分工
 
