@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlueTrace · 设计稿 ↔ 真机 A/B 对比</title>
+<style>
+  :root{
+    --primary:#2BAEEA; --tertiary:#7C5BC9;
+    --bg:#0f1320; --surface:#171c2a; --surface2:#1f2535; --line:#2c3445;
+    --on:#e8ecf4; --on-v:#9aa6bd; --a:#2BAEEA; --b:#2AAE6D;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--on);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--primary)}
+  header{position:sticky;top:0;z-index:20;background:rgba(15,19,32,.86);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);padding:14px 22px}
+  .h-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:1400px;margin:0 auto}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--tertiary));
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .logo svg{width:20px;height:20px}
+  h1{font-size:17px;font-weight:800;margin:0;letter-spacing:-.01em}
+  .sub{font-size:12px;color:var(--on-v);margin-top:2px}
+  .legend{margin-left:auto;display:flex;gap:14px;font-size:12px;color:var(--on-v);flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px}
+  .dot.a{background:var(--a)} .dot.b{background:var(--b)}
+  nav.toc{max-width:1400px;margin:10px auto 0;display:flex;gap:8px;flex-wrap:wrap}
+  nav.toc a{font-size:12px;color:var(--on-v);text-decoration:none;border:1px solid var(--line);
+    border-radius:999px;padding:4px 11px;background:var(--surface)}
+  nav.toc a:hover{color:var(--on);border-color:var(--primary)}
+  main{max-width:1400px;margin:0 auto;padding:8px 22px 80px}
+  section{margin-top:30px}
+  .sec-h{font-size:14px;font-weight:700;color:var(--on);margin:0 0 12px;padding-bottom:7px;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+  .sec-h .n{font-size:11px;color:var(--on-v);font-weight:500}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(560px,1fr));gap:18px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .card .t{font-size:13px;font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);color:var(--on)}
+  .pair{display:flex;gap:0}
+  .col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;padding:12px 10px 14px}
+  .col + .col{border-left:1px solid var(--line)}
+  .badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:2px 9px;border-radius:999px;margin-bottom:9px}
+  .badge.a{color:#cdeafe;background:rgba(43,174,234,.16);border:1px solid rgba(43,174,234,.4)}
+  .badge.b{color:#c7f1da;background:rgba(42,174,109,.16);border:1px solid rgba(42,174,109,.4)}
+  .shot{width:100%;display:flex;justify-content:center}
+  .shot img{max-height:540px;width:auto;height:auto;max-width:100%;border-radius:9px;cursor:zoom-in;
+    background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.4);display:block}
+  .extra .badge.b{margin-bottom:9px}
+  .extra .pair{justify-content:center}
+  .note{font-size:11.5px;color:var(--on-v);margin:4px 0 0}
+  /* lightbox */
+  #lb{position:fixed;inset:0;z-index:50;background:rgba(5,8,14,.93);display:none;align-items:center;justify-content:center;cursor:zoom-out}
+  #lb.open{display:flex}
+  #lb img{max-width:96vw;max-height:94vh;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6)}
+  #lb .cap{position:fixed;top:16px;left:0;right:0;text-align:center;color:var(--on-v);font-size:13px}
+  footer{max-width:1400px;margin:0 auto;padding:0 22px 60px;color:var(--on-v);font-size:12px}
+  @media(max-width:560px){ .shot img{height:46vh} }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-row">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12.5h4l2-5.6 3.5 11 2.2-5.4h7.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div>
+      <h1>BlueTrace · 设计稿 ↔ 真机 A/B 对比</h1>
+      <div class="sub">左 = 原型设计稿（v4_android.html 渲染）　右 = 真机实拍（Xiaomi M2101K9C · Android 13）。点图可放大。</div>
+    </div>
+    <div class="legend">
+      <span class="tag"><span class="dot a"></span>A 设计稿</span>
+      <span class="tag"><span class="dot b"></span>B 真机</span>
+      <span class="tag" id="cnt"></span>
+    </div>
+  </div>
+  <nav class="toc" id="toc"></nav>
+</header>
+
+<main id="app"></main>
+
+<footer>
+  对比范围说明：只列<strong>两边都有的可比对屏</strong>。已排除——设计稿「暂不实现」(配置A/B 传感器总控/设备端算法)、已按决策移除的 GNSS 设置屏(A/B/C)、以及无真机截图的纯设计态(部分启动/空态/错误态)。
+  末尾「实现新增」为设计稿未含、实现新增的屏/变体。
+</footer>
+
+<div id="lb"><div class="cap" id="lbcap"></div><img id="lbimg" alt=""></div>
+
+<script>
+const DIR_A='assets/screenshots/', DIR_B='assets/screenshots_device/';
+const GROUPS=[
+  {name:'主界面 · 三 Tab 中枢', pairs:[
+    {t:'采集 · 主界面', a:'00_采集_采集_Tab_-_主界面.png', b:'00_采集主界面.png'},
+    {t:'数据 · 会话列表', a:'01_数据_数据_Tab_-_采集会话-D-6_文件夹.png', b:'16_数据会话列表.png'},
+    {t:'设置 · 主页', a:'02_设置_设置_Tab.png', b:'19_设置主页.png'},
+  ]},
+  {name:'启动', pairs:[
+    {t:'启动屏 Splash', a:'03_启动_启动屏_Splash.png', b:'27_启动屏_应用内.png'},
+  ]},
+  {name:'设备连接', pairs:[
+    {t:'设备列表 · 扫描连接', a:'09_设备A_设备列表_-_单击连接_-_断开.png', b:'01_设备扫描列表.png'},
+  ]},
+  {name:'用户', pairs:[
+    {t:'用户选择', a:'12_用户A_用户选择-有列表.png', b:'05_用户选择列表.png'},
+    {t:'用户编辑 / 新建', a:'14_用户C_用户编辑-表单.png', b:'06_新建用户表单.png'},
+  ]},
+  {name:'采集运行', pairs:[
+    {t:'运行 · 采集中', a:'16_运行B_数据采集_-_采集中.png', b:'08_采集运行页.png'},
+    {t:'采集类型选择', a:'17_运行C_采集类型选择.png', b:'09_采集类型选择.png'},
+    {t:'暂停 · 重连中', a:'38_横切A_暂停_-_重连中.png', b:'11_采集注入断联态.png'},
+    {t:'存储满 · 自动结束', a:'39_横切B_已停止-存储满.png', b:'12_采集模拟存储满结束摘要.png'},
+    {t:'采集结束摘要', a:'19_结束A_采集结束摘要.png', b:'34_结束摘要_含gps.png'},
+    {t:'导出完成', a:'26_导出B_导出完成_Toast.png', b:'15_导出动作.png'},
+  ]},
+  {name:'数据 Tab', pairs:[
+    {t:'多选 / 批量', a:'22_数据B_多选_-_选择态.png', b:'17_数据多选模式.png'},
+    {t:'会话详情', a:'23_数据C_会话详情.png', b:'13_会话详情文件清单.png'},
+  ]},
+  {name:'设置子页', pairs:[
+    {t:'环境与权限检查', a:'29_设置A_环境与权限检查详情.png', b:'20_设置_环境与权限检查.png'},
+    {t:'导出位置', a:'30_设置B_导出位置详情.png', b:'22_设置_导出位置.png'},
+    {t:'存储占用', a:'31_设置C_存储占用详情-StorageBreakdown.png', b:'23_设置_存储占用.png'},
+    {t:'应用日志', a:'33_设置E_应用日志-导出.png', b:'24_设置_应用日志.png'},
+    {t:'设备维护 (DUT)', a:'34_设置F_设备维护-DUT_-_后期.png', b:'25_设置_设备维护.png'},
+    {t:'关于', a:'32_设置D_关于_BlueTrace.png', b:'26_设置_关于BlueTrace.png'},
+  ]},
+];
+const EXTRA=[
+  {t:'全局深色 · 采集主界面', b:'29_深色_采集主界面.png'},
+  {t:'外观主题（亮 / 暗 / 跟随系统）', b:'30_设置_外观主题.png'},
+  {t:'采集类型 · 含 GNSS 勾选（Q1）', b:'32_采集类型_含GNSS.png'},
+];
+
+const app=document.getElementById('app'), toc=document.getElementById('toc');
+let pairCount=0, idx=0;
+function slug(s){return 's'+(idx++)}
+function shot(dir,name,cls){
+  return `<div class="shot"><img loading="lazy" src="${dir+encodeURIComponent(name)}" data-cap="${name}" alt="${name}"></div>`;
+}
+GROUPS.forEach(g=>{
+  const id=slug();
+  const sec=document.createElement('section'); sec.id=id;
+  let html=`<h3 class="sec-h">${g.name}<span class="n">${g.pairs.length} 屏</span></h3><div class="grid">`;
+  g.pairs.forEach(p=>{ pairCount++;
+    html+=`<div class="card"><div class="t">${p.t}</div><div class="pair">
+      <div class="col"><span class="badge a">设计稿</span>${shot(DIR_A,p.a)}</div>
+      <div class="col"><span class="badge b">真机</span>${shot(DIR_B,p.b)}</div>
+    </div></div>`;
+  });
+  html+='</div>'; sec.innerHTML=html; app.appendChild(sec);
+  const link=document.createElement('a'); link.href='#'+id; link.textContent=g.name; toc.appendChild(link);
+});
+// 实现新增
+const ex=document.createElement('section'); ex.id='extra'; ex.className='extra';
+let exh=`<h3 class="sec-h">实现新增 / 变体<span class="n">设计稿未含 · ${EXTRA.length} 屏</span></h3><div class="grid">`;
+EXTRA.forEach(p=>{ exh+=`<div class="card"><div class="t">${p.t}</div><div class="pair">
+  <div class="col"><span class="badge b">真机</span>${shot(DIR_B,p.b)}<p class="note">设计稿无对应（实现演进新增）</p></div>
+</div></div>`; });
+exh+='</div>'; ex.innerHTML=exh; app.appendChild(ex);
+const exlink=document.createElement('a'); exlink.href='#extra'; exlink.textContent='实现新增'; toc.appendChild(exlink);
+
+document.getElementById('cnt').textContent=pairCount+' 对可比对 + '+EXTRA.length+' 新增';
+
+// lightbox
+const lb=document.getElementById('lb'), lbimg=document.getElementById('lbimg'), lbcap=document.getElementById('lbcap');
+document.addEventListener('click',e=>{
+  const img=e.target.closest('.shot img');
+  if(img){ lbimg.src=img.src; lbcap.textContent=img.dataset.cap; lb.classList.add('open'); }
+  else if(e.target.closest('#lb')){ lb.classList.remove('open'); lbimg.src=''; }
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ lb.classList.remove('open'); lbimg.src=''; }});
+</script>
+</body>
+</html>

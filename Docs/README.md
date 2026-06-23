@@ -26,6 +26,7 @@ Docs/
 | 做什么 / 协议 / 交互 / 工程口径 | [`/SPEC.md`](../SPEC.md)（自足，一份搞定）|
 | 开发进度 / 里程碑 / 下一步 | [`MILESTONES.md`](MILESTONES.md)（P1–P4 ✅ · P5 待协议冻结 · iOS/服务器 二期）|
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开）|
+| 设计稿 vs 真机 逐屏对比 | [`compare_design_vs_device.html`](compare_design_vs_device.html)（A/B 并排 21 对，浏览器打开，点图放大）|
 | protobuf 消息契约 | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) |
 | 某个决策的历史来龙去脉 | [`legacy/`](legacy/README.md)（仅历史参考，口径以 SPEC 为准）|
 | 让 agent 跑出第一版 app | [`agent_build_prompt_v1.md`](agent_build_prompt_v1.md)（Mock BLE · `/goal` 驱动的构建 prompt）|
