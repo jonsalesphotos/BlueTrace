@@ -677,7 +677,7 @@
         <div class="entry-tile">
           <div class="head">
             <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-            <div class="body"><div class="ttl">用户</div><div class="sub">采集用户档案 · 写入文件名</div></div>
+            <div class="body"><div class="ttl">用户</div><div class="sub">采集用户信息</div></div>
             <div class="trail"><span class="val">shb</span><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           </div>
           <div class="pill-row">
@@ -685,18 +685,21 @@
           </div>
         </div>
 
-        <!-- 采集模式（单行 · 尾部分段控件） -->
+        <!-- 采集场景（主场景·子场景 → 场景选择页）。屏内只显示「主·子」中文，说明走注释区 -->
         <div class="entry-tile">
           <div class="head">
-            <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-            <div class="body"><div class="ttl">采集模式</div><div class="sub">Wear · 自动命名会话文件夹</div></div>
-            <div class="trail"><span class="seg"><span class="opt on">Wear</span><span class="opt">Unwear</span></span></div>
+            <div class="ico success"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="body"><div class="ttl">采集场景</div></div>
+            <div class="trail"><span class="val">佩戴 · 佩戴中</span><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           </div>
         </div>
 
-        <!-- 单一主 CTA（沉底）· V4-7：一期移除离线/在线双 CTA，仅「开始采集」 -->
+        <!-- 双采集：在线沉底主按钮；离线小入口居上（不常按、不占主位）。在线/离线区别见注释，不写屏内 -->
         <div class="main-cta">
-          <button class="btn block"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>开始采集</button>
+          <button style="background:none;border:none;color:#1C8EC5;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;padding:6px 14px;cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 4v9m0 0l-3.5-3.5M12 13l3.5-3.5M5 19h14"/></svg>离线采集
+          </button>
+          <button class="btn block"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>在线采集</button>
         </div>
 
       </div>
@@ -718,14 +721,69 @@
 
     </div></div>
     <div class="screen-label"><span class="num">采集</span> 采集 Tab · 主界面</div>
-    <div class="screen-note">设备 / 用户 / 采集模式 + 开始采集</div>
-    <div class="screen-flow">点 <b>设备</b>→连接；<b>用户</b>→选择；<b>开始采集</b> → 运行</div>
+    <div class="screen-note">设备 / 采集用户 / 采集场景 + 在线·离线采集</div>
+    <div class="screen-flow">点 <b>设备</b>→连接；<b>用户</b>→选择（可 Default）；<b>采集场景</b>→主·子场景；<b>在线采集</b> → 运行</div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
-      <li>点 <b>设备</b> 卡 → 设备列表（设备A）；右上 <b>N 已连接</b> 实时反映连接数</li>
-      <li>点 <b>用户</b> 卡 → 用户选择（用户A）；当前别名写入文件名前缀</li>
-      <li>采集模式 <span class="k">Wear</span>⇄<span class="k">Unwear</span> 行内切换，即时生效、写入文件名</li>
-      <li><b>开始采集</b> → 采集运行（运行A），进入即<b>隐藏底部 Tab</b>；未连设备 / 未选用户 → 按钮禁用</li>
-      <li>底部 Tab 平行切换 采集 / 数据 / 设置；子页与运行页隐藏 Tab，防强状态误切</li>
+      <li>点 <b>设备</b> 卡 → 设备列表（设备A）；<b>用户</b> 卡 → 用户选择（用户A，可选 <b>Default</b> 非人用户）</li>
+      <li>点 <b>采集场景</b> 卡 → 场景选择页（<b>主场景=算法目标 / 子场景=采集场景</b>，单选）；屏内显示中文，<b>文件名 / json / manifest 恒英文 token</b></li>
+      <li><b>文件名</b> = <span class="k">主场景_子场景_用户_日期_MAC后四位</span>（唯一性 + 可按 用户/场景 搜索）</li>
+      <li><b>在线采集</b>（沉底主按钮，最顺手）= DUT 实时「生成→打包→发送」；<b>离线采集</b>（上方小入口，不常用、不占主位）= 读 DUT flash 已存数据上传到 APP，再补 场景/用户/时间 入数据列表（协议后做）</li>
+      <li>未连设备 / 未选用户（且非自动 Default 场景）→ 在线采集禁用；进运行即<b>隐藏底部 Tab</b></li>
+    </ul></div>
+  </div>
+
+  <!-- 采集场景选择页（主场景·子场景，两级单选；从 architecture/scenes.json 导入） -->
+  <style>
+    .scene-picker{flex:1;display:flex;overflow:hidden;border-top:1px solid var(--outline-v,#D7DAE0)}
+    .scene-mains{width:96px;flex:0 0 auto;overflow-y:auto;background:var(--bg,#F3F5F8);border-right:1px solid var(--outline-v,#D7DAE0);padding:5px 0}
+    .scene-main{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;font-size:11px;font-weight:600;color:var(--on-surface-v,#4C525C);position:relative}
+    .scene-main .mi{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+    .scene-main .mi svg{width:17px;height:17px}
+    .scene-main.on{color:var(--on-surface,#1B1D22);background:var(--surface,#fff);font-weight:800}
+    .scene-main.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--primary,#2BAEEA)}
+    .scene-subs{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:9px;align-items:center}
+    .scene-opt{min-width:128px;text-align:center;padding:9px 14px;border-radius:999px;font-size:13px;font-weight:600;background:var(--surface,#fff);color:var(--on-surface-v,#4C525C);box-shadow:0 2px 8px rgba(20,30,50,.06)}
+    .scene-opt.on{background:var(--primary,#2BAEEA);color:#fff;font-weight:800;box-shadow:0 6px 16px rgba(43,174,234,.4)}
+    .scene-defu{align-self:stretch;margin-top:5px;background:var(--tertiary-c,#ECE3FF);color:var(--on-tertiary-c,#3A2A66);font-size:10.5px;padding:8px 10px;border-radius:9px;line-height:1.5}
+  </style>
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar">
+        <div class="title-block"><div class="title">采集场景</div></div>
+        <span style="color:#2BAEEA;font-weight:700;font-size:14px">完成</span>
+      </div>
+      <div class="scene-picker">
+        <div class="scene-mains">
+          <div class="scene-main"><span class="mi" style="background:#FFE3E3"><svg viewBox="0 0 24 24" fill="#E5484D"><path d="M12 21s-7-4.6-7-10a4 4 0 017-2 4 4 0 017 2c0 5.4-7 10-7 10z"/></svg></span>心率</div>
+          <div class="scene-main"><span class="mi" style="background:#DCF1FB"><svg viewBox="0 0 24 24" fill="none" stroke="#2BAEEA" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8a4 4 0 100 8" /></svg></span>血氧</div>
+          <div class="scene-main on"><span class="mi" style="background:#1B1D22"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="7" y="6" width="10" height="12" rx="3"/><path d="M9 6V4h6v2M9 18v2h6v-2"/></svg></span>佩戴</div>
+          <div class="scene-main"><span class="mi" style="background:#FFE8C9"><svg viewBox="0 0 24 24" fill="none" stroke="#E89F40" stroke-width="2"><path d="M13 4l-2 5 3 2-1 9"/><circle cx="14" cy="3.5" r="1.5" fill="#E89F40"/></svg></span>计步</div>
+          <div class="scene-main"><span class="mi" style="background:#ECE3FF"><svg viewBox="0 0 24 24" fill="#7C5BC9"><path d="M20 13a8 8 0 11-9-9 6 6 0 009 9z"/></svg></span>睡眠</div>
+          <div class="scene-main"><span class="mi" style="background:#D4F4E2"><svg viewBox="0 0 24 24" fill="#2AAE6D"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>压力</div>
+          <div class="scene-main"><span class="mi" style="background:#DCF1FB"><svg viewBox="0 0 24 24" fill="none" stroke="#1C8EC5" stroke-width="2"><path d="M3 16c2-1 3 1 5 0s3 1 5 0 3 1 5 0"/><circle cx="9" cy="7" r="2"/></svg></span>游泳</div>
+        </div>
+        <div class="scene-subs">
+          <div class="scene-opt on">佩戴中</div>
+          <div class="scene-opt">松戴</div>
+          <div class="scene-opt">隔衣</div>
+          <div class="scene-opt">未佩戴</div>
+          <div class="scene-opt">桌面</div>
+          <div class="scene-opt">口袋</div>
+          <div class="scene-opt">背包</div>
+          <div class="scene-opt">水中</div>
+          <div class="scene-opt">日晒</div>
+          <div class="scene-defu">⌚ 选 未佩戴 / 桌面 / 口袋 / 背包 / 水中 / 日晒 → 自动用 <b>Default 用户</b>（设备不在人身上，无需选人）。</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="screen-label"><span class="num">场景</span> 采集场景选择（主·子场景）</div>
+    <div class="screen-note">两级单选 · 左主场景（算法目标）/ 右子场景（采集场景）· 当前 佩戴·佩戴中</div>
+    <div class="screen-flow">左选主场景 → 右选子场景 → 「完成」回采集主界面；选非人场景 → 自动 Default 用户</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li><b>主场景 = 采集目的 / 算法目标</b>（为 HR / Wear / SpO2 / Step / Sleep / Stress / Swim 算法采数据）；<b>子场景 = 该算法下的采集场景</b>。单选。</li>
+      <li>词表与显示名 <b>从 <span class="k">architecture/scenes.json</span> 导入</b>（后续改 JSON 即可增删替换，不动代码）；屏内中文环境显示中文，<b>文件名/json/manifest 恒英文 token</b>。</li>
+      <li><b>佩戴特殊</b>：选 未佩戴 / 桌面 / 口袋 / 背包 / 水中 / 日晒（非人场景）→ 自动切 <b>Default 用户</b>。</li>
     </ul></div>
   </div>
 

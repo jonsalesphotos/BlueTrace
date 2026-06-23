@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "comment": "采集场景配置。主场景 = 采集目的/算法目标（为 HR/Wear/SpO2… 算法采数据）；子场景 = 该算法下的采集场景。token 用于 config / manifest / 文件名（恒英文）；zh/en 仅 UI 显示（中文环境显示 zh）。app 从本 JSON 导入，可增删替换无需改代码。",
+  "default": { "main": "Wear", "sub": "Wearing" },
+  "autoDefaultUserSubs": ["Unwear", "Desktop", "Pocket", "Backpack", "Water", "Sun"],
+  "scenes": [
+    {
+      "token": "HR", "zh": "心率", "en": "HeartRate",
+      "subs": [
+        {"token":"Static","zh":"静止","en":"Static"},
+        {"token":"OutdoorWalk","zh":"户外走","en":"OutdoorWalk"},
+        {"token":"OutdoorRun","zh":"户外跑","en":"OutdoorRun"},
+        {"token":"IndoorWalk","zh":"室内走","en":"IndoorWalk"},
+        {"token":"IndoorRun","zh":"室内跑","en":"IndoorRun"},
+        {"token":"OutdoorCycle","zh":"户外骑行","en":"OutdoorCycle"},
+        {"token":"IndoorCycle","zh":"室内骑行","en":"IndoorCycle"},
+        {"token":"Soccer","zh":"足球","en":"Soccer"},
+        {"token":"Basketball","zh":"篮球","en":"Basketball"},
+        {"token":"Tennis","zh":"网球","en":"Tennis"},
+        {"token":"TableTennis","zh":"乒乓","en":"TableTennis"},
+        {"token":"JumpRope","zh":"跳绳","en":"JumpRope"}
+      ]
+    },
+    {
+      "token": "SpO2", "zh": "血氧", "en": "SpO2",
+      "subs": [
+        {"token":"Static","zh":"静止","en":"Static"},
+        {"token":"Sleep","zh":"睡眠","en":"Sleep"},
+        {"token":"HoldBreath","zh":"屏息","en":"HoldBreath"},
+        {"token":"PostExercise","zh":"运动后","en":"PostExercise"},
+        {"token":"HighAltitude","zh":"高海拔","en":"HighAltitude"}
+      ]
+    },
+    {
+      "token": "Wear", "zh": "佩戴", "en": "Wear",
+      "subs": [
+        {"token":"Wearing","zh":"佩戴中","en":"Wearing"},
+        {"token":"Loose","zh":"松戴","en":"Loose"},
+        {"token":"Cloth","zh":"隔衣","en":"Cloth"},
+        {"token":"Unwear","zh":"未佩戴","en":"Unwear"},
+        {"token":"Desktop","zh":"桌面","en":"Desktop"},
+        {"token":"Pocket","zh":"口袋","en":"Pocket"},
+        {"token":"Backpack","zh":"背包","en":"Backpack"},
+        {"token":"Water","zh":"水中","en":"Water"},
+        {"token":"Sun","zh":"日晒","en":"Sun"}
+      ]
+    },
+    {
+      "token": "Step", "zh": "计步", "en": "StepCount",
+      "subs": [
+        {"token":"Walk","zh":"步行","en":"Walk"},
+        {"token":"FastWalk","zh":"快走","en":"FastWalk"},
+        {"token":"Run","zh":"跑步","en":"Run"},
+        {"token":"Stairs","zh":"爬楼","en":"Stairs"},
+        {"token":"Bag","zh":"手提","en":"Bag"},
+        {"token":"Pocket","zh":"口袋","en":"Pocket"},
+        {"token":"Handheld","zh":"手持","en":"Handheld"},
+        {"token":"Cycle","zh":"骑行","en":"Cycle"},
+        {"token":"Elliptical","zh":"椭圆机","en":"Elliptical"}
+      ]
+    },
+    {
+      "token": "Sleep", "zh": "睡眠", "en": "Sleep",
+      "subs": [
+        {"token":"Sleep","zh":"入睡","en":"Sleep"},
+        {"token":"Nap","zh":"小睡","en":"Nap"},
+        {"token":"Awaken","zh":"清醒","en":"Awaken"},
+        {"token":"PlayPhone","zh":"玩手机","en":"PlayPhone"}
+      ]
+    },
+    {
+      "token": "Stress", "zh": "压力", "en": "Stress",
+      "subs": [
+        {"token":"Calm","zh":"平静","en":"Calm"},
+        {"token":"Stress","zh":"有压力","en":"Stress"},
+        {"token":"Recovery","zh":"恢复","en":"Recovery"},
+        {"token":"Mental","zh":"脑力","en":"Mental"}
+      ]
+    },
+    {
+      "token": "Swim", "zh": "游泳", "en": "Swim",
+      "subs": [
+        {"token":"Freestyle","zh":"自由泳","en":"Freestyle"},
+        {"token":"Breast","zh":"蛙泳","en":"Breast"},
+        {"token":"Back","zh":"仰泳","en":"Back"},
+        {"token":"Butterfly","zh":"蝶泳","en":"Butterfly"},
+        {"token":"Medley","zh":"混合泳","en":"Medley"}
+      ]
+    }
+  ]
+}
