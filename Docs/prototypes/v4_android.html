@@ -773,7 +773,6 @@
           <div class="scene-opt">背包</div>
           <div class="scene-opt">水中</div>
           <div class="scene-opt">日晒</div>
-          <div class="scene-defu">⌚ 选 未佩戴 / 桌面 / 口袋 / 背包 / 水中 / 日晒 → 自动用 <b>Default 用户</b>（设备不在人身上，无需选人）。</div>
         </div>
       </div>
     </div></div>
@@ -802,9 +801,6 @@
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           <input placeholder="搜索会话 / 用户 / 设备" />
-        </div>
-        <div class="seg" style="display:flex;margin-bottom:10px">
-          <span class="opt on">全部</span><span class="opt">Wear</span><span class="opt">Unwear</span>
         </div>
 
         <div class="date-h">今天 · 2026-05-21 · 会话文件夹</div>
@@ -845,7 +841,7 @@
 
     </div></div>
     <div class="screen-label"><span class="num">数据</span> 数据 Tab · 采集会话（D-6 文件夹）</div>
-    <div class="screen-note">列表单位 = 会话文件夹（非扁平文件）· 按日期分组 · Wear/Unwear 筛选</div>
+    <div class="screen-note">列表单位 = 会话文件夹（非扁平文件）· 按日期分组（筛选功能后期再做）</div>
     <div class="screen-flow">单击进<b>会话详情</b>看夹内构成 · 长按/「选择」进多选 · 导出整文件夹</div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
       <li>搜索框输入 → 实时过滤（会话名 / 用户 / 设备）；有输入显示清除 X，无命中见数据D</li>
@@ -873,12 +869,6 @@
           <div class="body"><div class="ttl">环境与权限检查</div><div class="sub">蓝牙 · 扫描 · 连接 · 全部就绪</div></div>
           <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
-        <div class="list-tile">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div>
-          <div class="body"><div class="ttl">本机 GNSS</div><div class="sub">采集保存 GNSS 日志</div></div>
-          <span class="switch on"></span>
-        </div>
-
         <div class="sec-h">数据</div>
         <div class="list-tile">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
@@ -1286,15 +1276,19 @@
   <div>
     <div class="phone"><div class="phone-screen">
       <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
-      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">选择用户</div><div class="subtitle">别名将写入文件名与 manifest</div></div></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">选择用户</div></div></div>
       <div class="content">
-        <div class="sec-h">当前用户</div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 20h8"/></svg></div>
+          <div class="body"><div class="ttl">Default <span class="tag">默认</span></div></div>
+          <div class="chk"></div>
+        </div>
+        <div class="sec-h">用户</div>
         <div class="list-tile" style="border:1.5px solid var(--tertiary-c)">
           <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <div class="body"><div class="ttl">shb <span class="tag ref">当前</span></div><div class="sub">Male · 1992-5 · 175cm · 75.0kg</div></div>
+          <div class="body"><div class="ttl">shb</div><div class="sub">Male · 1992-5 · 175cm · 75.0kg</div></div>
           <div class="chk on tert"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         </div>
-        <div class="sec-h">其他用户</div>
         <div class="list-tile">
           <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
           <div class="body"><div class="ttl">lina</div><div class="sub">Female · 1996-11 · 163cm · 54.0kg</div></div>
@@ -1306,16 +1300,16 @@
           <div class="chk"></div>
         </div>
       </div>
-      <div class="footer-bar"><button class="btn block outline">+ 新建用户</button></div>
+      <div class="footer-bar" style="display:flex;gap:10px"><button class="btn block outline" style="flex:1">+ 新建用户</button><button class="btn block" style="flex:1">确认</button></div>
     </div></div>
     <div class="screen-label"><span class="num">用户A</span> 用户选择·有列表</div>
-    <div class="screen-note">最近使用列表，单选当前用户后开始采集。</div>
-    <div class="screen-flow">点某行即<b>选中并返回</b>采集页（自动设为当前用户，无需确认按钮）；「+ 新建用户」去<b>编辑页</b>。</div>
+    <div class="screen-note">先选后确认 · 可选 Default 非人 · 可不选任何人 · 别名写入文件名/manifest</div>
+    <div class="screen-flow">点行<b>选中高亮</b>（单选）→「确认」回采集页；可不选（只能<b>返回</b>=无人）；选了则 <b>返回 与 确认 等效</b></div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
-      <li>点任一用户行 → 立即设为当前并<b>返回采集页</b>（无确认按钮）</li>
-      <li>当前用户置顶高亮（紫框 + 勾）；其余归「其他用户」分组</li>
-      <li><b>+ 新建用户</b> → 编辑页（用户C）；左滑行 → 编辑 / 删除（待补手势）</li>
-      <li>别名写入文件名 + manifest；可随时切换，退出无破坏</li>
+      <li>点用户行 → 选中高亮（单选）；再点已选行 → <b>取消选择</b>（变"无人"）</li>
+      <li>底部 <b>「确认」</b>：选了人才可点（<b>未选 → 置灰</b>）；选了人时 返回 与 确认 <b>功能一致</b>（都应用并回）</li>
+      <li><b>Default</b> = 非人采集对象（对空/对物/临时）；佩戴场景选 未佩戴/桌面 等会<b>自动用它</b></li>
+      <li><b>+ 新建用户</b> → 编辑页（用户C）；别名写入文件名 + manifest，可随时切换</li>
     </ul></div>
   </div>
 
@@ -1347,26 +1341,39 @@
   <div>
     <div class="phone"><div class="phone-screen">
       <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
-      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">新建用户</div><div class="subtitle">别名 · 体征档案</div></div><div class="action">保存</div></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">新建用户</div></div><div class="action">保存</div></div>
       <div class="content">
-        <div class="field"><div class="label">别名</div><input placeholder="如 shb（建议别名，非真实姓名）"></div>
+        <div class="field"><div class="label">别名</div><input placeholder="仅 A–Z a–z 0–9"></div>
         <div class="field"><div class="label">性别</div><div class="seg"><div class="opt on">男</div><div class="opt">女</div><div class="opt">其他</div></div></div>
-        <div class="field"><div class="label">出生年月</div><input value="1992-5"></div>
-        <div class="field-row">
-          <div class="field"><div class="label">身高 cm</div><input value="175"></div>
-          <div class="field"><div class="label">体重 kg</div><input value="75.0"></div>
+        <div class="field"><div class="label">出生年月</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--outline-v,#D7DAE0);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--on-surface,#1B1D22)">1992-05<svg viewBox="0 0 24 24" fill="none" stroke="#4C525C" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg></div>
         </div>
-        <div class="banner info"><div class="txt"><b>档案仅本地存储</b>，一期不上传、不出设备，仅用于文件名与 manifest 离线分类。</div></div>
+        <div class="field-row">
+          <div class="field"><div class="label">身高 · <b style="color:var(--on-surface,#1B1D22)">175</b> cm</div>
+            <div style="position:relative;height:6px;background:var(--surface3,#E2E5EC);border-radius:999px;margin:13px 8px 4px">
+              <div style="position:absolute;left:0;top:0;height:6px;width:62%;background:var(--primary,#2BAEEA);border-radius:999px"></div>
+              <div style="position:absolute;left:62%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:999px;background:#fff;border:2px solid var(--primary,#2BAEEA);box-shadow:0 2px 6px rgba(0,0,0,.2)"></div>
+            </div>
+          </div>
+          <div class="field"><div class="label">体重 · <b style="color:var(--on-surface,#1B1D22)">75.0</b> kg</div>
+            <div style="position:relative;height:6px;background:var(--surface3,#E2E5EC);border-radius:999px;margin:13px 8px 4px">
+              <div style="position:absolute;left:0;top:0;height:6px;width:38%;background:var(--primary,#2BAEEA);border-radius:999px"></div>
+              <div style="position:absolute;left:38%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:999px;background:#fff;border:2px solid var(--primary,#2BAEEA);box-shadow:0 2px 6px rgba(0,0,0,.2)"></div>
+            </div>
+          </div>
+        </div>
+        <div class="banner info"><div class="txt"><b>档案仅本地存储</b>，不上传、不出设备，仅用于文件名与 manifest 离线分类。</div></div>
       </div>
       <div class="footer-bar"><button class="btn block">保存用户</button></div>
     </div></div>
     <div class="screen-label"><span class="num">用户C</span> 用户编辑（表单）</div>
-    <div class="screen-note">新建或编辑别名与体征，含本地存储隐私提示。</div>
-    <div class="screen-flow">从选择页「+ 新建」或某条编辑进入 → 填别名/性别/出生/身高体重 → 「保存用户」回到<b>选择页</b>并自动选中。</div>
+    <div class="screen-note">别名(仅英数) · 性别 · 出生(日历) · 身高/体重(滑块) · 本地存储</div>
+    <div class="screen-flow">从选择页「+ 新建」或编辑进入 → 填档案 → 「保存」回选择页并自动选中（别名必填方可保存）</div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
-      <li>别名建议用化名（非真实姓名）；性别分段单选；数字键盘输入身高/体重</li>
-      <li>顶部「保存」或底部「保存用户」→ 回选择页并<b>自动选中</b>（别名必填方可保存）</li>
-      <li>返回(←) 放弃本次编辑；隐私提示常驻：仅本地、不出设备</li>
+      <li><b>别名</b>仅支持英文大小写 + 数字（实时拦非法字符）；性别分段单选</li>
+      <li><b>出生年月</b>点开 <b>Material DatePicker 日历</b>选择（不手输）；<b>身高/体重</b>用 <b>Slider 滑块</b>选（不手输）</li>
+      <li>顶部 / 底部「保存」→ 回选择页并<b>自动选中</b>；返回(←) 放弃本次编辑</li>
+      <li>档案仅本地存储、不上传、不出设备</li>
     </ul></div>
   </div>
 
@@ -1602,7 +1609,7 @@
       <div class="content">
         <div class="card tonal" style="text-align:center;padding:18px 14px">
           <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
-          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考</div>
+          <div style="font-size:12px;margin-top:4px">shb · 佩戴 · 佩戴中 · DUT 5 + 参考　<span style="font-weight:700">✎ 改采集人/场景</span></div>
           <div class="pill-row" style="justify-content:center;margin-top:12px"><span class="pill" style="background:rgba(255,255,255,.55)">87 102 行</span><span class="pill" style="background:rgba(255,255,255,.55)">11.8 MB</span><span class="pill" style="background:rgba(255,255,255,.55)">1 会话</span></div>
         </div>
         <div class="sec-h">会话文件夹构成</div>
@@ -1618,8 +1625,8 @@
     <div class="screen-flow">查看详情 → <b>会话详情</b>；导出 → <b>Download/BlueTrace/</b></div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
       <li>结束即落盘；摘要卡 = 时长 + 行数 + 体积 + 会话数</li>
-      <li>会话夹构成：原始 HEX 日志（source of truth）+ 每模块解码 CSV + 组合包 CSV + manifest</li>
-      <li><b>查看详情</b> → 会话详情（数据C）；<b>导出</b> → 打包整夹到 Download/BlueTrace/</li>
+      <li><b>✎ 改采集人/场景</b>：常忘了改就开采 → 此处可补改 <b>采集人 + 场景</b>，回写 manifest 并<b>重命名会话文件夹</b>（文件名含这俩）</li>
+      <li><b>查看详情</b> → 会话详情（数据C，亦可改）；<b>导出</b> → 打包整夹到 Download/BlueTrace/</li>
       <li>返回(←) → 数据 Tab；会话已存，可稍后再导出</li>
     </ul></div>
   </div>
@@ -1632,7 +1639,7 @@
       <div class="content">
         <div class="card tonal" style="text-align:center;padding:18px 14px">
           <div style="font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1">00:13:24</div>
-          <div style="font-size:12px;margin-top:4px">shb · Wear · DUT 5 传感器 + 参考</div>
+          <div style="font-size:12px;margin-top:4px">shb · 佩戴 · 佩戴中 · DUT 5 + 参考　<span style="font-weight:700">✎ 改采集人/场景</span></div>
           <div class="pill-row" style="justify-content:center;margin-top:12px"><span class="pill" style="background:rgba(255,255,255,.55)">87 102 行</span><span class="pill" style="background:rgba(255,255,255,.55)">11.8 MB</span><span class="pill" style="background:rgba(255,255,255,.55)">1 会话</span></div>
         </div>
         <div class="sec-h">会话文件夹构成</div>
@@ -1737,11 +1744,11 @@
       <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">会话详情</div><div class="subtitle">Wear_shb_20260521_103014_de54</div></div><div class="action"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
       <div class="content">
         <div class="card">
-          <div class="card-title">📋 manifest 摘要</div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">📋 manifest 摘要 <span style="color:#2BAEEA;font-weight:700;font-size:12px">✎ 改采集人/场景</span></div>
           <div class="metric-grid" style="margin-top:10px">
             <div class="metric"><div class="k">起点 wallclock</div><div class="v">14:32:07</div></div>
             <div class="metric"><div class="k">monotonic 锚点</div><div class="v" style="font-size:15px">8 421 663<small>µs</small></div></div>
-            <div class="metric"><div class="k">用户</div><div class="v" style="font-size:15px">shb · Wear</div></div>
+            <div class="metric"><div class="k">采集人 · 场景</div><div class="v" style="font-size:15px">shb · 佩戴·佩戴中</div></div>
             <div class="metric"><div class="k">设备</div><div class="v" style="font-size:15px">DUT + REF</div></div>
           </div>
         </div>
@@ -1761,12 +1768,12 @@
       <div class="footer-bar"><button class="btn danger outline">删除</button><button class="btn">导出所选</button></div>
     </div></div>
     <div class="screen-label"><span class="num">数据C</span> 会话详情</div>
-    <div class="screen-note">隐藏底部 Tab · manifest 摘要 + 启用配置 + 文件夹构成逐项可勾选导出</div>
-    <div class="screen-flow">从列表单击进入 → 看夹内构成（HEX 日志=<b>source of truth</b>）→ 勾选导出至 <b>Download/BlueTrace/</b></div>
-    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+    <div class="screen-note">manifest 摘要（采集人/场景可补改）+ 启用配置 + 文件夹构成逐项可勾选导出</div>
+    <div class="screen-flow">从列表单击进入 → 看夹内构成 → 勾选导出至 <b>Download/BlueTrace/</b>；<b>✎ 可补改 采集人/场景</b></div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
       <li>单击会话卡进入；隐藏底部 Tab，右上 ⤓ 一键导出整夹</li>
-      <li>manifest 摘要 + 启用配置（只读）；文件夹构成<b>逐项可勾选</b></li>
-      <li>勾选要导出的文件 → 底部 <b>导出所选</b> → Download/BlueTrace/</li>
+      <li><b>✎ 改采集人/场景</b>：忘了改就开采时此处补改 → 回写 <b>manifest</b> + <b>重命名会话文件夹</b>（文件名含这俩）</li>
+      <li>文件夹构成<b>逐项可勾选</b>；底部 <b>导出所选</b> → Download/BlueTrace/</li>
       <li><b>删除</b> 整会话（二次确认）；返回(←) 回列表</li>
     </ul></div>
   </div>
@@ -2095,7 +2102,7 @@
 <div class="card-sub">随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS A</span> GNSS · 已启用</div><div class="screen-note">权限已授（while-in-use），本机 GNSS 作一路写入会话。</div><div class="screen-flow">主开关开 → 落地 <b>gps.csv</b> + <b>manifest</b> · 共用 <b>monotonic 锚点</b></div>
+</div></div><div class="screen-label"><span class="num">GNSS A</span> GNSS · 已启用 <span style="color:#E5484D;font-weight:700">· 不实现（设置 GNSS 数据源已取消）</span></div><div class="screen-note">权限已授（while-in-use），本机 GNSS 作一路写入会话。</div><div class="screen-flow">主开关开 → 落地 <b>gps.csv</b> + <b>manifest</b> · 共用 <b>monotonic 锚点</b></div>
 <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
 <li>主开关开 → 本机 GNSS 作一路；落地 gps.csv + 写入 manifest</li>
 <li>与 BLE 多路共用同一 <b>monotonic 对齐锚点</b></li>
@@ -2116,7 +2123,7 @@
 <div class="card-sub">授权后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS B</span> GNSS · 缺定位权限</div><div class="screen-note">应用尚未获定位权限，主开关呈未就绪态。</div><div class="screen-flow">去授权 → 系统权限弹层 → 授予后回此页 → 开关可开</div>
+</div></div><div class="screen-label"><span class="num">GNSS B</span> GNSS · 缺定位权限 <span style="color:#E5484D;font-weight:700">· 不实现</span></div><div class="screen-note">应用尚未获定位权限，主开关呈未就绪态。</div><div class="screen-flow">去授权 → 系统权限弹层 → 授予后回此页 → 开关可开</div>
 <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
 <li>开关未就绪；banner / 列表「授权」→ 系统定位权限弹层</li>
 <li>授予后回此页 → 开关可开（→ GNSS A 已启用）</li>
@@ -2139,7 +2146,7 @@
 <div class="card-sub">系统定位开启后随会话落地 gps.csv，并记入 session_manifest.json，与 BLE 多路共用同一 monotonic 对齐锚点。</div>
 </div>
 </div>
-</div></div><div class="screen-label"><span class="num">GNSS C</span> GNSS · 系统定位关闭</div><div class="screen-note">应用权限已授，但系统定位总开关关闭。</div><div class="screen-flow">开关 → 提示先开系统定位 → 去系统设置开启 → 回此页可记录；要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路</div>
+</div></div><div class="screen-label"><span class="num">GNSS C</span> GNSS · 系统定位关闭 <span style="color:#E5484D;font-weight:700">· 不实现</span></div><div class="screen-note">应用权限已授，但系统定位总开关关闭。</div><div class="screen-flow">开关 → 提示先开系统定位 → 去系统设置开启 → 回此页可记录；要 GNSS 则在开始前授权，否则本次会话不含 GPS 一路</div>
 <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
 <li>权限已授但系统定位总开关关 → 开关提示「先开系统定位」</li>
 <li><b>去系统设置</b>开启 → 回此页可记录（→ GNSS A）</li>
