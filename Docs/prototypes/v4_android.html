@@ -740,10 +740,10 @@
     .scene-main .mi{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center}
     .scene-main .mi svg{width:17px;height:17px}
     .scene-main.on{color:var(--on-surface,#1B1D22);background:var(--surface,#fff);font-weight:800}
-    .scene-main.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--primary,#2BAEEA)}
+    .scene-main.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--primary)}
     .scene-subs{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:9px;align-items:center}
     .scene-opt{min-width:128px;text-align:center;padding:9px 14px;border-radius:999px;font-size:13px;font-weight:600;background:var(--surface,#fff);color:var(--on-surface-v,#4C525C);box-shadow:0 2px 8px rgba(20,30,50,.06)}
-    .scene-opt.on{background:var(--primary,#2BAEEA);color:#fff;font-weight:800;box-shadow:0 6px 16px rgba(43,174,234,.4)}
+    .scene-opt.on{background:var(--primary);color:#fff;font-weight:800;box-shadow:0 6px 16px rgba(43,174,234,.4)}
     .scene-defu{align-self:stretch;margin-top:5px;background:var(--tertiary-c,#ECE3FF);color:var(--on-tertiary-c,#3A2A66);font-size:10.5px;padding:8px 10px;border-radius:9px;line-height:1.5}
   </style>
   <div>
@@ -881,6 +881,18 @@
           <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
 
+        <div class="sec-h">通用</div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg></div>
+          <div class="body"><div class="ttl">外观主题</div><div class="sub">跟随系统</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M3 12h18" stroke="currentColor" stroke-width="2"/><path d="M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body"><div class="ttl">语言</div><div class="sub">中文（简体）</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
         <div class="sec-h">诊断与维护</div>
         <div class="list-tile">
           <div class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
@@ -918,11 +930,11 @@
 
     </div></div>
     <div class="screen-label"><span class="num">设置</span> 设置 Tab</div>
-    <div class="screen-note">环境权限 · 数据/导出 · 关于</div>
+    <div class="screen-note">环境权限 · 数据/导出 · 通用(外观/语言) · 关于</div>
     <div class="screen-flow">去掉远程/透传等<b>二期</b>项；环境与权限检查从此处手动进入</div>
     <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
       <li>点 <b>环境与权限检查</b> → 设置A；汇总 蓝牙 / 扫描 / 连接 / 定位 / 通知 状态</li>
-      <li><b>本机 GNSS</b> 开关 → 切换 GNSS 一路数据源；缺权限 / 系统定位关 → 引导（GNSS B/C）</li>
+      <li>点 <b>外观主题 / 语言</b> → 设置G / 设置H（单选即时生效）；语言只切 UI，<b>落地文件名 / 场景 token 恒英文</b></li>
       <li>点 <b>导出位置 / 存储占用 / 关于</b> → 设置B / 设置C / 设置D</li>
       <li>二期能力（服务器 / 上传 / 透传）仅在关于页<b>灰显不可点</b></li>
     </ul></div>
@@ -930,6 +942,118 @@
 
 </div>
 
+
+<!-- 离线采集 流程骨架：读 DUT flash 已存会话 → 导入 APP → 补 场景/用户/时间 入数据列表。
+     仅定流程；条目字段、读取/分页协议、时间来源等具体内容待 DUT 协议冻结后落地（屏内为示意值）。 -->
+<section class="section"><h2>离线采集（读取 DUT 存储）· 流程骨架</h2><p class="desc"><b>离线采集</b>从采集主界面上方小入口进入：读取 DUT flash 中<b>已打包存好</b>的会话，传到 APP，再补 <b>场景 / 用户 / 时间</b> 后入数据列表（与在线采集落地同一 D-6 文件夹模型）。本组仅定<b>流程</b>；条目字段、读取/分页协议、时间来源等<b>具体内容待 DUT 协议冻结后落地</b>，屏内数值为示意。</p></section>
+<div class="grid">
+
+  <!-- 离线A 读取 DUT 存储 · 已存会话清单（多选导入） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">离线采集</div></div></div>
+      <div class="content">
+        <div class="list-tile">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><rect x="6" y="3" width="12" height="18" rx="3" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="1.4" fill="currentColor"/></svg></div>
+          <div class="body"><div class="ttl">DUT #1 · GP-A1B2</div><div class="sub">已连接</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="sec-h">已存会话 · 勾选导入</div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary)">
+          <div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div style="flex:1;min-width:0"><div class="nm">DUT 会话 03</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="meta-line">06-20 14:32 · 11.8 MB · 87 102 行</span></div></div>
+        </div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary)">
+          <div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div style="flex:1;min-width:0"><div class="nm">DUT 会话 02</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag ecg">ECG</span><span class="meta-line">06-20 09:05 · 6.2 MB · 41 880 行</span></div></div>
+        </div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px">
+          <div class="chk"></div>
+          <div style="flex:1;min-width:0"><div class="nm">DUT 会话 01</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag temp">温度</span><span class="meta-line">06-19 21:14 · 2.0 MB · 12 540 行</span></div></div>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block">导入所选 (2)</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">离线A</span> 读取 DUT 存储 · 已存会话</div>
+    <div class="screen-note">选 DUT 源 → 读出已存会话清单 → 多选导入；条目字段/数值待协议</div>
+    <div class="screen-flow">进入 → 协议读 DUT flash 会话清单 → 勾选 → <b>导入所选</b> → 导入中（离线B）</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>顶部选 <b>DUT 源</b>（多台已连接时切换）；下方列其 flash 中<b>已打包</b>的会话</li>
+      <li>多选勾选 → 底部 <b>导入所选 (N)</b>；此时数据尚<b>无场景/用户</b>，故名「DUT 会话 NN」</li>
+      <li>条目元数据（条数 / 大小 / 时间字段、分页与读取指令）<b>以 DUT 协议为准</b>，当前为示意</li>
+    </ul></div>
+  </div>
+
+  <!-- 离线B 导入中（DUT flash → 本机） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">离线采集</div></div></div>
+      <div class="content" style="filter:blur(.6px);opacity:.55">
+        <div class="list-tile"><div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><rect x="6" y="3" width="12" height="18" rx="3" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="1.4" fill="currentColor"/></svg></div><div class="body"><div class="ttl">DUT #1 · GP-A1B2</div><div class="sub">已连接</div></div></div>
+        <div class="sec-h">已存会话 · 勾选导入</div>
+        <div class="file-card" style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary)"><div class="chk on"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div style="flex:1;min-width:0"><div class="nm">DUT 会话 03</div><div class="tags"><span class="tag ppg">PPG</span><span class="tag imu">IMU</span><span class="meta-line">06-20 14:32 · 11.8 MB</span></div></div></div>
+      </div>
+      <div class="scrim"><div class="sheet">
+        <div class="grab"></div>
+        <h3>导入中</h3>
+        <p>正在导入已存会话…</p>
+        <div class="progress-track"><i style="width:48%"></i></div>
+        <div class="card-sub">会话 1 / 2 · 48% · 5.6 / 11.8 MB</div>
+        <div class="btn-group" style="margin-top:12px"><button class="btn outline">取消</button></div>
+      </div></div>
+    </div></div>
+    <div class="screen-label"><span class="num">离线B</span> 导入中（DUT → 本机）</div>
+    <div class="screen-note">逐条从 DUT flash 读取传到本机；可取消（已完成的保留）</div>
+    <div class="screen-flow">导入所选 → 逐条传输（进度 + 计数）→ 完成进 分配场景/用户（离线C）；断点续传待协议</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>逐条从 DUT flash 读出已打包数据，写入本机临时区</li>
+      <li>进度按<b>会话计数 + 字节</b>显示；<b>取消</b>保留已完成条目</li>
+      <li>传输 / 校验 / 断点续传细节<b>待协议</b>；落地结构对齐在线采集（原始 + 解码 + manifest）</li>
+    </ul></div>
+  </div>
+
+  <!-- 离线C 分配场景 / 用户（导入后补归属，入数据列表） -->
+  <div>
+    <div class="phone"><div class="phone-screen">
+      <div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+      <div class="app-bar"><div class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="title-block"><div class="title">分配场景 / 用户</div></div></div>
+      <div class="content">
+        <div class="card tonal" style="text-align:center;padding:16px 14px">
+          <div style="font-size:22px;font-weight:800;line-height:1.1">已导入 2 条</div>
+          <div style="font-size:12px;margin-top:2px;opacity:.75">DUT 会话</div>
+        </div>
+        <div class="sec-h">归属</div>
+        <div class="list-tile">
+          <div class="ico tertiary"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="body"><div class="ttl">采集用户</div><div class="sub">shb</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></div>
+          <div class="body"><div class="ttl">采集场景</div><div class="sub">佩戴 · 佩戴中</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+        <div class="list-tile">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="body"><div class="ttl">采集时间</div><div class="sub">2026-06-20 14:32</div></div>
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+      <div class="footer-bar"><button class="btn block">加入数据列表</button></div>
+    </div></div>
+    <div class="screen-label"><span class="num">离线C</span> 分配场景 / 用户</div>
+    <div class="screen-note">给导入会话补 用户 / 场景 / 时间 → 入数据列表</div>
+    <div class="screen-flow">导入完成 → 配 用户(用户选择页) + 场景(场景选择页) + 时间 → <b>加入数据列表</b> → 数据 Tab</div>
+    <div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+      <li>复用 <b>用户选择 / 场景选择</b> 同两页；时间默认取 <b>DUT 时间戳</b>（待协议）可改</li>
+      <li>多条导入<b>可逐条</b>配置（默认沿用上一条）；落地名 = <b>主场景_子场景_用户_日期_MAC后四位</b>，token 恒英文</li>
+      <li><b>加入数据列表</b> → 写成与在线采集一致的会话文件夹，跳数据 Tab</li>
+    </ul></div>
+  </div>
+
+</div>
 
 <!-- 启动与权限 页组（流程上位于主界面之前；按用户要求放主界面之后展示）：
      ① 启动屏一闪而过 ② 首启请求(无返回·可跳过) ③ 后续启动静默检查·缺权限才弹 ④ 按需请求 + 权限不足处理(永久拒绝→系统设置) ⑤ 蓝牙开关检测(≠权限)。
@@ -2098,6 +2222,41 @@
 <li><b>入口预留、具体内容后期</b>；需连接 DUT 才启用</li>
 <li>对时 / 写用户信息 / 读固件日志走协议 Command·Ack（§4）；OTA 属二期</li>
 <li>与「采集类型选择（运行C）」分工：那是会话级采哪路，这是设备端维护</li>
+</ul></div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">外观主题</div></div></div>
+<div class="content">
+<div class="list-tile"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg></span><div class="body"><div class="ttl">跟随系统</div></div><span style="flex:0 0 auto;display:flex"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--primary)" stroke-width="2"/><circle cx="12" cy="12" r="4.6" fill="var(--primary)"/></svg></span></div>
+<div class="list-tile"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div class="body"><div class="ttl">亮色</div></div><span style="flex:0 0 auto;display:flex"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity=".35"/></svg></span></div>
+<div class="list-tile"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.6 6.6 0 009.8 9.8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><div class="body"><div class="ttl">暗色</div></div><span style="flex:0 0 auto;display:flex"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity=".35"/></svg></span></div>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置G</span> 外观主题</div>
+<div class="screen-note">亮色 / 暗色 / 跟随系统 · 单选即时生效（app 已实现）</div>
+<div class="screen-flow">选中 → 立即套用主题 + 写偏好；冷启沿用（启动屏背景也随之）</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>单选列表，选中<b>即时生效</b>，无需「保存」</li>
+<li>跟随系统跟随手机深浅色切换；亮 / 暗为强制</li>
+<li>主题写入偏好，<b>下次启动沿用</b>（含启动屏背景）</li>
+</ul></div></div>
+
+<div><div class="phone"><div class="phone-screen">
+<div class="status-bar"><span>9:41</span><span class="icons"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13a10 10 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="2"/><rect x="21" y="10" width="1.5" height="4"/></svg></span></div>
+<div class="app-bar"><span class="back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="title-block"><div class="title">语言</div></div></div>
+<div class="content">
+<div class="list-tile"><div class="body"><div class="ttl">中文（简体）</div></div><span style="flex:0 0 auto;display:flex"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--primary)" stroke-width="2"/><circle cx="12" cy="12" r="4.6" fill="var(--primary)"/></svg></span></div>
+<div class="list-tile"><div class="body"><div class="ttl">English</div></div><span style="flex:0 0 auto;display:flex"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity=".35"/></svg></span></div>
+</div>
+</div></div>
+<div class="screen-label"><span class="num">设置H</span> 语言</div>
+<div class="screen-note">中文（简体）/ English · 单选即时生效</div>
+<div class="screen-flow">选中 → 切界面语言（Android 13+ 可对接系统「应用语言」）；落地文件名 / 场景 token 恒英文</div>
+<div class="screen-ux"><div class="h"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>UX 交互</div><ul>
+<li>单选列表，选中即切<b>界面显示语言</b>，无需「保存」</li>
+<li>仅切 UI：会话<b>文件名、场景 token、manifest 字段恒英文</b>（如 Wear/Wearing），不随语言变</li>
+<li>词表中文环境显示中文（「佩戴·佩戴中」），落地 JSON/CSV 用英文 token</li>
 </ul></div></div>
 
 </div>
