@@ -6,7 +6,9 @@ import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,10 +49,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
 import io.bluetrace.data.android.BlueTracePermissions
 import io.bluetrace.shared.domain.AppPreferences
+import io.bluetrace.shared.domain.BluetoothEnableTarget
+import io.bluetrace.shared.domain.bluetoothEnableTarget
 import io.bluetrace.shared.domain.RequirementId
 import io.bluetrace.shared.domain.RequirementSeverity
 import io.bluetrace.shared.domain.RequirementStatus
@@ -102,7 +107,7 @@ fun PermissionGateScreen(
             openAppSettings(context); return
         }
         when (id) {
-            RequirementId.BLUETOOTH_ON -> context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            RequirementId.BLUETOOTH_ON -> enableBluetooth(context)
             RequirementId.BLE_SCAN_CONNECT -> itemLauncher.launch(BlueTracePermissions.hardScanConnect)
             RequirementId.LOCATION -> itemLauncher.launch(BlueTracePermissions.location)
             RequirementId.NOTIFICATIONS -> if (BlueTracePermissions.notifications.isNotEmpty()) itemLauncher.launch(BlueTracePermissions.notifications)
@@ -198,7 +203,7 @@ fun BluetoothOffScreen(onBack: () -> Unit) {
             Text(stringResource(R.string.bt_off_empty_sub), fontSize = 12.sp, color = BT.onSurfaceV)
         }
         Column(Modifier.navigationBarsPadding().padding(16.dp)) {
-            PrimaryButton(stringResource(R.string.bt_off_enable), onClick = { context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) })
+            PrimaryButton(stringResource(R.string.bt_off_enable), onClick = { enableBluetooth(context) })
         }
     }
 }
@@ -228,6 +233,31 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/**
+ * 安全「去开启蓝牙」（启动B / 启动E）。
+ *
+ * 根因：API 31+ 拉起 [BluetoothAdapter.ACTION_REQUEST_ENABLE] 需 BLUETOOTH_CONNECT，
+ * 首启门控时未授 → startActivity 抛 SecurityException 崩溃。决策见 shared [bluetoothEnableTarget]：
+ * 未授时打开系统蓝牙设置页（不需该权限即可手动开蓝牙），已授时才拉系统开启弹窗。
+ * 再以 runCatching 兜底任意 ROM/时序差异 —— 绝不崩。
+ */
+private fun enableBluetooth(context: Context) {
+    val needsConnect = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val connectGranted = !needsConnect ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+    val intent = when (bluetoothEnableTarget(needsConnect, connectGranted)) {
+        BluetoothEnableTarget.SYSTEM_ENABLE_DIALOG -> Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        BluetoothEnableTarget.BLUETOOTH_SETTINGS -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+    }
+    runCatching { context.startActivity(intent) }.onFailure {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
 }
 
 /** 请求结果里被拒且系统不再弹（!shouldShowRationale）→ 标记该权限 BLOCKED。 */
