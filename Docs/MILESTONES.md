@@ -1,9 +1,9 @@
 # BlueTrace 里程碑与进度
 
 > 状态标记：✅ 完成（已真机 / 单测验证）· 🔄 进行中 · ⬜ 待办 · ⏸ 暂不实现（一期范围外）
-> 真源：[`/SPEC.md`](../SPEC.md)（§10.5 P1–P5）+ [`prototypes/v4_android.html`](prototypes/v4_android.html)。最后更新：2026-06-22。
+> 真源：[`/SPEC.md`](../SPEC.md)（§10.5 P1–P5）+ [`prototypes/v4_android.html`](prototypes/v4_android.html)。逐版修改记录见 [`CHANGELOG.md`](CHANGELOG.md)。最后更新：2026-06-24。
 >
-> **一句话现状**：一期 Android app（KMP，`io.bluetrace`）**核心闭环全部打通并真机验证**——P1–P4 完成、产品化打磨完成；**唯一未完成的是 P5（真实 DUT 协议解码），卡在通信协议冻结**。BLE/DUT 仍走 Mock；iOS 与服务器属二期。
+> **一句话现状**：一期 Android app（KMP，`io.bluetrace`）**核心闭环全部打通并真机验证**；**设计↔实现逐屏同步已推进到 v6**（主界面三屏 + 场景模型/命名 + 用户选择·编辑重设计 + 摘要/详情改采集人·场景，全部真机验证）。**唯一未完成的核心是 P5（真实 DUT 协议解码），卡在通信协议冻结**；BLE/DUT 仍 Mock。下一步技术债：v7 存储/日志重构（SQLite + .log，方案已出）。iOS 与服务器属二期。
 
 ---
 
@@ -12,48 +12,63 @@
 ### ✅ M1 · KMP 骨架 + 闭环（P1–P2）
 - KMP 两模块 `:shared`(commonMain，纯 Kotlin) + `:app`(Android)；Compose + Material3 adaptive、类型安全 Navigation（三 Tab 各独立嵌套 NavGraph + 返回栈）、Koin、DataStore。
 - **Mock BLE**（`BleClient` 接口 + `MockBleClient`）：造假 DUT + 标准心率带 + 持续造数据。
-- **扁平设备 + 限额**（DUT≤3 + 参考≤1，非 `Map<Role>`）、用户(Subject) CRUD、Wear/Unwear 模式。
-- 三态采集运行状态机（就绪/采集中/已停止）、采集类型选择、硬锁定 + 长按 2 秒结束、实时流 `[unixMs] HEX`、Pin/Start-Stop 标签、暂停=仅停滚动。
+- **扁平设备 + 限额**（DUT≤3 + 参考≤1）、用户(Subject) CRUD、三态采集运行状态机、采集类型选择、硬锁定 + 长按 2 秒结束、实时流 `[unixMs] HEX`、Pin/Start-Stop 标签。
 
 ### ✅ M2 · 数据落地 + 导出（P3）
-- **D-6 会话文件夹**：raw HEX(source of truth) + 每模块解码 CSV + 组合包 CSV + `session_manifest.json`（unix 起点 + 时区 + 质量小结）+ `gps.csv`。
-- **MediaStore 导出** → `Download/BlueTrace/`（免存储权限）；数据 Tab 列表/详情/多选/搜索。
-- **本机 GNSS（F-GPS-1）**：真实 `LocationManager`（while-in-use，不申请后台定位 D-3）→ `gps.csv`，**真机实测真实经纬度**。
+- **D-6 会话文件夹**：raw HEX(source of truth) + 每模块解码 CSV + 组合包 CSV + `session_manifest.json` + `gps.csv`。
+- **MediaStore 导出** → `Download/BlueTrace/`；数据 Tab 列表/详情/多选/搜索。
+- **本机 GNSS（F-GPS-1）**：真实 `LocationManager`（while-in-use）→ `gps.csv`，真机实测真实经纬度。
 
 ### ✅ M3 · 后台 / 进程恢复（P4）
-- 前台服务托管采集（`connectedDevice|location|dataSync` + 常驻通知作在场感）。
-- 进程恢复：服务活则续采 / 全杀则开口会话自动收尾（toast）；存储预检全链（开始前 + 导出前）；权限永久拒绝 `BLOCKED`→引导设置；采集中关蓝牙广播→暂停·自动重连。
+- 前台服务托管采集 + 常驻通知；进程恢复（续采 / 开口会话自动收尾）；存储预检全链；权限永久拒绝引导；采集中关蓝牙→暂停·自动重连。
 
-### ✅ M4 · 产品化打磨（本会话主力）
-- **品牌图标 + 启动屏**：自适应启动器图标 + Android 12 SplashScreen；**两层启动屏**（系统层只画底色、应用内 `AppSplash` 承载渐变 logo + 字标 + 副标 + 三点）合成「一个开屏」；冷启动仅一次。
-- **全局外观模式**：亮 / 暗 / 跟随系统（设置→外观），DataStore 持久化、即时生效、可覆盖系统；深色双色板 + 系统栏图标随模式。
-- **GNSS 入口迁移（Q1）**：从设置开关 → **采集类型勾选**（每会话 + 就地授权），设置页 GNSS 屏/入口已整屏移除。
-- i18n（zh 默认 + values-en + plurals）、edge-to-edge 系统栏、演示钩子 DEBUG 门控。
-- 🔄 **设计稿↔真机逐屏对照收敛**（v3）：已收敛 采集A/用户A/设备A/设置 等；其余屏按 [`agent_build_prompt_v3.md`](agent_build_prompt_v3.md) 继续。
+### ✅ M4 · 产品化打磨
+- 品牌图标 + 两层启动屏（系统层底色 + 应用内 `AppSplash`，冷启一次）；全局外观模式（亮/暗/跟随系统，DataStore 持久、即时生效）；GNSS 入口迁移（设置开关 → 采集类型勾选，每会话就地授权）；i18n（zh + values-en + plurals）、edge-to-edge、演示钩子 DEBUG 门控。
 
-### ⬜ M5 · 真实 DUT 协议解码（P5）—— **当前唯一硬缺口**
-- **阻塞**：`architecture/bluetrace_v0.proto` 仍 **v0.1 草案，待与固件端冻结**（§4 / 协议 §15）。
-- 冻结后：换真实 BLE(Nordic Kotlin-BLE) + Wire 解码替换 Mock（`BleClient`/`SampleDecoder` 接口不变，上层 UI 不动）；标准心率带(HRS 0x180D)不依赖冻结、可先上真实 BLE。
-- 产出冻结清单交固件团队（待办）。
+### ✅ M5 · 设计↔实现逐屏同步（v3 → v6）
+> 以 `prototypes/v4_android.html` 为设计真源，分轮把实现对齐原型并**逐屏真机验证**。详见 [`CHANGELOG.md`](CHANGELOG.md)。
+- **v3**：采集A / 用户A / 设备A / 设置 收敛（EntryTile 重构、圆形图标、用户分段等）；裁决 GNSS 入口、性别英文枚举。
+- **v4**：GNSS 线收尾 + 入口迁移到采集类型勾选。
+- **v5**：主界面三屏对齐——采集场景 tile + 在线/离线双采集（删说明性副标）、数据 Tab 删模式筛选（清 `ModeFilter` 死代码）、设置「外观」→「通用」+ 新增语言屏（中/英·无跟随系统·持久化）；外观主题屏对齐设置G + 红线#1。
+- **v6**：把"采集场景"从占位变 **JSON 驱动真模型**——
+  - 场景模型（`Scene/SceneSelection/SceneCatalog`，`scenes.json` 驱动，默认取第一项、选择持久化）；
+  - **5 段文件命名**（`主场景_子场景_用户_日期_时间_MAC后四位`，token 恒英文）+ manifest 记 `mainScene/subScene`；
+  - 场景选择页（主·子两级单选）、用户选择重设计（Default 行 + 单选 + 确认 + 行内编辑/删除）、用户编辑重设计（别名仅英数 + 出生 DatePicker + 身高/体重 Slider）；
+  - 结束摘要 / 会话详情新增「✎ 修改采集人/场景」→ 改 manifest + 重命名文件夹；
+  - 真机硬门：M2101K9C 全部关键路径跑通并留证据；A/B 对比页 [`compare_design_vs_device_v2.html`](compare_design_vs_device_v2.html)（设计长截图 ↔ 真机整屏）。
+  - 提交 `7df7304`（**本地 main，未推送**）。
 
-### ⬜ M6 · iOS（二期）
-- KMP `:shared` 已为 iOS 预留（纯 Kotlin、可 JVM 单测）；iOS app 未开工。
+### ✅ M6 · 存储 / 日志重构（v7 · 技术债）
+> 方案：[`architecture/storage_logging_design.md`](architecture/storage_logging_design.md)。demo 阶段**直接替换、不做迁移**。Workflow 编排 + 真机 `adb pull` 取证。
+- **✅ 应用日志 → 滚动 `.log` 文件**（`files/logs/app-YYYY-MM-DD.log`，单线程串行写、保留 7 天）+ 内存尾窗供「应用日志」屏；崩溃 handler 同步落盘（`appendBlocking`）。真机验证：格式化行+毫秒、跨 force-stop 持久、`am crash` → `ERROR [crash]` 行、导出到 `Download/BlueTrace/logs/`。提交 `f38ce01`。
+- **✅ 用户 → SQLite（SQLDelight 2.3.2，KMP 原生）**：`subject` 表 + `app_meta`（currentId，兼容 `__default__` 伪用户不入表）；`SubjectRepository` 接口不变、换 `SqlDelightSubjectRepository`（commonMain，`io: CoroutineContext` 注入、`upsert` 仅新建设当前、`heightCm` Int?↔INTEGER Long? 往返）；删 DataStore `subjects_json`/`current_subject_id`。
+  - **SQLDelight 2.1.0 → 2.3.2**：2.1.0 访问 AGP 9 已移除的 `BaseExtension`（issue #5940）→ 升 2.3.2（官方兼容 AGP 9 新 DSL + Built-in Kotlin），非降级项目；驱动分源集：commonMain=runtime+coroutines-ext、app=android-driver、jvmTest=sqlite-driver(JDBC)。
+  - 验证：codegen + `:shared:jvmTest`(12 例) + `:app:assembleDebug` 全绿；4 路对抗式 review(口径 #8–#13) 全 PASS；**真机 `adb pull bluetrace.db`** 取证——新建即当前、编辑老用户不动 current、删当前清 current、heightCm/weightKg 类型往返、`__default__` 不入 subject 表，均命中。
+- **不动**：偏好（主题/语言/场景/首启）留 DataStore；会话原始数据留文件 + manifest JSON；scenes.json 留 assets。
+- ⬜ 可选后续：会话列表 SQLite 索引（暂不做）。
 
-### ⬜ M7 · 服务器 / 上传 / 远程下发（二期）
+### ⬜ M7 · 真实 DUT 协议解码（P5）—— **当前唯一硬缺口**
+- **阻塞**：`architecture/bluetrace_v0.proto` 仍 v0.1 草案，待与固件端冻结。
+- 冻结后：换真实 BLE(Nordic Kotlin-BLE) + Wire 解码替换 Mock（`BleClient`/`SampleDecoder` 接口不变，上层不动）；标准心率带(HRS 0x180D)不依赖冻结、可先上真实 BLE。
+
+### ⬜ M8 · iOS（二期）
+- KMP `:shared` 已为 iOS 预留（纯 Kotlin、可 JVM 单测；v7 选 SQLDelight 亦为 iOS 复用）；iOS app 未开工。
+
+### ⬜ M9 · 服务器 / 上传 / 远程下发（二期）
 - 透传上传、`dataSync` 前台服务类型、远程下发；当前设置页"服务器同步"灰显占位。
 
 ### ⏸ 暂不实现（一期范围外）
-- 配置A/B（传感器总控 / 设备端算法）—— 原型标暂不实现，入口/占位在文档末。
-- 设备维护(DUT) 具体功能（对时 / 写用户信息 / 读固件日志 / OTA）—— 设置页占位屏，子项灰显。
+- 配置A/B（传感器总控 / 设备端算法）；设备维护(DUT) 具体功能（对时 / 写用户信息 / 读固件日志 / OTA）——设置页占位、子项灰显。
+- 离线采集 A/B/C 实壳（待 DUT 协议冻结，原型已出流程骨架）；真正运行时 i18n locale 切换。
 
 ---
 
 ## 质量 / 验证状态
-- **构建**：`./gradlew :app:assembleDebug` ✅；`:shared:jvmTest` ✅（**26 个 commonMain JVM 单测 / 7 文件**：状态机、D-6 写入器、manifest、MockBleClient、GNSS 落盘、会话命名 / 时间格式等）。
-- **真机**：Xiaomi M2101K9C / Android 13 / MIUI 实测——扫描(Mock)→连接→采集→断联重连→存储满自动结束→结束摘要→数据→导出闭环；启动屏（冷启一次、深浅色）、全局主题三档、GNSS 勾选→`gps.csv` 真实写入，均通过。
-- **参照集**：[`assets/screenshots/`](assets/screenshots/)（设计稿 45 屏）+ [`assets/screenshots_device/`](assets/screenshots_device/)（真机实拍）。
+- **构建**：`./gradlew :app:assembleDebug` ✅；`:shared:jvmTest` ✅（commonMain JVM 单测全绿；v6 场景词表/5 段命名/`SessionStore.editSession`；**v7 新增** `FileDiagnosticsLog`(滚动/毫秒/跨午夜/保留) + `SqlDelightSubjectRepository`(current 语义/类型往返/删除联动) 用例，共 12 例）。
+- **真机**：Xiaomi M2101K9C / Android 13——扫描(Mock)→连接→采集→断联重连→存储满自动结束→结束摘要→数据→导出闭环；启动屏/深浅色/全局主题；GNSS 勾选→`gps.csv`；**v6 路径**：场景选择/未佩戴自动 Default/用户选择编辑/5 段命名 `Wear_Wearing_TEST_…`/改采集人·场景重命名；**v7 路径**：滚动 `.log`（格式化+毫秒、`am crash` 同步落盘、导出）、SQLite 用户表（`adb pull bluetrace.db` 取证：subject 行 + `app_meta.current_subject_id` + 新建/编辑/删当前语义），均通过。
+- **设计参照**：[`compare_design_vs_device_v2.html`](compare_design_vs_device_v2.html)（v6 设计长截图 ↔ 真机整屏，6 对 + 1 新增）；旧版 [`compare_design_vs_device.html`](compare_design_vs_device.html) 保留。
 
 ## 下一步（建议优先级）
-1. **推动协议冻结**（解锁 M5）：出 `.proto` 冻结清单给固件；冻结前可先用标准心率带跑真实 BLE 链路。
-2. **完成 v3 设计收敛**（M4 🔄）：剩余屏逐屏对照真机，冲突先确认。
-3. M5 落地后再起 iOS(M6) / 服务器(M7)。
+1. **推送本地 main**（`7df7304` v6 + v7 日志/SQLDelight 提交，均本地未推）。
+2. **推动协议冻结**（解锁 M7）：出 `.proto` 冻结清单给固件；冻结前可先用标准心率带跑真实 BLE。
+3. M7 落地后再起 iOS(M8) / 服务器(M9)。

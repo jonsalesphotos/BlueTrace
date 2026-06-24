@@ -3,9 +3,12 @@ package io.bluetrace.di
 import io.bluetrace.data.android.AndroidEnvironmentRepository
 import io.bluetrace.data.android.AndroidEpochClock
 import io.bluetrace.data.android.AndroidTimeZoneProvider
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import io.bluetrace.data.android.DataStoreAppPreferences
-import io.bluetrace.data.android.DataStoreSubjectRepository
 import io.bluetrace.data.android.MediaStoreExporter
+import io.bluetrace.shared.data.SqlDelightSubjectRepository
+import io.bluetrace.shared.db.BlueTraceDb
 import io.bluetrace.data.android.sessionsRoot
 import io.bluetrace.domain.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
@@ -92,7 +95,10 @@ val appModule = module {
     single { ConnectionRegistry() }
     single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
-    single<SubjectRepository> { DataStoreSubjectRepository(androidContext()) }
+    // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
+    single<SqlDriver> { AndroidSqliteDriver(BlueTraceDb.Schema, androidContext(), "bluetrace.db") }
+    single { BlueTraceDb(get()) }
+    single<SubjectRepository> { SqlDelightSubjectRepository(get(), Dispatchers.IO) }
     single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext()) }
     single { MediaStoreExporter(androidContext(), get()) }
 

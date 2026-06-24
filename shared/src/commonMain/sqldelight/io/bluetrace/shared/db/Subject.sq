@@ -1,0 +1,38 @@
+-- 采集用户表（v7 · 取代 DataStore subjects_json）。token/枚举存字符串，heightCm/weightKg 可空。
+CREATE TABLE subject (
+  id       TEXT NOT NULL PRIMARY KEY,
+  alias    TEXT NOT NULL,
+  sex      TEXT NOT NULL,            -- Sex.name: MALE/FEMALE/OTHER
+  birth    TEXT NOT NULL DEFAULT '',
+  heightCm INTEGER,                  -- 生成 Long?；映射 Subject.heightCm:Int? 需显式转换
+  weightKg REAL,                     -- 生成 Double?，直配
+  note     TEXT
+);
+
+-- 键值元表：currentId 等（currentId 可能是 Default 伪用户 "__default__"，永不入 subject 表，故存字符串）。
+CREATE TABLE app_meta (
+  key   TEXT NOT NULL PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM subject ORDER BY alias;
+
+countById:
+SELECT COUNT(*) FROM subject WHERE id = ?;
+
+upsert:
+INSERT OR REPLACE INTO subject(id, alias, sex, birth, heightCm, weightKg, note)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM subject WHERE id = ?;
+
+getMeta:
+SELECT value FROM app_meta WHERE key = ?;
+
+setMeta:
+INSERT OR REPLACE INTO app_meta(key, value) VALUES (?, ?);
+
+deleteMeta:
+DELETE FROM app_meta WHERE key = ?;
