@@ -34,6 +34,7 @@ Docs/
 | 让 agent 做设计稿↔真机对照收敛 | [`agent_build_prompt_v3.md`](agent_build_prompt_v3.md)（逐屏对照 screenshots/ ↔ screenshots_device/，冲突先确认）|
 | 让 agent 收尾 GNSS 线 + Q1 入口迁移 | [`agent_build_prompt_v4.md`](agent_build_prompt_v4.md)（GNSS WIP 收尾 + 设置去开关→采集类型勾选 + 真机核验 gps.csv）|
 | 让 agent 同步主界面三屏(采集/数据/设置) | [`agent_build_prompt_v5.md`](agent_build_prompt_v5.md)（设计↔实现收敛第一步 · Workflow 编排：并行 diff→串行 apply→对抗 verify）|
+| 让 agent 同步剩余页面(场景模型+前置流+摘要/详情编辑) | [`agent_build_prompt_v6.md`](agent_build_prompt_v6.md)（场景模型 scenes.json + 命名落地 + 场景选择页/用户选择编辑/摘要详情编辑 · Workflow 编排 · **真机必测**）|
 
 ## 真源分工
 
