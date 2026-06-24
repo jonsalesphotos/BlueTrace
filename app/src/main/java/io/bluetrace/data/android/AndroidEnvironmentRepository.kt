@@ -1,8 +1,12 @@
 package io.bluetrace.data.android
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
@@ -45,6 +49,24 @@ class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRe
 
     private val _state = MutableStateFlow(compute())
     override val state: StateFlow<EnvironmentState> = _state
+
+    /** 蓝牙总开关变化 → 静默复检。
+     *  用户在系统「开启蓝牙？」弹窗点「允许」或在蓝牙设置页打开后，开启是异步的(TURNING_ON→ON)；
+     *  仅靠回前台单次 refresh() 可能早于 STATE_ON 而读到旧值，故监听 ACTION_STATE_CHANGED，
+     *  在 STATE_ON 落定时刷新，权限门控/采集首页的「去开启」即时转「已授权」。 */
+    private val bluetoothStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) refresh()
+        }
+    }
+
+    init {
+        // context 为 application（见 AppModule），单例随进程存活，无需反注册。
+        ContextCompat.registerReceiver(
+            context, bluetoothStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+    }
 
     override fun refresh() {
         _state.value = compute()
