@@ -18,7 +18,7 @@ import io.bluetrace.shared.protocol.MockSampleDecoder
 import io.bluetrace.shared.protocol.SampleDecoder
 import io.bluetrace.shared.session.DefaultSessionController
 import io.bluetrace.shared.session.DiagnosticsLog
-import io.bluetrace.shared.session.InMemoryDiagnosticsLog
+import io.bluetrace.shared.session.FileDiagnosticsLog
 import io.bluetrace.shared.session.SessionController
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
@@ -36,7 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
@@ -59,7 +61,14 @@ val appModule = module {
 
     // ---- 共享核心（KMP commonMain）----
     single { SessionStore(get(), get()).also { it.ensureRoot() } }
-    single<DiagnosticsLog> { InMemoryDiagnosticsLog(get()) }
+    // 应用日志（v7）：滚动 .log 文件。writerScope 必须单线程（保序、无并发追加竞态）。
+    single(named("logWriter")) { CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1)) }
+    single<DiagnosticsLog> {
+        val ctx = androidContext()
+        // logsDir 与 sessionsRoot 同根（getExternalFilesDir），adb pull 直接可取；不放内部 filesDir。
+        val logsDir = (ctx.getExternalFilesDir(null) ?: ctx.filesDir).resolve("logs").path.toPath()
+        FileDiagnosticsLog(get(), logsDir, get(), get(), get(named("logWriter")))
+    }
     single { MockBleClient(get(), get()) }
     single<BleClient> { get<MockBleClient>() }
     single<SampleDecoder> { MockSampleDecoder() }
