@@ -37,6 +37,7 @@ Docs/
 | 让 agent 同步主界面三屏(采集/数据/设置) | [`agent_build_prompt_v5.md`](agent_build_prompt_v5.md)（设计↔实现收敛第一步 · Workflow 编排：并行 diff→串行 apply→对抗 verify）|
 | 让 agent 同步剩余页面(场景模型+前置流+摘要/详情编辑) | [`agent_build_prompt_v6.md`](agent_build_prompt_v6.md)（场景模型 scenes.json + 命名落地 + 场景选择页/用户选择编辑/摘要详情编辑 · Workflow 编排 · **真机必测**）|
 | 让 agent 落地 存储&日志 重构(基础设施轮) | [`agent_build_prompt_v7.md`](agent_build_prompt_v7.md)（SQLDelight 用户表 + 滚动 .log；实现 [`storage_logging_design.md`](architecture/storage_logging_design.md) · Workflow 编排 · **真机必测**）|
+| 真机使用中发现问题 → 让 agent 修复(复用) | [`agent_fix_prompt.md`](agent_fix_prompt.md)（填【问题】模板 → 真机复现取证(日志/DB/manifest)→ 根因→最小修→单测+真机回归→push；屏↔代码速查）|
 
 ## 真源分工
 
