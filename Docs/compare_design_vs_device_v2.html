@@ -66,7 +66,7 @@
     <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12.5h4l2-5.6 3.5 11 2.2-5.4h7.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <div>
       <h1>BlueTrace · v6 设计稿 ↔ 真机 A/B 对比</h1>
-      <div class="sub">左 = 原型设计稿（v4_android.html 整页长截图渲染，带手机外框、内容完整不截断）　右 = 真机实拍（Xiaomi M2101K9C · Android 13，干净默认态整屏）。点图可放大。</div>
+      <div class="sub">左 = 原型设计稿（v4_android.html 逐屏按手机定尺渲染 330×716·与真机同比例，带手机外框、内容完整不截断）　右 = 真机实拍（Xiaomi M2101K9C · Android 13，干净默认态整屏）。点图可放大。</div>
     </div>
     <div class="legend">
       <span class="tag"><span class="dot a"></span>A 设计稿</span>
@@ -81,7 +81,7 @@
 
 <footer>
   <strong>v6 同步范围</strong>：场景模型 + 文件命名落地、采集场景选择页（新）、用户选择 / 用户编辑重设计、采集结束摘要 / 会话详情新增「修改采集人 / 场景」。<br>
-  本页为 v6 设计↔实现对照的<strong>修订版</strong>：设计稿按当前 v4_android.html 逐屏重新渲染为<strong>整页长截图</strong>（手机屏展开到全内容、不截断；修复了 body 局部 &lt;style&gt; 丢失导致的塌陷），真机图为重启 app 后的<strong>干净默认态整屏</strong>（非操作后的中间态）。<br>
+  本页为 v6 设计↔实现对照的<strong>修订版</strong>：设计稿按当前 v4_android.html 逐屏<strong>以固定手机尺寸（330×716·与真机同比例）渲染截取</strong>（带手机外框、各屏自适配满一屏、内容完整不截断），真机图为重启 app 后的<strong>干净默认态整屏</strong>（非操作后的中间态）。<br>
   场景：采集场景<strong>由 scenes.json 驱动</strong>（app 从 <code>assets/scenes.json</code> 加载，与 <code>Docs/architecture/scenes.json</code> 同源）；本轮按裁决把「佩戴」子场景精简为 <strong>佩戴中 / 未佩戴</strong> 两项（仅未佩戴自动切 Default 用户）。<br>
   会话详情真机图内容随该会话实际文件数而定（本会话未开 GNSS，故少于设计稿的满配示例）——属数据差异，非结构差异。
 </footer>
