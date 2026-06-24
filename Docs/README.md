@@ -28,6 +28,7 @@ Docs/
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开）|
 | 设计稿 vs 真机 逐屏对比 | [`compare_design_vs_device.html`](compare_design_vs_device.html)（A/B 并排 21 对，浏览器打开，点图放大）|
 | protobuf 消息契约 | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) |
+| 存储/日志 重构方案(SQLDelight + .log) | [`architecture/storage_logging_design.md`](architecture/storage_logging_design.md)（v8 · 已过多视角审查修订）|
 | 某个决策的历史来龙去脉 | [`legacy/`](legacy/README.md)（仅历史参考，口径以 SPEC 为准）|
 | 让 agent 跑出第一版 app | [`agent_build_prompt_v1.md`](agent_build_prompt_v1.md)（Mock BLE · `/goal` 驱动的构建 prompt）|
 | 让 agent 继续开发(收口+图标+启动页) | [`agent_build_prompt_v2.md`](agent_build_prompt_v2.md)（修结构性差距 + app/启动页图标 + P3/P4）|
@@ -35,6 +36,7 @@ Docs/
 | 让 agent 收尾 GNSS 线 + Q1 入口迁移 | [`agent_build_prompt_v4.md`](agent_build_prompt_v4.md)（GNSS WIP 收尾 + 设置去开关→采集类型勾选 + 真机核验 gps.csv）|
 | 让 agent 同步主界面三屏(采集/数据/设置) | [`agent_build_prompt_v5.md`](agent_build_prompt_v5.md)（设计↔实现收敛第一步 · Workflow 编排：并行 diff→串行 apply→对抗 verify）|
 | 让 agent 同步剩余页面(场景模型+前置流+摘要/详情编辑) | [`agent_build_prompt_v6.md`](agent_build_prompt_v6.md)（场景模型 scenes.json + 命名落地 + 场景选择页/用户选择编辑/摘要详情编辑 · Workflow 编排 · **真机必测**）|
+| 让 agent 落地 存储&日志 重构(基础设施轮) | [`agent_build_prompt_v7.md`](agent_build_prompt_v7.md)（SQLDelight 用户表 + 滚动 .log；实现 [`storage_logging_design.md`](architecture/storage_logging_design.md) · Workflow 编排 · **真机必测**）|
 
 ## 真源分工
 
