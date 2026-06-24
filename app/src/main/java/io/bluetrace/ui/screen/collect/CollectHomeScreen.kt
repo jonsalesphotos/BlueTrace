@@ -1,26 +1,26 @@
 package io.bluetrace.ui.screen.collect
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -51,7 +50,7 @@ import io.bluetrace.viewmodel.CollectHomeViewModel
 import io.bluetrace.viewmodel.StartOutcome
 import org.koin.androidx.compose.koinViewModel
 
-/** 采集A · 采集 Tab 主界面（设备/用户/模式入口 + 开始采集）。 */
+/** 采集A · 采集 Tab 主界面（设备 / 用户 / 采集场景入口 + 在线·离线采集）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectHomeScreen(
@@ -129,7 +128,10 @@ fun CollectHomeScreen(
                     }
                 },
             )
-            ModeTile(mode = ui.mode, onSelect = vm::setMode)
+            SceneTile(
+                mode = ui.mode,
+                onClick = { android.widget.Toast.makeText(context, context.getString(R.string.collect_scene_todo), android.widget.Toast.LENGTH_SHORT).show() },
+            )
         }
         Column(Modifier.padding(16.dp)) {
             if (lowSpace) {
@@ -145,6 +147,16 @@ fun CollectHomeScreen(
                     Text(hint, fontSize = 12.sp, color = BT.warning, modifier = Modifier.padding(bottom = 8.dp))
                 }
             }
+            // 离线采集：小入口（不占主位、不常按）；读 DUT flash 已存数据导入 APP，待协议 → 占位 Toast。
+            TextButton(
+                onClick = { android.widget.Toast.makeText(context, context.getString(R.string.collect_offline_todo), android.widget.Toast.LENGTH_SHORT).show() },
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 2.dp),
+            ) {
+                Icon(Icons.Filled.FileDownload, contentDescription = null, tint = BT.primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.collect_offline), fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = BT.primary)
+            }
+            // 在线采集：沉底主按钮（最顺手）= DUT 实时 生成→打包→发送。
             PrimaryButton(
                 stringResource(R.string.collect_start),
                 leadingIcon = Icons.Filled.PlayArrow,
@@ -178,38 +190,23 @@ fun CollectHomeScreen(
     }
 }
 
+/**
+ * 采集场景 tile：屏内只显示场景值（主·子场景中文，如「佩戴 · 佩戴中」）。
+ * token 恒英文（CollectMode.fileToken: Wear/Wearing），用于文件名/json/manifest；场景选择页属后续轮，整行点击暂占位 Toast。
+ */
 @Composable
-private fun ModeTile(mode: CollectMode, onSelect: (CollectMode) -> Unit) {
+private fun SceneTile(mode: CollectMode, onClick: () -> Unit) {
     EntryTile(
         icon = Icons.Filled.GraphicEq,
         iconColor = BT.success,
         iconBg = BT.successC,
-        title = stringResource(R.string.collect_entry_mode_title),
-        subtitle = stringResource(R.string.collect_entry_mode_sub, mode.label),
-        trailing = {
-            Row(
-                Modifier.clip(RoundedCornerShape(999.dp)).background(BT.surface2).padding(2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                CollectMode.entries.forEach { m ->
-                    val selected = m == mode
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(if (selected) BT.surface else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { onSelect(m) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            m.label,
-                            fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.W700 else FontWeight.W500,
-                            color = if (selected) BT.onSurface else BT.onSurfaceV,
-                        )
-                    }
-                }
-            }
+        title = stringResource(R.string.collect_entry_scene_title),
+        value = when (mode) {
+            CollectMode.WEAR -> stringResource(R.string.collect_scene_wear)
+            CollectMode.UNWEAR -> stringResource(R.string.collect_scene_unwear)
         },
+        valueColor = BT.onSurface,
+        showChevron = true,
+        onClick = onClick,
     )
-    Spacer(Modifier.height(0.dp))
 }

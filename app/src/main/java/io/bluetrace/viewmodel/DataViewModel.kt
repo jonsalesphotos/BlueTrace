@@ -3,7 +3,6 @@ package io.bluetrace.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.shared.data.SessionStore
-import io.bluetrace.shared.domain.CollectMode
 import io.bluetrace.shared.domain.SessionSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,36 +13,31 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class ModeFilter { ALL, WEAR, UNWEAR }
-
 data class DataUiState(
     val sessions: List<SessionSummary> = emptyList(),
     val totalCount: Int = 0,
     val totalBytes: Long = 0,
     val query: String = "",
-    val modeFilter: ModeFilter = ModeFilter.ALL,
     val selectionMode: Boolean = false,
     val selected: Set<String> = emptySet(),
 )
 
-/** 数据 Tab（数据A/B/C/D）：会话列表 + 搜索 + 模式筛选 + 多选 + 删除。 */
+/** 数据 Tab（数据A/B/C/D）：会话列表 + 搜索 + 多选 + 删除（模式筛选已移除，后期再做）。 */
 class DataViewModel(private val store: SessionStore) : ViewModel() {
 
     private val _all = MutableStateFlow<List<SessionSummary>>(emptyList())
     private val _query = MutableStateFlow("")
-    private val _filter = MutableStateFlow(ModeFilter.ALL)
     private val _selectionMode = MutableStateFlow(false)
     private val _selected = MutableStateFlow<Set<String>>(emptySet())
 
-    private data class Filters(val query: String, val filter: ModeFilter, val selMode: Boolean, val selected: Set<String>)
+    private data class Filters(val query: String, val selMode: Boolean, val selected: Set<String>)
 
     val uiState: StateFlow<DataUiState> =
         combine(
             _all,
-            combine(_query, _filter, _selectionMode, _selected) { q, f, s, sel -> Filters(q, f, s, sel) },
+            combine(_query, _selectionMode, _selected) { q, s, sel -> Filters(q, s, sel) },
         ) { all, filters ->
             val filtered = all
-                .filter { filters.filter == ModeFilter.ALL || it.mode == filters.filter.toMode() }
                 .filter {
                     filters.query.isBlank() ||
                         it.folderName.contains(filters.query, true) ||
@@ -54,7 +48,6 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
                 totalCount = all.size,
                 totalBytes = all.sumOf { it.totalBytes },
                 query = filters.query,
-                modeFilter = filters.filter,
                 selectionMode = filters.selMode,
                 selected = filters.selected,
             )
@@ -70,7 +63,6 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
     }
 
     fun setQuery(q: String) { _query.value = q }
-    fun setFilter(f: ModeFilter) { _filter.value = f }
 
     fun enterSelection(folder: String) {
         _selectionMode.value = true
@@ -99,5 +91,3 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
         }
     }
 }
-
-private fun ModeFilter.toMode(): CollectMode = if (this == ModeFilter.WEAR) CollectMode.WEAR else CollectMode.UNWEAR

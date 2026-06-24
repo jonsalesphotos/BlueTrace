@@ -25,8 +25,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -49,7 +47,6 @@ import io.bluetrace.ui.theme.BT
 import io.bluetrace.ui.theme.sensorColor
 import io.bluetrace.viewmodel.DataViewModel
 import io.bluetrace.viewmodel.ExportViewModel
-import io.bluetrace.viewmodel.ModeFilter
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -88,24 +85,13 @@ fun DataHomeScreen(
                 )
             }
 
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 搜索框（模式筛选行已移除，对齐原型；筛选功能后期再做）。
+            Column(Modifier.padding(horizontal = 16.dp)) {
                 OutlinedTextField(
                     value = ui.query, onValueChange = vm::setQuery,
                     placeholder = { Text(stringResource(R.string.data_search_hint), fontSize = 13.sp) },
                     singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(BT.radius),
                 )
-                Row(Modifier.background(BT.surface2, RoundedCornerShape(999.dp)).padding(2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    listOf(
-                        ModeFilter.ALL to stringResource(R.string.data_filter_all),
-                        ModeFilter.WEAR to stringResource(R.string.data_filter_wear),
-                        ModeFilter.UNWEAR to stringResource(R.string.data_filter_unwear),
-                    ).forEach { (f, label) ->
-                        val sel = ui.modeFilter == f
-                        Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(if (sel) BT.surface else Color.Transparent).clickable { vm.setFilter(f) }.padding(vertical = 7.dp), contentAlignment = Alignment.Center) {
-                            Text(label, fontSize = 12.sp, fontWeight = if (sel) FontWeight.W700 else FontWeight.W500, color = if (sel) BT.onSurface else BT.onSurfaceV)
-                        }
-                    }
-                }
             }
 
             if (ui.sessions.isEmpty()) {

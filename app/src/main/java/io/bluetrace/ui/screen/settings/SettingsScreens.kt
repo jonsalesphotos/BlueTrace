@@ -26,11 +26,13 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,9 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
+import io.bluetrace.shared.domain.AppLanguage
+import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.RequirementId
 import io.bluetrace.shared.domain.RequirementSeverity
 import io.bluetrace.shared.domain.RequirementStatus
+import io.bluetrace.shared.domain.ThemeMode
 import io.bluetrace.shared.session.LogLevel
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.ListTileRow
@@ -58,12 +63,27 @@ import io.bluetrace.viewmodel.EnvironmentViewModel
 import io.bluetrace.viewmodel.SettingsViewModel
 import io.bluetrace.viewmodel.StorageBreakdown
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsHomeScreen(
     onEnv: () -> Unit, onExportLoc: () -> Unit, onStorage: () -> Unit,
-    onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit, onAppearance: () -> Unit,
+    onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit,
+    onAppearance: () -> Unit, onLanguage: () -> Unit,
 ) {
+    // 通用分区两行的副标 = 当前值（主题模式 / 语言名），随偏好实时更新；非说明性副标（red-line #1）。
+    val prefs = koinInject<AppPreferences>()
+    val theme by prefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val language by prefs.language.collectAsState(initial = AppLanguage.ZH)
+    val themeLabel = stringResource(
+        when (theme) {
+            ThemeMode.SYSTEM -> R.string.appearance_system
+            ThemeMode.LIGHT -> R.string.appearance_light
+            ThemeMode.DARK -> R.string.appearance_dark
+        },
+    )
+    val languageLabel = stringResource(if (language == AppLanguage.EN) R.string.lang_en else R.string.lang_zh)
+
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.tab_settings), subtitle = stringResource(R.string.settings_subtitle))
         LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
@@ -72,15 +92,16 @@ fun SettingsHomeScreen(
             item { SectionHeader(stringResource(R.string.settings_sec_data)) }
             item { SettingsNavRow(Icons.Filled.FolderOpen, BT.success, BT.successC, stringResource(R.string.settings_export_loc), stringResource(R.string.settings_export_loc_sub), onExportLoc) }
             item { SettingsNavRow(Icons.Filled.Storage, BT.warning, BT.warningC, stringResource(R.string.settings_storage), stringResource(R.string.settings_storage_sub), onStorage) }
+            item { SectionHeader(stringResource(R.string.settings_sec_general)) }
+            item { SettingsNavRow(Icons.Filled.DarkMode, BT.primary, BT.primaryC, stringResource(R.string.settings_appearance), themeLabel, onAppearance) }
+            item { SettingsNavRow(Icons.Filled.Language, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_language), languageLabel, onLanguage) }
             item { SectionHeader(stringResource(R.string.settings_sec_diag)) }
             item { SettingsNavRow(Icons.Filled.Article, BT.primary, BT.primaryC, stringResource(R.string.settings_log), stringResource(R.string.settings_log_sub), onLog) }
             item { SettingsNavRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_device_maint), stringResource(R.string.settings_device_maint_sub), onDeviceMaint) }
-            item { SectionHeader(stringResource(R.string.settings_sec_appearance)) }
-            item { SettingsNavRow(Icons.Filled.DarkMode, BT.primary, BT.primaryC, stringResource(R.string.settings_appearance), stringResource(R.string.settings_appearance_sub), onAppearance) }
             item { SectionHeader(stringResource(R.string.settings_sec_about)) }
             item { SettingsNavRow(Icons.Filled.Info, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_about), stringResource(R.string.settings_about_sub), onAbout) }
             item {
-                // 二期项灰显禁用（服务器 / 上传 / 远程下发）
+                // 二期项灰显禁用（服务器 / 上传 / 远程下发）。原型未画此行，保留为既有占位（提交说明列明）。
                 ListTileRow(Icons.Filled.Info, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_phase2), stringResource(R.string.settings_phase2_sub), enabled = false)
             }
         }

@@ -28,10 +28,18 @@ interface EnvironmentRepository {
 /** 全局外观模式（§8）：跟随系统 / 强制浅色 / 强制深色。 */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/**
+ * 界面语言（设置H）：仅 中 / 英，无"跟随系统"（red-line：language-zh-en-only）。
+ * 仅切 UI 显示；会话文件名 / 场景 token / manifest 字段恒英文，不随此变。
+ */
+enum class AppLanguage { ZH, EN }
+
 /** 首启标记等偏好（app 用 DataStore 实现）。 */
 interface AppPreferences {
     val firstLaunchCompleted: Flow<Boolean>
     suspend fun setFirstLaunchCompleted(value: Boolean)
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(value: ThemeMode)
+    val language: Flow<AppLanguage>
+    suspend fun setLanguage(value: AppLanguage)
 }

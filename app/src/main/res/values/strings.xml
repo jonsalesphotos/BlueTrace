@@ -67,11 +67,17 @@
     <string name="collect_entry_device_sub">DUT · 多传感器</string>
     <string name="collect_entry_device_goto">去连接</string>
     <string name="collect_entry_user_title">用户</string>
-    <string name="collect_entry_user_sub">采集用户档案 · 写入文件名</string>
+    <string name="collect_entry_user_sub">采集用户信息</string>
     <string name="collect_entry_user_empty">未选择</string>
-    <string name="collect_entry_mode_title">采集模式</string>
-    <string name="collect_entry_mode_sub">%1$s · 自动命名会话文件夹</string>
-    <string name="collect_start">开始采集</string>
+    <!-- 采集场景：屏内只显示「主场景·子场景」中文；落地文件名/json/manifest 恒英文 token（Wear/Wearing）。场景选择页属后续轮，本轮点击占位 Toast。 -->
+    <string name="collect_entry_scene_title">采集场景</string>
+    <string name="collect_scene_wear">佩戴 · 佩戴中</string>
+    <string name="collect_scene_unwear">佩戴 · 未佩戴</string>
+    <string name="collect_scene_todo">采集场景选择即将上线</string>
+    <!-- 双采集：在线=沉底主按钮（DUT 实时 生成→打包→发送）；离线=上方小入口（读 DUT flash 已存数据，待协议）。 -->
+    <string name="collect_start">在线采集</string>
+    <string name="collect_offline">离线采集</string>
+    <string name="collect_offline_todo">离线采集待协议支持</string>
     <string name="collect_hint_need_user">请先选择用户</string>
     <string name="collect_hint_need_device">请先连接至少一台设备</string>
     <string name="storage_insufficient_start">存储空间不足，无法开始采集，请先清理或导出后删除旧会话</string>
@@ -176,9 +182,6 @@
     <!-- ===== 数据 Tab ===== -->
     <string name="data_title">数据</string>
     <string name="data_search_hint">搜索会话 / 用户 / 设备</string>
-    <string name="data_filter_all">全部</string>
-    <string name="data_filter_wear">Wear</string>
-    <string name="data_filter_unwear">Unwear</string>
     <string name="data_group_suffix">会话文件夹</string>
     <string name="data_today">今天</string>
     <string name="data_yesterday">昨天</string>
@@ -225,9 +228,14 @@
     <string name="settings_about_sub">v1.0.0 · 多传感器 BLE 数据采集</string>
     <string name="settings_phase2">服务器同步 / 远程下发</string>
     <string name="settings_phase2_sub">二期</string>
-    <string name="settings_sec_appearance">外观</string>
-    <string name="settings_appearance">主题模式</string>
-    <string name="settings_appearance_sub">亮色 / 暗色 / 跟随系统</string>
+    <!-- 通用：外观主题 + 语言。列表副标显示「当前值」（主题模式 / 语言名），非说明性/规格性文案（red-line #1）。 -->
+    <string name="settings_sec_general">通用</string>
+    <string name="settings_appearance">外观主题</string>
+    <string name="settings_language">语言</string>
+    <!-- 语言仅中/英、无「跟随系统」；语言名用 autonym（两端一致），落地文件名/场景 token 恒英文。 -->
+    <string name="language_title">语言</string>
+    <string name="lang_zh">中文（简体）</string>
+    <string name="lang_en">English</string>
     <string name="appearance_title">主题模式</string>
     <string name="appearance_subtitle">选择亮色、暗色或跟随系统</string>
     <string name="appearance_system">跟随系统</string>

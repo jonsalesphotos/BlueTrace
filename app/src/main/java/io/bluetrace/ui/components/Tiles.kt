@@ -45,7 +45,7 @@ fun EntryTile(
     iconColor: Color,
     iconBg: Color,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
@@ -77,10 +77,12 @@ fun EntryTile(
                 }
                 Column(Modifier.weight(1f)) {
                     Text(title, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
-                    Text(
-                        subtitle, fontSize = 11.sp, color = BT.onSurfaceV,
-                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
+                    if (subtitle != null) {
+                        Text(
+                            subtitle, fontSize = 11.sp, color = BT.onSurfaceV,
+                            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
                 }
                 if (value != null) {
                     Text(value, fontSize = 12.sp, fontWeight = FontWeight.W600, color = valueColor)

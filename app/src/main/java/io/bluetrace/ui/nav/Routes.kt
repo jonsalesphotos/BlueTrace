@@ -38,6 +38,7 @@ sealed interface Route {
     @Serializable data object DeviceMaintenance : Route
     @Serializable data object About : Route
     @Serializable data object Appearance : Route // 外观：亮/暗/跟随系统（§8）
+    @Serializable data object Language : Route // 语言：中/英单选，无跟随系统（设置H）
 }
 
 /** 顶级目的地（仅这三个显示底部 Bar，§5.1 / ③）。显示名走 strings 资源（见 BlueTraceApp.tabLabelRes）。 */

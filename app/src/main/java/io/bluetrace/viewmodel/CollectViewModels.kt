@@ -84,8 +84,6 @@ class CollectHomeViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CollectHomeUiState())
 
-    fun setMode(mode: CollectMode) { _mode.value = mode }
-
     fun refreshEnv() = env.refresh()
 
     /** 启动/进入时是否低空间（< 1GB，§5.2 一次性提示）。 */

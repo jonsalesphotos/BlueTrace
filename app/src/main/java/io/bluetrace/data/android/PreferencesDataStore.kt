@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.bluetrace.shared.data.BlueTraceJson
+import io.bluetrace.shared.domain.AppLanguage
 import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
@@ -19,6 +20,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "bl
 
 private val KEY_FIRST_LAUNCH = booleanPreferencesKey("first_launch_completed")
 private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+private val KEY_LANGUAGE = stringPreferencesKey("app_language")
 private val KEY_SUBJECTS = stringPreferencesKey("subjects_json")
 private val KEY_CURRENT_SUBJECT = stringPreferencesKey("current_subject_id")
 
@@ -39,6 +41,17 @@ class DataStoreAppPreferences(private val context: Context) : AppPreferences {
 
     override suspend fun setThemeMode(value: ThemeMode) {
         context.dataStore.edit { it[KEY_THEME_MODE] = value.name }
+    }
+
+    // 语言：默认中文（无"跟随系统"）。本轮持久化偏好 + 选中态；运行时 locale 切换属后续轮。
+    override val language: Flow<AppLanguage> =
+        context.dataStore.data.map { prefs ->
+            runCatching { AppLanguage.valueOf(prefs[KEY_LANGUAGE] ?: AppLanguage.ZH.name) }
+                .getOrDefault(AppLanguage.ZH)
+        }
+
+    override suspend fun setLanguage(value: AppLanguage) {
+        context.dataStore.edit { it[KEY_LANGUAGE] = value.name }
     }
 }
 
