@@ -50,6 +50,12 @@ val appModule = module {
     single<Path> { sessionsRoot(androidContext()) }
     single<io.bluetrace.shared.data.StorageMonitor> { io.bluetrace.data.android.AndroidStorageMonitor(androidContext()) }
     single<io.bluetrace.shared.data.GnssSource> { io.bluetrace.data.android.AndroidGnssSource(androidContext()) }
+    // 采集场景词表（v6）：从 assets/scenes.json 加载（与 Docs/architecture/scenes.json 同源），解析失败兜底 EMPTY。
+    single<io.bluetrace.shared.domain.SceneCatalog> {
+        io.bluetrace.shared.domain.parseSceneCatalog(
+            androidContext().assets.open("scenes.json").bufferedReader().use { it.readText() },
+        )
+    }
 
     // ---- 共享核心（KMP commonMain）----
     single { SessionStore(get(), get()).also { it.ensureRoot() } }
@@ -75,6 +81,7 @@ val appModule = module {
 
     // ---- app 级状态 / 仓库 ----
     single { ConnectionRegistry() }
+    single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     single<SubjectRepository> { DataStoreSubjectRepository(androidContext()) }
     single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext()) }

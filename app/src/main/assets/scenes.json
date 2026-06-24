@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "comment": "采集场景配置。主场景 = 采集目的/算法目标（为 HR/Wear/SpO2… 算法采数据）；子场景 = 该算法下的采集场景。token 用于 config / manifest / 文件名（恒英文）；zh/en 仅 UI 显示（中文环境显示 zh）。app 从本 JSON 导入，可增删替换无需改代码。",
+  "comment": "采集场景配置（与 Docs/architecture/scenes.json 同源；手动同步）。主场景=采集目的/算法目标；子场景=该算法下的采集场景。token 用于 config/manifest/文件名（恒英文）；zh/en 仅 UI 显示。",
   "autoDefaultUserSubs": ["Unwear"],
   "scenes": [
     {

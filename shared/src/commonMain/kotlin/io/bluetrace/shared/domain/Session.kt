@@ -22,7 +22,7 @@ data class AssignedDevice(
  */
 data class SessionConfig(
     val subject: Subject,
-    val mode: CollectMode,
+    val scene: SceneSelection,
     val devices: List<AssignedDevice>,
     val enabledTypes: Set<CollectType>,
     val gnssEnabled: Boolean,
@@ -64,7 +64,7 @@ data class SessionSummary(
     val startEpochMs: Long,
     val endEpochMs: Long,
     val subjectAlias: String,
-    val mode: CollectMode,
+    val scene: SceneSelection,
     val deviceCount: Int,
     val sensorCount: Int,
     val totalLines: Long,

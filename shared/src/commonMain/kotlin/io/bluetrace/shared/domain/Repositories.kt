@@ -42,4 +42,7 @@ interface AppPreferences {
     suspend fun setThemeMode(value: ThemeMode)
     val language: Flow<AppLanguage>
     suspend fun setLanguage(value: AppLanguage)
+    /** 上次采集场景选择（持久化；null=未选过 → 用 scenes.json 第一个主/子场景）。 */
+    val sceneSelection: Flow<SceneSelection?>
+    suspend fun setSceneSelection(value: SceneSelection)
 }

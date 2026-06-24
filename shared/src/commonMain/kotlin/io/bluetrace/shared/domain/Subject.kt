@@ -27,3 +27,12 @@ data class Subject(
     val weightKg: Double? = null,
     val note: String? = null,
 )
+
+/** Default 伪用户 id（非真人、纯采数据）。未佩戴类子场景（autoDefaultUserSubs）自动切到它。 */
+const val DEFAULT_SUBJECT_ID = "__default__"
+
+/** Default 伪用户：alias 恒英文 "Default"（写文件名/manifest）；显示名走 UI 资源。 */
+val DEFAULT_SUBJECT = Subject(id = DEFAULT_SUBJECT_ID, alias = "Default", sex = Sex.OTHER, birth = "")
+
+/** 是否 Default 伪用户。 */
+fun Subject.isDefault(): Boolean = id == DEFAULT_SUBJECT_ID

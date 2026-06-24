@@ -25,7 +25,7 @@ class SubjectViewModel(private val repo: SubjectRepository) : ViewModel() {
             SubjectUiState(subjects, currentId)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SubjectUiState())
 
-    /** 点行=即时选中并返回（无确认按钮，§5.1）。 */
+    /** 应用所选用户为当前（含 Default 伪用户 id；v6 改为先选后确认，由屏内确认/返回触发）。 */
     fun select(id: String) {
         viewModelScope.launch { repo.setCurrent(id) }
     }

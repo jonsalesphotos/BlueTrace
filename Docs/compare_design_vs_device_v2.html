@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlueTrace · v6 设计稿 ↔ 真机 A/B 对比</title>
+<style>
+  :root{
+    --primary:#2BAEEA; --tertiary:#7C5BC9;
+    --bg:#ffffff; --surface:#f7f9fc; --surface2:#eef2f7; --line:#e2e8f0;
+    --on:#16202e; --on-v:#566173; --a:#1C8EC5; --b:#1f9d63;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--on);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--primary)}
+  header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);padding:14px 22px}
+  .h-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:1400px;margin:0 auto}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--tertiary));
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .logo svg{width:20px;height:20px}
+  h1{font-size:17px;font-weight:800;margin:0;letter-spacing:-.01em}
+  .sub{font-size:12px;color:var(--on-v);margin-top:2px}
+  .legend{margin-left:auto;display:flex;gap:14px;font-size:12px;color:var(--on-v);flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px}
+  .dot.a{background:var(--a)} .dot.b{background:var(--b)}
+  nav.toc{max-width:1400px;margin:10px auto 0;display:flex;gap:8px;flex-wrap:wrap}
+  nav.toc a{font-size:12px;color:var(--on-v);text-decoration:none;border:1px solid var(--line);
+    border-radius:999px;padding:4px 11px;background:var(--surface)}
+  nav.toc a:hover{color:var(--on);border-color:var(--primary)}
+  main{max-width:1400px;margin:0 auto;padding:8px 22px 80px}
+  section{margin-top:30px}
+  .sec-h{font-size:14px;font-weight:700;color:var(--on);margin:0 0 12px;padding-bottom:7px;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+  .sec-h .n{font-size:11px;color:var(--on-v);font-weight:500}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(560px,1fr));gap:18px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .card .t{font-size:13px;font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);color:var(--on)}
+  .card .t small{font-weight:500;color:var(--on-v)}
+  .pair{display:flex;gap:0}
+  .col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;padding:12px 10px 14px}
+  .col + .col{border-left:1px solid var(--line)}
+  .badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:2px 9px;border-radius:999px;margin-bottom:9px}
+  .badge.a{color:#0b5a86;background:rgba(43,174,234,.12);border:1px solid rgba(43,174,234,.45)}
+  .badge.b{color:#0c6b41;background:rgba(42,174,109,.12);border:1px solid rgba(42,174,109,.45)}
+  .shot{width:100%;display:flex;justify-content:center}
+  .shot img{max-height:560px;width:auto;height:auto;max-width:100%;border-radius:9px;cursor:zoom-in;
+    background:#fff;box-shadow:0 4px 18px rgba(20,30,50,.13);border:1px solid var(--line);display:block}
+  .extra .badge.b{margin-bottom:9px}
+  .extra .pair{justify-content:center}
+  .note{font-size:11.5px;color:var(--on-v);margin:4px 0 0}
+  /* lightbox */
+  #lb{position:fixed;inset:0;z-index:50;background:rgba(5,8,14,.93);display:none;align-items:center;justify-content:center;cursor:zoom-out}
+  #lb.open{display:flex}
+  #lb img{max-width:96vw;max-height:94vh;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6)}
+  #lb .cap{position:fixed;top:16px;left:0;right:0;text-align:center;color:#cfd8e6;font-size:13px}
+  footer{max-width:1400px;margin:0 auto;padding:0 22px 60px;color:var(--on-v);font-size:12px;line-height:1.7}
+  @media(max-width:560px){ .shot img{height:46vh} }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-row">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12.5h4l2-5.6 3.5 11 2.2-5.4h7.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div>
+      <h1>BlueTrace · v6 设计稿 ↔ 真机 A/B 对比</h1>
+      <div class="sub">左 = 原型设计稿（v4_android.html 整页长截图渲染，带手机外框、内容完整不截断）　右 = 真机实拍（Xiaomi M2101K9C · Android 13，干净默认态整屏）。点图可放大。</div>
+    </div>
+    <div class="legend">
+      <span class="tag"><span class="dot a"></span>A 设计稿</span>
+      <span class="tag"><span class="dot b"></span>B 真机</span>
+      <span class="tag" id="cnt"></span>
+    </div>
+  </div>
+  <nav class="toc" id="toc"></nav>
+</header>
+
+<main id="app"></main>
+
+<footer>
+  <strong>v6 同步范围</strong>：场景模型 + 文件命名落地、采集场景选择页（新）、用户选择 / 用户编辑重设计、采集结束摘要 / 会话详情新增「修改采集人 / 场景」。<br>
+  本页为 v6 设计↔实现对照的<strong>修订版</strong>：设计稿按当前 v4_android.html 逐屏重新渲染为<strong>整页长截图</strong>（手机屏展开到全内容、不截断；修复了 body 局部 &lt;style&gt; 丢失导致的塌陷），真机图为重启 app 后的<strong>干净默认态整屏</strong>（非操作后的中间态）。<br>
+  场景：采集场景<strong>由 scenes.json 驱动</strong>（app 从 <code>assets/scenes.json</code> 加载，与 <code>Docs/architecture/scenes.json</code> 同源）；本轮按裁决把「佩戴」子场景精简为 <strong>佩戴中 / 未佩戴</strong> 两项（仅未佩戴自动切 Default 用户）。<br>
+  会话详情真机图内容随该会话实际文件数而定（本会话未开 GNSS，故少于设计稿的满配示例）——属数据差异，非结构差异。
+</footer>
+
+<div id="lb"><div class="cap" id="lbcap"></div><img id="lbimg" alt=""></div>
+
+<script>
+const DIR='assets/screenshots_v6/';
+const GROUPS=[
+  {name:'采集 · 主界面（采集场景 tile）', pairs:[
+    {t:'采集 · 主界面', cap:'设备 / 用户 / 采集场景 + 在线·离线采集', a:'design_采集主界面.png', b:'device_采集主界面.png'},
+  ]},
+  {name:'采集场景 · 主 / 子两级选择（v6 新）', pairs:[
+    {t:'采集场景选择', cap:'左 主场景（算法目标）/ 右 子场景（采集场景）· 单选', a:'design_采集场景选择.png', b:'device_采集场景选择.png'},
+  ]},
+  {name:'用户 · 选择 / 编辑（v6 重设计）', pairs:[
+    {t:'用户选择', cap:'Default 行 + 单一「用户」单选 + 确认', a:'design_用户A_用户选择.png', b:'device_用户选择.png'},
+    {t:'用户编辑 / 新建', cap:'别名仅英数 · 出生 DatePicker · 身高/体重 Slider 刻度尺', a:'design_用户C_用户编辑.png', b:'device_用户编辑.png'},
+  ]},
+  {name:'结束摘要 / 会话详情（v6 加「修改采集人/场景」）', pairs:[
+    {t:'采集结束摘要', cap:'摘要卡内白底 ✎ 改采集人/场景 → 改 manifest + 重命名文件夹', a:'design_结束A_采集结束摘要.png', b:'device_结束摘要.png'},
+    {t:'会话详情', cap:'manifest 卡底整行 ✎ 改采集人/场景（事后补改）', a:'design_数据C_会话详情.png', b:'device_会话详情.png'},
+  ]},
+];
+const EXTRA=[
+  {t:'修改采集人 / 场景（编辑 sheet · 实现新增）', cap:'结束摘要 / 会话详情 共用 · ModalBottomSheet 重选 用户 + 场景', b:'device_编辑sheet.png'},
+];
+
+const app=document.getElementById('app'), toc=document.getElementById('toc');
+let pairCount=0, idx=0;
+function slug(){return 's'+(idx++)}
+function shot(name){
+  return `<div class="shot"><img loading="lazy" src="${DIR+encodeURIComponent(name)}" data-cap="${name}" alt="${name}"></div>`;
+}
+GROUPS.forEach(g=>{
+  const id=slug();
+  const sec=document.createElement('section'); sec.id=id;
+  let html=`<h3 class="sec-h">${g.name}<span class="n">${g.pairs.length} 屏</span></h3><div class="grid">`;
+  g.pairs.forEach(p=>{ pairCount++;
+    html+=`<div class="card"><div class="t">${p.t}${p.cap?` <small>· ${p.cap}</small>`:''}</div><div class="pair">
+      <div class="col"><span class="badge a">设计稿</span>${shot(p.a)}</div>
+      <div class="col"><span class="badge b">真机</span>${shot(p.b)}</div>
+    </div></div>`;
+  });
+  html+='</div>'; sec.innerHTML=html; app.appendChild(sec);
+  const link=document.createElement('a'); link.href='#'+id; link.textContent=g.name; toc.appendChild(link);
+});
+// 实现新增（设计稿无对应）
+const ex=document.createElement('section'); ex.id='extra'; ex.className='extra';
+let exh=`<h3 class="sec-h">实现新增 / 变体<span class="n">设计稿未含 · ${EXTRA.length} 屏</span></h3><div class="grid">`;
+EXTRA.forEach(p=>{ exh+=`<div class="card"><div class="t">${p.t}${p.cap?` <small>· ${p.cap}</small>`:''}</div><div class="pair">
+  <div class="col"><span class="badge b">真机</span>${shot(p.b)}<p class="note">设计稿无对应（实现新增）</p></div>
+</div></div>`; });
+exh+='</div>'; ex.innerHTML=exh; app.appendChild(ex);
+const exlink=document.createElement('a'); exlink.href='#extra'; exlink.textContent='实现新增'; toc.appendChild(exlink);
+
+document.getElementById('cnt').textContent=pairCount+' 对可比对 + '+EXTRA.length+' 新增';
+
+// lightbox
+const lb=document.getElementById('lb'), lbimg=document.getElementById('lbimg'), lbcap=document.getElementById('lbcap');
+document.addEventListener('click',e=>{
+  const img=e.target.closest('.shot img');
+  if(img){ lbimg.src=img.src; lbcap.textContent=img.dataset.cap; lb.classList.add('open'); }
+  else if(e.target.closest('#lb')){ lb.classList.remove('open'); lbimg.src=''; }
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ lb.classList.remove('open'); lbimg.src=''; }});
+</script>
+</body>
+</html>

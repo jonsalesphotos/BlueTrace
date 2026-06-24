@@ -343,7 +343,8 @@ class DefaultSessionController(
                 config.subject.alias, config.subject.sex, config.subject.birth,
                 config.subject.heightCm, config.subject.weightKg,
             ),
-            mode = config.mode,
+            mainScene = config.scene.mainToken,
+            subScene = config.scene.subToken,
             sampling = ManifestSampling(config.enabledTypes.map { it.id }),
             devices = config.devices.map { d ->
                 ManifestDevice(
@@ -374,7 +375,7 @@ class DefaultSessionController(
         startEpochMs = startEpochMs,
         endEpochMs = endEpochMs,
         subjectAlias = config.subject.alias,
-        mode = config.mode,
+        scene = config.scene,
         deviceCount = config.devices.size,
         sensorCount = config.enabledTypes.size,
         totalLines = files.sumOf { it.lineCount },

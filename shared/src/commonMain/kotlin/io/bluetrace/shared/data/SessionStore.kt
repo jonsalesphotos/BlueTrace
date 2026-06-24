@@ -1,10 +1,13 @@
 package io.bluetrace.shared.data
 
 import io.bluetrace.shared.domain.CollectType
+import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.QualitySummary
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.SessionFile
 import io.bluetrace.shared.domain.SessionFileCategory
 import io.bluetrace.shared.domain.SessionSummary
+import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.StopReason
 import okio.FileSystem
 import okio.Path
@@ -56,6 +59,53 @@ class SessionStore(
     fun delete(folderName: String) {
         val dir = sessionsRoot / folderName
         if (fileSystem.exists(dir)) fileSystem.deleteRecursively(dir)
+    }
+
+    /**
+     * 事后改采集人 / 场景（结束摘要 结束A / 会话详情 数据C 共用，§0.3）：
+     * 重写该会话 `manifest`（alias + 体征 + 主/子场景英文 token）**并**按新 5 段名重命名会话文件夹。
+     * 原始 HEX 等内容不动；新名冲突或移动失败 → 回滚（不改任何东西）并返回 null。
+     */
+    fun editSession(
+        folderName: String,
+        newAlias: String,
+        newSex: Sex,
+        newBirth: String,
+        newHeightCm: Int?,
+        newWeightKg: Double?,
+        scene: SceneSelection,
+    ): SessionSummary? {
+        val m = readManifest(folderName) ?: return null
+        val deviceAddr = m.devices.firstOrNull { it.role == DeviceKind.DUT.name }?.address
+            ?: m.devices.firstOrNull()?.address
+        val newFolder = sessionFolderName(scene, newAlias, m.startEpochMs, m.utcOffsetSeconds, deviceAddr)
+        val oldDir = sessionsRoot / folderName
+        val newDir = sessionsRoot / newFolder
+        val renaming = newFolder != folderName
+        if (renaming && fileSystem.exists(newDir)) return null // 命名冲突，回滚（未动）
+
+        val updated = m.copy(
+            sessionId = newFolder,
+            folderName = newFolder,
+            subject = ManifestSubject(newAlias, newSex, newBirth, newHeightCm, newWeightKg),
+            mainScene = scene.mainToken,
+            subScene = scene.subToken,
+        )
+        return runCatching {
+            if (renaming) {
+                fileSystem.atomicMove(oldDir, newDir)
+                writeManifest(SessionLayout(newDir), updated)
+            } else {
+                writeManifest(SessionLayout(oldDir), updated)
+            }
+            toSummary(updated)
+        }.getOrElse {
+            // 移动失败：尽量回滚（若已移走则移回），不抛
+            if (renaming && fileSystem.exists(newDir) && !fileSystem.exists(oldDir)) {
+                runCatching { fileSystem.atomicMove(newDir, oldDir) }
+            }
+            null
+        }
     }
 
     /** 没写结束标记的「开口」会话（进程被全杀后遗留，§5.10）。 */
@@ -111,7 +161,7 @@ class SessionStore(
             startEpochMs = m.startEpochMs,
             endEpochMs = m.endEpochMs ?: m.startEpochMs,
             subjectAlias = m.subject.alias,
-            mode = m.mode,
+            scene = SceneSelection(m.mainScene, m.subScene),
             deviceCount = m.devices.size,
             sensorCount = m.sampling.enabledTypes.size,
             totalLines = files.sumOf { it.lineCount },

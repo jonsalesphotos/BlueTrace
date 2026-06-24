@@ -3,7 +3,9 @@ package io.bluetrace.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.shared.data.SessionStore
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.SessionSummary
+import io.bluetrace.shared.domain.Subject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +40,16 @@ class SessionDetailViewModel(
 
     fun selectAllFiles() {
         _selectedFiles.value = _summary.value?.files?.map { it.relativePath }?.toSet() ?: emptySet()
+    }
+
+    /** 事后改采集人/场景（数据C）：重写 manifest + 重命名文件夹，回调新摘要（null=冲突）。 */
+    fun editTo(subject: Subject, scene: SceneSelection, onResult: (SessionSummary?) -> Unit) {
+        viewModelScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                store.editSession(folderName, subject.alias, subject.sex, subject.birth, subject.heightCm, subject.weightKg, scene)
+            }
+            onResult(res)
+        }
     }
 
     val folder: String get() = folderName

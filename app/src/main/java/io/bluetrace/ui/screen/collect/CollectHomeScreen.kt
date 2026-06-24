@@ -39,16 +39,20 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
 import io.bluetrace.data.android.BlueTracePermissions
-import io.bluetrace.shared.domain.CollectMode
+import io.bluetrace.shared.domain.SceneCatalog
+import io.bluetrace.shared.domain.SceneSelection
+import io.bluetrace.shared.domain.isDefault
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.EntryTile
 import io.bluetrace.ui.components.PillTag
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
+import io.bluetrace.ui.sceneLabelZh
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.CollectHomeViewModel
 import io.bluetrace.viewmodel.StartOutcome
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** 采集A · 采集 Tab 主界面（设备 / 用户 / 采集场景入口 + 在线·离线采集）。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,12 +60,14 @@ import org.koin.androidx.compose.koinViewModel
 fun CollectHomeScreen(
     onOpenDevice: () -> Unit,
     onOpenSubject: () -> Unit,
+    onOpenScene: () -> Unit,
     onStart: () -> Unit,
     onBluetoothOff: () -> Unit,
     vm: CollectHomeViewModel = koinViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val catalog = koinInject<SceneCatalog>()
     var lowSpace by remember { mutableStateOf(false) }
     var showMissingSheet by remember { mutableStateOf(false) }
     var missingHandled by remember { mutableStateOf(false) }
@@ -117,10 +123,12 @@ fun CollectHomeScreen(
                 title = stringResource(R.string.collect_entry_user_title),
                 subtitle = stringResource(R.string.collect_entry_user_sub),
                 onClick = onOpenSubject,
-                value = ui.currentSubject?.alias ?: stringResource(R.string.collect_entry_user_empty),
+                value = ui.currentSubject?.let { if (it.isDefault()) stringResource(R.string.subject_default) else it.alias }
+                    ?: stringResource(R.string.collect_entry_user_empty),
                 valueColor = if (ui.currentSubject != null) BT.onSurface else BT.onSurfaceV,
                 showChevron = true,
-                belowContent = ui.currentSubject?.let { s ->
+                // Default 伪用户无体征 chips；真人用户展示性别/生日/身高/体重。
+                belowContent = ui.currentSubject?.takeIf { !it.isDefault() }?.let { s ->
                     {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             io.bluetrace.ui.screen.subject.subjectBioBadges(s).forEach { b -> PillTag(b, BT.onSurfaceV, BT.surface2) }
@@ -129,8 +137,8 @@ fun CollectHomeScreen(
                 },
             )
             SceneTile(
-                mode = ui.mode,
-                onClick = { android.widget.Toast.makeText(context, context.getString(R.string.collect_scene_todo), android.widget.Toast.LENGTH_SHORT).show() },
+                label = sceneLabelZh(catalog, ui.scene),
+                onClick = onOpenScene,
             )
         }
         Column(Modifier.padding(16.dp)) {
@@ -191,20 +199,17 @@ fun CollectHomeScreen(
 }
 
 /**
- * 采集场景 tile：屏内只显示场景值（主·子场景中文，如「佩戴 · 佩戴中」）。
- * token 恒英文（CollectMode.fileToken: Wear/Wearing），用于文件名/json/manifest；场景选择页属后续轮，整行点击暂占位 Toast。
+ * 采集场景 tile：屏内只显示场景值（主·子场景中文，如「佩戴 · 佩戴中」，由 scenes.json 词表给出）。
+ * token 恒英文用于文件名/json/manifest；整行点击进场景选择页（页 A）。
  */
 @Composable
-private fun SceneTile(mode: CollectMode, onClick: () -> Unit) {
+private fun SceneTile(label: String, onClick: () -> Unit) {
     EntryTile(
         icon = Icons.Filled.GraphicEq,
         iconColor = BT.success,
         iconBg = BT.successC,
         title = stringResource(R.string.collect_entry_scene_title),
-        value = when (mode) {
-            CollectMode.WEAR -> stringResource(R.string.collect_scene_wear)
-            CollectMode.UNWEAR -> stringResource(R.string.collect_scene_unwear)
-        },
+        value = label,
         valueColor = BT.onSurface,
         showChevron = true,
         onClick = onClick,

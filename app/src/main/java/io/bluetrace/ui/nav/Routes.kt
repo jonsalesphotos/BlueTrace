@@ -21,6 +21,7 @@ sealed interface Route {
 
     // 采集子链（隐藏 Bar，嵌 CollectGraph）
     @Serializable data object DeviceConnect : Route
+    @Serializable data object SceneSelect : Route // 采集场景选择（页 A，主·子两级单选）
     @Serializable data object SubjectSelect : Route
     @Serializable data class SubjectEdit(val subjectId: String? = null) : Route
     @Serializable data object CollectionRun : Route

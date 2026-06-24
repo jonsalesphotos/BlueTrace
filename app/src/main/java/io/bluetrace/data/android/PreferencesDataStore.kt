@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import io.bluetrace.shared.data.BlueTraceJson
 import io.bluetrace.shared.domain.AppLanguage
 import io.bluetrace.shared.domain.AppPreferences
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
 import io.bluetrace.shared.domain.ThemeMode
@@ -21,6 +22,8 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "bl
 private val KEY_FIRST_LAUNCH = booleanPreferencesKey("first_launch_completed")
 private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 private val KEY_LANGUAGE = stringPreferencesKey("app_language")
+private val KEY_SCENE_MAIN = stringPreferencesKey("scene_main")
+private val KEY_SCENE_SUB = stringPreferencesKey("scene_sub")
 private val KEY_SUBJECTS = stringPreferencesKey("subjects_json")
 private val KEY_CURRENT_SUBJECT = stringPreferencesKey("current_subject_id")
 
@@ -52,6 +55,17 @@ class DataStoreAppPreferences(private val context: Context) : AppPreferences {
 
     override suspend fun setLanguage(value: AppLanguage) {
         context.dataStore.edit { it[KEY_LANGUAGE] = value.name }
+    }
+
+    // 采集场景：持久化上次选择（main/sub 两键）；未选过返回 null → 上层用 scenes.json 第一项。
+    override val sceneSelection: Flow<SceneSelection?> =
+        context.dataStore.data.map { p ->
+            val m = p[KEY_SCENE_MAIN]; val s = p[KEY_SCENE_SUB]
+            if (m != null && s != null) SceneSelection(m, s) else null
+        }
+
+    override suspend fun setSceneSelection(value: SceneSelection) {
+        context.dataStore.edit { it[KEY_SCENE_MAIN] = value.mainToken; it[KEY_SCENE_SUB] = value.subToken }
     }
 }
 

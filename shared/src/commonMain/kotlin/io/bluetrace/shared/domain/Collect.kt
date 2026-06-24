@@ -2,13 +2,6 @@ package io.bluetrace.shared.domain
 
 import kotlinx.serialization.Serializable
 
-/** 采集模式（F-MODE-1，会话级，写文件名前缀 + manifest，数据 Tab 可筛选）。 */
-@Serializable
-enum class CollectMode(val fileToken: String, val label: String) {
-    WEAR("Wear", "Wear"),
-    UNWEAR("Unwear", "Unwear"),
-}
-
 /**
  * 采集类型（运行C 采集类型选择，D-V4-12）：纯开关 = 该路是否落盘/上传（透明传输、不控采样率）。
  * 注：传感器总控 / 设备端算法（配置A/B）暂不实现，选择能力并入此处。

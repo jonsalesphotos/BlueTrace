@@ -39,6 +39,7 @@ import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.ui.nav.Route
 import io.bluetrace.ui.nav.TopLevel
 import io.bluetrace.ui.screen.collect.CollectHomeScreen
+import io.bluetrace.ui.screen.collect.SceneSelectScreen
 import io.bluetrace.ui.screen.data.DataHomeScreen
 import io.bluetrace.ui.screen.data.SessionDetailScreen
 import io.bluetrace.ui.screen.device.DeviceConnectScreen
@@ -173,9 +174,13 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                 CollectHomeScreen(
                     onOpenDevice = { nav.navigate(Route.DeviceConnect) },
                     onOpenSubject = { nav.navigate(Route.SubjectSelect) },
+                    onOpenScene = { nav.navigate(Route.SceneSelect) },
                     onStart = { nav.navigate(Route.CollectionRun) },
                     onBluetoothOff = { nav.navigate(Route.BluetoothOff) },
                 )
+            }
+            composable<Route.SceneSelect> {
+                SceneSelectScreen(onDone = { nav.popBackStack() })
             }
             composable<Route.DeviceConnect> {
                 DeviceConnectScreen(
@@ -184,7 +189,11 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                 )
             }
             composable<Route.SubjectSelect> {
-                SubjectSelectScreen(onBack = { nav.popBackStack() }, onNew = { nav.navigate(Route.SubjectEdit()) })
+                SubjectSelectScreen(
+                    onBack = { nav.popBackStack() },
+                    onNew = { nav.navigate(Route.SubjectEdit()) },
+                    onEditSubject = { id -> nav.navigate(Route.SubjectEdit(id)) },
+                )
             }
             composable<Route.SubjectEdit> { entry ->
                 val r = entry.toRoute<Route.SubjectEdit>()

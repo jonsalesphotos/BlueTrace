@@ -1,6 +1,6 @@
 package io.bluetrace.shared.data
 
-import io.bluetrace.shared.domain.CollectMode
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.StopReason
 import okio.Path.Companion.toPath
@@ -20,7 +20,8 @@ class SessionStoreTest {
         timezone = "Asia/Shanghai",
         utcOffsetSeconds = 8 * 3600,
         subject = ManifestSubject("shb", Sex.MALE, "1992-5", 175, 75.0),
-        mode = CollectMode.WEAR,
+        mainScene = "Wear",
+        subScene = "Wearing",
         sampling = ManifestSampling(listOf("ppg_g", "acc")),
         devices = listOf(ManifestDevice("DUT", "C4:7B:8D:0A:04:27", "BT-DUT-0427")),
         stopReason = reason,
@@ -37,13 +38,53 @@ class SessionStoreTest {
         val read = store.readManifest("Wear_shb_1")!!
         assertEquals(1779348600_000L, read.startEpochMs)
         assertEquals("Asia/Shanghai", read.timezone)
-        assertEquals(CollectMode.WEAR, read.mode)
+        assertEquals("Wear", read.mainScene)
+        assertEquals("Wearing", read.subScene)
         assertEquals("normal", read.stopReason)
 
         val summary = store.detail("Wear_shb_1")!!
         assertEquals("shb", summary.subjectAlias)
+        assertEquals(SceneSelection("Wear", "Wearing"), summary.scene)
         assertEquals(StopReason.NORMAL, summary.stopReason)
         assertEquals(2, summary.sensorCount)
+    }
+
+    @Test
+    fun editSession_renamesFolder_andRewritesManifest() {
+        val fs = FakeFileSystem()
+        val root = "/sessions".toPath()
+        val store = SessionStore(fs, root)
+        val old = "Wear_Wearing_shb_20260521_153000_0427"
+        store.writeManifest(SessionLayout(root / old), manifest(old, end = 1L, reason = "normal").copy(folderName = old, sessionId = old))
+
+        // 改采集人 lina + 场景 HR/OutdoorRun → 期望按新 5 段名重命名
+        val summary = store.editSession(old, "lina", Sex.FEMALE, "1990-2", 165, 55.0, SceneSelection("HR", "OutdoorRun"))!!
+        val expected = "HR_OutdoorRun_lina_20260521_153000_0427"
+        assertEquals(expected, summary.folderName)
+        assertEquals(SceneSelection("HR", "OutdoorRun"), summary.scene)
+        assertEquals("lina", summary.subjectAlias)
+        // 旧夹消失、新夹存在、manifest 同步
+        assertNull(store.detail(old))
+        assertNotNull(store.detail(expected))
+        val m = store.readManifest(expected)!!
+        assertEquals("HR", m.mainScene)
+        assertEquals("OutdoorRun", m.subScene)
+        assertEquals("lina", m.subject.alias)
+    }
+
+    @Test
+    fun editSession_conflict_returnsNull_andKeepsOriginal() {
+        val fs = FakeFileSystem()
+        val root = "/sessions".toPath()
+        val store = SessionStore(fs, root)
+        val a = "Wear_Wearing_shb_20260521_153000_0427"
+        val bTarget = "HR_OutdoorRun_shb_20260521_153000_0427"
+        store.writeManifest(SessionLayout(root / a), manifest(a, 1L, "normal").copy(folderName = a, sessionId = a))
+        store.writeManifest(SessionLayout(root / bTarget), manifest(bTarget, 1L, "normal").copy(folderName = bTarget, sessionId = bTarget))
+        // a 改成与 bTarget 同名 → 冲突 → null，且 a 原样保留
+        val r = store.editSession(a, "shb", Sex.MALE, "1992-5", 175, 75.0, SceneSelection("HR", "OutdoorRun"))
+        assertNull(r)
+        assertNotNull(store.detail(a))
     }
 
     @Test

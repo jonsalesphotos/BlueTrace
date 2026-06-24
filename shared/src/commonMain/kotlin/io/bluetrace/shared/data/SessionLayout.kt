@@ -1,6 +1,7 @@
 package io.bluetrace.shared.data
 
 import io.bluetrace.shared.domain.DeviceKind
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.SessionConfig
 import io.bluetrace.shared.util.epochMsToLocalParts
 import okio.Path
@@ -33,16 +34,30 @@ class SessionLayout(val sessionDir: Path) {
     }
 }
 
-/** 会话文件夹名 `<Mode>_<alias>_<yyyyMMdd>_<HHmmss>_<deviceShort>`（§6.1，locale 无关）。 */
+/**
+ * 会话文件夹名 `<mainScene>_<subScene>_<alias>_<yyyyMMdd>_<HHmmss>_<deviceShort>`
+ * （v6 · 5 段语义：主场景_子场景_用户_日期_MAC后四位；token 恒英文，locale 无关）。
+ */
 fun sessionFolderName(config: SessionConfig): String {
-    val parts = epochMsToLocalParts(config.startEpochMs, config.utcOffsetSeconds)
-    val alias = sanitizeToken(config.subject.alias).ifBlank { "user" }
     val primary = config.devices.firstOrNull { it.kind == DeviceKind.DUT } ?: config.devices.firstOrNull()
-    val short = primary?.let { dev ->
-        val hex = dev.address.filter { it.isLetterOrDigit() }
+    return sessionFolderName(config.scene, config.subject.alias, config.startEpochMs, config.utcOffsetSeconds, primary?.address)
+}
+
+/** 由 场景/别名/起点/设备地址 直接拼会话夹名（编辑后重命名 §0.3/D/E 复用）。 */
+fun sessionFolderName(
+    scene: SceneSelection,
+    alias: String,
+    startEpochMs: Long,
+    utcOffsetSeconds: Int,
+    deviceAddress: String?,
+): String {
+    val parts = epochMsToLocalParts(startEpochMs, utcOffsetSeconds)
+    val a = sanitizeToken(alias).ifBlank { "user" }
+    val short = deviceAddress?.let { addr ->
+        val hex = addr.filter { it.isLetterOrDigit() }
         if (hex.length >= 4) hex.takeLast(4).lowercase() else hex.lowercase()
     }.orEmpty().ifBlank { "0000" }
-    return "${config.mode.fileToken}_${alias}_${parts.compact()}_$short"
+    return "${scene.mainToken}_${scene.subToken}_${a}_${parts.compact()}_$short"
 }
 
 private fun sanitizeToken(s: String): String =

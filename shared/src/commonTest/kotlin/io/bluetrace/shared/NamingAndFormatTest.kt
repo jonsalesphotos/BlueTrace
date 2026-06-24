@@ -9,16 +9,16 @@ class NamingAndFormatTest {
 
     @Test
     fun sessionFolderName_followsSpecPattern() {
-        // <Mode>_<alias>_<yyyyMMdd>_<HHmmss>_<deviceShort>（§6.1）
+        // <mainScene>_<subScene>_<alias>_<yyyyMMdd>_<HHmmss>_<deviceShort>（v6 · 5 段）
         val config = sessionConfig(listOf(dutAssigned()))
-        assertEquals("Wear_shb_20260521_153000_0427", sessionFolderName(config))
+        assertEquals("Wear_Wearing_shb_20260521_153000_0427", sessionFolderName(config))
     }
 
     @Test
     fun sessionFolderName_prefersDutShort_overReference() {
         val config = sessionConfig(listOf(refAssigned(), dutAssigned(addr = "C4:7B:8D:0A:99:AB")))
         // DUT 优先取短标识（MAC 末 4 位）
-        assertEquals("Wear_shb_20260521_153000_99ab", sessionFolderName(config))
+        assertEquals("Wear_Wearing_shb_20260521_153000_99ab", sessionFolderName(config))
     }
 
     @Test

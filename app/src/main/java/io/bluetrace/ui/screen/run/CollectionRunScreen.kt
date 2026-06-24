@@ -76,6 +76,9 @@ import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.ui.theme.sensorColor
 import io.bluetrace.viewmodel.RunViewModel
+import io.bluetrace.shared.domain.SceneCatalog
+import io.bluetrace.ui.sceneLabelZh
+import org.koin.compose.koinInject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -129,9 +132,10 @@ fun CollectionRunScreen(
             Row(Modifier.fillMaxWidth().background(BT.surface).statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.run_title), fontSize = 19.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                    val catalog = koinInject<SceneCatalog>()
                     val subjectAlias = config?.subject?.alias ?: "—"
-                    val modeLabel = config?.mode?.label ?: "—"
-                    Text("$subjectAlias · $modeLabel · ${formatDurationHms(state.elapsedMs)}", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
+                    val sceneLabel = config?.scene?.let { sceneLabelZh(catalog, it) } ?: "—"
+                    Text("$subjectAlias · $sceneLabel · ${formatDurationHms(state.elapsedMs)}", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
                 }
                 StatusPill(stringResource(R.string.status_collecting), BT.onSuccessC, BT.successC)
                 IconButton(onClick = { showTypeSheet = true }) { Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.run_collect_type_title), tint = BT.onSurfaceV) }

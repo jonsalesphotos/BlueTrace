@@ -1,6 +1,8 @@
 package io.bluetrace.ui.screen.summary
 
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Inventory2
@@ -26,8 +29,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,9 +43,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
+import io.bluetrace.shared.data.SessionStore
 import io.bluetrace.shared.domain.SessionSummary
 import io.bluetrace.shared.domain.StopReason
 import io.bluetrace.shared.util.formatDurationHms
+import io.bluetrace.ui.screen.edit.EditSubjectSceneSheet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.OutlineBtn
 import io.bluetrace.ui.components.PillTag
@@ -47,6 +60,9 @@ import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.ExportUiState
 import io.bluetrace.viewmodel.ExportViewModel
 import io.bluetrace.viewmodel.RunViewModel
+import io.bluetrace.shared.domain.SceneCatalog
+import io.bluetrace.ui.sceneLabelZh
+import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 
 /** 结束A · 采集结束摘要 + 导出（A 进度 / B 完成 Toast / C 失败）。 */
@@ -59,7 +75,13 @@ fun SessionSummaryScreen(
 ) {
     val finished by runVm.finished.collectAsStateWithLifecycle()
     val exportState by exportVm.state.collectAsStateWithLifecycle()
-    val summary = finished
+    // 事后改采集人/场景后，本地覆盖摘要（含新 folderName）→ 导出/子标题自动用新名
+    var editedSummary by remember { mutableStateOf<SessionSummary?>(null) }
+    var showEdit by remember { mutableStateOf(false) }
+    val summary = editedSummary ?: finished
+    val store = koinInject<SessionStore>()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Box(Modifier.fillMaxSize().background(BT.bg)) {
         Column(Modifier.fillMaxSize()) {
@@ -72,7 +94,7 @@ fun SessionSummaryScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.summary_no_data), color = BT.onSurfaceV) }
             } else {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SummaryCard(summary)
+                    SummaryCard(summary, onEdit = { showEdit = true })
                     SectionHeader(stringResource(R.string.summary_sec_files))
                     FileTile(Icons.Filled.Storage, BT.warning, BT.warningC, stringResource(R.string.summary_file_raw), stringResource(R.string.summary_file_raw_sub), stringResource(R.string.badge_ok))
                     FileTile(Icons.Filled.CheckCircle, BT.success, BT.successC, stringResource(R.string.summary_file_csv), stringResource(R.string.summary_file_csv_sub), null)
@@ -98,16 +120,38 @@ fun SessionSummaryScreen(
         }
 
         ExportOverlay(exportState, onDismiss = { exportVm.reset() })
+
+        if (showEdit && summary != null) {
+            EditSubjectSceneSheet(
+                initialAlias = summary.subjectAlias,
+                initialScene = summary.scene,
+                onDismiss = { showEdit = false },
+                onConfirm = { subj, scene ->
+                    scope.launch {
+                        val res = withContext(Dispatchers.IO) {
+                            store.editSession(summary.folderName, subj.alias, subj.sex, subj.birth, subj.heightCm, subj.weightKg, scene)
+                        }
+                        if (res != null) {
+                            editedSummary = res
+                            Toast.makeText(context, context.getString(R.string.edit_done), Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, context.getString(R.string.edit_conflict), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+            )
+        }
     }
 }
 
 @Composable
-private fun SummaryCard(summary: SessionSummary) {
+private fun SummaryCard(summary: SessionSummary, onEdit: () -> Unit) {
+    val catalog = koinInject<SceneCatalog>()
     Surface(color = BT.primaryC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(formatDurationHms(summary.durationMs), fontSize = 32.sp, fontWeight = FontWeight.W800, color = BT.onPrimaryC)
             Text(
-                stringResource(R.string.summary_meta, summary.subjectAlias, summary.mode.label, summary.deviceCount, summary.sensorCount),
+                stringResource(R.string.summary_meta, summary.subjectAlias, sceneLabelZh(catalog, summary.scene), summary.deviceCount, summary.sensorCount),
                 fontSize = 12.sp, color = BT.onPrimaryC,
             )
             Spacer(Modifier.height(12.dp))
@@ -115,6 +159,14 @@ private fun SummaryCard(summary: SessionSummary) {
                 PillTag(stringResource(R.string.pill_lines, summary.totalLines.toInt()), BT.onPrimaryC, BT.surface)
                 PillTag("${"%.2f".format(summary.totalBytes / 1024.0 / 1024.0)} MB", BT.onPrimaryC, BT.surface)
                 PillTag(stringResource(R.string.pill_one_session), BT.onPrimaryC, BT.surface)
+            }
+            Spacer(Modifier.height(14.dp))
+            // ✎ 修改采集人/场景：白底蓝字胶囊（事后补改 → 回写 manifest + 重命名文件夹）
+            Surface(color = BT.surface, shape = RoundedCornerShape(999.dp), modifier = Modifier.clickable { onEdit() }) {
+                Row(Modifier.padding(horizontal = 18.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, tint = BT.primary, modifier = Modifier.height(15.dp))
+                    Text(stringResource(R.string.edit_subject_scene_action), fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = BT.primary)
+                }
             }
         }
     }

@@ -1,6 +1,5 @@
 package io.bluetrace.shared.data
 
-import io.bluetrace.shared.domain.CollectMode
 import io.bluetrace.shared.domain.Sex
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -19,7 +18,9 @@ data class SessionManifest(
     val timezone: String,
     val utcOffsetSeconds: Int,
     val subject: ManifestSubject,
-    val mode: CollectMode,
+    // 采集场景（v6 · 恒英文 token）。默认 Wear/Wearing 兼容旧 manifest（无 scene 字段时回退）。
+    val mainScene: String = "Wear",
+    val subScene: String = "Wearing",
     val sampling: ManifestSampling,
     val devices: List<ManifestDevice>,
     val gnssEnabled: Boolean = false,

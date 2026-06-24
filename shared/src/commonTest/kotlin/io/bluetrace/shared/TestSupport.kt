@@ -1,10 +1,10 @@
 package io.bluetrace.shared
 
 import io.bluetrace.shared.domain.AssignedDevice
-import io.bluetrace.shared.domain.CollectMode
 import io.bluetrace.shared.domain.CollectType
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.PROFILE_HRS
+import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.SessionConfig
 import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.Subject
@@ -36,7 +36,7 @@ fun sessionConfig(
     start: Long = TEST_BASE_EPOCH,
 ) = SessionConfig(
     subject = testSubject(),
-    mode = CollectMode.WEAR,
+    scene = SceneSelection("Wear", "Wearing"),
     devices = devices,
     enabledTypes = enabled,
     gnssEnabled = gnss,
