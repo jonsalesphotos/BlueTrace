@@ -45,13 +45,13 @@ fun AppearanceScreen(onBack: () -> Unit) {
             onBack = onBack,
         )
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ThemeOption(R.string.appearance_system, R.string.appearance_system_sub, mode == ThemeMode.SYSTEM) {
+            ThemeOption(R.string.appearance_system, mode == ThemeMode.SYSTEM) {
                 scope.launch { prefs.setThemeMode(ThemeMode.SYSTEM) }
             }
-            ThemeOption(R.string.appearance_light, R.string.appearance_light_sub, mode == ThemeMode.LIGHT) {
+            ThemeOption(R.string.appearance_light, mode == ThemeMode.LIGHT) {
                 scope.launch { prefs.setThemeMode(ThemeMode.LIGHT) }
             }
-            ThemeOption(R.string.appearance_dark, R.string.appearance_dark_sub, mode == ThemeMode.DARK) {
+            ThemeOption(R.string.appearance_dark, mode == ThemeMode.DARK) {
                 scope.launch { prefs.setThemeMode(ThemeMode.DARK) }
             }
         }
@@ -59,17 +59,14 @@ fun AppearanceScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ThemeOption(titleRes: Int, subRes: Int, selected: Boolean, onClick: () -> Unit) {
+private fun ThemeOption(titleRes: Int, selected: Boolean, onClick: () -> Unit) {
     Surface(
         color = if (selected) BT.primaryC else BT.surface,
         shape = RoundedCornerShape(BT.radius),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(titleRes), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
-                Text(stringResource(subRes), fontSize = 11.sp, color = BT.onSurfaceV)
-            }
+            Text(stringResource(titleRes), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface, modifier = Modifier.weight(1f))
             if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = BT.primary)
         }
     }

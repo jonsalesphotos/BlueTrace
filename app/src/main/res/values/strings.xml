@@ -239,11 +239,8 @@
     <string name="appearance_title">主题模式</string>
     <string name="appearance_subtitle">选择亮色、暗色或跟随系统</string>
     <string name="appearance_system">跟随系统</string>
-    <string name="appearance_system_sub">随系统深色模式自动切换</string>
-    <string name="appearance_light">浅色</string>
-    <string name="appearance_light_sub">始终使用浅色界面</string>
-    <string name="appearance_dark">深色</string>
-    <string name="appearance_dark_sub">始终使用深色界面</string>
+    <string name="appearance_light">亮色</string>
+    <string name="appearance_dark">暗色</string>
 
     <string name="env_title">环境与权限检查</string>
     <string name="env_subtitle">一站式权限与环境状态</string>
