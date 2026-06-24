@@ -105,14 +105,13 @@
 
     <!-- ===== Subject ===== -->
     <string name="subject_select_title">Select user</string>
-    <string name="subject_select_subtitle">Alias is written to filename and manifest</string>
     <string name="subject_sec_profiles">User profiles</string>
     <string name="subject_sec_user">Users</string>
     <string name="subject_confirm">Confirm</string>
     <string name="subject_tag_current">Current</string>
     <string name="subject_new">+ New user</string>
     <string name="subject_empty_title">No users yet</string>
-    <string name="subject_empty_sub">The alias is written to filename and manifest for offline grouping</string>
+    <string name="subject_empty_sub">Create a collection user to select here</string>
     <string name="subject_edit_new_title">New user</string>
     <string name="subject_edit_title">Edit user</string>
     <string name="subject_field_alias">Alias</string>
@@ -122,7 +121,7 @@
     <string name="subject_field_birth_hint">e.g. 1992-5</string>
     <string name="subject_field_height">Height</string>
     <string name="subject_field_weight">Weight</string>
-    <string name="subject_privacy_note">Profiles are stored locally only; not uploaded or shared in phase 1, used only for filename and manifest grouping.</string>
+    <string name="subject_privacy_note">Profiles are stored locally only; not uploaded or shared.</string>
     <string name="subject_save">Save user</string>
     <string name="subject_delete">Delete user</string>
     <string name="sex_male">Male</string>

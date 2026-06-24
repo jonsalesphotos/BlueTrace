@@ -109,14 +109,13 @@
 
     <!-- ===== 用户 ===== -->
     <string name="subject_select_title">选择用户</string>
-    <string name="subject_select_subtitle">别名将写入文件名与 manifest</string>
     <string name="subject_sec_profiles">用户档案</string>
     <string name="subject_sec_user">用户</string>
     <string name="subject_confirm">确认</string>
     <string name="subject_tag_current">当前</string>
     <string name="subject_new">+ 新建用户</string>
     <string name="subject_empty_title">还没有用户</string>
-    <string name="subject_empty_sub">用户别名会写入文件名与 manifest，用于离线分类</string>
+    <string name="subject_empty_sub">新建采集用户后在此选择</string>
     <string name="subject_edit_new_title">新建用户</string>
     <string name="subject_edit_title">编辑用户</string>
     <string name="subject_field_alias">别名</string>
@@ -126,7 +125,7 @@
     <string name="subject_field_birth_hint">如 1992-5</string>
     <string name="subject_field_height">身高</string>
     <string name="subject_field_weight">体重</string>
-    <string name="subject_privacy_note">档案仅本地存储，一期不上传、不出设备，仅用于文件名与 manifest 离线分类。</string>
+    <string name="subject_privacy_note">档案仅本地存储，不上传、不出设备。</string>
     <string name="subject_save">保存用户</string>
     <string name="subject_delete">删除用户</string>
     <string name="sex_male">男</string>

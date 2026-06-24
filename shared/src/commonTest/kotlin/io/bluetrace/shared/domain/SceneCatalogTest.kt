@@ -12,7 +12,6 @@ class SceneCatalogTest {
         {
           "version": 1,
           "comment": "采集场景配置",
-          "default": { "main": "Wear", "sub": "Wearing" },
           "autoDefaultUserSubs": ["Unwear", "Desktop", "Pocket"],
           "scenes": [
             { "token": "HR", "zh": "心率", "en": "HeartRate", "subs": [
