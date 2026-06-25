@@ -50,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
 import io.bluetrace.data.android.BlueTracePermissions
@@ -86,6 +88,10 @@ fun PermissionGateScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
+
+    // 回前台兜底：从系统蓝牙弹窗/设置页（含小米「软关闭·明早自动开启」）返回时，按当前真实
+    // adapter 状态重算——广播可能被后台限流丢失或非标准下发，不能只信任广播（见 AndroidEnvironmentRepository）。
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
 
     fun finish() {
         scope.launch { prefs.setFirstLaunchCompleted(true) }

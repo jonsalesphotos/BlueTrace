@@ -99,7 +99,7 @@ val appModule = module {
     single<SqlDriver> { AndroidSqliteDriver(BlueTraceDb.Schema, androidContext(), "bluetrace.db") }
     single { BlueTraceDb(get()) }
     single<SubjectRepository> { SqlDelightSubjectRepository(get(), Dispatchers.IO) }
-    single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext()) }
+    single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext(), get()) }
     single { MediaStoreExporter(androidContext(), get()) }
 
     // ---- ViewModels ----

@@ -17,8 +17,18 @@ import io.bluetrace.shared.domain.Requirement
 import io.bluetrace.shared.domain.RequirementId
 import io.bluetrace.shared.domain.RequirementSeverity
 import io.bluetrace.shared.domain.RequirementStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
 /** 运行时权限请求清单（§5.2）。 */
 object BlueTracePermissions {
@@ -40,41 +50,61 @@ object BlueTracePermissions {
         }
 }
 
-/** 真实环境/权限状态源（§5.2）：蓝牙开关 + 运行时权限 + 电池优化。 */
-class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRepository {
+/**
+ * 真实环境/权限状态源（§5.2）：蓝牙开关 + 运行时权限 + 电池优化。
+ *
+ * Flow-first 设计：[state] = 「蓝牙状态广播流 ⊕ 手动刷新触发器」combine → stateIn(WhileSubscribed)。
+ * - 蓝牙：[bluetoothStateChanges] 用 callbackFlow 包系统广播；**订阅即发一次** → 每次界面回前台
+ *   重订阅都按真实 adapter 状态重算，且 awaitClose 反注册，仅在被观察时持有接收器。
+ * - 无广播信号的项（运行时权限 / 电池优化 / 回前台兜底）：调 [refresh] bump 触发器重算。
+ *
+ * 关键：小米/HyperOS「软关闭·明早自动开启」回到 App 时仍显示旧值，根因是后台广播被限流丢失或
+ * 非标准下发——靠「回前台重订阅 + 屏幕 ON_RESUME 兜底 refresh」按当前 adapter.isEnabled 校正，
+ * 而非只信任广播（见 ui/screen/permission/PermissionScreens.kt 的 LifecycleEventEffect）。
+ */
+class AndroidEnvironmentRepository(
+    private val context: Context,
+    scope: CoroutineScope,
+) : EnvironmentRepository {
 
     /** 被用户"永久拒绝"的条目（系统不再弹）→ BLOCKED。授予后自动清除。
-     *  注意：必须在 [_state] 之前声明 —— compute() 会读它，否则初始化顺序导致 NPE。 */
+     *  恒在主线程访问（compute 经 flowOn(Main) 运行；markPermanentlyDenied 由 UI 调），无需并发保护。 */
     private val blocked = mutableSetOf<RequirementId>()
 
-    private val _state = MutableStateFlow(compute())
-    override val state: StateFlow<EnvironmentState> = _state
+    /** 无系统广播的项（权限/电池）变化、或回前台兜底时 bump 一下 → combine 重新计算。 */
+    private val refreshTrigger = MutableStateFlow(0L)
 
-    /** 蓝牙总开关变化 → 静默复检。
-     *  用户在系统「开启蓝牙？」弹窗点「允许」或在蓝牙设置页打开后，开启是异步的(TURNING_ON→ON)；
-     *  仅靠回前台单次 refresh() 可能早于 STATE_ON 而读到旧值，故监听 ACTION_STATE_CHANGED，
-     *  在 STATE_ON 落定时刷新，权限门控/采集首页的「去开启」即时转「已授权」。 */
-    private val bluetoothStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(c: Context?, intent: Intent?) {
-            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) refresh()
-        }
-    }
-
-    init {
-        // context 为 application（见 AppModule），单例随进程存活，无需反注册。
-        ContextCompat.registerReceiver(
-            context, bluetoothStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-    }
+    override val state: StateFlow<EnvironmentState> =
+        combine(bluetoothStateChanges(), refreshTrigger) { _, _ -> compute() }
+            .flowOn(Dispatchers.Main.immediate) // compute()/blocked 恒在主线程，免数据竞争
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), compute())
 
     override fun refresh() {
-        _state.value = compute()
+        refreshTrigger.update { it + 1 }
     }
 
     override fun markPermanentlyDenied(id: RequirementId) {
         blocked.add(id)
-        _state.value = compute()
+        refresh()
+    }
+
+    /**
+     * 蓝牙总开关变化流（callbackFlow 包 [BluetoothAdapter.ACTION_STATE_CHANGED] 系统广播）。
+     * 订阅即先发一次 → 每次（重）订阅按当前真实状态重算；RECEIVER_NOT_EXPORTED 与
+     * CollectionService 既有写法一致；awaitClose 反注册不漏。
+     */
+    private fun bluetoothStateChanges(): Flow<Unit> = callbackFlow {
+        trySend(Unit)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) trySend(Unit)
+            }
+        }
+        ContextCompat.registerReceiver(
+            context, receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        awaitClose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     private fun granted(permission: String): Boolean =
@@ -98,6 +128,7 @@ class AndroidEnvironmentRepository(private val context: Context) : EnvironmentRe
         return EnvironmentState(reqs)
     }
 
+    /** 蓝牙总开关：以 adapter.isEnabled 为准（仅 STATE_ON 为 true；STATE_BLE_ON/软关闭期间为 false）。 */
     private fun bluetoothStatus(): RequirementStatus {
         val manager = context.getSystemService(BluetoothManager::class.java)
         val adapter = manager?.adapter ?: return RequirementStatus.OFF

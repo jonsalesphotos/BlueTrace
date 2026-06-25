@@ -36,6 +36,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.bluetrace.R
 import io.bluetrace.data.android.BlueTracePermissions
@@ -73,11 +75,11 @@ fun CollectHomeScreen(
     var missingHandled by remember { mutableStateOf(false) }
     val scanPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refreshEnv() }
 
-    // 回前台/进入时复检蓝牙开关 + 权限（设备入口据此分流到 启动E）+ 低空间提示（§5.2）
-    LaunchedEffect(Unit) {
-        vm.refreshEnv()
-        lowSpace = vm.isLowSpace()
-    }
+    // 进入时取一次低空间提示（一次性，§5.2）
+    LaunchedEffect(Unit) { lowSpace = vm.isLowSpace() }
+    // 回前台复检蓝牙开关 + 权限（设备入口据此分流到 启动E）——含小米软关闭等广播丢失场景，
+    // 按当前真实 adapter 状态校正，不只信任广播（ON_RESUME 进入时也会触发一次）。
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshEnv() }
     // 启动C：后续启动静默检查发现缺「附近设备」→ 弹一次 ModalSheet（§5.1）
     LaunchedEffect(ui.scanConnectMissing) {
         if (ui.scanConnectMissing && !missingHandled) showMissingSheet = true
