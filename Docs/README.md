@@ -16,7 +16,7 @@ Docs/
 │   ├── BlueTrace_UI_Implementation.md · BlueTrace_CrossPlatform_Notes.md
 │   ├── BlueTrace_Design_System.md · BlueTrace_V4_设计契约/决策追踪 · BlueTrace_设计审查
 │   └── BlueTrace_PRD.md · BlueTrace_UX_Flows.md · BlueTrace_UI_Design.md · *_v1_*
-└── assets/                      图标 / 截图 / svg
+└── assets/                      图标 / 截图 / svg（pic/ = Creek ACQ 参考 App 截图，见 assets/pic/README.md）
 ```
 
 ## 怎么读
