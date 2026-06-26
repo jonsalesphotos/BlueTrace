@@ -34,7 +34,7 @@
     <string name="perm_act_enable">去开启</string>
     <string name="perm_act_settings">去设置</string>
     <string name="perm_bluetooth_title">蓝牙开关</string>
-    <string name="perm_bluetooth_sub">系统蓝牙未开启（非权限）</string>
+    <string name="perm_bluetooth_sub">系统蓝牙开关（非权限）</string>
     <string name="perm_scan_title">附近设备（扫描 / 连接）</string>
     <string name="perm_scan_sub">BLUETOOTH_SCAN · CONNECT</string>
     <string name="perm_location_title">定位（GNSS 一路）</string>
@@ -253,6 +253,7 @@
     <string name="env_hard">硬性 · 采集必需</string>
     <string name="env_suggested">建议 · 可跳过</string>
     <string name="env_status_granted">已满足</string>
+    <string name="env_status_enabled">已开启</string>
     <string name="env_status_missing">缺失</string>
     <string name="env_status_blocked">被拒</string>
     <string name="env_status_off">已关闭</string>

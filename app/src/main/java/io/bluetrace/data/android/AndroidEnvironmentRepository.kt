@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.bluetrace.shared.domain.EnvironmentRepository
 import io.bluetrace.shared.domain.EnvironmentState
@@ -128,12 +129,27 @@ class AndroidEnvironmentRepository(
         return EnvironmentState(reqs)
     }
 
-    /** 蓝牙总开关：以 adapter.isEnabled 为准（仅 STATE_ON 为 true；STATE_BLE_ON/软关闭期间为 false）。 */
+    /** 蓝牙总开关：可读时以 adapter.isEnabled 为准；API 31+ 未授 CONNECT 时用系统开关设置兜底。 */
     private fun bluetoothStatus(): RequirementStatus {
         val manager = context.getSystemService(BluetoothManager::class.java)
-        val adapter = manager?.adapter ?: return RequirementStatus.OFF
-        return if (adapter.isEnabled) RequirementStatus.GRANTED else RequirementStatus.OFF
+        val adapter = manager?.adapter
+        val adapterEnabled = adapter?.let {
+            if (canReadBluetoothAdapterState()) runCatching { it.isEnabled }.getOrNull()
+            else null
+        }
+        return bluetoothSwitchStatus(
+            hasAdapter = adapter != null,
+            adapterEnabled = adapterEnabled,
+            globalBluetoothOn = globalBluetoothOn(),
+        )
     }
+
+    private fun canReadBluetoothAdapterState(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || granted(Manifest.permission.BLUETOOTH_CONNECT)
+
+    private fun globalBluetoothOn(): Boolean =
+        runCatching { Settings.Global.getInt(context.contentResolver, "bluetooth_on", 0) == 1 }
+            .getOrDefault(false)
 
     private fun scanConnectStatus(): RequirementStatus =
         missingOrBlocked(RequirementId.BLE_SCAN_CONNECT, BlueTracePermissions.hardScanConnect.all { granted(it) })

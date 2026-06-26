@@ -34,7 +34,7 @@
     <string name="perm_act_enable">Enable</string>
     <string name="perm_act_settings">Open settings</string>
     <string name="perm_bluetooth_title">Bluetooth toggle</string>
-    <string name="perm_bluetooth_sub">System Bluetooth is off (not a permission)</string>
+    <string name="perm_bluetooth_sub">System Bluetooth toggle (not a permission)</string>
     <string name="perm_scan_title">Nearby devices (scan / connect)</string>
     <string name="perm_scan_sub">BLUETOOTH_SCAN · CONNECT</string>
     <string name="perm_location_title">Location (one GNSS source)</string>
@@ -246,6 +246,7 @@
     <string name="env_hard">Required · for collection</string>
     <string name="env_suggested">Suggested · skippable</string>
     <string name="env_status_granted">Granted</string>
+    <string name="env_status_enabled">On</string>
     <string name="env_status_missing">Missing</string>
     <string name="env_status_blocked">Blocked</string>
     <string name="env_status_off">Off</string>

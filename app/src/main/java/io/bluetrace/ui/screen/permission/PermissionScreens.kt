@@ -66,6 +66,7 @@ import io.bluetrace.ui.components.OutlineBtn
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.SectionHeader
 import io.bluetrace.ui.components.StatusPill
+import io.bluetrace.ui.screen.environmentStatusLabelRes
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.EnvironmentViewModel
 import io.bluetrace.viewmodel.SettingsViewModel
@@ -155,7 +156,7 @@ private fun PermRow(id: RequirementId, status: RequirementStatus, onRequest: () 
                 Text(permHint(id), fontSize = 11.sp, color = BT.onSurfaceV)
             }
             if (status == RequirementStatus.GRANTED) {
-                StatusPill(stringResource(R.string.env_status_granted), BT.onSuccessC, BT.successC)
+                StatusPill(stringResource(environmentStatusLabelRes(id, status)), BT.onSuccessC, BT.successC)
             } else {
                 val actionLabel = when {
                     status == RequirementStatus.BLOCKED -> stringResource(R.string.perm_act_settings) // 永久拒绝 → 去设置

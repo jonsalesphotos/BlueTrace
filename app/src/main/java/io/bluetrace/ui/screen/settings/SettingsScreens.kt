@@ -58,6 +58,7 @@ import io.bluetrace.ui.components.OutlineBtn
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.SectionHeader
 import io.bluetrace.ui.components.StatusPill
+import io.bluetrace.ui.screen.environmentStatusLabelRes
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.EnvironmentViewModel
 import io.bluetrace.viewmodel.SettingsViewModel
@@ -130,7 +131,7 @@ fun EnvCheckScreen(onBack: () -> Unit, vm: EnvironmentViewModel = koinViewModel(
                             Text(reqTitle(req.id), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
                             Text(if (req.severity == RequirementSeverity.HARD) stringResource(R.string.env_hard) else stringResource(R.string.env_suggested), fontSize = 11.sp, color = BT.onSurfaceV)
                         }
-                        StatusBadge(req.status)
+                        StatusBadge(req.id, req.status)
                     }
                 }
             }
@@ -139,9 +140,9 @@ fun EnvCheckScreen(onBack: () -> Unit, vm: EnvironmentViewModel = koinViewModel(
 }
 
 @Composable
-private fun StatusBadge(status: RequirementStatus) {
+private fun StatusBadge(id: RequirementId, status: RequirementStatus) {
     when (status) {
-        RequirementStatus.GRANTED -> StatusPill(stringResource(R.string.env_status_granted), BT.onSuccessC, BT.successC)
+        RequirementStatus.GRANTED -> StatusPill(stringResource(environmentStatusLabelRes(id, status)), BT.onSuccessC, BT.successC)
         RequirementStatus.MISSING -> StatusPill(stringResource(R.string.env_status_missing), BT.onWarningC, BT.warningC)
         RequirementStatus.BLOCKED -> StatusPill(stringResource(R.string.env_status_blocked), BT.error, BT.errorC)
         RequirementStatus.OFF -> StatusPill(stringResource(R.string.env_status_off), BT.onWarningC, BT.warningC)
