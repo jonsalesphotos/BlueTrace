@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BlueTrace · V4 设计稿画廊（46 屏）</title>
+<style>
+  :root{
+    --primary:#2BAEEA; --tertiary:#7C5BC9;
+    --bg:#F3F5F8; --surface:#fff; --on:#1B1D22; --on-v:#4C525C; --line:#D7DAE0;
+    --shadow:0 6px 18px rgba(15,30,60,.10),0 2px 6px rgba(15,30,60,.05);
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  html,body{margin:0;padding:0;color:var(--on);font-family:var(--font);
+    background:radial-gradient(1000px 500px at 0% -10%,#DCEEFB 0%,transparent 60%),
+               radial-gradient(800px 400px at 100% 0%,#F0E5FA 0%,transparent 55%),
+               linear-gradient(180deg,#EEF1F7 0%,#E7EAF2 100%);min-height:100vh;}
+  header{padding:48px 40px 8px;max-width:1840px;margin:0 auto;}
+  header h1{font-size:34px;margin:0 0 6px;letter-spacing:-.02em;
+    background:linear-gradient(120deg,var(--primary),var(--tertiary));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--on-v);font-size:14px;line-height:1.6;margin:0;max-width:900px;}
+  header .meta{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--surface);
+    color:var(--on-v);font-size:12px;border:1px solid var(--line);box-shadow:0 1px 2px rgba(15,30,60,.05);}
+  .chip b{color:var(--on);}
+  section{max-width:1840px;margin:0 auto;padding:8px 40px;}
+  h2{font-size:18px;margin:26px 0 4px;display:flex;align-items:center;gap:10px;}
+  h2::before{content:"";width:6px;height:20px;border-radius:3px;background:linear-gradient(180deg,var(--primary),var(--tertiary));}
+  h2 .n{font-size:12px;font-weight:500;color:var(--on-v);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:30px 26px;padding:14px 0 8px;align-items:start;}
+  .card{background:var(--surface);border-radius:18px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;}
+  .card a.shot{display:block;border-radius:12px;overflow:hidden;background:#f7f9fc;line-height:0;}
+  .card img{width:100%;height:auto;display:block;}
+  .card .cap{display:flex;align-items:baseline;gap:8px;padding:0 2px 2px;}
+  .card .id{font-size:11px;font-weight:700;color:#fff;background:var(--primary);border-radius:999px;padding:2px 8px;flex-shrink:0;}
+  .card .lbl{font-size:12.5px;color:var(--on);line-height:1.35;}
+  .card.tall .id{background:var(--tertiary);}
+  .card .flag{font-size:10.5px;color:var(--tertiary);font-weight:600;}
+  footer{max-width:1840px;margin:0 auto;padding:20px 40px 60px;color:var(--on-v);font-size:12px;}
+  code{font-family:ui-monospace,Consolas,monospace;background:rgba(255,255,255,.7);padding:1px 6px;border-radius:6px;font-size:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>BlueTrace · V4 设计稿画廊</h1>
+  <p>由 <code>Docs/prototypes/v4_android.html</code> 按定尺手机框（330×716×3 = 990×2148，宽高比 0.461）逐屏渲染。点图可看原图。</p>
+  <div class="meta">
+    <span class="chip"><b>46</b> 屏</span>
+    <span class="chip">已排除「不实现」<b>5</b> 屏</span>
+    <span class="chip"><span style="color:var(--tertiary)">●</span> 紫标 = 内容超框已向下加长</span>
+    <span class="chip">源 <b>screenshots_v6/</b></span>
+  </div>
+</header>
+<main id="app"></main>
+<footer>映射详见 <code>assets/screenshots_v6/design_index.md</code>。</footer>
+<script>
+const DATA = [
+  {g:"主框架 · 三 Tab",  items:[
+    {n:"01",l:"采集 · 采集 Tab 主界面"},
+    {n:"02",l:"场景 · 采集场景选择（主·子场景）"},
+    {n:"03",l:"数据 · 数据 Tab 采集会话"},
+    {n:"04",l:"设置 · 设置 Tab",tall:1},
+  ]},
+  {g:"离线导入",        items:[
+    {n:"05",l:"离线A · 读取 DUT 存储·已存会话"},
+    {n:"06",l:"离线B · 导入中（DUT→本机）"},
+    {n:"07",l:"离线C · 分配场景/用户"},
+  ]},
+  {g:"启动 · 权限门控", items:[
+    {n:"08",l:"启动 · 启动屏 Splash"},
+    {n:"09",l:"启动B · 权限门控·首启请求"},
+    {n:"10",l:"启动C · 后续启动·缺权限弹出"},
+    {n:"11",l:"启动D · 按需请求/权限不足"},
+    {n:"12",l:"启动E · 蓝牙已关闭（≠权限）"},
+    {n:"13",l:"启动F · 后台省电设置指南"},
+  ]},
+  {g:"设备连接",        items:[
+    {n:"14",l:"设备A · 设备列表·连接/断开"},
+    {n:"15",l:"设备B · 连接上限（最多 3 台）"},
+    {n:"16",l:"设备C · 扫描·无结果空态"},
+  ]},
+  {g:"用户",            items:[
+    {n:"17",l:"用户A · 用户选择·有列表"},
+    {n:"18",l:"用户B · 用户·空态"},
+    {n:"19",l:"用户C · 用户编辑（表单）"},
+  ]},
+  {g:"采集运行",        items:[
+    {n:"20",l:"运行A · 数据采集·就绪"},
+    {n:"21",l:"运行B · 数据采集·采集中"},
+    {n:"22",l:"运行C · 采集类型选择"},
+    {n:"23",l:"运行D · 长按 2 秒结束（遮罩）"},
+  ]},
+  {g:"采集结束",        items:[
+    {n:"24",l:"结束A · 采集结束摘要"},
+    {n:"25",l:"结束B · 导出完成 Toast"},
+  ]},
+  {g:"数据管理",        items:[
+    {n:"26",l:"数据A · 数据空态"},
+    {n:"27",l:"数据B · 多选/选择态"},
+    {n:"28",l:"数据C · 会话详情",tall:1},
+    {n:"29",l:"数据D · 搜索无结果"},
+  ]},
+  {g:"导出",            items:[
+    {n:"30",l:"导出A · 导出中（ProgressDialog）"},
+    {n:"31",l:"导出B · 导出完成 Toast",tall:1},
+    {n:"32",l:"导出C · 导出失败·写入中断"},
+    {n:"33",l:"导出D · 存储不足（导出前预检）"},
+  ]},
+  {g:"设置详情",        items:[
+    {n:"34",l:"设置A · 环境与权限检查详情"},
+    {n:"35",l:"设置B · 导出位置详情"},
+    {n:"36",l:"设置C · 存储占用详情"},
+    {n:"37",l:"设置D · 关于 BlueTrace"},
+    {n:"38",l:"设置E · 应用日志（导出）"},
+    {n:"39",l:"设置F · 设备维护（DUT）"},
+    {n:"40",l:"设置G · 外观主题"},
+    {n:"41",l:"设置H · 语言"},
+  ]},
+  {g:"横切状态",        items:[
+    {n:"42",l:"横切A · 暂停·重连中"},
+    {n:"43",l:"横切B · 已停止（存储满）"},
+    {n:"44",l:"横切C · 运行日志"},
+    {n:"45",l:"横切D · 进程恢复弹层"},
+    {n:"46",l:"横切E · 正在采集全局提示条"},
+  ]},
+];
+const app = document.getElementById('app');
+for (const sec of DATA){
+  const s = document.createElement('section');
+  const h = document.createElement('h2');
+  h.innerHTML = sec.g + ' <span class="n">' + sec.items.length + ' 屏</span>';
+  s.appendChild(h);
+  const grid = document.createElement('div'); grid.className='grid';
+  for (const it of sec.items){
+    const src = 'assets/screenshots_v6/design_' + it.n + '.png';
+    const card = document.createElement('div'); card.className = 'card' + (it.tall?' tall':'');
+    card.innerHTML =
+      '<a class="shot" href="'+src+'" target="_blank"><img loading="lazy" src="'+src+'" alt="'+it.l+'"></a>'+
+      '<div class="cap"><span class="id">'+it.n+'</span>'+
+        '<span class="lbl">'+it.l+(it.tall?' <span class="flag">↕ 加长</span>':'')+'</span></div>';
+    grid.appendChild(card);
+  }
+  s.appendChild(grid);
+  app.appendChild(s);
+}
+</script>
+</body>
+</html>
