@@ -108,26 +108,29 @@ private fun DeviceRow(row: ConsoleDeviceRow, onToggle: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(d.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface, fontFamily = FontFamily.Monospace)
+                // 不支持设备名灰显、且不带任何标签/按钮（用户要求：不要有文本、不要有按钮）
+                Text(
+                    d.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.W700,
+                    color = if (row.supported) BT.onSurface else BT.onSurfaceV,
+                    fontFamily = FontFamily.Monospace,
+                )
                 if (row.supported) {
                     Spacer(Modifier.width(6.dp))
                     Tag("B2A", BT.primaryDeep, BT.primaryC)
-                } else {
-                    Spacer(Modifier.width(6.dp))
-                    Tag(stringResource(R.string.console_row_unsupported), BT.onSurfaceV, BT.surface2)
                 }
             }
             Text("${d.address} · ${d.rssi} dBm", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
         }
-        // 右侧明确的连接/断开按钮（不是含糊的「—」）
+        // 右侧连接/断开按钮：仅受支持设备有；不支持的无按钮无文本
         when {
+            !row.supported && row.link != LinkState.CONNECTED -> Unit // 不支持：右侧空
             row.busy -> ActionChip(stringResource(R.string.console_row_connecting), BT.onSurfaceV, BT.surface2, enabled = false) {}
             row.link == LinkState.CONNECTED ->
                 ActionChip(stringResource(R.string.console_row_disconnect), BT.error, BT.errorC, enabled = true, onClick = onToggle)
             row.link == LinkState.CONNECTING ->
                 ActionChip(stringResource(R.string.console_row_connecting), BT.onSurfaceV, BT.surface2, enabled = false) {}
-            !row.supported ->
-                ActionChip(stringResource(R.string.console_row_unsupported), BT.onSurfaceV, BT.surface2, enabled = false) {}
             else ->
                 ActionChip(stringResource(R.string.console_row_connect), BT.onPrimaryC, BT.primary, enabled = true, onClick = onToggle)
         }

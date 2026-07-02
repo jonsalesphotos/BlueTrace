@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -82,8 +83,13 @@ class ConsoleConnectViewModel(
                         busy = d.id in busy,
                     )
                 }
-                // 排序仅按「已连接置顶」——稳定排序保留发现顺序，RSSI 变化不重排（防跳动）
-                .sortedByDescending { it.link == LinkState.CONNECTED }
+                // 排序：已连接置顶 → 支持的在上、不支持下沉 → 信号强度（RSSI 降序）。
+                // 列表更新经 sample 节流（见 startScan），避免每帧重排跳动、可稳定点选。
+                .sortedWith(
+                    compareByDescending<ConsoleDeviceRow> { it.link == LinkState.CONNECTED }
+                        .thenByDescending { it.supported }
+                        .thenByDescending { it.device.rssi },
+                )
                 .toList()
 
             ConsoleConnectUiState(rows = rows, scanning = scanning, query = query, rssiThreshold = rssi)
@@ -94,7 +100,9 @@ class ConsoleConnectViewModel(
         _scanning.value = true
         _results.value = emptyList()
         scanJob = viewModelScope.launch {
-            ble.scan().collect { devices ->
+            // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
+            // 让列表 ~1 秒才按信号重排一次——既按信号强度排序，又不至跳动到无法点选。
+            ble.scan().sample(1000).collect { devices ->
                 _results.value = devices
                 devices.forEach { observeLink(it.id) }
             }
