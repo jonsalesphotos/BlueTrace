@@ -320,7 +320,7 @@
     <string name="console_log_desc">拉取设备固件运行日志（now + bak 两个文件），导出到 Download/BlueTrace/logs/。</string>
     <string name="console_log_note">协议无结束标志：空闲 4 秒判完成，内容可能不完整。</string>
     <string name="console_oplog_export">导出</string>
-    <string name="console_switch_device">切换 / 连接设备</string>
+    <string name="console_tap_to_switch">点此卡片连接 / 切换设备</string>
     <string name="console_refresh_info">刷新设备信息</string>
     <string name="console_find_hint">再次点击「结束找表」停止震动。</string>
     <string name="toast_time_synced">已同步时间到设备</string>
@@ -349,7 +349,11 @@
     <string name="console_heartbeat_fmt">心跳 seq=%1$d · 电量 %2$d%%</string>
     <string name="console_go_connect">去连接手表</string>
     <string name="console_connect_title">连接手表</string>
-    <string name="console_connect_sub">仅保留一台 · 不含参考设备 · 连新自动断旧</string>
+    <string name="console_connect_sub">仅 B2A 手表可连 · 不含参考设备 · 可多台，控制台选择控制哪台</string>
+    <string name="console_row_connect">连接</string>
+    <string name="console_row_disconnect">断开</string>
+    <string name="console_row_connecting">连接中…</string>
+    <string name="console_row_unsupported">不支持</string>
     <string name="console_pick_device">已连接多台设备 · 选择要控制的一台</string>
     <string name="console_current_device">当前控制</string>
     <string name="console_scan_start">开始扫描</string>

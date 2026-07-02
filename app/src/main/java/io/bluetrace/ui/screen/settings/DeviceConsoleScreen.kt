@@ -105,7 +105,7 @@ fun DeviceConsoleScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Spacer(Modifier.height(2.dp))
-            DeviceHeader(ui, onSwitch = onOpenConnect)
+            DeviceHeader(ui, onOpenConnect = onOpenConnect)
             if (ui.candidates.size > 1) {
                 CandidateChips(ui, onPick = { vm.selectDevice(it) })
             }
@@ -242,9 +242,10 @@ private fun CandidateChips(ui: ConsoleUiState, onPick: (String) -> Unit) {
     }
 }
 
+/** 设备头卡：整卡点击即进「连接手表」页（连接/切换设备）。右侧 › 提示可点。 */
 @Composable
-private fun DeviceHeader(ui: ConsoleUiState, onSwitch: () -> Unit) {
-    Section {
+private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit) {
+    Section(onClick = onOpenConnect) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(ui.device?.name ?: "", fontSize = 15.sp, fontWeight = FontWeight.W800, color = BT.onSurface, fontFamily = FontFamily.Monospace)
@@ -267,14 +268,11 @@ private fun DeviceHeader(ui: ConsoleUiState, onSwitch: () -> Unit) {
                 fg = if (ok) BT.onSuccessC else BT.onSurfaceV,
                 bg = if (ok) BT.successC else BT.surface2,
             )
+            Spacer(Modifier.width(4.dp))
+            Text("›", fontSize = 20.sp, color = BT.onSurfaceV)
         }
-        Spacer(Modifier.height(10.dp))
-        // 已连接态也能切换/连接其它设备（用户要求：如何连接其他设备）
-        OutlineBtn(
-            stringResource(R.string.console_switch_device),
-            onClick = onSwitch,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Spacer(Modifier.height(6.dp))
+        Text(stringResource(R.string.console_tap_to_switch), fontSize = 11.sp, color = BT.onSurfaceV)
     }
 }
 
@@ -495,6 +493,7 @@ private fun OpLogSection(vm: DeviceConsoleViewModel, onExport: () -> Unit) {
 private fun Section(
     title: String? = null,
     action: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(
@@ -502,6 +501,7 @@ private fun Section(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(BT.surface)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         if (title != null || action != null) {

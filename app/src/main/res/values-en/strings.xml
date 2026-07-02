@@ -313,7 +313,7 @@
     <string name="console_log_desc">Pulls the device firmware runtime log (now + bak files), exported to Download/BlueTrace/logs/.</string>
     <string name="console_log_note">Protocol has no EOF: completion inferred after 4 s idle; content may be incomplete.</string>
     <string name="console_oplog_export">Export</string>
-    <string name="console_switch_device">Switch / connect device</string>
+    <string name="console_tap_to_switch">Tap this card to connect / switch device</string>
     <string name="console_refresh_info">Refresh device info</string>
     <string name="console_find_hint">Tap \"Stop finding\" again to stop the vibration.</string>
     <string name="toast_time_synced">Time synced to device</string>
@@ -342,7 +342,11 @@
     <string name="console_heartbeat_fmt">heartbeat seq=%1$d · battery %2$d%%</string>
     <string name="console_go_connect">Connect watch</string>
     <string name="console_connect_title">Connect watch</string>
-    <string name="console_connect_sub">Keep one only · reference excluded · new replaces old</string>
+    <string name="console_connect_sub">B2A watches only · reference excluded · multiple allowed, console picks which to control</string>
+    <string name="console_row_connect">Connect</string>
+    <string name="console_row_disconnect">Disconnect</string>
+    <string name="console_row_connecting">Connecting…</string>
+    <string name="console_row_unsupported">Unsupported</string>
     <string name="console_pick_device">Multiple devices connected · pick one to control</string>
     <string name="console_current_device">Controlling</string>
     <string name="console_scan_start">Start scan</string>

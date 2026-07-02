@@ -7,6 +7,7 @@ import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
+import io.bluetrace.shared.s7.B2aDetect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,16 +17,27 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 连接页设备行：是否为受支持的 B2A 设备（不支持则不可连接）。 */
+data class ConsoleDeviceRow(
+    val device: ScannedDevice,
+    val link: LinkState,
+    val supported: Boolean,
+    val busy: Boolean,
+)
+
 data class ConsoleConnectUiState(
-    val rows: List<DeviceRowUi> = emptyList(),
+    val rows: List<ConsoleDeviceRow> = emptyList(),
     val scanning: Boolean = false,
-    /** 正在连接/断开的设备 id（该行按钮转圈、其余禁点）。 */
-    val busyId: String? = null,
+    val query: String = "",
+    val rssiThreshold: Int = -90,
 )
 
 /**
- * 控制台内置连接页 VM：**非参考设备限连 1 台**——连接新设备前自动断开既有非参考设备；
- * 参考设备（HRS 心率带）不在此页展示、也不受此限（属采集流程）。
+ * 控制台内置连接页 VM。
+ * - 只对 **受支持的 B2A 手表**运行连接（不支持设备展示为不可连）；
+ * - **无名设备不显示**；已连接设备置顶；顺序稳定（不按 RSSI 实时重排，避免跳动难点选）；
+ * - 单点即连/断该设备，**不自动断开其它设备**（多设备由控制台选择控制哪台）；
+ * - 名称 / 信号强度过滤。
  */
 class ConsoleConnectViewModel(
     private val ble: BleClient,
@@ -35,28 +47,46 @@ class ConsoleConnectViewModel(
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
     private val _links = MutableStateFlow<Map<String, LinkState>>(emptyMap())
     private val _scanning = MutableStateFlow(false)
-    private val _busy = MutableStateFlow<String?>(null)
+    private val _busy = MutableStateFlow<Set<String>>(emptySet())
+    private val _query = MutableStateFlow("")
+    private val _rssi = MutableStateFlow(-90)
     private val observed = mutableSetOf<String>()
     private var scanJob: Job? = null
 
+    private data class Ctl(val scanning: Boolean, val busy: Set<String>, val query: String, val rssi: Int)
+
     val uiState: StateFlow<ConsoleConnectUiState> =
-        combine(_results, _links, registry.connected, _scanning, _busy) { results, links, connected, scanning, busy ->
+        combine(
+            _results,
+            _links,
+            registry.connected,
+            combine(_scanning, _busy, _query, _rssi) { scanning, busy, q, rssi -> Ctl(scanning, busy, q, rssi) },
+        ) { results, links, connected, ctl ->
+            val scanning = ctl.scanning
+            val busy = ctl.busy
+            val query = ctl.query
+            val rssi = ctl.rssi
             val connectedIds = connected.map { it.id }.toSet()
-            ConsoleConnectUiState(
-                rows = results
-                    .filter { it.kind != DeviceKind.REFERENCE } // 参考设备不进控制台连接页
-                    .map { d ->
-                        val link = if (d.id in connectedIds) LinkState.CONNECTED
-                        else links[d.id] ?: LinkState.DISCONNECTED
-                        DeviceRowUi(d, link, disabled = busy != null && busy != d.id)
-                    }
-                    .sortedWith(
-                        compareByDescending<DeviceRowUi> { it.link == LinkState.CONNECTED }
-                            .thenByDescending { it.device.rssi },
-                    ),
-                scanning = scanning,
-                busyId = busy,
-            )
+
+            val rows = results.asSequence()
+                // 无名设备不显示；参考设备不进控制台
+                .filter { it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE }
+                .filter { it.rssi >= rssi }
+                .filter { query.isBlank() || it.name.contains(query, true) || it.address.contains(query, true) }
+                .map { d ->
+                    val link = if (d.id in connectedIds) LinkState.CONNECTED else links[d.id] ?: LinkState.DISCONNECTED
+                    ConsoleDeviceRow(
+                        device = d,
+                        link = link,
+                        supported = B2aDetect.matchesAdvertisement(d),
+                        busy = d.id in busy,
+                    )
+                }
+                // 排序仅按「已连接置顶」——稳定排序保留发现顺序，RSSI 变化不重排（防跳动）
+                .sortedByDescending { it.link == LinkState.CONNECTED }
+                .toList()
+
+            ConsoleConnectUiState(rows = rows, scanning = scanning, query = query, rssiThreshold = rssi)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConsoleConnectUiState())
 
     fun startScan() {
@@ -76,28 +106,31 @@ class ConsoleConnectViewModel(
         _scanning.value = false
     }
 
-    /** 单击：已连→断开；未连→先断开全部既有非参考设备（单连语义）再连接，成功才入册。 */
+    fun setQuery(v: String) { _query.value = v }
+    fun setRssiThreshold(v: Int) { _rssi.value = v }
+
+    /**
+     * 单点即连/断该设备。**不自动断开其它设备**（除非明确点已连设备断开）；
+     * 不支持的设备直接忽略（不运行连接）。
+     */
     fun toggleConnect(device: ScannedDevice) {
-        if (_busy.value != null) return
-        _busy.value = device.id
+        if (device.id in _busy.value) return
+        val connectedNow = registry.isConnected(device.id)
+        // 未连接且不支持 → 不运行连接
+        if (!connectedNow && !B2aDetect.matchesAdvertisement(device)) return
+        _busy.update { it + device.id }
         viewModelScope.launch {
             try {
-                if (registry.isConnected(device.id)) {
+                if (connectedNow) {
                     ble.disconnect(device.id)
                     registry.remove(device.id)
                 } else {
-                    registry.connected.value
-                        .filter { it.kind != DeviceKind.REFERENCE }
-                        .forEach { old ->
-                            ble.disconnect(old.id)
-                            registry.remove(old.id)
-                        }
                     observeLink(device.id)
                     ble.connect(device)
                     if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
                 }
             } finally {
-                _busy.value = null
+                _busy.update { it - device.id }
             }
         }
     }
