@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueTrace · architecture-v2 架构研究与协议设计汇总（2026-07-02）</title>
+<style>
+  :root{
+    --primary:#2BAEEA; --primary-deep:#1C8EC5; --primary-c:#DCF1FB;
+    --bg:#F3F5F8; --surface:#FFFFFF; --on-surface:#1B1D22; --on-surface-v:#4C525C;
+    --outline:#8A9099; --outline-v:#D7DAE0; --ok:#2AAE6D; --ok-c:#D4F4E2;
+    --warn:#E89F40; --warn-c:#FFE8C9; --error:#E5484D; --error-c:#FFE3E3;
+    --tert:#7C5BC9; --tert-c:#ECE3FF;
+    --font:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--on-surface);font-family:var(--font);line-height:1.65;padding:32px 20px 80px}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.hero{background:linear-gradient(135deg,var(--primary-c),#fff 70%);border:1px solid var(--outline-v);border-radius:20px;padding:32px 36px;margin-bottom:28px}
+  h1{font-size:26px;font-weight:800;letter-spacing:.01em}
+  .hero .sub{color:var(--on-surface-v);margin-top:10px;font-size:14.5px;max-width:900px}
+  .hero .sub b{color:var(--primary-deep)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--outline-v);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;color:var(--on-surface-v)}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--primary)}
+  .chip.ok .dot{background:var(--ok)} .chip.warn .dot{background:var(--warn)} .chip.err .dot{background:var(--error)}
+  section{background:var(--surface);border:1px solid var(--outline-v);border-radius:18px;padding:26px 30px;margin-bottom:22px}
+  h2{font-size:19px;font-weight:800;color:var(--primary-deep);margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--primary);color:#fff;border-radius:9px;font-size:12.5px;padding:2px 9px;letter-spacing:.05em}
+  h3{font-size:15px;font-weight:700;margin:18px 0 8px}
+  .desc{color:var(--on-surface-v);font-size:13.5px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 4px}
+  th{background:var(--bg);text-align:left;padding:8px 10px;font-weight:700;border-bottom:2px solid var(--outline-v);white-space:nowrap}
+  td{padding:7px 10px;border-bottom:1px solid var(--outline-v);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code,.k{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--outline-v);border-radius:5px;padding:1px 5px}
+  pre{font-family:var(--mono);font-size:12px;background:#141821;color:#D9E2F1;border-radius:12px;padding:16px 18px;overflow-x:auto;margin:10px 0;line-height:1.6}
+  pre .c{color:#7B8598} pre .g{color:#7EE2A8} pre .b{color:#7CC7FF} pre .y{color:#FFD479}
+  .pill{display:inline-block;border-radius:999px;font-size:11.5px;font-weight:700;padding:2px 10px}
+  .pill.ok{background:var(--ok-c);color:#156B42} .pill.warn{background:var(--warn-c);color:#8A5A14}
+  .pill.err{background:var(--error-c);color:#9B2226} .pill.tert{background:var(--tert-c);color:#3A2A66}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px} @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--bg);border:1px solid var(--outline-v);border-radius:14px;padding:16px 18px}
+  .card h4{font-size:13.5px;font-weight:800;margin-bottom:6px;color:var(--on-surface)}
+  .card p{font-size:12.5px;color:var(--on-surface-v)}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:12px}
+  .shot{background:var(--bg);border:1px solid var(--outline-v);border-radius:14px;padding:10px;text-align:center}
+  .shot img{width:100%;border-radius:10px;border:1px solid var(--outline-v);display:block}
+  .shot .cap{font-size:12px;font-weight:700;margin-top:8px} .shot .note{font-size:11px;color:var(--on-surface-v)}
+  .flow{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px dashed var(--outline);border-radius:12px;padding:14px 18px;margin:10px 0;white-space:pre;overflow-x:auto;line-height:1.7}
+  .callout{border-left:4px solid var(--primary);background:var(--primary-c);border-radius:0 12px 12px 0;padding:12px 16px;font-size:13px;margin:12px 0}
+  .callout.warn{border-color:var(--warn);background:var(--warn-c)}
+  ul.tight{padding-left:20px;font-size:13.5px} ul.tight li{margin:4px 0}
+  a{color:var(--primary-deep);font-weight:600;text-decoration:none} a:hover{text-decoration:underline}
+  footer{text-align:center;color:var(--outline);font-size:12px;margin-top:30px}
+</style>
+</head>
+<body><div class="wrap">
+
+<header class="hero">
+  <h1>BlueTrace · 架构研究与协议设计汇总</h1>
+  <p class="sub">
+    <b>architecture-v2 讨论区</b> · 2026-07-02 ·
+    本报告汇总四项工作：① V4 原型 vs 实机实现逐屏对比（ADB 实拍）；② <b>可注册通道解析器架构</b>（S7 等多项目协议接入）；
+    ③ <b>采集链路协议 BTCP/1</b>（在线流式 + 离线回传，TLV 头 + protobuf + 分包）；④ <b>手表控制界面规划</b>（KMP 就绪）。
+    详细文档见同目录 <a href="README.md">README.md</a> 索引；协议机器可读定义见 <a href="btcp1_draft.proto">btcp1_draft.proto</a>。
+  </p>
+  <div class="chips">
+    <span class="chip ok"><span class="dot"></span>UI 实现与 V4 原型逐屏一致</span>
+    <span class="chip warn"><span class="dot"></span>数据链路仍全 Mock（M7 待协议冻结）</span>
+    <span class="chip err"><span class="dot"></span>离线采集 = 占位 Toast，协议本轮补齐</span>
+    <span class="chip"><span class="dot"></span>S7 / 手表控制：零历史讨论，本轮新增设计</span>
+  </div>
+</header>
+
+<!-- ==================== 0 历史盘点 ==================== -->
+<section>
+  <h2><span class="num">00</span>历史讨论盘点 —— 哪些已有结论，哪些是空白</h2>
+  <p class="desc">详见 <a href="00_prior_discussions.md">00_prior_discussions.md</a>。新设计全部在既有评审结论上演进，不推翻信封。</p>
+  <table>
+    <tr><th>主题</th><th>状态</th><th>已有出处 / 空白点</th></tr>
+    <tr><td>TLV 12B 头 + protobuf 信封、分片、CRC</td><td><span class="pill ok">已有 v0.1 草案</span></td><td><code>SPEC.md §4.3–4.9</code> + <code>bluetrace_v0.proto</code>（已过一轮评审，待冻结）</td></tr>
+    <tr><td>在线高频采集（IMU/PPG 批包）</td><td><span class="pill ok">已有</span></td><td><code>HighFreqBatch</code> 紧凑 bytes + <code>batch_seq</code> 流级丢包检测；缺会话绑定与对时</td></tr>
+    <tr><td>解码流水线分层</td><td><span class="pill warn">有思想无注册</span></td><td>legacy 架构 §14 四层（FrameReader→Reassembler→dispatch→Router）；现行 <code>SampleDecoder</code> 是全局单例，无按设备/项目选择机制</td></tr>
+    <tr><td>离线采集回传</td><td><span class="pill err">空白</span></td><td>仅 UI 入口与原型三屏（离线A/B/C）；设备侧存储/目录/续传协议完全没有 → <b>03 号文档</b></td></tr>
+    <tr><td>S7 质量通信协议</td><td><span class="pill err">零讨论</span></td><td>全仓库无「S7」→ <b>02 号文档</b>骨架 + 待 S7 侧帧表</td></tr>
+    <tr><td>手表控制界面</td><td><span class="pill err">仅命令原语</span></td><td><code>Command/Ack</code> 原语已有（SPEC §4.8）+ 设置「设备维护」占位入口 → <b>04 号文档</b></td></tr>
+  </table>
+</section>
+
+<!-- ==================== 1 实现对比 ==================== -->
+<section>
+  <h2><span class="num">01</span>V4 原型 vs 实机对比 —— 小米 M2101K9C 实拍</h2>
+  <p class="desc">
+    完整逐屏表见 <a href="01_implementation_review.md">01_implementation_review.md</a>。走查路径：冷启动 → 权限门控 → 采集主界面 → 设备连接 → 用户/场景 → 在线采集运行 → 长按结束 → 摘要 → 数据/导出 → 设置全子页 → 离线采集入口。
+    <b>结论：覆盖的 20+ 屏布局/文案/状态色/流转与原型逐屏一致；落盘导出链路真实可用；唯一大缺口 = 离线采集（等协议）。</b>
+  </p>
+  <table>
+    <tr><th>差异/缺口</th><th>级别</th><th>说明</th></tr>
+    <tr><td>离线采集未实现</td><td><span class="pill err">缺口·预期内</span></td><td>点击 → Toast「离线采集待协议支持」（<code>CollectHomeScreen.kt:160</code> 有意占位），原型离线 A/B/C 三屏等 BTCP/1 落地</td></tr>
+    <tr><td>GNSS 数据源设置子页缺失</td><td><span class="pill warn">建议补</span></td><td>原型 GNSS A/B/C 三屏在设置下；实机 GNSS 开关在运行页 Sheet，「系统定位总开关关闭」引导态无处呈现</td></tr>
+    <tr><td>主界面双 CTA 原型未回写</td><td><span class="pill warn">设计稿滞后</span></td><td>实机「离线采集 + 在线采集」优于原型「扫描连接/开始采集」，应同步 v4_android.html 防漂移</td></tr>
+  </table>
+  <h3>实拍画廊（22 张全集在 assets/device_20260702/）</h3>
+  <div class="gallery">
+    <div class="shot"><img src="assets/device_20260702/02_main.png" alt="权限门控"><div class="cap">权限门控（启动B）</div><div class="note">硬性/建议分组 · 环境态「已开启」</div></div>
+    <div class="shot"><img src="assets/device_20260702/10_home_ready.png" alt="采集主界面"><div class="cap">采集 Tab · 就绪</div><div class="note">三入口卡 + 离线/在线双 CTA</div></div>
+    <div class="shot"><img src="assets/device_20260702/09_device_connected.png" alt="设备连接"><div class="cap">设备连接（设备A）</div><div class="note">Mock DUT + Polar H10 参考 0x180D</div></div>
+    <div class="shot"><img src="assets/device_20260702/06_scene_select.png" alt="场景选择"><div class="cap">采集场景（场景）</div><div class="note">两级单选 · scenes.json 词表驱动</div></div>
+    <div class="shot"><img src="assets/device_20260702/07_subject_edit.png" alt="用户编辑"><div class="cap">用户编辑（用户C）</div><div class="note">别名校验 + 滑条 + 本地存储提示</div></div>
+    <div class="shot"><img src="assets/device_20260702/11_run.png" alt="运行+类型选择"><div class="cap">运行 + 类型 Sheet（运行B/C）</div><div class="note">HEX 流 · PPG/ACC 开关 · GNSS</div></div>
+    <div class="shot"><img src="assets/device_20260702/12_run_full.png" alt="运行页"><div class="cap">采集运行（运行B）</div><div class="note">标签/Pin · 暂停 · 长按 2 秒结束</div></div>
+    <div class="shot"><img src="assets/device_20260702/13_summary.png" alt="结束摘要"><div class="cap">结束摘要（结束A）</div><div class="note">D-6 命名 · 文件夹构成四卡</div></div>
+    <div class="shot"><img src="assets/device_20260702/15_session_detail.png" alt="会话详情"><div class="cap">会话详情（数据C）</div><div class="note">质量小结 · 逐文件勾选导出</div></div>
+    <div class="shot"><img src="assets/device_20260702/17_settings_scrolled.png" alt="导出Toast"><div class="cap">导出完成（导出B）</div><div class="note">Download/BlueTrace/*.zip 实测成功</div></div>
+    <div class="shot"><img src="assets/device_20260702/20_storage.png" alt="存储占用"><div class="cap">存储占用（设置C）</div><div class="note">五段 StorageBreakdown</div></div>
+    <div class="shot"><img src="assets/device_20260702/19_offline.png" alt="离线占位"><div class="cap">离线采集入口 ⛔</div><div class="note">Toast「离线采集待协议支持」</div></div>
+  </div>
+</section>
+
+<!-- ==================== 2 可注册解析器 ==================== -->
+<section>
+  <h2><span class="num">02</span>可注册通道解析器架构 —— ProtocolProfile / ChannelParser / Registry</h2>
+  <p class="desc">完整设计见 <a href="02_parser_registry_design.md">02_parser_registry_design.md</a>。解决三件事：S7 等新协议接入、通道（GATT UUID）成为一等公民、多协议同会话并存。<b>新协议接入 = 写一个 Profile + 注册一行。</b></p>
+  <div class="flow">BleClient.notifications(deviceId)      BleNotification(deviceId, <b>channel</b>, bytes, receivedAtMs)
+        │
+        ▼
+ProtocolRegistry.resolve(device) ──► DeviceParserHost（每设备；重连 reset）
+        │ 按 channel 取 profile.createParser(ch)
+        ├─ BlueTraceV0Parser   FrameReader(hdrCrc8切帧) → Reassembler(msgId分片重组) → dispatch(msgType)
+        ├─ S7QualityParser     S7 自有成帧/校验 → S7 消息表（待 S7 侧帧格式）
+        └─ HrsParser           标准 0x180D/0x2A37 心率解析（Polar H10 参考）
+        │
+        ▼  List&lt;ProtocolEvent&gt;   Samples / CommandAck / Capability / State / AlgoResult / FileChunk / Malformed
+DefaultSessionController（单 Channel 串行，机制不变）
+        ├─ Samples → SessionRecorder（hexlog+CSV 现路径）      ├─ FileChunk → OfflineImporter（03）
+        └─ Ack/Capability/State → ControlPlane（04 手表控制）  └─ Malformed → 质量小结 + 诊断日志</div>
+  <div class="grid2">
+    <div class="card"><h4>核心接口（commonMain）</h4><p>
+      <code>ProtocolProfile</code>：id · matches(device) · notifyChannels · writeChannel · createParser(ch) · commandEncoder()<br>
+      <code>ChannelParser</code>：parse(notification) → 事件列表；reset()（重连清分片缓冲）<br>
+      <code>ProtocolRegistry</code>：DI 期组装、运行期只读；<code>session_manifest.json</code> 记录命中的 profile.id 供离线重放选解析器
+    </p></div>
+    <div class="card"><h4>迁移路线（不打断 Mock）</h4><p>
+      R1 <code>RegistrySampleDecoder</code> 适配器包住注册表——上层零改动 →
+      R2 Mock 协议入注册表 → R3 SessionController 事件化 →
+      R4 <b>HrsProfile + Nordic 真实链路首连（风险前置，不等协议冻结）</b> →
+      R5 BlueTraceV0Parser（=M7 交付物）与 S7QualityParser 各自独立落地
+    </p></div>
+  </div>
+  <div class="callout"><b>S7 接入待办清单</b>（提供给 S7 侧）：Service/Notify/Write UUID · 广播识别特征 · 帧格式（同步字/长度域/校验算法/字节序）· opcode 消息表与单位缩放 · 有无分包与命令回执模型 · 一段真实抓包 hexlog（直接进 commonTest 回放）。</div>
+</section>
+
+<!-- ==================== 3 BTCP/1 ==================== -->
+<section>
+  <h2><span class="num">03</span>采集链路协议 BTCP/1 —— 在线流式 + 离线回传</h2>
+  <p class="desc">完整设计见 <a href="03_collect_protocol_design.md">03_collect_protocol_design.md</a>，schema 草案 <a href="btcp1_draft.proto">btcp1_draft.proto</a>。信封完全复用 SPEC §4（12B TLV 头 + 分片 + CRC），对 <code>bluetrace_v0.proto</code> 纯增量扩展。</p>
+
+  <div class="callout"><b>核心决策 P-1：离线会话文件 = 在线帧流的落盘镜像。</b>设备把与在线 Notify 同构的「12B 头+payload 帧序列」写进 Flash；App 导入时逐帧喂同一个 BlueTraceV0Parser。<b>双端都只有一套编解码</b>，在线/离线数据进同一条 hexlog→CSV→manifest 落盘流水线。</div>
+
+  <h3>帧信封（继承 v0.1，不改）</h3>
+  <pre><span class="c">// 一帧 = 12B 头 + payloadLen 字节 protobuf；T=msgType L=payloadLen V=protobuf</span>
+<span class="b">ver</span>(1) <span class="b">msgType</span>(1) <span class="b">flags</span>(1) <span class="b">fragIndex</span>(1) <span class="b">fragCount</span>(1) <span class="b">hdrCrc8</span>(1) <span class="b">pktSeq</span>(2LE) <span class="b">msgId</span>(2LE) <span class="b">payloadLen</span>(2LE)
+<span class="c">// 分片：偶发大消息（目录页等）；高吞吐路径（批包/离线块）自控大小禁分片（D-5：App 不配 MTU）</span></pre>
+
+  <h3>msgType 增量（0x50–0x5F 段划给离线回传）</h3>
+  <table>
+    <tr><th>msgType</th><th>消息</th><th>方向</th><th>用途</th></tr>
+    <tr><td><code>0x13</code></td><td>TimeSyncPong</td><td>设→App</td><td>NTP 式对时应答（四时间戳，offset=((t1−t0)+(t2−t3))/2；锚点写 manifest 并持久化到设备）</td></tr>
+    <tr><td><code>0x50</code></td><td>SessionCatalog</td><td>设→App</td><td>已存会话目录（分页；允许标准分片）</td></tr>
+    <tr><td><code>0x51</code>/<code>0x52</code>/<code>0x53</code></td><td>TransferStart / Chunk / End</td><td>设→App</td><td>块传输：元数据+全文件 CRC32 → 数据块（单包禁分片）→ 完成/中止</td></tr>
+    <tr><td><code>0x54</code></td><td>StorageInfo</td><td>设→App</td><td>设备存储占用（控制台复用）</td></tr>
+    <tr><td><code>0x55</code></td><td>OfflineSessionHeader</td><td>仅文件内</td><td>离线文件首帧：会话元数据 + 对时锚点对（device_ts↔UTC）</td></tr>
+    <tr><td><code>0x40</code> oneof +8</td><td>ListSessions / OpenTransfer / TransferCredit / CloseTransfer / DeleteSession / QueryStorage / TimeSyncPing / FormatStorage</td><td>App→设</td><td>命令面增量（tag 9–16）；SessionControl 加 app_session_id / wall_clock_ms / offline 字段</td></tr>
+  </table>
+
+  <h3>离线回传时序（credit 滑动窗口流控）</h3>
+  <div class="flow">App                                   设备
+ │ ListSessions(page)                   │
+ │ ◄──────────── 0x50 SessionCatalog ── │   离线A · 已存会话列表
+ │ OpenTransfer(id, resume_off, maxChunk=201) │
+ │ ◄─ Ack ─ 0x51 TransferStart(chunk, total, CRC32) │
+ │ TransferCredit(16) ────────────────► │   授信 16 块
+ │ ◄─ 0x52 Chunk(off=0) ×16 连发 ────── │   离线B · 导入中（进度=offset/total）
+ │ 每消费 8 块补 TransferCredit(8) ────► │   滑动窗口流水线
+ │ ◄─────────── 0x53 TransferEnd ────── │
+ │ CRC32 校验通过 → DeleteSession ─────► │   （用户确认后显式删）
+ │ 帧流重放进 BlueTraceV0Parser → 落盘   │   离线C · 分配场景/用户 → manifest(origin=offline)</div>
+  <ul class="tight">
+    <li><b>断点续传</b>：重连后 <code>OpenTransfer(resume_offset)</code>；掉电最多损尾帧（append-only），解析容忍截断；</li>
+    <li><b>完整性三层</b>：BLE 链路层 CRC → 帧头 hdrCrc8 → 全文件 CRC32；</li>
+    <li><b>吞吐估算</b>：保守 ~27 kB/s、理想 60–100 kB/s → <b>1h IMU 6轴@100Hz(S16)≈4.3 MB，1.5–3 分钟拉完</b>；</li>
+    <li><b>IMU 在线路径</b>：ACC/GYRO/MAG 各一条 HighFreqBatch 流（channel_count=3、SF_S16、batch_seq 独立），<code>SetPacking(25, 250ms)</code> 单包不分片，带宽仅 ~1.2 kB/s；</li>
+    <li>开放问题 O-1…O-6（传输时在线面暂停？存储满环形覆盖？…）已列清单待固件端拍板。</li>
+  </ul>
+</section>
+
+<!-- ==================== 4 手表控制 ==================== -->
+<section>
+  <h2><span class="num">04</span>手表控制界面规划 —— 设备控制台（KMP 就绪）</h2>
+  <p class="desc">完整规划见 <a href="04_watch_control_plan.md">04_watch_control_plan.md</a>。入口 = 设置 Tab 既有占位「设备维护（DUT）」；协议原语（Command/Ack + Capability/State）v0.1 已备。</p>
+  <div class="grid2">
+    <div class="card"><h4>界面（沿 V4 设计语言的设置子页）</h4><p>
+      设备卡（固件/RSSI/连接态）→ 对时状态 + 立即对时 → 存储占用条（复用 StorageBreakdown）→
+      <b>传感器区：能力表驱动</b>（开关 + supported_rates 下拉 + 实际生效值对账，被夹紧时琥珀标注）→
+      高级区（SetPacking / 算法多选，折叠）→ 危险区（FormatStorage 红色二次确认）。
+      采集运行中进入 = 只读锁定。</p></div>
+    <div class="card"><h4>分层（逻辑全下沉 shared commonMain）</h4><p>
+      <code>DeviceCommandBus</code>：串行下发 · cmd_id↔Ack 配对 · 3s 超时；<br>
+      <code>DeviceControlSession</code>：capability/state/storage/timeSync 的 StateFlow 快照 + 乐观更新/回滚/对账；<br>
+      Compose 只留薄壳（iOS SwiftUI 后期对接同一控制器）；commonTest 用 Fake bus 覆盖超时/乱序 Ack/夹紧对账。</p></div>
+  </div>
+  <h3>里程碑</h3>
+  <table>
+    <tr><th>里程碑</th><th>内容</th><th>依赖</th></tr>
+    <tr><td><b>W1</b></td><td>shared <code>control/</code> 包 + Fake 回放 commonTest（无 UI）</td><td>02 的 R1–R3 —— <b>现在即可开工，零硬件依赖</b></td></tr>
+    <tr><td><b>W2</b></td><td>控制台只读版（能力/状态/存储/对时展示）</td><td>固件 0x11/0x12 可用</td></tr>
+    <tr><td><b>W3</b></td><td>传感器开关/采样率/打包写路径（请求-确认-对账三拍）</td><td>Ack 错误码表冻结</td></tr>
+    <tr><td><b>W4</b></td><td>存储管理 + FormatStorage（随 03 离线采集联调）</td><td>BTCP/1 落地</td></tr>
+    <tr><td>W5 二期</td><td>写用户信息 / 固件日志 / OTA</td><td>协议 v1.1</td></tr>
+  </table>
+</section>
+
+<!-- ==================== 5 总路线 ==================== -->
+<section>
+  <h2><span class="num">→</span>建议推进顺序（汇总）</h2>
+  <ul class="tight">
+    <li><b>本周可动工（零外部依赖）</b>：02 的 R1–R3（注册表骨架 + 适配器 + 事件化，22 个既有单测护航）＋ 04 的 W1（控制总线 + Fake 测试）；</li>
+    <li><b>硬件到位即做</b>：R4 —— HrsProfile + Nordic 真实 BleClient，用 Polar H10 打通第一条真实链路（风险前置）；</li>
+    <li><b>对外并行</b>：BTCP/1（03 + btcp1_draft.proto）与固件端评审冻结（O-1…O-6 拍板）；向 S7 侧发 02 §5.2 资料清单；</li>
+    <li><b>协议冻结后</b>：BlueTraceV0Parser（M7）→ 离线采集三屏（离线A/B/C）→ 控制台 W2–W4；</li>
+    <li><b>设计稿维护</b>：v4_android.html 回写主界面双 CTA；补 GNSS 数据源设置子页（或在 Sheet 内加状态行）。</li>
+  </ul>
+</section>
+
+<footer>BlueTrace · Docs/architecture-v2 · 生成于 2026-07-02 · 截图：小米 M2101K9C（io.bluetrace v1.0.0）· 协议草案冻结前仅供讨论</footer>
+</div></body>
+</html>

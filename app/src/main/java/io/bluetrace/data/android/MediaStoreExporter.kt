@@ -95,7 +95,11 @@ class MediaStoreExporter(
         }
 
     /** 应用日志导出到 `Download/BlueTrace/logs/`（设置E）。 */
-    suspend fun exportLog(content: String, fileName: String): ExportResult = withContext(Dispatchers.IO) {
+    suspend fun exportLog(content: String, fileName: String): ExportResult =
+        exportLogBytes(content.toByteArray(), fileName)
+
+    /** 字节精确导出到公共 `Download/BlueTrace/logs/`（设备固件日志为二进制/ASCII，须字节保真）。 */
+    suspend fun exportLogBytes(content: ByteArray, fileName: String): ExportResult = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val values = ContentValues().apply {
@@ -106,7 +110,7 @@ class MediaStoreExporter(
         }
         val uri = resolver.insert(collection, values) ?: return@withContext ExportResult.Error(context.getString(R.string.export_err_log_create))
         try {
-            resolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+            resolver.openOutputStream(uri)?.use { it.write(content) }
             values.clear()
             values.put(MediaStore.Downloads.IS_PENDING, 0)
             resolver.update(uri, values, null, null)

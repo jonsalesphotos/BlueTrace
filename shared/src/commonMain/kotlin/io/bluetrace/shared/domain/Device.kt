@@ -23,6 +23,16 @@ object DeviceLimits {
 /** 标准心率带 profile id，写入 manifest device.profileId（§6.2）。 */
 const val PROFILE_HRS = "HeartRate.SIG.0x180D"
 
+/** S7 手表（B2A 协议）profile id —— 设备维护控制台按此识别（Docs/architecture-v2/s7）。 */
+const val PROFILE_S7 = "SKG.S7.B2A"
+
+/**
+ * **测试用** S7 真机 MAC（用户提供，2026-07-02）：Mock 设备与真机联调的目标对象。
+ * **不是白名单**——正式识别按广播名前缀 `SKG WATCH S7-`（→ PROFILE_S7），支持任意 S7 手表；
+ * 仅测试期用它定位/校验目标设备。广播名后缀 = MAC[1]MAC[0] 的 4 位 hex（spec §1）→ `SKG WATCH S7-FCC4`。
+ */
+const val S7_TEST_MAC = "71:61:48:19:FC:C4"
+
 /** 扫描发现的设备（一次广播快照）。`id` 为稳定标识（真实端 = MAC/identifier，Mock = 固定串）。 */
 data class ScannedDevice(
     val id: String,
@@ -31,6 +41,11 @@ data class ScannedDevice(
     val rssi: Int,
     val kind: DeviceKind,
     val profileId: String? = null,
+    /**
+     * 广播携带的 Service UUID 表（16-bit 用 4 位 hex 如 "FFE0"，128-bit 全串）——
+     * 协议识别的首选依据（nRF Connect 式广播特征匹配）；名称/MAC 只作用户过滤辅助。
+     */
+    val advertisedServices: List<String> = emptyList(),
 ) {
     /** 文件名用的设备短标识（MAC 末 4 位 hex，§6.1 `<deviceShort>`）。 */
     fun deviceShort(): String {

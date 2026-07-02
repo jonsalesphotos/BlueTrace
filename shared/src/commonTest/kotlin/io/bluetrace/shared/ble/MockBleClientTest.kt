@@ -28,7 +28,7 @@ class MockBleClientTest {
         val last = seen.last()
         assertTrue(last.any { it.kind == DeviceKind.DUT }, "should discover a DUT")
         assertTrue(last.any { it.kind == DeviceKind.REFERENCE && it.profileId == PROFILE_HRS }, "should discover HRS reference")
-        assertEquals(5, last.size)
+        assertEquals(6, last.size) // 4 DUT + 1 HRS 参考 + 1 S7 手表
     }
 
     @Test

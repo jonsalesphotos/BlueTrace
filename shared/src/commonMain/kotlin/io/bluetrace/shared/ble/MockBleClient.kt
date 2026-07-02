@@ -4,14 +4,19 @@ import io.bluetrace.shared.domain.DecodedStream
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_HRS
+import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.MockPacketCodec
+import io.bluetrace.shared.s7.S7MockWatch
 import io.bluetrace.shared.util.EpochClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -44,7 +49,17 @@ class MockBleClient(
         ScannedDevice("dut-0319", "BT-DUT-0319", "C4:7B:8D:0A:03:19", -63, DeviceKind.DUT),
         ScannedDevice("dut-0102", "BT-DUT-0102", "C4:7B:8D:0A:01:02", -78, DeviceKind.DUT),
         ScannedDevice("dut-0588", "BT-DUT-0588", "C4:7B:8D:0A:05:88", -86, DeviceKind.DUT),
-        ScannedDevice("ref-h10", "Polar H10", "A0:9E:1A:55:0D:10", -60, DeviceKind.REFERENCE, PROFILE_HRS),
+        ScannedDevice(
+            "ref-h10", "Polar H10", "A0:9E:1A:55:0D:10", -60, DeviceKind.REFERENCE, PROFILE_HRS,
+            advertisedServices = listOf("180D"),
+        ),
+        // S7 手表（B2A 协议 Mock，设备维护控制台联调用）：MAC 用测试真机地址（S7_TEST_MAC，非白名单）。
+        // 广播 UUID 表按真机口径（180A + FFE0/FFE1/FFE2/FFEB）——识别走广播特征（B2aDetect），
+        // 名称仅展示；广播名后缀 = MAC[1]MAC[0] 4 位 hex → FCC4（spec §1）。
+        ScannedDevice(
+            "s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7,
+            advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
+        ),
     )
     private val byId: Map<String, ScannedDevice> = roster.associateBy { it.id }
 
@@ -119,7 +134,55 @@ class MockBleClient(
         }
     }
 
-    override fun notifications(deviceId: String): Flow<BleNotification> = flow {
+    // ---- S7 手表模拟（B2A 协议）----
+    private val s7Watch = S7MockWatch(clock)
+    private val s7Inbound = MutableSharedFlow<BleNotification>(extraBufferCapacity = 128, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * 下行写：S7 设备路由到 [S7MockWatch] 生成应答帧（模拟链路时延 40ms/帧）；
+     * 其余 Mock 设备无命令面，静默丢弃（与真实 GATT 对未订阅特征写入为 no-op 一致）。
+     */
+    override suspend fun write(deviceId: String, bytes: ByteArray) {
+        val device = byId[deviceId] ?: return
+        if (!io.bluetrace.shared.s7.B2aDetect.matchesAdvertisement(device)) return
+        if (link(deviceId).value != LinkState.CONNECTED) return
+        val reply = s7Watch.handle(bytes)
+        scope.launch {
+            for (frame in reply.frames) {
+                delay(40)
+                if (link(deviceId).value != LinkState.CONNECTED) break
+                s7Inbound.emit(BleNotification(deviceId, clock.nowMs(), frame))
+            }
+            if (reply.disconnectAfter) {
+                delay(400) // 模拟设备执行关机/重启后 GATT 断开
+                link(deviceId).value = LinkState.DISCONNECTED
+            }
+        }
+    }
+
+    /** S7 设备 Notify 流：模拟应答帧 + 30s 周期心跳（仅连接态）。 */
+    private fun s7Notifications(deviceId: String): Flow<BleNotification> = channelFlow {
+        val l = link(deviceId)
+        launch {
+            s7Inbound.collect { if (it.deviceId == deviceId) send(it) }
+        }
+        while (coroutineContext.isActive) {
+            delay(30_000)
+            if (l.value == LinkState.CONNECTED) {
+                send(BleNotification(deviceId, clock.nowMs(), s7Watch.heartbeatFrame()))
+            }
+        }
+    }
+
+    override fun notifications(deviceId: String): Flow<BleNotification> {
+        val device = byId[deviceId]
+        if (device != null && io.bluetrace.shared.s7.B2aDetect.matchesAdvertisement(device)) {
+            return s7Notifications(deviceId)
+        }
+        return dataNotifications(deviceId)
+    }
+
+    private fun dataNotifications(deviceId: String): Flow<BleNotification> = flow {
         val device = byId[deviceId] ?: return@flow
         val baseMs = clock.nowMs()
         var phase = 0

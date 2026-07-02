@@ -241,24 +241,7 @@ fun AppLogScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     }
 }
 
-/** 设置F · 设备维护（DUT · 后期占位）。 */
-@Composable
-fun DeviceMaintenanceScreen(onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = stringResource(R.string.maint_title), subtitle = stringResource(R.string.maint_subtitle), onBack = onBack)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                stringResource(R.string.maint_item_time),
-                stringResource(R.string.maint_item_user),
-                stringResource(R.string.maint_item_firmware),
-                stringResource(R.string.maint_item_ota),
-            ).forEach {
-                ListTileRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, it, stringResource(R.string.maint_deferred), enabled = false)
-            }
-            Text(stringResource(R.string.maint_note), fontSize = 12.sp, color = BT.onSurfaceV)
-        }
-    }
-}
+// 设置F · 设备维护（DUT）已升级为 S7 控制台 → DeviceConsoleScreen.kt（原灰显占位删除）。
 
 /** 设置D · 关于。 */
 @Composable

@@ -50,7 +50,8 @@ import io.bluetrace.ui.screen.run.CollectionRunScreen
 import io.bluetrace.ui.screen.settings.AboutScreen
 import io.bluetrace.ui.screen.settings.AppearanceScreen
 import io.bluetrace.ui.screen.settings.AppLogScreen
-import io.bluetrace.ui.screen.settings.DeviceMaintenanceScreen
+import io.bluetrace.ui.screen.settings.ConsoleConnectScreen
+import io.bluetrace.ui.screen.settings.DeviceConsoleScreen
 import io.bluetrace.ui.screen.settings.EnvCheckScreen
 import io.bluetrace.ui.screen.settings.ExportLocationScreen
 import io.bluetrace.ui.screen.settings.LanguageScreen
@@ -241,7 +242,13 @@ private fun BlueTraceNavHost(nav: NavHostController) {
             composable<Route.ExportLocation> { ExportLocationScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Storage> { StorageScreen(onBack = { nav.popBackStack() }) }
             composable<Route.AppLog> { AppLogScreen(onBack = { nav.popBackStack() }) }
-            composable<Route.DeviceMaintenance> { DeviceMaintenanceScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.DeviceMaintenance> {
+                DeviceConsoleScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenConnect = { nav.navigate(Route.ConsoleConnect) },
+                )
+            }
+            composable<Route.ConsoleConnect> { ConsoleConnectScreen(onBack = { nav.popBackStack() }) }
             composable<Route.About> { AboutScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Appearance> { AppearanceScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Language> { LanguageScreen(onBack = { nav.popBackStack() }) }

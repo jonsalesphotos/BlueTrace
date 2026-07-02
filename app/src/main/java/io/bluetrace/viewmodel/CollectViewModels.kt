@@ -79,7 +79,11 @@ class CollectHomeViewModel(
                     val effectiveSubject = if (catalog.isAutoDefaultUser(b.scene.subToken)) DEFAULT_SUBJECT else b.subject
                     CollectHomeUiState(
                         currentSubject = effectiveSubject,
-                        connectedDevices = b.connected,
+                        // B2A 维护手表（设备控制台专属）不进采集会话：它发的是 B2A 命令/心跳帧，
+                        // MockPacketCodec 解不了只会刷 unparseable 告警 + 产空 CSV 脏会话。
+                        connectedDevices = b.connected.filterNot {
+                            io.bluetrace.shared.s7.B2aDetect.matchesAdvertisement(it)
+                        },
                         scene = b.scene,
                         hardSatisfied = envState.hardSatisfied,
                         bluetoothOn = envState.bluetoothOn,
