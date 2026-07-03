@@ -72,8 +72,9 @@ val appModule = module {
         val logsDir = (ctx.getExternalFilesDir(null) ?: ctx.filesDir).resolve("logs").path.toPath()
         FileDiagnosticsLog(get(), logsDir, get(), get(), get(named("logWriter")))
     }
-    single { MockBleClient(get(), get()) }
-    single<BleClient> { get<MockBleClient>() }
+    single { MockBleClient(get(), get()) } // 仅 CollectionService 蓝牙联动/调试注入仍引用；不再进扫描
+    // 纯真实 BLE（2026-07-02 用户定）：扫描/连接全部走真实 GATT，Mock 设备不再合流进扫描列表。
+    single<BleClient> { io.bluetrace.data.android.AndroidBleClient(androidContext(), get()) }
     single<SampleDecoder> { MockSampleDecoder() }
     single<SessionController> {
         DefaultSessionController(
@@ -93,6 +94,7 @@ val appModule = module {
 
     // ---- app 级状态 / 仓库 ----
     single { ConnectionRegistry() }
+    single { io.bluetrace.domain.DeviceLogStore(androidContext()) }
     single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
@@ -112,4 +114,17 @@ val appModule = module {
     viewModelOf(::ExportViewModel)
     viewModel { (folder: String) -> SessionDetailViewModel(folder, get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get()) }
+    viewModel { io.bluetrace.viewmodel.ConsoleConnectViewModel(get(), get()) }
+    // 设备维护（DUT）控制台：设备日志/操作日志经 MediaStore 导出到 Download/BlueTrace/logs/
+    viewModel {
+        io.bluetrace.viewmodel.DeviceConsoleViewModel(
+            ble = get(),
+            registry = get(),
+            clock = get(),
+            zone = get(),
+            subjects = get(),
+            exporter = get(),
+            logStore = get(),
+        )
+    }
 }

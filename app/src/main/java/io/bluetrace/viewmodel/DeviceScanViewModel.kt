@@ -134,8 +134,9 @@ class DeviceScanViewModel(
             if (!registry.canConnect(device.kind)) return
             observeLink(device.id)
             viewModelScope.launch {
-                registry.add(device)
+                // 先连后入册：真实 BLE 连接可失败/超时，失败不得留下幽灵「已连接」条目
                 bleClient.connect(device)
+                if (bleClient.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
             }
         }
     }
