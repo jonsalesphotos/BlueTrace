@@ -3,6 +3,17 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 连接页复用 + 过滤设计稿 + 扫描权限门（第 12 轮）
+
+一组围绕两个连接页（采集「设备连接」/ 控制台「连接手表」）的复用与体验改进。改动前先用两只 Explore 代理把两页与 BLE 运行架构摸清、与用户讨论定方案（抽共用组件、不合并页面）。
+
+- **抽共用组件（不合并页面）**：新增 `ui/components/ScanFilterBar.kt`（名称/MAC 搜索框 + RSSI 滑条），两个连接页复用；各自保留 RSSI 默认（采集 -80 / 控制台 -90）与领域差异（采集含参考心率带+上限、控制台仅 S7/B2A）。
+- **过滤器对齐 V4 设计稿（#3）**：搜索框加放大镜；RSSI 卡片加边框、阈值移到**右侧**（加粗 · `primaryDeep` · 等宽）；滑条换**16dp 白色圆点 + 2dp primary 描边**（替 M3 默认竖条）。
+- **搜索框一键清除 ×（#4）**：有文字时右侧显示 `×`，点击清空过滤。
+- **采集页吃控制台的列表打磨（#2）**：`DeviceScanViewModel` 加 `sample(1s)` 节流防跳动 + **隐藏无名设备**（仍保留能连参考心率带，不套 S7 门控）。
+- **扫描前权限门 + 修掉「扫不到」洞（#1）**：新增 `ui/components/ScanPermissionGate.kt`（`rememberScanPermission` + `ScanPermissionBanner`）；两页进入即请求、授权到位才开扫、撤权即停并显示提示条（授权/去设置）。关键：新增 `BlueTracePermissions.scan = hardScanConnect + FINE_LOCATION`——本 App `BLUETOOTH_SCAN` 未声明 `neverForLocation`，**所有 API 上扫描结果都被定位门控**，而旧的 `hardScanConnect` 在 API 31+ 不含定位，故 MIUI 撤定位后会「静默扫空且自检显示正常」。此洞即前一次真机「扫不到」的根因。
+- **真机验证**（Redmi / Android 13）：采集页新过滤条渲染正确（放大镜/右侧蓝色阈值/圆点滑块/隐藏无名/按信号降序）；输入「SKG」出现 `×`、点击清空复原；撤销定位后进页面**自动弹系统授权 + 提示条**，授予后横幅消失、扫描恢复；控制台页共用同一过滤条、B2A 标签与「连接」按钮不变。截图 `assets/l_*.png`
+
 ## 2026-07-03 · 日志大小人类可读 + 后缀改回 .log（第 11 轮）
 
 - **文件大小人类可读**：列表由裸字节 `55122 B` 改为 `53.8 KB`（B / KB / MB / GB，保留 1 位小数，固定用 `.` 作小数点，`ConsoleLogListScreen.humanSize`）。

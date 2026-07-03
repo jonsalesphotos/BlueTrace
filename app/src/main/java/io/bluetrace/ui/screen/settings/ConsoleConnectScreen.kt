@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,6 +33,9 @@ import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.OutlineBtn
+import io.bluetrace.ui.components.ScanFilterBar
+import io.bluetrace.ui.components.ScanPermissionBanner
+import io.bluetrace.ui.components.rememberScanPermission
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.ConsoleConnectViewModel
 import io.bluetrace.viewmodel.ConsoleDeviceRow
@@ -47,10 +49,11 @@ import org.koin.androidx.compose.koinViewModel
 fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinViewModel()) {
     val ui by vm.uiState.collectAsState()
 
-    DisposableEffect(Unit) {
-        vm.startScan()
-        onDispose { vm.stopScan() }
-    }
+    // 扫描前置权限门（含定位）：进页面即请求；授权到位才开扫，撤权即停并提示
+    val perm = rememberScanPermission()
+    LaunchedEffect(Unit) { if (!perm.granted) perm.request() }
+    LaunchedEffect(perm.granted) { if (perm.granted) vm.startScan() else vm.stopScan() }
+    DisposableEffect(Unit) { onDispose { vm.stopScan() } }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -60,19 +63,12 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
         )
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(
-                value = ui.query,
-                onValueChange = vm::setQuery,
-                placeholder = { Text(stringResource(R.string.device_filter_hint), fontSize = 13.sp) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(BT.radius),
-            )
-            Text(stringResource(R.string.device_rssi_filter, ui.rssiThreshold), fontSize = 11.sp, color = BT.onSurfaceV)
-            Slider(
-                value = ui.rssiThreshold.toFloat(),
-                onValueChange = { vm.setRssiThreshold(it.toInt()) },
-                valueRange = -99f..-30f,
+            if (!perm.granted) ScanPermissionBanner(perm)
+            ScanFilterBar(
+                query = ui.query,
+                onQueryChange = vm::setQuery,
+                rssiThreshold = ui.rssiThreshold,
+                onRssiChange = vm::setRssiThreshold,
             )
         }
 
@@ -88,7 +84,13 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
         Column(Modifier.navigationBarsPadding().padding(14.dp)) {
             OutlineBtn(
                 stringResource(if (ui.scanning) R.string.console_scan_stop else R.string.console_scan_start),
-                onClick = { if (ui.scanning) vm.stopScan() else vm.startScan() },
+                onClick = {
+                    when {
+                        ui.scanning -> vm.stopScan()
+                        !perm.granted -> perm.request() // 权限不足 → 弹授权（含定位）
+                        else -> vm.startScan()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

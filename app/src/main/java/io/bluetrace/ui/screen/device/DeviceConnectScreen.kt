@@ -20,8 +20,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,7 +46,10 @@ import io.bluetrace.ui.components.CountBadge
 import io.bluetrace.ui.components.EmptyState
 import io.bluetrace.ui.components.OutlineBtn
 import io.bluetrace.ui.components.PillTag
+import io.bluetrace.ui.components.ScanFilterBar
+import io.bluetrace.ui.components.ScanPermissionBanner
 import io.bluetrace.ui.components.StatusPill
+import io.bluetrace.ui.components.rememberScanPermission
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.DeviceRowUi
 import io.bluetrace.viewmodel.DeviceScanViewModel
@@ -65,7 +66,10 @@ fun DeviceConnectScreen(
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val env by envVm.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { vm.startScan() }
+    // 扫描前置权限门（含定位）：进页面即请求；授权到位才开扫，撤权即停并提示（§5.2 / D-3）
+    val perm = rememberScanPermission()
+    LaunchedEffect(Unit) { if (!perm.granted) perm.request() }
+    LaunchedEffect(perm.granted) { if (perm.granted) vm.startScan() else vm.stopScan() }
     DisposableEffect(Unit) { onDispose { vm.stopScan() } }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
@@ -77,19 +81,12 @@ fun DeviceConnectScreen(
         )
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = ui.query,
-                onValueChange = vm::setQuery,
-                placeholder = { Text(stringResource(R.string.device_filter_hint), fontSize = 13.sp) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(BT.radius),
-            )
-            Text(stringResource(R.string.device_rssi_filter, ui.rssiThreshold), fontSize = 11.sp, color = BT.onSurfaceV)
-            Slider(
-                value = ui.rssiThreshold.toFloat(),
-                onValueChange = { vm.setRssiThreshold(it.toInt()) },
-                valueRange = -99f..-30f,
+            if (!perm.granted) ScanPermissionBanner(perm)
+            ScanFilterBar(
+                query = ui.query,
+                onQueryChange = vm::setQuery,
+                rssiThreshold = ui.rssiThreshold,
+                onRssiChange = vm::setRssiThreshold,
             )
             if (ui.atDutLimit) {
                 Surface(color = BT.warningC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
@@ -127,6 +124,7 @@ fun DeviceConnectScreen(
                     when {
                         ui.scanning -> vm.stopScan()
                         env.status(io.bluetrace.shared.domain.RequirementId.BLUETOOTH_ON) != io.bluetrace.shared.domain.RequirementStatus.GRANTED -> onBluetoothOff() // 蓝牙关 → 启动E
+                        !perm.granted -> perm.request() // 权限不足 → 弹授权（含定位）
                         else -> vm.startScan()
                     }
                 },

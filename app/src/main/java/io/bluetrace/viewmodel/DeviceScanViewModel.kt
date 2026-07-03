@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -71,6 +72,8 @@ class DeviceScanViewModel(
             val dutCount = connected.count { it.kind == DeviceKind.DUT }
             val refCount = connected.count { it.kind == DeviceKind.REFERENCE }
             val rows = raw.results
+                // 隐藏无名设备（含参考心率带在内，命名设备才展示；与控制台页一致）
+                .filter { it.name.isNotBlank() && it.name != "(unnamed)" }
                 .filter { it.rssi >= raw.rssi }
                 .filter { raw.query.isBlank() || it.name.contains(raw.query, true) || it.address.contains(raw.query, true) }
                 .map { dev ->
@@ -107,7 +110,9 @@ class DeviceScanViewModel(
             stopScan()
         }
         scanJob = viewModelScope.launch {
-            bleClient.scan().collect { devices ->
+            // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
+            // 让列表 ~1 秒才按信号重排一次——防跳动、可稳定点选（与控制台页一致）。
+            bleClient.scan().sample(1000).collect { devices ->
                 _results.value = devices
                 devices.forEach { observeLink(it.id) }
             }

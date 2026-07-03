@@ -43,6 +43,14 @@ object BlueTracePermissions {
 
     val location: Array<String> = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
+    /**
+     * 扫描前置权限（比 [hardScanConnect] 更全）：本 App 的 `BLUETOOTH_SCAN` **未声明** `neverForLocation`，
+     * 故在**所有 API** 上 BLE 扫描结果都被定位权限门控——必须把 `ACCESS_FINE_LOCATION` 也算进去，
+     * 否则定位被撤时扫描会**静默返回空**（hardScanConnect 在 API 31+ 不含定位，会误判为“已授权”）。
+     */
+    val scan: Array<String> =
+        (hardScanConnect.toList() + Manifest.permission.ACCESS_FINE_LOCATION).distinct().toTypedArray()
+
     val notifications: Array<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(Manifest.permission.POST_NOTIFICATIONS)

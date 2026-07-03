@@ -95,6 +95,12 @@
     <string name="device_subtitle">单击连接 · 再点断开</string>
     <string name="device_filter_hint">按名称 / MAC 过滤</string>
     <string name="device_rssi_filter">RSSI 过滤 · 仅显示强于 %1$d dBm</string>
+    <string name="device_rssi_label">RSSI 过滤 · 仅显示强于</string>
+    <string name="action_clear">清除</string>
+    <string name="scan_perm_title">需要权限才能扫描</string>
+    <string name="scan_perm_body">扫描附近蓝牙设备需要「附近设备」与「定位」权限。缺失将扫不到任何设备。</string>
+    <string name="scan_perm_grant">授予权限</string>
+    <string name="scan_perm_settings">去设置授予</string>
     <string name="device_limit_banner">DUT 已连 3 台（上限）· 链路可能不稳定。DUT 最多 3 + 参考心率带 1。</string>
     <string name="device_empty_title">未发现设备</string>
     <string name="device_empty_sub">确认 DUT 已上电并在范围内，再重新扫描。</string>

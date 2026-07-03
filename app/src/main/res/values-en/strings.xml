@@ -91,6 +91,12 @@
     <string name="device_subtitle">Tap to connect · tap again to disconnect</string>
     <string name="device_filter_hint">Filter by name / MAC</string>
     <string name="device_rssi_filter">RSSI filter · show stronger than %1$d dBm</string>
+    <string name="device_rssi_label">RSSI filter · show stronger than</string>
+    <string name="action_clear">Clear</string>
+    <string name="scan_perm_title">Permission needed to scan</string>
+    <string name="scan_perm_body">Scanning nearby Bluetooth devices needs Nearby devices and Location permissions. Without them no devices appear.</string>
+    <string name="scan_perm_grant">Grant permission</string>
+    <string name="scan_perm_settings">Open settings</string>
     <string name="device_limit_banner">3 DUTs connected (max) · link may be unstable. Up to 3 DUT + 1 reference HR.</string>
     <string name="device_empty_title">No devices found</string>
     <string name="device_empty_sub">Make sure the DUT is powered and in range, then rescan.</string>
