@@ -122,13 +122,12 @@ fun ScanFilterBar(
                     activeTrackColor = BT.primary,
                     inactiveTrackColor = BT.surface2,
                 ),
-                // 设计稿：16dp 白色圆点 + 2dp primary 描边（非 M3 默认竖条）
+                // 16dp 圆环：透明背景（不填白，融入轨道不突兀）+ 2dp primary 描边
                 thumb = {
                     Box(
                         Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(androidx.compose.ui.graphics.Color.White)
                             .border(2.dp, BT.primary, CircleShape),
                     )
                 },

@@ -163,7 +163,10 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
-                    if (isRef) PillTag(stringResource(R.string.device_tag_reference), BT.onTertiaryC, BT.tertiaryC)
+                    when {
+                        isRef -> PillTag(stringResource(R.string.device_tag_reference), BT.onTertiaryC, BT.tertiaryC)
+                        row.b2a -> PillTag("B2A", BT.primaryDeep, BT.primaryC) // 有 B2A 服务的手表（与控制台页一致）
+                    }
                 }
                 Text(
                     buildString {

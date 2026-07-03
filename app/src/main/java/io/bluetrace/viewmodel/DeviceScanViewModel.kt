@@ -8,6 +8,7 @@ import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.DeviceLimits
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
+import io.bluetrace.shared.s7.B2aDetect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,10 @@ data class DeviceRowUi(
     val device: ScannedDevice,
     val link: LinkState,
     val disabled: Boolean, // 达上限且未连 → 不可点
+    /** 已识别目标：有 B2A 服务(FFE0)的手表 或 参考心率带；用于排序置顶与打标。 */
+    val recognized: Boolean = false,
+    /** 有 B2A 服务(FFE0) → 可作 S7 手表控制（区别于参考带）。 */
+    val b2a: Boolean = false,
 )
 
 data class DeviceScanUiState(
@@ -85,9 +90,17 @@ class DeviceScanViewModel(
                         DeviceKind.DUT -> dutCount >= DeviceLimits.MAX_DUT
                         DeviceKind.REFERENCE -> refCount >= DeviceLimits.MAX_REFERENCE
                     }
-                    DeviceRowUi(dev, link, disabled = atLimit && dev.id !in connectedIds)
+                    // 识别：有 B2A 服务(FFE0)的手表 或 参考心率带 → 已识别目标；其余（随机 BLE）沉底
+                    val b2a = B2aDetect.matchesAdvertisement(dev)
+                    val recognized = b2a || dev.kind == DeviceKind.REFERENCE
+                    DeviceRowUi(dev, link, disabled = atLimit && dev.id !in connectedIds, recognized = recognized, b2a = b2a)
                 }
-                .sortedWith(compareByDescending<DeviceRowUi> { it.link == LinkState.CONNECTED }.thenByDescending { it.device.rssi })
+                // 排序：已连接置顶 → 已识别（B2A 手表 + 参考带）在前、未识别下沉 → 信号强度（RSSI 降序）
+                .sortedWith(
+                    compareByDescending<DeviceRowUi> { it.link == LinkState.CONNECTED }
+                        .thenByDescending { it.recognized }
+                        .thenByDescending { it.device.rssi },
+                )
             DeviceScanUiState(
                 rows = rows,
                 connectedCount = connected.size,
