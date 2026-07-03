@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,12 +30,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.OutlineBtn
+import io.bluetrace.ui.components.PrimaryButton
+import io.bluetrace.ui.components.ScanFilterBar
+import io.bluetrace.ui.components.ScanPermissionBanner
+import io.bluetrace.ui.components.rememberScanPermission
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.ConsoleConnectViewModel
 import io.bluetrace.viewmodel.ConsoleDeviceRow
@@ -47,10 +54,11 @@ import org.koin.androidx.compose.koinViewModel
 fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinViewModel()) {
     val ui by vm.uiState.collectAsState()
 
-    DisposableEffect(Unit) {
-        vm.startScan()
-        onDispose { vm.stopScan() }
-    }
+    // 扫描前置权限门（含定位）：进页面即请求；授权到位才开扫，撤权即停并提示
+    val perm = rememberScanPermission()
+    LaunchedEffect(Unit) { if (!perm.granted) perm.request() }
+    LaunchedEffect(perm.granted) { if (perm.granted) vm.startScan() else vm.stopScan() }
+    DisposableEffect(Unit) { onDispose { vm.stopScan() } }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -60,19 +68,12 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
         )
 
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(
-                value = ui.query,
-                onValueChange = vm::setQuery,
-                placeholder = { Text(stringResource(R.string.device_filter_hint), fontSize = 13.sp) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(BT.radius),
-            )
-            Text(stringResource(R.string.device_rssi_filter, ui.rssiThreshold), fontSize = 11.sp, color = BT.onSurfaceV)
-            Slider(
-                value = ui.rssiThreshold.toFloat(),
-                onValueChange = { vm.setRssiThreshold(it.toInt()) },
-                valueRange = -99f..-30f,
+            if (!perm.granted) ScanPermissionBanner(perm)
+            ScanFilterBar(
+                query = ui.query,
+                onQueryChange = vm::setQuery,
+                rssiThreshold = ui.rssiThreshold,
+                onRssiChange = vm::setRssiThreshold,
             )
         }
 
@@ -80,17 +81,29 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
             Modifier.weight(1f).padding(horizontal = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { Spacer(Modifier.height(2.dp)) }
+            item { Spacer(Modifier.height(12.dp)) } // 与过滤条留出间距，不紧贴
             items(ui.rows, key = { it.device.id }) { row -> DeviceRow(row, onToggle = { vm.toggleConnect(row.device) }) }
             item { Spacer(Modifier.height(8.dp)) }
         }
 
         Column(Modifier.navigationBarsPadding().padding(14.dp)) {
-            OutlineBtn(
-                stringResource(if (ui.scanning) R.string.console_scan_stop else R.string.console_scan_start),
-                onClick = { if (ui.scanning) vm.stopScan() else vm.startScan() },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // 扫描中 = 灰描边「停止扫描」(Stop)；已停 = 蓝实心「重新扫描」(Refresh)——两态明显区分
+            if (ui.scanning) {
+                OutlineBtn(
+                    text = stringResource(R.string.console_scan_stop),
+                    onClick = { vm.stopScan() },
+                    leadingIcon = Icons.Filled.Stop,
+                    color = BT.onSurfaceV,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                PrimaryButton(
+                    text = stringResource(R.string.console_scan_start),
+                    onClick = { if (!perm.granted) perm.request() else vm.startScan() },
+                    leadingIcon = Icons.Filled.Refresh,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -109,19 +122,27 @@ private fun DeviceRow(row: ConsoleDeviceRow, onToggle: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 不支持设备名灰显、且不带任何标签/按钮（用户要求：不要有文本、不要有按钮）
+                // 名称过长 → 截断省略，给 B2A 标签留位
                 Text(
                     d.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.W700,
                     color = if (row.supported) BT.onSurface else BT.onSurfaceV,
                     fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (row.supported) {
                     Spacer(Modifier.width(6.dp))
                     Tag("B2A", BT.primaryDeep, BT.primaryC)
                 }
             }
-            Text("${d.address} · ${d.rssi} dBm", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
+            Text(
+                "${d.address} · ${d.rssi} dBm",
+                fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
         // 右侧连接/断开按钮：仅受支持设备有；不支持的无按钮无文本
         when {
