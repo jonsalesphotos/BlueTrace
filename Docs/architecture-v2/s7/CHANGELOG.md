@@ -16,7 +16,7 @@
 
 **代码改动**
 - `domain/DeviceLogStore.kt`（新）：app 级单例，`devlogs/` 目录；`save(bytes, mac, ts)` MAC 命名、`list()` 倒序枚举、`read(name)` 防目录穿越读取。**替换**原 `S7LogHolder`（内存单份 → 文件多份可列表）
-- `ui/screen/settings/ConsoleLogListScreen.kt`（新）：列表页，注入 `DeviceLogStore` + `TimeZoneProvider`（日期按用户时区渲染）
+- `ui/screen/settings/ConsoleLogListScreen.kt`（新）：列表页，注入 `DeviceLogStore`；文件日期用**本机时区**渲染（`TimeZone.getDefault()`，按每个文件时间戳取偏移，含夏令时——不经 app 的 `TimeZoneProvider` 抽象）
 - `ui/screen/settings/ConsoleLogViewScreen.kt`（重写）：按文件名 IO 读取 → 按行切分 → `LazyColumn` 行号 gutter + 原样正文 + `VerticalScrollbar`
 - `viewmodel/DeviceConsoleViewModel.kt`：`pullLog` 用设备 MAC 存盘、`logStore` 替换 `logHolder`
 - `ui/nav/Routes.kt`：`ConsoleLogList`（object）+ `ConsoleLogView(fileName)`；`BlueTraceApp.kt` 三级导航（控制台 → 列表 → 查看）

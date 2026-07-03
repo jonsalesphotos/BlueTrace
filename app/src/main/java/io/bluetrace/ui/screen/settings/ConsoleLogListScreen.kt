@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
 import io.bluetrace.domain.DeviceLogStore
-import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.epochMsToLocalParts
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.theme.BT
@@ -41,7 +40,6 @@ fun ConsoleLogListScreen(
     onBack: () -> Unit,
     onOpen: (String) -> Unit,
     store: DeviceLogStore = koinInject(),
-    zone: TimeZoneProvider = koinInject(),
 ) {
     // 进入时读一次列表（IO）
     val entries by produceState(initialValue = emptyList<DeviceLogStore.Entry>()) {
@@ -82,7 +80,9 @@ fun ConsoleLogListScreen(
                         fontFamily = FontFamily.Monospace,
                     )
                     val date = remember(e.modifiedMs) {
-                        val p = epochMsToLocalParts(e.modifiedMs, zone.offsetSeconds())
+                        // 用本机时区渲染文件修改时间(含该时刻的夏令时偏移)
+                        val offsetSec = java.util.TimeZone.getDefault().getOffset(e.modifiedMs) / 1000
+                        val p = epochMsToLocalParts(e.modifiedMs, offsetSec)
                         "${p.year}-${p2(p.month)}-${p2(p.day)} ${p2(p.hour)}:${p2(p.minute)}"
                     }
                     androidx.compose.material3.Text(
