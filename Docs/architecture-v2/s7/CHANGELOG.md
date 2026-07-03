@@ -3,6 +3,15 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · zqdata 上行协议核查 + 规格文档（逐字节·含位域）（第 19 轮）
+
+- **需求**：核查 zqdata(离线采集数据通道)协议文档的完整性/与代码一致性(像 B2A 那样代码实证 vs 文档,代码在采集固件 `apollo4_watch_s7_collect`),再拉进 BlueTrace 生成工程侧 HTML,与 protocol-b2a 并列。
+- **产出**：新增 [protocol-zqdata.md](protocol-zqdata.md)（480 行）+ [protocol-zqdata.html](protocol-zqdata.html)（68KB，样式与 protocol-b2a.html 一致）。
+- **方法**：多代理工作流——并行抽取①文档声明 ②采集固件 `_collect` 上行代码实证 ③新 zqdata 模块代码实证 → 合成逐字节 markdown + **文档-代码差异核查章**。
+- **内容(6 章)**：三通道架构(zqdata / gh3x2x 190E / B2A FFE0)、zqdata GATT 传输层逐字节(句柄 `0x0A10-0x0A15`/环/双线程/txReady)、**上行数据协议逐字节**(40B 落盘 ABI → 40B→28B 重打包逐字节映射 → B2A `TEST(0x08)` 封装 212B/240B,含 HR/SpO2/gsensor 变体)、下行/ECG 会话/广播、**代码实证 vs 文档 15 条差异表**、附录。
+- **核查关键结论**：字节 ABI(重打包映射/212B/句柄)与代码**逐字节一致**;需修正/补充 6 处——① 文档把**两棵源码树混叙**(上行真相在 A 树 `_collect` 走 `GH3X2X_BLE_TX_HDL`,B 树新 zqdata 模块尚未接生产者);②「全大端」需分层(主体大端、40B 尾 AGC 位域、ECG 小端,三序并存);③ 补 SpO2 240B/包 + 228B 硬上限;④ 补 gsensor 18B 帧;另 4 项标 `🔬需固件核对`。
+- 浏览器渲染核对:hero/目录/逐字节表/位域表/§5 差异表/深色 hex 图/徽章/锚点均正常。
+
 ## 2026-07-03 · B2A 协议完整规格文档（逐字节·含位域）（第 18 轮）
 
 - **需求**：把 B2A 协议逐条整理——每条命令、分类分组、数据如何组包、包的每字节含义(含位域展开)，成 HTML 文档。
