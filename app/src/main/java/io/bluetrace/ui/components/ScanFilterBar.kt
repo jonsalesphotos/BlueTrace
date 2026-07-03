@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -113,15 +114,16 @@ fun ScanFilterBar(
                 )
             }
             val interaction = remember { MutableInteractionSource() }
+            val sliderColors = SliderDefaults.colors(
+                activeTrackColor = BT.primary,
+                inactiveTrackColor = BT.surface2,
+            )
             Slider(
                 value = rssiThreshold.toFloat(),
                 onValueChange = { onRssiChange(it.toInt()) },
                 valueRange = rssiRange,
                 interactionSource = interaction,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = BT.primary,
-                    inactiveTrackColor = BT.surface2,
-                ),
+                colors = sliderColors,
                 // 16dp 圆环：透明背景（不填白，融入轨道不突兀）+ 2dp primary 描边
                 thumb = {
                     Box(
@@ -129,6 +131,17 @@ fun ScanFilterBar(
                             .size(16.dp)
                             .clip(CircleShape)
                             .border(2.dp, BT.primary, CircleShape),
+                    )
+                },
+                // 连续细轨道：去掉 M3 默认圆点两侧的 6dp 断口（gap）与末端 stop 点，
+                // 让蓝/灰轨道直连到圆环下方（对齐设计稿：圆环坐在连续线上，而非悬空断口里）
+                track = { state ->
+                    SliderDefaults.Track(
+                        sliderState = state,
+                        colors = sliderColors,
+                        thumbTrackGapSize = 0.dp,
+                        drawStopIndicator = null,
+                        modifier = Modifier.height(4.dp),
                     )
                 },
             )
