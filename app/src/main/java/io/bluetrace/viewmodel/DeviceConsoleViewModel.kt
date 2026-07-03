@@ -296,7 +296,7 @@ class DeviceConsoleViewModel(
             }
             val ts = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds()).compact()
             val mac = _state.value.device?.address ?: "unknown"
-            // 存进设备日志文件夹（以 MAC 区分文件名，可在「查看日志」列表选看）
+            // 经 MediaStore 存到公共 Download/BlueTrace/logs/（以 MAC 区分文件名；「查看日志」列表可选看，文件管理器也能直接翻）
             val path = logStore.save(bytes, mac, ts)
             _state.update { it.copy(logAvailable = true) }
             _toasts.tryEmit(ConsoleToast.Exported(path))

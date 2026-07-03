@@ -3,6 +3,16 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 设备日志改存公共 Download（第 10 轮）
+
+- **反馈**：设备日志列表读的是 app 私有 `Android/data/io.bluetrace/files/devlogs/`，新版安卓文件管理器难进——**能否放到 Download 目录**。
+- **改动**：`DeviceLogStore` 由「私有 File 目录」重写为 **MediaStore 后端**，存/列/读一律落到公共 `Download/BlueTrace/logs/`（scoped storage，minSdk 29，**免存储权限**）。
+  - `save` → `MediaStore.Downloads` 插入 `RELATIVE_PATH=Download/BlueTrace/logs`、字节直写；`list` → ContentResolver 查询（`s7_devlog` 前缀、按 `DATE_MODIFIED` 降序）；`read` → 按 DISPLAY_NAME 查 id → `openInputStream` 读回。
+  - `pullLog` 不变（仍 `logStore.save`），列表/查看页自动改读 Download。
+  - **一次性迁移**：首次进列表把遗留私有 `devlogs/` 的日志搬进 Download 后删原件，历史日志不丢。
+- **注**：MediaStore 按 `text/plain` MIME 会补 `.txt` 后缀（`s7_devlog_*.log` → `.log.txt`），与既有导出文件一致，且文件管理器可当文本直接预览。
+- **真机验证**（Redmi / Android 13）：进列表后私有目录清空、`Download/BlueTrace/logs/` 出现刚拉的 `s7_devlog_C8D3E0C1D8F7_*.log.txt`（55122 B）并与早期 4 份真机日志同列；点开显示真实固件日志（`power_on V1.1.99.02` / `BLE FW ver=0x01160000` / `ActivityData…`，1110 行）。截图 `assets/j_*.png`
+
 ## 2026-07-03 · 日志列表 + MAC 命名 + 滚动条 + 界面行号（第 9 轮）
 
 针对日志查看的一组细化（本轮）：
