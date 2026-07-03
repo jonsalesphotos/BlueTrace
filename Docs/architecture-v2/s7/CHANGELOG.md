@@ -3,6 +3,14 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 扫描按钮两态区分 + 图标（第 15 轮）
+
+- 底部「停止扫描 / 重新扫描」原来两态同款(灰描边无图标),改为**明显区分 + 加图标**：
+  - **扫描中** → 灰描边 `OutlineBtn` + **Stop(■)** 图标「停止扫描」(次要)
+  - **已停** → 蓝实心 `PrimaryButton` + **Refresh(↻)** 图标「重新扫描」(主 CTA)
+- `OutlineBtn` 加 `leadingIcon` / `borderColor` 参数（对齐 `PrimaryButton` 的 `leadingIcon`）；两连接页均改为按 `scanning` 状态切换两种按钮。
+- **真机验证**（Redmi / Android 13）：扫描态灰描边 ■ 停止扫描、停止后变蓝实心 ↻ 重新扫描，填充/颜色/图标三重区分。截图 `assets/o_*.png`
+
 ## 2026-07-03 · 连接页细节打磨（第 14 轮）
 
 四个 UI 细节修正（两连接页均生效）：

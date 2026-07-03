@@ -174,14 +174,20 @@ fun OutlineBtn(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     color: Color = BT.onSurface,
+    leadingIcon: ImageVector? = null,
+    borderColor: Color = BT.outlineV,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(BT.radius),
-        border = BorderStroke(1.dp, BT.outlineV),
+        border = BorderStroke(1.dp, borderColor),
     ) {
+        if (leadingIcon != null) {
+            Icon(leadingIcon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
+        }
         Text(text, fontSize = 14.sp, fontWeight = FontWeight.W600, color = color)
     }
 }

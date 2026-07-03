@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -34,6 +37,7 @@ import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.OutlineBtn
+import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.ScanFilterBar
 import io.bluetrace.ui.components.ScanPermissionBanner
 import io.bluetrace.ui.components.rememberScanPermission
@@ -83,17 +87,23 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
         }
 
         Column(Modifier.navigationBarsPadding().padding(14.dp)) {
-            OutlineBtn(
-                stringResource(if (ui.scanning) R.string.console_scan_stop else R.string.console_scan_start),
-                onClick = {
-                    when {
-                        ui.scanning -> vm.stopScan()
-                        !perm.granted -> perm.request() // 权限不足 → 弹授权（含定位）
-                        else -> vm.startScan()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // 扫描中 = 灰描边「停止扫描」(Stop)；已停 = 蓝实心「重新扫描」(Refresh)——两态明显区分
+            if (ui.scanning) {
+                OutlineBtn(
+                    text = stringResource(R.string.console_scan_stop),
+                    onClick = { vm.stopScan() },
+                    leadingIcon = Icons.Filled.Stop,
+                    color = BT.onSurfaceV,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                PrimaryButton(
+                    text = stringResource(R.string.console_scan_start),
+                    onClick = { if (!perm.granted) perm.request() else vm.startScan() },
+                    leadingIcon = Icons.Filled.Refresh,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
