@@ -129,9 +129,9 @@ class DeviceConsoleViewModel(
                 _state.update { it.copy(candidates = candidates) }
                 val current = _state.value.device
                 when {
-                    // 当前受控设备仍在册 → 保持不动（黏性选择）
-                    current != null && candidates.any { it.id == current.id } -> Unit
-                    // 恰好一台 → 自动附着；0 台或多台 → 脱离（多台等用户选择，用户要求）
+                    // 已选设备**始终黏附**：断开（自断/掉链）也留在控制台，可就地重连；切换由用户手动（卡片/候选）
+                    current != null -> Unit
+                    // 首次进入且恰好一台 → 自动附着；0 台或多台 → 脱离（多台等用户选择，用户要求）
                     candidates.size == 1 -> attach(candidates.first())
                     else -> attach(null)
                 }
@@ -158,6 +158,19 @@ class DeviceConsoleViewModel(
             ble.connect(device)
             // 连上补登记（黏性受控设备可能因掉链已不在册）；未连成时 linkState 会回落 DISCONNECTED
             if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
+        }
+    }
+
+    /**
+     * 主动断开当前设备：从控制台就地断开（不必回连接页），设备仍**黏附**在控制台显示为断开态，可点「重连」再连。
+     * 从 registry 移除（连接页/已连计数随之更新，手表也会恢复广播、在连接页重新可见）。
+     */
+    fun disconnect() {
+        val device = _state.value.device ?: return
+        if (_state.value.link == LinkState.DISCONNECTED) return
+        opsScope.launch {
+            ble.disconnect(device.id)
+            registry.remove(device.id)
         }
     }
 

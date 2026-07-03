@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.lazy.LazyColumn
@@ -112,7 +113,7 @@ fun DeviceConsoleScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Spacer(Modifier.height(2.dp))
-            DeviceHeader(ui, onOpenConnect = onOpenConnect, onReconnect = { vm.reconnect() })
+            DeviceHeader(ui, onOpenConnect = onOpenConnect, onReconnect = { vm.reconnect() }, onDisconnect = { vm.disconnect() })
             if (ui.candidates.size > 1) {
                 CandidateChips(ui, onPick = { vm.selectDevice(it) })
             }
@@ -266,7 +267,7 @@ private fun CandidateChips(ui: ConsoleUiState, onPick: (String) -> Unit) {
 
 /** 设备头卡：整卡点击即进「连接手表」页（连接/切换设备）。右侧 › 提示可点。 */
 @Composable
-private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconnect: () -> Unit) {
+private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconnect: () -> Unit, onDisconnect: () -> Unit) {
     Section(onClick = onOpenConnect) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -279,10 +280,10 @@ private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconn
                     )
                 }
             }
-            // 断开态 → 「重连」按钮（直接重连当前设备，不必回连接页重选）；其它态 → 状态标
+            // 连接态 → 「断开」按钮；断开态 → 「重连」按钮（均就地操作当前设备，不必回连接页）；中间态 → 状态标
             when (ui.link) {
-                LinkState.DISCONNECTED -> ReconnectChip(onClick = onReconnect)
-                LinkState.CONNECTED -> StatusPill("CONNECTED", fg = BT.onSuccessC, bg = BT.successC)
+                LinkState.CONNECTED -> HeaderActionChip(stringResource(R.string.console_disconnect), Icons.Filled.LinkOff, fg = BT.error, bg = BT.errorC, onClick = onDisconnect)
+                LinkState.DISCONNECTED -> HeaderActionChip(stringResource(R.string.console_reconnect), Icons.Filled.Refresh, fg = BT.onPrimaryC, bg = BT.primary, onClick = onReconnect)
                 LinkState.CONNECTING -> StatusPill("CONNECTING", fg = BT.onSurfaceV, bg = BT.surface2)
                 LinkState.RECONNECTING -> StatusPill("RECONNECTING", fg = BT.onSurfaceV, bg = BT.surface2)
             }
@@ -294,20 +295,26 @@ private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconn
     }
 }
 
-/** 断开态的「重连」按钮：点它直接重连当前设备（其 clickable 消费点击，不会触发整卡进连接页）。 */
+/** 头卡链路操作按钮（重连 / 断开）：其 clickable 消费点击，不会触发整卡进连接页。 */
 @Composable
-private fun ReconnectChip(onClick: () -> Unit) {
+private fun HeaderActionChip(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    fg: androidx.compose.ui.graphics.Color,
+    bg: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(BT.primary)
+            .background(bg)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Refresh, contentDescription = null, tint = BT.onPrimaryC, modifier = Modifier.size(14.dp))
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
-        Text(stringResource(R.string.console_reconnect), fontSize = 12.sp, fontWeight = FontWeight.W800, color = BT.onPrimaryC)
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.W800, color = fg)
     }
 }
 

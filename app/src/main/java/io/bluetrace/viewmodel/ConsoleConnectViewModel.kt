@@ -68,11 +68,15 @@ class ConsoleConnectViewModel(
             val query = ctl.query
             val rssi = ctl.rssi
             val connectedIds = connected.map { it.id }.toSet()
+            val resultIds = results.mapTo(HashSet()) { it.id }
+            // 已连接手表常在连接后**停止广播** → 从扫描结果消失；把已连设备并回来，保证始终可见并置顶
+            val merged = results + connected.filter { it.id !in resultIds && it.kind != DeviceKind.REFERENCE }
 
-            val rows = results.asSequence()
-                // 无名设备不显示；参考设备不进控制台
-                .filter { it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE }
-                .filter { it.rssi >= rssi }
+            val rows = merged.asSequence()
+                // 无名/参考过滤 —— 已连接设备**豁免**（始终显示）
+                .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE) }
+                // RSSI 过滤 —— 已连接设备豁免（信号弱也不隐藏）
+                .filter { it.id in connectedIds || it.rssi >= rssi }
                 .filter { query.isBlank() || it.name.contains(query, true) || it.address.contains(query, true) }
                 .map { d ->
                     val link = if (d.id in connectedIds) LinkState.CONNECTED else links[d.id] ?: LinkState.DISCONNECTED

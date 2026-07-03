@@ -76,10 +76,14 @@ class DeviceScanViewModel(
             val connectedIds = connected.map { it.id }.toSet()
             val dutCount = connected.count { it.kind == DeviceKind.DUT }
             val refCount = connected.count { it.kind == DeviceKind.REFERENCE }
-            val rows = raw.results
-                // 隐藏无名设备（含参考心率带在内，命名设备才展示；与控制台页一致）
-                .filter { it.name.isNotBlank() && it.name != "(unnamed)" }
-                .filter { it.rssi >= raw.rssi }
+            val resultIds = raw.results.mapTo(HashSet()) { it.id }
+            // 已连接设备常在连接后**停止广播** → 从扫描结果消失；并回来，保证始终可见并置顶
+            val merged = raw.results + connected.filter { it.id !in resultIds }
+            val rows = merged
+                // 隐藏无名设备（命名设备才展示）—— 已连接设备**豁免**（始终显示）
+                .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)") }
+                // RSSI 过滤 —— 已连接设备豁免
+                .filter { it.id in connectedIds || it.rssi >= raw.rssi }
                 .filter { raw.query.isBlank() || it.name.contains(raw.query, true) || it.address.contains(raw.query, true) }
                 .map { dev ->
                     val link = when {
