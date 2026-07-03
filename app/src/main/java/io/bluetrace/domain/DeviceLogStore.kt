@@ -41,9 +41,10 @@ class DeviceLogStore(private val context: Context) {
         return writeToDownloads(name, bytes) ?: displayDir
     }
 
-    /** 列举全部设备日志（新→旧）。列前先把遗留私有目录的日志迁进 Download。 */
+    /** 列举全部设备日志（新→旧）。列前先迁移遗留私有目录、并把旧的 `.log.txt` 改名回 `.log`。 */
     fun list(): List<Entry> {
         migrateLegacy()
+        renameLegacyTxtToLog()
         val projection = arrayOf(
             MediaStore.Downloads.DISPLAY_NAME,
             MediaStore.Downloads.SIZE,
@@ -86,7 +87,8 @@ class DeviceLogStore(private val context: Context) {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
-            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+            // 用 octet-stream 而非 text/plain：后者会被 MediaStore 强制补 .txt（.log→.log.txt）
+            put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
             put(MediaStore.Downloads.RELATIVE_PATH, relPath)
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
@@ -112,6 +114,33 @@ class DeviceLogStore(private val context: Context) {
                 if (writeToDownloads(f.name, f.readBytes()) != null) f.delete()
             } catch (_: Exception) {
                 // 迁移失败：保留原文件，下次 list 再试
+            }
+        }
+    }
+
+    /** 早期用 text/plain 导出的 `s7_devlog_*.log.txt` 尽力改名回 `.log`（非本 app 拥有的旧文件会失败，跳过）。 */
+    private fun renameLegacyTxtToLog() {
+        val resolver = context.contentResolver
+        val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME)
+        val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ? AND ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?"
+        val args = arrayOf("$displayDir%", "s7_devlog%.log.txt")
+        val hits = mutableListOf<Pair<Long, String>>()
+        resolver.query(collection, projection, selection, args, null)?.use { c ->
+            val idi = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+            val ni = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+            while (c.moveToNext()) hits += c.getLong(idi) to c.getString(ni)
+        }
+        for ((id, name) in hits) {
+            val newName = name.removeSuffix(".txt")
+            if (newName == name) continue
+            try {
+                val v = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, newName)
+                    put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+                }
+                resolver.update(ContentUris.withAppendedId(collection, id), v, null, null)
+            } catch (_: Exception) {
+                // 非本 app 拥有的旧文件改名会抛 RecoverableSecurityException，跳过
             }
         }
     }

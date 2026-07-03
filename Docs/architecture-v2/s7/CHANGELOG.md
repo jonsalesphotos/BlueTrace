@@ -3,6 +3,13 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 日志大小人类可读 + 后缀改回 .log（第 11 轮）
+
+- **文件大小人类可读**：列表由裸字节 `55122 B` 改为 `53.8 KB`（B / KB / MB / GB，保留 1 位小数，固定用 `.` 作小数点，`ConsoleLogListScreen.humanSize`）。
+- **后缀改回 `.log`（去 `.txt`）**：写入 MIME 由 `text/plain` 改为 `application/octet-stream`——MediaStore 对 octet-stream 不强制补扩展名，`s7_devlog_*.log` 保持原名。
+- **旧文件尽力改名**：首次进列表把历史 `s7_devlog_*.log.txt` 通过 MediaStore `update(DISPLAY_NAME)` 改名回 `.log`（`renameLegacyTxtToLog`）；非本 app 拥有的旧文件会抛 `RecoverableSecurityException`，`try/catch` 跳过。
+- **真机验证**（Redmi / Android 13）：迁移写入的探针文件保持 `.log`；列表 5 份真机日志全部 `.log`、大小显示 `53.8 KB / 487.1 KB / 486.3 KB / 52.0 KB / 43.2 KB`；本机 5 份历史 `.log.txt` 全部成功改名（跨安装亦可）；探针清理后无残留幽灵行。截图 `assets/k_*.png`
+
 ## 2026-07-03 · 设备日志改存公共 Download（第 10 轮）
 
 - **反馈**：设备日志列表读的是 app 私有 `Android/data/io.bluetrace/files/devlogs/`，新版安卓文件管理器难进——**能否放到 Download 目录**。
@@ -10,7 +17,7 @@
   - `save` → `MediaStore.Downloads` 插入 `RELATIVE_PATH=Download/BlueTrace/logs`、字节直写；`list` → ContentResolver 查询（`s7_devlog` 前缀、按 `DATE_MODIFIED` 降序）；`read` → 按 DISPLAY_NAME 查 id → `openInputStream` 读回。
   - `pullLog` 不变（仍 `logStore.save`），列表/查看页自动改读 Download。
   - **一次性迁移**：首次进列表把遗留私有 `devlogs/` 的日志搬进 Download 后删原件，历史日志不丢。
-- **注**：MediaStore 按 `text/plain` MIME 会补 `.txt` 后缀（`s7_devlog_*.log` → `.log.txt`），与既有导出文件一致，且文件管理器可当文本直接预览。
+- **注**：本轮用 `text/plain` MIME，MediaStore 会补 `.txt` 后缀（`s7_devlog_*.log` → `.log.txt`）——第 11 轮改回 `.log`。
 - **真机验证**（Redmi / Android 13）：进列表后私有目录清空、`Download/BlueTrace/logs/` 出现刚拉的 `s7_devlog_C8D3E0C1D8F7_*.log.txt`（55122 B）并与早期 4 份真机日志同列；点开显示真实固件日志（`power_on V1.1.99.02` / `BLE FW ver=0x01160000` / `ActivityData…`，1110 行）。截图 `assets/j_*.png`
 
 ## 2026-07-03 · 日志列表 + MAC 命名 + 滚动条 + 界面行号（第 9 轮）

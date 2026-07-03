@@ -86,7 +86,7 @@ fun ConsoleLogListScreen(
                         "${p.year}-${p2(p.month)}-${p2(p.day)} ${p2(p.hour)}:${p2(p.minute)}"
                     }
                     androidx.compose.material3.Text(
-                        "$date · ${e.sizeBytes} B",
+                        "$date · ${humanSize(e.sizeBytes)}",
                         fontSize = 11.sp,
                         color = BT.onSurfaceV,
                         fontFamily = FontFamily.Monospace,
@@ -99,3 +99,11 @@ fun ConsoleLogListScreen(
 }
 
 private fun p2(v: Int) = if (v < 10) "0$v" else "$v"
+
+/** 字节 → 人类可读（B / KB / MB / GB，保留 1 位小数，固定用 . 作小数点）。 */
+private fun humanSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024L * 1024 -> String.format(java.util.Locale.US, "%.1f KB", bytes / 1024.0)
+    bytes < 1024L * 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", bytes / (1024.0 * 1024))
+    else -> String.format(java.util.Locale.US, "%.1f GB", bytes / (1024.0 * 1024 * 1024))
+}
