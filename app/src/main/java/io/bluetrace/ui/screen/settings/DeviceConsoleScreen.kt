@@ -66,7 +66,7 @@ import org.koin.androidx.compose.koinViewModel
 fun DeviceConsoleScreen(
     onBack: () -> Unit,
     onOpenConnect: () -> Unit,
-    onOpenLogView: () -> Unit,
+    onOpenLogs: () -> Unit,
     vm: DeviceConsoleViewModel = koinViewModel(),
 ) {
     val ui by vm.state.collectAsState()
@@ -98,7 +98,7 @@ fun DeviceConsoleScreen(
             if (ui.candidates.size > 1) {
                 DevicePicker(ui, onPick = { vm.selectDevice(it) }, onOpenConnect = onOpenConnect)
             } else {
-                NotConnected(onOpenConnect)
+                NotConnected(onOpenConnect, onOpenLogs)
             }
             return@Column
         }
@@ -116,7 +116,7 @@ fun DeviceConsoleScreen(
             IdentitySection(ui, onRefresh = { vm.refreshAll() })
             TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
             PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
-            LogSection(ui, onPull = { vm.pullLog() }, onView = onOpenLogView)
+            LogSection(ui, onPull = { vm.pullLog() }, onView = onOpenLogs)
             DangerSection(
                 ui,
                 onFind = { vm.toggleFind() },
@@ -185,7 +185,7 @@ fun DeviceConsoleScreen(
 }
 
 @Composable
-private fun NotConnected(onOpenConnect: () -> Unit) {
+private fun NotConnected(onOpenConnect: () -> Unit, onOpenLogs: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -196,6 +196,9 @@ private fun NotConnected(onOpenConnect: () -> Unit) {
         Text(stringResource(R.string.console_not_connected_hint), fontSize = 13.sp, color = BT.onSurfaceV)
         Spacer(Modifier.height(20.dp))
         PrimaryButton(stringResource(R.string.console_go_connect), onClick = onOpenConnect, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        // 查看历史日志不需连接
+        OutlineBtn(stringResource(R.string.console_log_view), onClick = onOpenLogs, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -423,15 +426,13 @@ private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit, onView: () -> Uni
             modifier = Modifier.fillMaxWidth(),
             enabled = ui.busy == null && !ui.logRunning && ui.link == LinkState.CONNECTED,
         )
-        // 拉取完成后可查看
-        if (ui.logAvailable) {
-            Spacer(Modifier.height(6.dp))
-            OutlineBtn(
-                stringResource(R.string.console_log_view),
-                onClick = onView,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        // 查看日志列表（离线也可看历史日志，不需连接）
+        Spacer(Modifier.height(6.dp))
+        OutlineBtn(
+            stringResource(R.string.console_log_view),
+            onClick = onView,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.bluetrace.data.android.ExportResult
 import io.bluetrace.data.android.MediaStoreExporter
 import io.bluetrace.domain.ConnectionRegistry
-import io.bluetrace.domain.S7LogHolder
+import io.bluetrace.domain.DeviceLogStore
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
@@ -99,7 +99,7 @@ class DeviceConsoleViewModel(
     private val zone: TimeZoneProvider,
     private val subjects: SubjectRepository,
     private val exporter: MediaStoreExporter,
-    private val logHolder: S7LogHolder,
+    private val logStore: DeviceLogStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConsoleUiState())
@@ -295,18 +295,11 @@ class DeviceConsoleViewModel(
                 return@op
             }
             val ts = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds()).compact()
-            val fileName = "s7_devlog_$ts.log"
-            // 拉回内容存 holder（供「查看日志」页读取）；同时导出到公共 Download。
-            logHolder.set(bytes.decodeToString(), fileName)
+            val mac = _state.value.device?.address ?: "unknown"
+            // 存进设备日志文件夹（以 MAC 区分文件名，可在「查看日志」列表选看）
+            val path = logStore.save(bytes, mac, ts)
             _state.update { it.copy(logAvailable = true) }
-            when (val r = exporter.exportLogBytes(bytes, fileName)) {
-                is ExportResult.Success -> _toasts.tryEmit(ConsoleToast.Exported(r.displayPath))
-                is ExportResult.Error -> {
-                    _state.update { it.copy(error = "SAVE_FAILED") }
-                    _toasts.tryEmit(ConsoleToast.ExportFailed(r.message))
-                }
-                else -> _toasts.tryEmit(ConsoleToast.ExportFailed("SAVE_FAILED"))
-            }
+            _toasts.tryEmit(ConsoleToast.Exported(path))
         } finally {
             _state.update { it.copy(logRunning = false) }
         }

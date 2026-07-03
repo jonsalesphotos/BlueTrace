@@ -3,6 +3,27 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 日志列表 + MAC 命名 + 滚动条 + 界面行号（第 9 轮）
+
+针对日志查看的一组细化（本轮）：
+
+| # | 反馈 | 改动 |
+|---|------|------|
+| 1 | 日志文件夹的所有日志先用列表，手动选择查看哪一条 | 新增**日志列表页** `ConsoleLogListScreen`：列出 `devlogs/` 全部文件（按修改时间倒序），显示文件名 + 日期·字节数，点选进查看页；控制台/未连接态「查看日志」均先进列表 |
+| 2 | 日志名称要以 MAC 作为区分 | 落盘文件名改为 `s7_devlog_<MAC 去冒号大写>_<时间戳>.log`；拉取时用当前连接设备地址命名 |
+| 3 | 长日志没有滚动条 | 查看页加**竖向滚动条**（thumb 高∝可见比例、位置∝进度，**可拖动跳转**）；长行另有横向滚动 |
+| 4 | 行号是界面的、文本要原样呈现 | 每行 `Row{ 行号 gutter Text（界面元素）+ 正文 Text（`softWrap=false` 原样）}`——行号不进正文，正文含前导空格/缩进**逐字符保留** |
+
+**代码改动**
+- `domain/DeviceLogStore.kt`（新）：app 级单例，`devlogs/` 目录；`save(bytes, mac, ts)` MAC 命名、`list()` 倒序枚举、`read(name)` 防目录穿越读取。**替换**原 `S7LogHolder`（内存单份 → 文件多份可列表）
+- `ui/screen/settings/ConsoleLogListScreen.kt`（新）：列表页，注入 `DeviceLogStore` + `TimeZoneProvider`（日期按用户时区渲染）
+- `ui/screen/settings/ConsoleLogViewScreen.kt`（重写）：按文件名 IO 读取 → 按行切分 → `LazyColumn` 行号 gutter + 原样正文 + `VerticalScrollbar`
+- `viewmodel/DeviceConsoleViewModel.kt`：`pullLog` 用设备 MAC 存盘、`logStore` 替换 `logHolder`
+- `ui/nav/Routes.kt`：`ConsoleLogList`（object）+ `ConsoleLogView(fileName)`；`BlueTraceApp.kt` 三级导航（控制台 → 列表 → 查看）
+- 未连接态「查看日志」入口——支持**离线**翻看历史日志
+
+**真机验证**（Redmi）：列表展示两条不同 MAC 文件（`71614819FCC4` 102088 B / `C8D3E0C1D8F7` 82 B），手动点选任意条进查看页；长日志 1200 行行号 gutter + 竖/横滚动条正常；短日志缩进行 `    indented line kept verbatim` 前导空格逐字符保留、尾部空行如实呈现。截图 `assets/h_*.png`
+
 ## 2026-07-03 · 日志查看页（第 8 轮）
 
 - 设备日志区**去掉「已保存: <路径>」行**（保存路径仍由 toast 提示）

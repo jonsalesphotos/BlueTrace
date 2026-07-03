@@ -328,6 +328,7 @@
     <string name="console_save">写入设备</string>
     <string name="console_log_pull">拉取设备日志</string>
     <string name="console_log_view">查看日志</string>
+    <string name="console_log_list_title">设备日志列表</string>
     <string name="console_log_view_title">设备日志</string>
     <string name="console_log_empty">暂无日志，先拉取。</string>
     <string name="console_log_progress">已收 %1$d 块 · %2$d B</string>

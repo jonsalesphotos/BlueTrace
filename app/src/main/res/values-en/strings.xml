@@ -320,7 +320,8 @@
     <string name="console_field_birth_day">Day</string>
     <string name="console_save">Write to device</string>
     <string name="console_log_pull">Pull device log</string>
-    <string name="console_log_view">View log</string>
+    <string name="console_log_view">View logs</string>
+    <string name="console_log_list_title">Device logs</string>
     <string name="console_log_view_title">Device log</string>
     <string name="console_log_empty">No log yet; pull first.</string>
     <string name="console_log_progress">%1$d chunks · %2$d B</string>
