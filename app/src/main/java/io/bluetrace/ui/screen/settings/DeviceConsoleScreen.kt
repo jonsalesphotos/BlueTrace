@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.s7.S7
+import io.bluetrace.shared.s7.S7DateTime
 import io.bluetrace.shared.s7.S7Person
 import io.bluetrace.shared.util.epochMsToLocalParts
 import io.bluetrace.ui.components.BtTopBar
@@ -71,6 +72,7 @@ fun DeviceConsoleScreen(
     val ctx = LocalContext.current
     var confirm by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (ctrlKey, labelRes)
     var editPerson by remember { mutableStateOf(false) }
+    var editTime by remember { mutableStateOf(false) }
 
     // 一次性土 toast：指令成功/失败/导出结果
     LaunchedEffect(Unit) {
@@ -111,7 +113,7 @@ fun DeviceConsoleScreen(
             }
             ui.error?.let { ErrorBar(it) { vm.clearError() } }
             IdentitySection(ui, onRefresh = { vm.refreshAll() })
-            TimeSection(ui, onSync = { vm.syncTime() })
+            TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
             PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
             LogSection(ui, onPull = { vm.pullLog() })
             DangerSection(
@@ -131,6 +133,18 @@ fun DeviceConsoleScreen(
             onConfirm = { p ->
                 editPerson = false
                 vm.writePerson(p)
+            },
+        )
+    }
+
+    if (editTime) {
+        TimeEditDialog(
+            initial = ui.deviceTime ?: vm.phoneNowDateTime(),
+            phoneNow = { vm.phoneNowDateTime() },
+            onDismiss = { editTime = false },
+            onConfirm = { dt ->
+                editTime = false
+                vm.setCustomTime(dt)
             },
         )
     }
@@ -327,7 +341,7 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
 }
 
 @Composable
-private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit) {
+private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit, onCustom: () -> Unit) {
     Section(stringResource(R.string.console_sec_time)) {
         Kv(stringResource(R.string.console_time_device), ui.deviceTime?.display())
         val drift = ui.driftSec
@@ -346,11 +360,20 @@ private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit) {
             )
         }
         Spacer(Modifier.height(8.dp))
-        OutlineBtn(
+        val enabled = ui.busy == null && ui.link == LinkState.CONNECTED
+        PrimaryButton(
             stringResource(R.string.console_sync_time),
             onClick = onSync,
             modifier = Modifier.fillMaxWidth(),
-            enabled = ui.busy == null && ui.link == LinkState.CONNECTED,
+            enabled = enabled,
+        )
+        Spacer(Modifier.height(6.dp))
+        // 自定义对时：可填任意时间 + 时区，测跨时区 / 过零点
+        OutlineBtn(
+            stringResource(R.string.console_custom_time),
+            onClick = onCustom,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
         )
     }
 }
@@ -600,6 +623,83 @@ private fun PersonEditDialog(
             }) { Text(stringResource(R.string.console_save), color = BT.primaryDeep, fontWeight = FontWeight.W700) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.console_cancel)) } },
+    )
+}
+
+/** 自定义对时对话框：年月日时分秒 + 时区，写入设备（测跨时区/过零点）。 */
+@Composable
+private fun TimeEditDialog(
+    initial: S7DateTime,
+    phoneNow: () -> S7DateTime,
+    onDismiss: () -> Unit,
+    onConfirm: (S7DateTime) -> Unit,
+) {
+    var year by remember { mutableStateOf(initial.year.toString()) }
+    var month by remember { mutableStateOf(initial.month.toString()) }
+    var day by remember { mutableStateOf(initial.day.toString()) }
+    var hour by remember { mutableStateOf(initial.hour.toString()) }
+    var minute by remember { mutableStateOf(initial.minute.toString()) }
+    var second by remember { mutableStateOf(initial.second.toString()) }
+    var tz by remember { mutableStateOf(initial.timezone.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.console_time_edit_title), fontSize = 16.sp) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.weight(1.4f)) { NumField(year, { year = it }, stringResource(R.string.console_tf_year)) }
+                    Box(Modifier.weight(1f)) { NumField(month, { month = it }, stringResource(R.string.console_tf_month)) }
+                    Box(Modifier.weight(1f)) { NumField(day, { day = it }, stringResource(R.string.console_tf_day)) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.weight(1f)) { NumField(hour, { hour = it }, stringResource(R.string.console_tf_hour)) }
+                    Box(Modifier.weight(1f)) { NumField(minute, { minute = it }, stringResource(R.string.console_tf_min)) }
+                    Box(Modifier.weight(1f)) { NumField(second, { second = it }, stringResource(R.string.console_tf_sec)) }
+                }
+                SignedField(tz, { tz = it }, stringResource(R.string.console_tf_tz))
+                Text(stringResource(R.string.console_tz_note), fontSize = 10.sp, color = BT.onSurfaceV)
+                OutlineBtn(
+                    stringResource(R.string.console_fill_phone),
+                    onClick = {
+                        val n = phoneNow()
+                        year = n.year.toString(); month = n.month.toString(); day = n.day.toString()
+                        hour = n.hour.toString(); minute = n.minute.toString(); second = n.second.toString()
+                        tz = n.timezone.toString()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onConfirm(
+                    S7DateTime(
+                        year = year.toIntOrNull()?.coerceIn(2000, 2099) ?: initial.year,
+                        month = month.toIntOrNull()?.coerceIn(1, 12) ?: initial.month,
+                        day = day.toIntOrNull()?.coerceIn(1, 31) ?: initial.day,
+                        hour = hour.toIntOrNull()?.coerceIn(0, 23) ?: initial.hour,
+                        minute = minute.toIntOrNull()?.coerceIn(0, 59) ?: initial.minute,
+                        second = second.toIntOrNull()?.coerceIn(0, 59) ?: initial.second,
+                        week = 1, // 由 shared 层按 y/m/d 自算覆盖
+                        timezone = tz.toIntOrNull()?.coerceIn(-12, 14) ?: 0,
+                    ),
+                )
+            }) { Text(stringResource(R.string.console_write_time), color = BT.primaryDeep, fontWeight = FontWeight.W700) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.console_cancel)) } },
+    )
+}
+
+@Composable
+private fun SignedField(value: String, onChange: (String) -> Unit, label: String) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { s -> onChange(s.filter { it.isDigit() || it == '-' }.take(3)) },
+        label = { Text(label, fontSize = 12.sp) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
     )
 }
 

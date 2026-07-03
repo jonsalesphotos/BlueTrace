@@ -47,6 +47,26 @@ class S7ConsoleTest {
     }
 
     @Test
+    fun setCustomDateTime_writesAndReadsBack() = runTest {
+        // 自定义对时：写任意时间（测跨时区/过零点）→ Mock 手表回读一致
+        val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
+        mock.connect(s7Device())
+        val console = newConsole(mock).also { it.start() }
+
+        // 过零点边界 23:59:58 + 跨时区 tz=-5
+        val target = S7DateTime(2026, 12, 31, 23, 59, 58, week = 1, timezone = -5)
+        val applied = console.setDateTime(target)
+        assertEquals(2026, applied.year)
+        assertEquals(12, applied.month)
+        assertEquals(31, applied.day)
+        assertEquals(23, applied.hour)
+        assertEquals(59, applied.minute)
+        assertEquals(58, applied.second)
+        // week 由 y/m/d 自算：2026-12-31 是周四 → 4
+        assertEquals(4, applied.week)
+    }
+
+    @Test
     fun readAllIdentityAndBattery() = runTest {
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         mock.connect(s7Device())

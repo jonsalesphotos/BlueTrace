@@ -290,7 +290,19 @@
     <string name="console_time_device">Device time</string>
     <string name="console_time_drift">Drift vs phone</string>
     <string name="console_drift_fmt">%1$+d s</string>
-    <string name="console_sync_time">Sync time</string>
+    <string name="console_sync_time">Sync phone time</string>
+    <string name="console_custom_time">Custom time</string>
+    <string name="console_time_edit_title">Custom time (test timezone / midnight)</string>
+    <string name="console_tf_year">Y</string>
+    <string name="console_tf_month">Mon</string>
+    <string name="console_tf_day">D</string>
+    <string name="console_tf_hour">H</string>
+    <string name="console_tf_min">Min</string>
+    <string name="console_tf_sec">Sec</string>
+    <string name="console_tf_tz">TZ(hours)</string>
+    <string name="console_tz_note">TZ 0 = keep device timezone; non-zero = set that UTC offset (e.g. 8 / -5 / 13).</string>
+    <string name="console_fill_phone">Fill phone time now</string>
+    <string name="console_write_time">Write to device</string>
     <string name="console_find_start">Find watch</string>
     <string name="console_find_stop">Stop finding</string>
     <string name="console_write_person">Edit &amp; write</string>

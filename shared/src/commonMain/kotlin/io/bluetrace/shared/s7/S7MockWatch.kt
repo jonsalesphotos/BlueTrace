@@ -86,13 +86,18 @@ class S7MockWatch(
         else -> S7MockReply(listOf(commAck(msg.cmd, msg.key, 0x05))) // NOT_SUPPORT
     }
 
+    /** 被 SET 后记住的设备时间（冻结回读，便于测试自定义对时/跨时区）；null=用内部时钟。 */
+    private var overrideDateTime: S7DateTime? = null
+
     private fun get(key: Int): ByteArray = when (key) {
         S7.KEY_DATE_TIME -> {
-            val parts = epochMsToLocalParts(clock.nowMs() + clockDriftMs, zoneOffsetSeconds)
-            val dt = S7DateTime(
-                parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second,
-                week = 1, timezone = zoneOffsetSeconds / 3600,
-            )
+            val dt = overrideDateTime ?: run {
+                val parts = epochMsToLocalParts(clock.nowMs() + clockDriftMs, zoneOffsetSeconds)
+                S7DateTime(
+                    parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second,
+                    week = 1, timezone = zoneOffsetSeconds / 3600,
+                )
+            }
             S7FrameCodec.encodeResponse(S7.CMD_GET, key, dt.encode())
         }
         S7.KEY_PERSON_DATA -> S7FrameCodec.encodeResponse(S7.CMD_GET, key, person.encodeSet().copyOfRange(0, 7))
@@ -120,7 +125,8 @@ class S7MockWatch(
             S7.KEY_DATE_TIME -> {
                 val dt = S7DateTime.parse(msg.param)
                 if (dt == null) 0x06 else {
-                    clockDriftMs = 0 // 对时成功：漂移归零（简化模拟）
+                    overrideDateTime = dt // 记住被设置的时间（冻结回读，测自定义对时/跨时区/过零点）
+                    clockDriftMs = 0
                     0x00
                 }
             }

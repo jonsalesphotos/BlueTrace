@@ -232,6 +232,19 @@ class DeviceConsoleViewModel(
         _toasts.tryEmit(ConsoleToast.TimeSynced)
     }
 
+    /** 自定义对时：把用户填的 [dt] 写入设备（测试跨时区 / 过零点）。 */
+    fun setCustomTime(dt: S7DateTime) = op("setTime") { c ->
+        val applied = c.setDateTime(dt)
+        _state.update { it.copy(deviceTime = applied, driftSec = c.driftSeconds(applied)) }
+        _toasts.tryEmit(ConsoleToast.TimeSynced)
+    }
+
+    /** 编辑对话框预填：设备当前时间，或手机本地时间。 */
+    fun phoneNowDateTime(): S7DateTime {
+        val p = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds())
+        return S7DateTime(p.year, p.month, p.day, p.hour, p.minute, p.second, week = 1, timezone = 0)
+    }
+
     fun toggleFind() = op("find") { c ->
         val target = !_state.value.finding
         c.findWatch(target)

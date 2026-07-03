@@ -297,7 +297,19 @@
     <string name="console_time_device">设备时间</string>
     <string name="console_time_drift">与手机偏差</string>
     <string name="console_drift_fmt">%1$+d 秒</string>
-    <string name="console_sync_time">同步时间</string>
+    <string name="console_sync_time">同步手机时间</string>
+    <string name="console_custom_time">自定义对时</string>
+    <string name="console_time_edit_title">自定义对时（测试跨时区 / 过零点）</string>
+    <string name="console_tf_year">年</string>
+    <string name="console_tf_month">月</string>
+    <string name="console_tf_day">日</string>
+    <string name="console_tf_hour">时</string>
+    <string name="console_tf_min">分</string>
+    <string name="console_tf_sec">秒</string>
+    <string name="console_tf_tz">时区(小时)</string>
+    <string name="console_tz_note">时区 0 = 保持设备时区不改；非 0 = 设为该 UTC 偏移（如 8 / -5 / 13）。</string>
+    <string name="console_fill_phone">填手机当前时间</string>
+    <string name="console_write_time">写入设备</string>
     <string name="console_find_start">找手表</string>
     <string name="console_find_stop">结束找表</string>
     <string name="console_write_person">编辑并写入</string>

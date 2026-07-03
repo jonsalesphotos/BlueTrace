@@ -182,13 +182,33 @@ class S7Console(
     /** 手机当前本地时间 → SET（timezone=0 保持设备时区不改，spec §4.1）。返回同步后的设备时间。 */
     suspend fun syncTime(): S7DateTime {
         val parts = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds())
-        val dt = S7DateTime(
-            parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second,
-            week = 1, // 星期语义待核对（audit 清单）；固件按 y/m/d 自算不依赖此字段
-            timezone = 0,
+        return setDateTime(
+            S7DateTime(
+                parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second,
+                week = weekday(parts.year, parts.month, parts.day),
+                timezone = 0,
+            ),
         )
-        requestAck(S7.CMD_SET, S7.KEY_DATE_TIME, dt.encode())
+    }
+
+    /**
+     * SET 任意日期时间（自定义对时，用于测试跨时区 / 过零点）。
+     * week 字段由 y/m/d 自算（固件通常也自算）；timezone 见 [S7DateTime]（SET 时 0=保持设备时区）。
+     * @return SET 后读回的设备时间。
+     */
+    suspend fun setDateTime(dt: S7DateTime): S7DateTime {
+        val fixed = dt.copy(week = weekday(dt.year, dt.month, dt.day))
+        requestAck(S7.CMD_SET, S7.KEY_DATE_TIME, fixed.encode())
         return getDateTime()
+    }
+
+    /** Zeller 星期（1=周一 … 7=周日）。 */
+    private fun weekday(y: Int, m: Int, d: Int): Int {
+        val (yy, mm) = if (m < 3) (y - 1) to (m + 12) else y to m
+        val k = yy % 100
+        val j = yy / 100
+        val h = (d + (13 * (mm + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7 // 0=周六…
+        return ((h + 5) % 7) + 1 // → 1=周一…7=周日
     }
 
     /** 设备时间与手机时间的偏差秒数（正=设备快）。粗算：同时区假设，UI 展示用。 */
