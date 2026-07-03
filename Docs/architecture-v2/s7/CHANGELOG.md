@@ -3,6 +3,14 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 控制台断开态可直接重连（第 16 轮）
+
+- **反馈**：设备维护页断开时那个 `DISCONNECTED` 标只是显示、不可点;希望**直接重连当前设备**,不必回连接页重选。
+- **改动**：设备头卡的链路状态,断开态由「DISCONNECTED 灰标」改为 **「↻ 重连」蓝按钮**;点它调 `DeviceConsoleViewModel.reconnect()` → `ble.connect(当前设备)`,复用已附着的 `S7Console`(通知走 per-device 持久流,重连即恢复),连上补登记 registry。
+- 链路收集器:`DISCONNECTED` 时重置 `refreshed` 标 → 重连转入 `CONNECTED` 后**再刷新一遍设备信息**。
+- 重连按钮自带 `clickable` 会消费点击,不会误触发「整卡进连接页」;整卡点击仍用于**切换**设备。
+- **真机验证**（Redmi / Android 13 + S7-FCC4）：连上→CONNECTED;关手机蓝牙触发掉链→头卡出现 ↻ 重连、指令区置灰;开蓝牙后点 ↻ 重连→回到 CONNECTED 且设备信息/电压/设备时间自动重刷(4263→4248 mV、时间 07:31:23)。截图 `assets/p_*.png`
+
 ## 2026-07-03 · 扫描按钮两态区分 + 图标（第 15 轮）
 
 - 底部「停止扫描 / 重新扫描」原来两态同款(灰描边无图标),改为**明显区分 + 加图标**：

@@ -343,6 +343,7 @@
     <string name="console_log_note">协议无结束标志：空闲 4 秒判完成，内容可能不完整。</string>
     <string name="console_oplog_export">导出</string>
     <string name="console_tap_to_switch">点此卡片连接 / 切换设备</string>
+    <string name="console_reconnect">重连</string>
     <string name="console_refresh_info">刷新设备信息</string>
     <string name="console_find_hint">再次点击「结束找表」停止震动。</string>
     <string name="toast_time_synced">已同步时间到设备</string>

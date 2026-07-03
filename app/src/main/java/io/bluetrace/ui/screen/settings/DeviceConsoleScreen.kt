@@ -13,7 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -108,7 +112,7 @@ fun DeviceConsoleScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Spacer(Modifier.height(2.dp))
-            DeviceHeader(ui, onOpenConnect = onOpenConnect)
+            DeviceHeader(ui, onOpenConnect = onOpenConnect, onReconnect = { vm.reconnect() })
             if (ui.candidates.size > 1) {
                 CandidateChips(ui, onPick = { vm.selectDevice(it) })
             }
@@ -262,7 +266,7 @@ private fun CandidateChips(ui: ConsoleUiState, onPick: (String) -> Unit) {
 
 /** 设备头卡：整卡点击即进「连接手表」页（连接/切换设备）。右侧 › 提示可点。 */
 @Composable
-private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit) {
+private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconnect: () -> Unit) {
     Section(onClick = onOpenConnect) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -275,22 +279,35 @@ private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit) {
                     )
                 }
             }
-            val (label, ok) = when (ui.link) {
-                LinkState.CONNECTED -> "CONNECTED" to true
-                LinkState.RECONNECTING -> "RECONNECTING" to false
-                LinkState.CONNECTING -> "CONNECTING" to false
-                LinkState.DISCONNECTED -> "DISCONNECTED" to false
+            // 断开态 → 「重连」按钮（直接重连当前设备，不必回连接页重选）；其它态 → 状态标
+            when (ui.link) {
+                LinkState.DISCONNECTED -> ReconnectChip(onClick = onReconnect)
+                LinkState.CONNECTED -> StatusPill("CONNECTED", fg = BT.onSuccessC, bg = BT.successC)
+                LinkState.CONNECTING -> StatusPill("CONNECTING", fg = BT.onSurfaceV, bg = BT.surface2)
+                LinkState.RECONNECTING -> StatusPill("RECONNECTING", fg = BT.onSurfaceV, bg = BT.surface2)
             }
-            StatusPill(
-                label,
-                fg = if (ok) BT.onSuccessC else BT.onSurfaceV,
-                bg = if (ok) BT.successC else BT.surface2,
-            )
             Spacer(Modifier.width(4.dp))
             Text("›", fontSize = 20.sp, color = BT.onSurfaceV)
         }
         Spacer(Modifier.height(6.dp))
         Text(stringResource(R.string.console_tap_to_switch), fontSize = 11.sp, color = BT.onSurfaceV)
+    }
+}
+
+/** 断开态的「重连」按钮：点它直接重连当前设备（其 clickable 消费点击，不会触发整卡进连接页）。 */
+@Composable
+private fun ReconnectChip(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(BT.primary)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Refresh, contentDescription = null, tint = BT.onPrimaryC, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(stringResource(R.string.console_reconnect), fontSize = 12.sp, fontWeight = FontWeight.W800, color = BT.onPrimaryC)
     }
 }
 

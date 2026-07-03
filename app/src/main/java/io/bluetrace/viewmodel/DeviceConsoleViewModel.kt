@@ -145,6 +145,22 @@ class DeviceConsoleViewModel(
         _state.value.candidates.firstOrNull { it.id == id }?.let { attach(it) }
     }
 
+    /**
+     * 重连当前受控设备：控制台断开态**直接重连**，不必回连接页重选（用户要求）。
+     * 复用已附着的 console（其通知订阅走 per-device 持久流，重连即恢复）；连上后 linkState 收集器触发一次 refreshAll。
+     */
+    fun reconnect() {
+        val device = _state.value.device ?: return
+        val l = _state.value.link
+        if (l == LinkState.CONNECTED || l == LinkState.CONNECTING) return
+        opsScope.launch {
+            _state.update { it.copy(link = LinkState.CONNECTING) }
+            ble.connect(device)
+            // 连上补登记（黏性受控设备可能因掉链已不在册）；未连成时 linkState 会回落 DISCONNECTED
+            if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
+        }
+    }
+
     private fun attach(device: ScannedDevice?) {
         console?.stop()
         console = null
@@ -164,9 +180,11 @@ class DeviceConsoleViewModel(
                 var refreshed = false
                 ble.linkState(device.id).collect { l ->
                     _state.update { it.copy(link = l) }
-                    if (l == LinkState.CONNECTED && !refreshed) {
-                        refreshed = true
-                        refreshAll()
+                    when (l) {
+                        LinkState.CONNECTED -> if (!refreshed) { refreshed = true; refreshAll() }
+                        // 断开后重置：下次(重连)转入 CONNECTED 再刷新一遍设备信息
+                        LinkState.DISCONNECTED -> refreshed = false
+                        else -> Unit
                     }
                 }
             }

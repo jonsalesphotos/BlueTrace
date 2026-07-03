@@ -336,6 +336,7 @@
     <string name="console_log_note">Protocol has no EOF: completion inferred after 4 s idle; content may be incomplete.</string>
     <string name="console_oplog_export">Export</string>
     <string name="console_tap_to_switch">Tap this card to connect / switch device</string>
+    <string name="console_reconnect">Reconnect</string>
     <string name="console_refresh_info">Refresh device info</string>
     <string name="console_find_hint">Tap \"Stop finding\" again to stop the vibration.</string>
     <string name="toast_time_synced">Time synced to device</string>
