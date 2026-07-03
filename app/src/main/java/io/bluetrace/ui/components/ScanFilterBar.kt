@@ -97,7 +97,7 @@ fun ScanFilterBar(
                 .clip(RoundedCornerShape(12.dp))
                 .background(BT.surface)
                 .border(1.dp, BT.outlineV, RoundedCornerShape(12.dp))
-                .padding(start = 14.dp, end = 14.dp, top = 9.dp, bottom = 7.dp),
+                .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 4.dp),
         ) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -124,12 +124,14 @@ fun ScanFilterBar(
                 valueRange = rssiRange,
                 interactionSource = interaction,
                 colors = sliderColors,
-                // 16dp 圆环：透明背景（不填白，融入轨道不突兀）+ 2dp primary 描边
+                modifier = Modifier.height(24.dp), // 压低整条高度（默认约 48dp 太高）
+                // 16dp 圆环：内填卡片底色（遮住轨道线，圈内不见线段）+ 2dp primary 描边
                 thumb = {
                     Box(
                         Modifier
                             .size(16.dp)
                             .clip(CircleShape)
+                            .background(BT.surface)
                             .border(2.dp, BT.primary, CircleShape),
                     )
                 },

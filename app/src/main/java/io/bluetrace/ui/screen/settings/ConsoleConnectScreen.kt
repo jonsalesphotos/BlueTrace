@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
@@ -76,7 +77,7 @@ fun ConsoleConnectScreen(onBack: () -> Unit, vm: ConsoleConnectViewModel = koinV
             Modifier.weight(1f).padding(horizontal = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { Spacer(Modifier.height(2.dp)) }
+            item { Spacer(Modifier.height(12.dp)) } // 与过滤条留出间距，不紧贴
             items(ui.rows, key = { it.device.id }) { row -> DeviceRow(row, onToggle = { vm.toggleConnect(row.device) }) }
             item { Spacer(Modifier.height(8.dp)) }
         }
@@ -111,19 +112,27 @@ private fun DeviceRow(row: ConsoleDeviceRow, onToggle: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 不支持设备名灰显、且不带任何标签/按钮（用户要求：不要有文本、不要有按钮）
+                // 名称过长 → 截断省略，给 B2A 标签留位
                 Text(
                     d.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.W700,
                     color = if (row.supported) BT.onSurface else BT.onSurfaceV,
                     fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (row.supported) {
                     Spacer(Modifier.width(6.dp))
                     Tag("B2A", BT.primaryDeep, BT.primaryC)
                 }
             }
-            Text("${d.address} · ${d.rssi} dBm", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
+            Text(
+                "${d.address} · ${d.rssi} dBm",
+                fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
         // 右侧连接/断开按钮：仅受支持设备有；不支持的无按钮无文本
         when {

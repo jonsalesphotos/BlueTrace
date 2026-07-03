@@ -109,6 +109,8 @@ fun PillTag(text: String, fg: Color, bg: Color, modifier: Modifier = Modifier) {
             fontSize = 10.5.sp,
             fontWeight = FontWeight.W600,
             color = fg,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
         )
     }

@@ -3,6 +3,16 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 连接页细节打磨（第 14 轮）
+
+四个 UI 细节修正（两连接页均生效）：
+
+- **RSSI 圆环内不再有线段**：圆环内填卡片底色 `BT.surface`（遮住连续轨道线），配合上一轮的连续轨道 → 圆环坐在线上、圈内干净，不再有线穿过。
+- **RSSI 过滤条压低**：滑条高度约束到 `24dp`（M3 默认约 48dp 太高）、卡片下内边距收到 4dp，整条明显变矮。
+- **过滤区与设备列表留间距**：采集页列表 `contentPadding.top=16dp`、控制台页首项 spacer `2dp→12dp`，不再紧贴。
+- **参考标签显示异常 + 长名处理**：根因是 `PillTag` 的 `Text` 无 `maxLines`——名称过长把标签挤到**竖排**（「参/考」）。修：`PillTag` 加 `maxLines=1 + softWrap=false`（标签永不换行）；两页设备名加 `weight(1f, fill=false) + maxLines=1 + Ellipsis`（过长截断留位），地址行同样单行省略。
+- **真机验证**（Redmi / Android 13）：圆环内无线、RSSI 卡片变矮、与列表有间距均确认；参考设备(Polar Loop, HRS)本次未持续广播、未能抓到实时截图，但竖排根因(PillTag 换行)已从组件层根除。截图 `assets/n_*.png`
+
 ## 2026-07-03 · 圆点透明 + 两页更相似 + 识别优先排序（第 13 轮）
 
 第 12 轮的三点收尾，让采集页与控制台页更趋一致：

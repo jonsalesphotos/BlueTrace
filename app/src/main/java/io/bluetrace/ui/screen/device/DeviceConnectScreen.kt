@@ -34,6 +34,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -109,7 +110,7 @@ fun DeviceConnectScreen(
             LazyColumn(
                 Modifier.weight(1f).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 16.dp, bottom = 10.dp),
             ) {
                 items(ui.rows, key = { it.device.id }) { row ->
                     DeviceRow(row, onClick = { if (!row.disabled) vm.toggleConnect(row.device) })
@@ -162,7 +163,16 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
             }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
+                    // 名称过长 → 截断省略，给标签留位（避免标签被挤到换行竖排）
+                    Text(
+                        device.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.W700,
+                        color = BT.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     when {
                         isRef -> PillTag(stringResource(R.string.device_tag_reference), BT.onTertiaryC, BT.tertiaryC)
                         row.b2a -> PillTag("B2A", BT.primaryDeep, BT.primaryC) // 有 B2A 服务的手表（与控制台页一致）
@@ -176,6 +186,7 @@ private fun DeviceRow(row: DeviceRowUi, onClick: () -> Unit) {
                         if (isRef && device.profileId == PROFILE_HRS) append(" · 0x180D")
                     },
                     fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             LinkBadge(row.link, row.disabled)
