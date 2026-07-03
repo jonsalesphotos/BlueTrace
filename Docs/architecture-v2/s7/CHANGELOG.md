@@ -3,6 +3,15 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · B2A 协议完整规格文档（逐字节·含位域）（第 18 轮）
+
+- **需求**：把 B2A 协议逐条整理——每条命令、分类分组、数据如何组包、包的每字节含义(含位域展开)，成 HTML 文档。
+- **产出**：新增 [protocol-b2a.md](protocol-b2a.md)（44KB / 684 行）+ [protocol-b2a.html](protocol-b2a.html)（71KB，自包含、样式对齐 command-status.html）。
+- **方法**：多代理工作流——4 个抽取代理并行读①传输/帧层 ②app 命令全集 ③日志+OTA ④**代码实证**(shared/s7/*.kt，真机联调过) → 1 个合成代理产出逐字节 markdown → 再由一个代理忠实渲染成 HTML。
+- **内容**：11 章——传输栈(GATT FFE0/E1/E2 / MTU / 分包重组)、**帧格式逐字节**(帧头 8B + 命令头 4B + CRC16-CCITT-FALSE + `ucStatus` 位域逐 bit)、**组包流程**(逻辑包→分片→重组，含 golden hex 示例)、**按分类分组全部命令**(一级 10 个 / Key 级 90+ 条：BOND/GET/SET/PUSH/IND/RPT_DATA/DEV_CTRL/TEST/FILE_TRANS-OTA)，每条含 payload 逐字节表 + 位域表 + 示例帧 + 实现状态徽章、**代码实证 vs 文档 6 处差异**、附录(EBEC 错误码/CRC/全命令索引)。
+- **权威口径**：字节布局以代码实证为最高权威(真机验证)，命令全集/语义/示例补自固件源码，冲突处标 `⚠差异` 并在第 10 章汇总。
+- 浏览器渲染核对：hero/目录导航/逐字节表/位域表/深色 hex 帧图/徽章/锚点跳转均正常。
+
 ## 2026-07-03 · 已连设备置顶 + 控制台就地断开（第 17 轮）
 
 两点：
