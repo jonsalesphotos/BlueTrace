@@ -94,6 +94,7 @@ val appModule = module {
 
     // ---- app 级状态 / 仓库 ----
     single { ConnectionRegistry() }
+    single { io.bluetrace.domain.S7LogHolder() }
     single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
@@ -123,6 +124,7 @@ val appModule = module {
             zone = get(),
             subjects = get(),
             exporter = get(),
+            logHolder = get(),
         )
     }
 }

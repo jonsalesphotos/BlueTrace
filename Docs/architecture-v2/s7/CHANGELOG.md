@@ -3,6 +3,13 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-03 · 日志查看页（第 8 轮）
+
+- 设备日志区**去掉「已保存: <路径>」行**（保存路径仍由 toast 提示）
+- 拉取完成后出现「**查看日志**」按钮 → 新增**日志查看页**：标题 + 文件名 + 行数/字符数 + 逐行带行号等宽渲染（LazyColumn 承载上万行，单行可横向滚动）
+- 跨页共享用 app 级单例 `S7LogHolder`（控制台拉完写入，查看页读出）
+- 真表验证（S7-FCC4）：拉回 2238 块/498765 B → 查看页显示 9305 行真实固件日志（AlarmTimer/ADM_SaveWearCacheData/ActivityData…）。截图 `assets/g_*.png`
+
 ## 2026-07-03 · 自定义对时（第 7 轮）
 
 - 「同步时间」拆为两个：**同步手机时间**（原行为）+ **自定义对时**

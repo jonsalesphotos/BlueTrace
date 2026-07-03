@@ -66,6 +66,7 @@ import org.koin.androidx.compose.koinViewModel
 fun DeviceConsoleScreen(
     onBack: () -> Unit,
     onOpenConnect: () -> Unit,
+    onOpenLogView: () -> Unit,
     vm: DeviceConsoleViewModel = koinViewModel(),
 ) {
     val ui by vm.state.collectAsState()
@@ -115,7 +116,7 @@ fun DeviceConsoleScreen(
             IdentitySection(ui, onRefresh = { vm.refreshAll() })
             TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
             PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
-            LogSection(ui, onPull = { vm.pullLog() })
+            LogSection(ui, onPull = { vm.pullLog() }, onView = onOpenLogView)
             DangerSection(
                 ui,
                 onFind = { vm.toggleFind() },
@@ -405,7 +406,7 @@ private fun PersonSection(ui: ConsoleUiState, onEdit: () -> Unit, onWriteSubject
 }
 
 @Composable
-private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit) {
+private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit, onView: () -> Unit) {
     Section(stringResource(R.string.console_sec_log)) {
         // 说明拉的是哪个日志 + 保存位置（用户要求）
         Text(stringResource(R.string.console_log_desc), fontSize = 11.sp, color = BT.onSurfaceV)
@@ -413,22 +414,24 @@ private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Kv("Progress", stringResource(R.string.console_log_progress, ui.logChunks, ui.logBytes))
         }
-        ui.logSavedPath?.let {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                stringResource(R.string.console_log_saved, it),
-                fontSize = 10.sp, color = BT.primaryDeep, fontFamily = FontFamily.Monospace,
-            )
-        }
         Spacer(Modifier.height(4.dp))
         Text(stringResource(R.string.console_log_note), fontSize = 10.sp, color = BT.onSurfaceV)
         Spacer(Modifier.height(8.dp))
-        OutlineBtn(
+        PrimaryButton(
             stringResource(R.string.console_log_pull),
             onClick = onPull,
             modifier = Modifier.fillMaxWidth(),
             enabled = ui.busy == null && !ui.logRunning && ui.link == LinkState.CONNECTED,
         )
+        // 拉取完成后可查看
+        if (ui.logAvailable) {
+            Spacer(Modifier.height(6.dp))
+            OutlineBtn(
+                stringResource(R.string.console_log_view),
+                onClick = onView,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

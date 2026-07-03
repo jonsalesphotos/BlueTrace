@@ -51,6 +51,7 @@ import io.bluetrace.ui.screen.settings.AboutScreen
 import io.bluetrace.ui.screen.settings.AppearanceScreen
 import io.bluetrace.ui.screen.settings.AppLogScreen
 import io.bluetrace.ui.screen.settings.ConsoleConnectScreen
+import io.bluetrace.ui.screen.settings.ConsoleLogViewScreen
 import io.bluetrace.ui.screen.settings.DeviceConsoleScreen
 import io.bluetrace.ui.screen.settings.EnvCheckScreen
 import io.bluetrace.ui.screen.settings.ExportLocationScreen
@@ -246,9 +247,11 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                 DeviceConsoleScreen(
                     onBack = { nav.popBackStack() },
                     onOpenConnect = { nav.navigate(Route.ConsoleConnect) },
+                    onOpenLogView = { nav.navigate(Route.ConsoleLogView) },
                 )
             }
             composable<Route.ConsoleConnect> { ConsoleConnectScreen(onBack = { nav.popBackStack() }) }
+            composable<Route.ConsoleLogView> { ConsoleLogViewScreen(onBack = { nav.popBackStack() }) }
             composable<Route.About> { AboutScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Appearance> { AppearanceScreen(onBack = { nav.popBackStack() }) }
             composable<Route.Language> { LanguageScreen(onBack = { nav.popBackStack() }) }

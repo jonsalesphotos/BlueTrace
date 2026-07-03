@@ -327,8 +327,11 @@
     <string name="console_field_birth_day">日</string>
     <string name="console_save">写入设备</string>
     <string name="console_log_pull">拉取设备日志</string>
+    <string name="console_log_view">查看日志</string>
+    <string name="console_log_view_title">设备日志</string>
+    <string name="console_log_empty">暂无日志，先拉取。</string>
     <string name="console_log_progress">已收 %1$d 块 · %2$d B</string>
-    <string name="console_log_saved">已保存：%1$s</string>
+    <string name="console_log_lines">%1$d 行 · %2$d 字符</string>
     <string name="console_log_desc">拉取设备固件运行日志（now + bak 两个文件），导出到 Download/BlueTrace/logs/。</string>
     <string name="console_log_note">协议无结束标志：空闲 4 秒判完成，内容可能不完整。</string>
     <string name="console_oplog_export">导出</string>

@@ -38,6 +38,7 @@ sealed interface Route {
     @Serializable data object AppLog : Route
     @Serializable data object DeviceMaintenance : Route
     @Serializable data object ConsoleConnect : Route // 控制台内置连接页（非参考设备限连 1 台）
+    @Serializable data object ConsoleLogView : Route // 设备日志查看页（拉取完成后）
     @Serializable data object About : Route
     @Serializable data object Appearance : Route // 外观：亮/暗/跟随系统（§8）
     @Serializable data object Language : Route // 语言：中/英单选，无跟随系统（设置H）

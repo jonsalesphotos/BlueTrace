@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.bluetrace.data.android.ExportResult
 import io.bluetrace.data.android.MediaStoreExporter
 import io.bluetrace.domain.ConnectionRegistry
+import io.bluetrace.domain.S7LogHolder
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
@@ -79,7 +80,8 @@ data class ConsoleUiState(
     val logRunning: Boolean = false,
     val logChunks: Int = 0,
     val logBytes: Int = 0,
-    val logSavedPath: String? = null,
+    /** 本次会话已拉到日志（「查看日志」按钮可用）。 */
+    val logAvailable: Boolean = false,
     val danger: DangerState? = null,
     /** 错误码/原因短串（TIMEOUT / NOT_SUPPORT …），UI 套 console_err_fmt。 */
     val error: String? = null,
@@ -97,6 +99,7 @@ class DeviceConsoleViewModel(
     private val zone: TimeZoneProvider,
     private val subjects: SubjectRepository,
     private val exporter: MediaStoreExporter,
+    private val logHolder: S7LogHolder,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConsoleUiState())
@@ -282,7 +285,7 @@ class DeviceConsoleViewModel(
      * `Download/BlueTrace/logs/`（用户可用文件管理器直接找到）。
      */
     fun pullLog() = op("pullLog") { c ->
-        _state.update { it.copy(logRunning = true, logChunks = 0, logBytes = 0, logSavedPath = null) }
+        _state.update { it.copy(logRunning = true, logChunks = 0, logBytes = 0) }
         try {
             val bytes = c.pullLog { p ->
                 _state.update { it.copy(logChunks = p.chunks, logBytes = p.bytes) }
@@ -292,11 +295,12 @@ class DeviceConsoleViewModel(
                 return@op
             }
             val ts = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds()).compact()
-            when (val r = exporter.exportLogBytes(bytes, "s7_devlog_$ts.log")) {
-                is ExportResult.Success -> {
-                    _state.update { it.copy(logSavedPath = r.displayPath) }
-                    _toasts.tryEmit(ConsoleToast.Exported(r.displayPath))
-                }
+            val fileName = "s7_devlog_$ts.log"
+            // 拉回内容存 holder（供「查看日志」页读取）；同时导出到公共 Download。
+            logHolder.set(bytes.decodeToString(), fileName)
+            _state.update { it.copy(logAvailable = true) }
+            when (val r = exporter.exportLogBytes(bytes, fileName)) {
+                is ExportResult.Success -> _toasts.tryEmit(ConsoleToast.Exported(r.displayPath))
                 is ExportResult.Error -> {
                     _state.update { it.copy(error = "SAVE_FAILED") }
                     _toasts.tryEmit(ConsoleToast.ExportFailed(r.message))
