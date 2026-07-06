@@ -27,9 +27,9 @@ The working set is **two files** (plus one machine contract):
 - **[`Docs/prototypes/v4_android.html`](Docs/prototypes/v4_android.html)** — single source of truth for UI + per-screen UX (37 screens, each with a `.screen-ux` interaction block). iOS prototype TBD.
 - **[`Docs/architecture/bluetrace_v0.proto`](Docs/architecture/bluetrace_v0.proto)** — machine-readable protobuf contract (referenced by SPEC §4).
 
-Everything else (former REQUIREMENTS / PRD / UX_Flows / Protocol / Architecture / Design System / V4 contract & decision log) is **archived under [`Docs/legacy/`](Docs/legacy/README.md)** for history — its content is inlined into `SPEC.md`. Full map: [Docs/README.md](Docs/README.md).
+Everything else (former REQUIREMENTS / PRD / UX_Flows / Protocol / Architecture / Design System / V4 contract & decision log) is **archived under [`Docs/归档/历史规格_v1-v3/`](Docs/归档/历史规格_v1-v3/README.md)** for history — its content is inlined into `SPEC.md`. Full map: [Docs/README.md](Docs/README.md).
 
-**Prototypes:** current **[v4 · Android](Docs/prototypes/v4_android.html)** (bottom 3-tab IA: Collect / Data / Settings); legacy reference [v3 Android](Docs/prototypes/legacy/v3_android.html) · [v3 iOS](Docs/prototypes/legacy/v3_ios.html).
+**Prototypes:** current **[v4 · Android](Docs/prototypes/v4_android.html)** (bottom 3-tab IA: Collect / Data / Settings); legacy reference [v3 Android](Docs/归档/历史原型/v3_android.html) · [v3 iOS](Docs/归档/历史原型/v3_ios.html).
 
 ## Assets
 

@@ -8,30 +8,38 @@
 ```
 Docs/
 ├── 里程碑与进度.md               ← 高层阶段 M1–M9 与当前状态
-├── CHANGELOG.md                  ← 逐轮修改记录（v1–v8 + 文档轮次）
+├── CHANGELOG.md                  ← 逐轮修改记录（v1–v10 + 文档/回归轮次）
 ├── context/
 │   └── BlueTrace开发_上下文.md   ← 活文档：走到哪了 / 关键决策 / 坑 / 下一步（接手先读这份）
-├── 代码审查报告_20260706.md      ← 架构·界面·交互·s7 分支 四路审查（52 条，修复按波次推进）
-├── 设计审查报告_v6.md            ← 46 屏设计审查（色彩/副标/组件一致性）
-├── 设计稿画廊_v6.html            ← V4 设计稿截图集（浏览器打开）
-├── 设计稿与真机对比_v2.html      ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
+├── 代码审查报告_20260706.md      ← 四路审查 52 条（修复已按波次①–④收官，余低优先项）
 ├── 真机修复prompt_复用.md        ← 真机发现问题 → 让 agent 修复的复用模板
 ├── prototypes/
-│   ├── v4_android.html           ← 当前 UI 真源（勿改名：全仓引用）
-│   └── legacy/                   ← v1–v3 历史原型
-├── architecture/                 ← 自研 DUT 协议与架构（协议文档线活动区）
-│   ├── bluetrace_v0.proto        ← protobuf 机器契约（待冻结）
-│   ├── BLE协议帧规格_开发者版.{md,html} ← 帧规格开发者版（布局/位图/实例包）
-│   ├── 存储与日志设计.md ← 存储/日志重构方案（v7 已落地）
-│   └── scenes.json               ← 场景词表（与 app assets 同源）
-├── architecture-v2/
-│   └── s7/                       ← S7 手表协议规格（B2A/zqdata/共识稿，独立 CHANGELOG）
-├── assets/                       ← 图标 / 截图（screenshots_v6、device_v6 等）
-├── 归档/                         ← 已消费的过程文档（不再维护）
-│   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入，已执行完毕）
+│   └── v4_android.html           ← 当前 UI 真源（勿改名：全仓引用）
+├── 设计/                         ← 设计验收三件套
+│   ├── 设计审查报告_v6.md        ← 46 屏设计审查（色彩/副标/组件一致性）
+│   ├── 设计稿画廊_v6.html        ← V4 设计稿截图集（浏览器打开）
+│   └── 设计稿与真机对比_v2.html  ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
+├── architecture/                 ← 唯一架构目录（v2 已并入）
+│   ├── bluetrace_v0.proto        ← 自研 protobuf 机器契约（v0.1 草案，SPEC §4 引用，勿改路径）
+│   ├── BLE协议帧规格_开发者版.{md,html} ← 自研帧规格实现视角（布局/位图/实例包/状态机）
+│   ├── 02_parser_registry_design.md ← 可注册协议架构设计（M7 蓝图）
+│   ├── 03_collect_protocol_design.md + btcp1_draft.proto ← 自研采集协议候选（M7 冻结二选一之一）
+│   ├── 存储与日志设计.md         ← 存储/日志重构方案（v7 已落地）
+│   ├── scenes.json               ← 场景词表（与 app assets 同源，勿改路径）
+│   └── s7/                       ← S7 手表协议线（独立 CHANGELOG）
+│       ├── S7协议共识规格.{md,html}          ← 共识稿（B2A + 采集固件协议，以此为准）
+│       ├── protocol-b2a / protocol-zqdata    ← 现网协议逐字节规格
+│       ├── protocol-zqdata-uhtp-v1.{md,html} + zqdata_uhtp_v1_draft.proto ← 下一代重设计（待固件评审，M7 候选之二）
+│       └── protocol-spec.md · command-status.md · _raw/ · assets/
+├── assets/                       ← 图标 / 截图（screenshots_v6、screenshots_device、pic 参考等）
+├── 归档/                         ← 唯一历史桶（冻结不维护，仅考古）
+│   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入）
 │   ├── 构建笔记/                 ← v1 实现笔记、v3 设计差异
-│   └── compare_design_vs_device.html ← 旧版对比页（被 v2 取代）
-└── legacy/                       ← v1–v3 时代规格/PRD/协议等历史文档（口径已废，仅考古）
+│   ├── 架构讨论区_v2/            ← 原 architecture-v2 讨论区壳（00/01/04 盘点与已实施规划）
+│   ├── 历史原型/                 ← v1–v3 原型 HTML
+│   ├── 历史规格_v1-v3/           ← 原 legacy/（REQUIREMENTS/PRD/旧协议/设计系统等）
+│   └── compare_design_vs_device.html ← 旧版对比页
+└── （s7 实施过程件 plan/audit/review 留在 architecture/s7/ 随其 CHANGELOG，不拆散）
 ```
 
 ## 怎么读
@@ -43,16 +51,18 @@ Docs/
 | 高层进度 / 里程碑 | [`里程碑与进度.md`](里程碑与进度.md) |
 | 每一轮改了什么 | [`CHANGELOG.md`](CHANGELOG.md) |
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开） |
-| 设计稿 vs 真机对比 | [`设计稿与真机对比_v2.html`](设计稿与真机对比_v2.html) |
-| 代码还有哪些问题要修 | [`代码审查报告_20260706.md`](代码审查报告_20260706.md)（按波次①–④推进） |
-| 自研 DUT 协议（App↔固件） | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) + [`architecture/BLE协议帧规格_开发者版.md`](architecture/BLE协议帧规格_开发者版.md) |
-| S7 手表协议（B2A / zqdata） | [`architecture-v2/s7/`](architecture-v2/s7/)（共识稿 S7协议共识规格 为准） |
+| 设计稿 vs 真机对比 | [`设计/设计稿与真机对比_v2.html`](设计/设计稿与真机对比_v2.html) |
+| 代码还有哪些问题要修 | [`代码审查报告_20260706.md`](代码审查报告_20260706.md)（波次①–④已收官，看遗留清单） |
+| 自研 DUT 协议（App↔固件） | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) + [`architecture/BLE协议帧规格_开发者版.md`](architecture/BLE协议帧规格_开发者版.md) + [`architecture/03_collect_protocol_design.md`](architecture/03_collect_protocol_design.md) |
+| S7 手表协议（B2A / zqdata / UHTP） | [`architecture/s7/`](architecture/s7/)（共识稿为准；UHTP V1 = 下一代设计稿待评审） |
+| M7 协议接入怎么做 | [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md)（可注册协议架构） |
 | 真机用出问题了要修 | [`真机修复prompt_复用.md`](真机修复prompt_复用.md)（填【问题】模板） |
-| 历史决策来龙去脉 | [`legacy/`](legacy/README.md) 与 [`归档/`](归档/)（仅参考，口径以 SPEC 为准） |
+| 历史决策来龙去脉 | [`归档/`](归档/)（唯一历史桶，口径以 SPEC 为准） |
 
 ## 约定
 
 - 改 UI/交互 → 只动 `prototypes/v4_android.html`；改需求/协议/工程口径 → 只动 `/SPEC.md`。
 - 每轮实质性改动收尾 → 记 `CHANGELOG.md`；任务线推进 → 更新 `context/` 上下文文档（见全局 skill docs-convention）。
-- `v4_android.html`、`CHANGELOG.md`、`README.md` 保留英文文件名（全仓/工具链引用面大）；其余新文档一律中文命名。
+- 机器契约与代码同源文件（`bluetrace_v0.proto`、`scenes.json`、`v4_android.html`）**路径冻结勿动**；`CHANGELOG.md`/`README.md` 保留英文名（惯例）；其余新文档一律中文命名。
+- 历史文档只进 `归档/`（唯一历史桶，冻结不维护）；不再新建 legacy/_build_notes 类平行历史目录。
 - 原型是静态网页，浏览器直接打开；需要图片时对手机框截图——**原型是图片来源，不要把静态截图当主版本**。

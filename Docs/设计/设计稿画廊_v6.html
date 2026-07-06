@@ -53,7 +53,7 @@
   </div>
 </header>
 <main id="app"></main>
-<footer>映射详见 <code>assets/screenshots_v6/design_index.md</code>。</footer>
+<footer>映射详见 <code>../assets/screenshots_v6/design_index.md</code>。</footer>
 <script>
 const DATA = [
   {g:"主框架 · 三 Tab",  items:[
@@ -133,7 +133,7 @@ for (const sec of DATA){
   s.appendChild(h);
   const grid = document.createElement('div'); grid.className='grid';
   for (const it of sec.items){
-    const src = 'assets/screenshots_v6/design_' + it.n + '.png';
+    const src = '../assets/screenshots_v6/design_' + it.n + '.png';
     const card = document.createElement('div'); card.className = 'card' + (it.tall?' tall':'');
     card.innerHTML =
       '<a class="shot" href="'+src+'" target="_blank"><img loading="lazy" src="'+src+'" alt="'+it.l+'"></a>'+

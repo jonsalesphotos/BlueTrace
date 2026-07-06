@@ -1,0 +1,180 @@
+// ZQDATA·UHTP V1 —— 控制/协商 payload schema 草案(与 protocol-zqdata-uhtp-v1.md 配套)
+//
+// 范围: 仅 CTRL/ALGO/FILE 域中使用 Protobuf 的 payload。
+// 固定二进制 payload **不在本文件**: TIME_SYNC(9B/25B)、READ_DATA(tid+offset+data)、
+// READ_ACK(9B)、REPORT_TLV 外层容器(6B bundle 头 + 4B record 头)、TUNNEL(不透明)。
+// 约定: 所有响应消息首字段 uint32 status = 1 (0=OK, 见设计稿 §10 状态码)。
+// 状态: 设计稿 V1 (2026-07-06), 冻结前 tag 可改; 冻结后只增不改, 删字段用 reserved。
+
+syntax = "proto3";
+
+package zqdata.uhtp.v1;
+
+option java_package = "io.bluetrace.protocol.zqdata.v1";
+
+// ============ CTRL / SESSION (0x01/0x01) ============
+
+message Hello {                      // App -> 表, NEED_RSP=1
+  uint32 protocol_version = 1;      // = 1
+  uint32 max_payload      = 2;      // App 按协商 MTU 算出
+  uint32 feature_flags    = 3;      // bit0 SEG 重组 bit1 TUNNEL bit2 REPORT
+  string app_version      = 4;
+}
+
+message HelloRsp {                   // 表 -> App, 大包允许 SEG_MODE 分帧
+  uint32 status            = 1;
+  uint32 protocol_version  = 2;
+  uint32 max_payload       = 3;
+  uint32 feature_flags     = 4;
+  string firmware_version  = 5;
+  string device_sn         = 6;
+  repeated uint32 supported_main_types = 7 [packed = true];
+  repeated AlgorithmManifest algorithms = 8;
+  repeated uint32 content_formats = 9 [packed = true];   // 设计稿 §8 注册表
+  StorageInfo storage      = 10;
+  TimeAnchorState time_anchor = 11;
+  repeated uint32 tunnel_ids = 12 [packed = true];       // 0x01 = GH3220_EVK
+}
+
+// UHTP V4 §7.2 原样收编
+message AlgorithmManifest {
+  uint32 algorithm_instance_id = 1;  // = REPORT_TLV record 的 algo_id
+  string algorithm_type = 2;         // HR / SPO2 / WEAR / ...
+  string vendor_id = 3;              // INTERNAL / GH / ...
+  string algorithm_version = 4;
+  string result_schema_id = 5;       // 如 spo2.gh.result.v1 -> Spo2ResultV1
+  uint32 output_rate_milli_hz = 6;
+  uint32 capability_flags = 7;
+  uint32 schema_hash = 8;
+}
+
+message TimeAnchorState {
+  uint32 has_anchor    = 1;          // 0/1
+  uint64 anchor_utc_ms = 2;
+  uint32 anchor_age_s  = 3;          // 距最近一次对时
+}
+
+message Bye {}                       // 可选: App 主动结束会话
+
+// ============ CTRL / HEARTBEAT (0x01/0x06) ============
+
+message Heartbeat {
+  uint32 uptime_s   = 1;
+  uint32 battery_mv = 2;
+  uint32 flags      = 3;             // bit0 charging bit1 storage_low bit2 storage_wrapped
+}
+
+// ============ CTRL / USER_PROFILE (0x01/0x09) ============
+// 写: 带字段发送; 读: 空 payload + NEED_RSP -> UserProfileRsp 回读
+
+message UserProfile {
+  uint32 height_cm     = 1;
+  uint32 weight_kg_x10 = 2;          // 70.5kg = 705
+  uint32 sex           = 3;          // 0 未知 1 男 2 女
+  uint32 birth_year    = 4;
+  uint32 birth_month   = 5;
+  uint32 birth_day     = 6;
+  uint32 wear_hand     = 7;          // 0 未知 1 左 2 右
+}
+
+message UserProfileRsp {
+  uint32 status = 1;
+  UserProfile profile = 2;
+}
+
+// ============ CTRL / ALGO_CTRL (0x01/0x04) ============
+
+message AlgoReportCtrl {             // 只控制"结果上传", 不控制算法启停
+  repeated uint32 enable_ids = 1 [packed = true];  // 空 = 全关; 断连自动全关
+  uint32 min_interval_ms     = 2;                  // 0 = 按算法原生速率
+}
+
+message AlgoReportCtrlRsp {
+  uint32 status = 1;
+  repeated uint32 active_ids = 2 [packed = true];  // 实际生效集合(对账)
+}
+
+// ============ CTRL / STORAGE (0x01/0x07) ============
+
+message StorageInfoReq {}
+
+message StorageInfo {
+  uint32 status        = 1;
+  uint64 total_bytes   = 2;
+  uint64 used_bytes    = 3;
+  uint32 session_count = 4;
+}
+
+// ============ ALGO / REPORT_TLV 内层 value 示例 schema ============
+// 外层 TLV 容器为固定二进制(设计稿 §5.1); 以下由 result_schema_id 映射
+
+message HrResultV1   { uint32 hr_bpm = 1; uint32 confidence = 2; uint32 quality = 3; }
+
+message Spo2ResultV1 {
+  uint32 spo2        = 1;
+  uint32 hr_bpm      = 2;
+  uint32 quality     = 3;
+  uint32 state_flags = 4;
+  uint32 pi_x1000    = 5;
+}
+
+message WearResultV1 { uint32 wear_state = 1; uint32 confidence = 2; uint32 reason_flags = 3; }
+
+// ============ FILE 域 (0x05) ============
+
+message SessionCatalogReq {          // 0x01, NEED_RSP=1
+  uint32 page      = 1;
+  uint32 page_size = 2;
+}
+
+message SessionCatalogRsp {
+  uint32 status = 1;
+  uint32 total  = 2;
+  uint32 page   = 3;
+  repeated OfflineSessionMeta sessions = 4;
+}
+
+message OfflineSessionMeta {
+  uint32 session_id     = 1;
+  uint32 kinds          = 2;         // 位图与现网 DC_TYPE 对齐: bit0 HR bit1 SPO2 bit2 GS bit4 ECG
+  uint32 start_utc      = 3;         // 0 = 从未对时
+  uint32 duration_s     = 4;
+  uint32 size_bytes     = 5;
+  uint32 frame_count    = 6;
+  uint32 content_format = 7;         // 0x01 ECG1_V2 / 0x02 PPGHR40 / 0x03 PPGSPO40 / 0x04 GS18 / 0x10 UOF1
+  uint32 crc32          = 8;         // 整档 CRC32(IEEE)
+}
+
+message ReadBegin {                  // 0x02, NEED_RSP=1
+  uint32 session_id            = 1;
+  uint32 resume_offset         = 2;  // 断点续传, 0 = 从头
+  uint32 preferred_chunk_bytes = 3;  // App 提议, 设备定版
+  uint32 preferred_ack_window  = 4;
+}
+
+message ReadReady {                  // 0x03
+  uint32 status            = 1;
+  uint32 transfer_id       = 2;
+  uint32 total_bytes       = 3;
+  uint32 chunk_bytes       = 4;      // = min(App 提议, 238-8, 设备能力)
+  uint32 ack_window_chunks = 5;
+  uint32 file_crc32        = 6;
+  uint32 next_offset       = 7;      // 回显/夹紧 resume_offset
+}
+
+// READ_DATA(0x04) 固定二进制: [transfer_id u32 LE][offset u32 LE][data<=230B]
+// READ_ACK (0x05) 固定二进制: [transfer_id u32 LE][next_offset u32 LE][status u8]
+
+message ReadEnd {                    // 0x06
+  uint32 transfer_id = 1;
+  uint32 reason      = 2;            // 0 COMPLETE / 1 ABORTED / 2 DEVICE_ERROR
+  uint32 sent_bytes  = 3;
+}
+
+message Abort { uint32 transfer_id = 1; }   // 0x07, 双向; 文件保留
+
+message DeleteReq { uint32 session_id = 1; }  // 0x08, NEED_RSP=1; READING 中拒删(BUSY)
+
+// ============ 通用响应 ============
+
+message CommonRsp { uint32 status = 1; }

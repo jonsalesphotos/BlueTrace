@@ -7,7 +7,7 @@
 > ② **`Docs/prototypes/v4_android.html`** —— UI 与逐屏交互的**单一真源**（含每屏 `.screen-ux` 交互规格块，37 屏全覆盖）。本规格不复述像素与组件，屏级细节一律指向原型对应屏。
 > *iOS 主线原型待补*（X 系列里程碑产出，见 §7.4）。机器可读消息契约见 `Docs/architecture/bluetrace_v0.proto`。
 >
-> **口径基准**：以 **V4 + 2026-06-17 最新口径**为准；文档间历史矛盾已就地消解，旧文档归档 `Docs/legacy/`（见 §9）。
+> **口径基准**：以 **V4 + 2026-06-17 最新口径**为准；文档间历史矛盾已就地消解，旧文档归档 `Docs/归档/历史规格_v1-v3/`（见 §9）。
 
 ## 目录
 
@@ -49,7 +49,7 @@
 
 ## 2. 需求要点
 
-> 当前**全部需求状态 = ⬜ 未开始**（项目处于设计阶段，仅文档与原型，暂无源码）。F-* 条款已精炼内联本节；原始条款 + §9 追踪矩阵见归档 `Docs/legacy/REQUIREMENTS.md`（历史参考）。
+> 当前**全部需求状态 = ⬜ 未开始**（项目处于设计阶段，仅文档与原型，暂无源码）。F-* 条款已精炼内联本节；原始条款 + §9 追踪矩阵见归档 `Docs/归档/历史规格_v1-v3/REQUIREMENTS.md`（历史参考）。
 
 ### 2.1 权限与环境
 - **F-PERM-1（P0）**：检查蓝牙开关、BLE 扫描/连接权限、定位（按平台），区分硬性/建议条件。
@@ -149,11 +149,11 @@
 
 ### 3.3 真源分工
 
-**主线两份**：`本 SPEC（做什么 / 协议 / 工程口径）` + `v4_android.html 原型（长什么样 + 逐屏交互 + 跨屏流转）`；外加 `bluetrace_v0.proto` 机器契约。原型从「视觉真源」升级为「视觉 + 交互」真源。决策的「为什么」可溯源至归档的设计契约 / 决策追踪（`Docs/legacy/`），但**结论已内联本规格 §3，无需再读归档**。
+**主线两份**：`本 SPEC（做什么 / 协议 / 工程口径）` + `v4_android.html 原型（长什么样 + 逐屏交互 + 跨屏流转）`；外加 `bluetrace_v0.proto` 机器契约。原型从「视觉真源」升级为「视觉 + 交互」真源。决策的「为什么」可溯源至归档的设计契约 / 决策追踪（`Docs/归档/历史规格_v1-v3/`），但**结论已内联本规格 §3，无需再读归档**。
 
 ### 3.4 相对旧需求基线的偏离（已在本规格落定，供复核）
 
-> 下列点曾与旧 REQUIREMENTS / PRD 措辞不一致；**现一律以本规格为准**（旧基线已归档 `Docs/legacy/`，不再反向回灌）。
+> 下列点曾与旧 REQUIREMENTS / PRD 措辞不一致；**现一律以本规格为准**（旧基线已归档 `Docs/归档/历史规格_v1-v3/`，不再反向回灌）。
 
 - F-COL-2/3、F-CTRL-2/4/5：因 D-V4-7 重做而降后期 / 移出运行界面。
 - F-COL-5：由「Start/End Label」细化为 Pin 瞬时点 + Start/Stop 区间（D-V4-14）。
@@ -165,7 +165,7 @@
 ## 4. 通信协议
 
 > **适用范围**：仅 **DUT（自研设备）** 与 App 之间的私有协议。REFERENCE（标准心率带）走 SIG HRS `0x180D`，**不使用本协议**。
-> **机器可读契约（单一事实源，D-10）**：`Docs/architecture/bluetrace_v0.proto`。帧头/分片/CRC 链路事实已内联本节 §4.3–4.9（原始来源已归档 `Docs/legacy/BlueTrace_Protocol.md`）。
+> **机器可读契约（单一事实源，D-10）**：`Docs/architecture/bluetrace_v0.proto`。帧头/分片/CRC 链路事实已内联本节 §4.3–4.9（原始来源已归档 `Docs/归档/历史规格_v1-v3/BlueTrace_Protocol.md`）。
 > **状态**：v0.1 草案，待与固件端共同冻结。
 
 ### 4.1 协议基本盘
@@ -766,17 +766,17 @@ RootNavHost
 
 ### 9.2 全部归档（仅历史参考 · 本规格已内联其执行口径）
 
-> 下列详细文档已全部移入 `Docs/legacy/`（主线只留本规格 + 原型 + `.proto`）。其执行要点均已内联本规格；**任何与本规格冲突处，一律以本规格（V4 + 2026-06-17 最新口径）为准**。归档文档内部交叉链接可能失效，仅作历史溯源。
+> 下列详细文档已全部移入 `Docs/归档/历史规格_v1-v3/`（主线只留本规格 + 原型 + `.proto`）。其执行要点均已内联本规格；**任何与本规格冲突处，一律以本规格（V4 + 2026-06-17 最新口径）为准**。归档文档内部交叉链接可能失效，仅作历史溯源。
 
-- `Docs/legacy/REQUIREMENTS.md` —— 原需求条款 + §9 追踪矩阵（F-* 已精炼内联 §2）
-- `Docs/legacy/BlueTrace_Protocol.md` —— 帧头/分片/CRC 链路事实（已内联 §4.3–4.9）
-- `Docs/legacy/BlueTrace_Architecture.md` —— 文件/manifest/对齐/MediaStore/三 Tab 脚手架（已内联 §6/§7）
-- `Docs/legacy/BlueTrace_UI_Implementation.md` —— 模块边界/SessionController/前台服务（已内联 §7）
-- `Docs/legacy/BlueTrace_CrossPlatform_Notes.md` —— iOS 分叉点 X0–X4（已内联 §7.5）
-- `Docs/legacy/BlueTrace_Design_System.md` —— 组件/配色/可达性（已内联 §8；视觉以原型为准）
-- `Docs/legacy/BlueTrace_V4_设计契约_2026-06-16.md`、`Docs/legacy/BlueTrace_V4_决策追踪_2026-06-16.md` —— 决策记录（D-* / D-V4-* 已内联 §3）
-- `Docs/legacy/BlueTrace_设计审查_2026-06-16.md` —— 早期设计审查（10 维）
-- `Docs/legacy/BlueTrace_PRD.md`、`Docs/legacy/BlueTrace_UX_Flows.md`、`Docs/legacy/BlueTrace_UI_Design.md` 等 —— 更早归档
+- `Docs/归档/历史规格_v1-v3/REQUIREMENTS.md` —— 原需求条款 + §9 追踪矩阵（F-* 已精炼内联 §2）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_Protocol.md` —— 帧头/分片/CRC 链路事实（已内联 §4.3–4.9）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_Architecture.md` —— 文件/manifest/对齐/MediaStore/三 Tab 脚手架（已内联 §6/§7）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_UI_Implementation.md` —— 模块边界/SessionController/前台服务（已内联 §7）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_CrossPlatform_Notes.md` —— iOS 分叉点 X0–X4（已内联 §7.5）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_Design_System.md` —— 组件/配色/可达性（已内联 §8；视觉以原型为准）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_V4_设计契约_2026-06-16.md`、`Docs/归档/历史规格_v1-v3/BlueTrace_V4_决策追踪_2026-06-16.md` —— 决策记录（D-* / D-V4-* 已内联 §3）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_设计审查_2026-06-16.md` —— 早期设计审查（10 维）
+- `Docs/归档/历史规格_v1-v3/BlueTrace_PRD.md`、`Docs/归档/历史规格_v1-v3/BlueTrace_UX_Flows.md`、`Docs/归档/历史规格_v1-v3/BlueTrace_UI_Design.md` 等 —— 更早归档
 
 ---
 

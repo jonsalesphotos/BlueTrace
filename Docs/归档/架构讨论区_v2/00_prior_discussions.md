@@ -12,7 +12,7 @@
 
 ### 1. S7 项目 / 质量通信协议 —— ❌ 未找到
 
-全仓库（代码、Docs 全目录、git log）无「S7」相关任何讨论。S7 协议接入是**全新需求**，由 [02_parser_registry_design.md](02_parser_registry_design.md) 承接。
+全仓库（代码、Docs 全目录、git log）无「S7」相关任何讨论。S7 协议接入是**全新需求**，由 [02_parser_registry_design.md](../../architecture/02_parser_registry_design.md) 承接。
 
 ### 2. IMU / 传感器采集 —— ✅ 已有大量设计（仅在线方向）
 
@@ -55,7 +55,7 @@
 
 - V4 精简时「双采集模式」曾移入二期，但当前实现已把入口做回主界面：采集 Tab 底部 = 「离线采集」小入口 + 「在线采集」主按钮（`CollectHomeScreen.kt:160`，离线点击 → Toast「离线采集待协议支持」，实机已验证）。
 - 原型 `v4_android.html` 已画出离线三屏：**离线A** 读取 DUT 存储·已存会话 / **离线B** 导入中（DUT→本机）/ **离线C** 分配场景与用户。
-- **协议层面（设备侧怎么存、App 怎么列目录、怎么断点续传）完全空白**。由 [03_collect_protocol_design.md](03_collect_protocol_design.md) 承接。
+- **协议层面（设备侧怎么存、App 怎么列目录、怎么断点续传）完全空白**。由 [03_collect_protocol_design.md](../../architecture/03_collect_protocol_design.md) 承接。
 
 ### 6. 手表控制 —— ⚠️ 仅命令原语 + 设置占位
 

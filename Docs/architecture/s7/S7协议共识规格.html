@@ -113,7 +113,7 @@ strong { font-weight:600; }
 <strong>所有字段均出自固件代码</strong>，逐项标注 <code>文件:行</code>；两仓路径缩写：<strong>开发仓</strong> = <code>apollo4_watch_s7/product/apollo_eiot</code>，<strong>采集仓</strong> = <code>apollo4_watch_s7_collect/product/apollo_eiot</code>。
 <strong>示例包全部按固件同款 CRC16-CCITT-FALSE 实算</strong>，并用真机产测金帧（CRC=<code>0x462D</code>）对生成脚本做过自校验；生成脚本存档 <a href="assets/gen_s7_protocol_examples.py"><code>assets/gen_s7_protocol_examples.py</code></a>。</p>
 <p><strong>与 BlueTrace v0 协议的区隔</strong>：本文是 <strong>S7 真机现行协议</strong>（0xBB 信封 + Cmd/Key）；<a href="../../architecture/BLE协议帧规格_开发者版.md"><code>architecture/BLE协议帧规格_开发者版.md</code></a> 是自研 DUT 的 12B 帧头 + protobuf <strong>草案</strong>，两者互不相关，App 侧按通道分别挂解析器。</p>
-<p>深度参考（s7 分支 <code>feat/s7-device-console</code>，未合 main）：<code>protocol-b2a.md</code>（B2A 全命令集）、<code>protocol-zqdata.md</code>（zqdata 全量审计与差异核查）。本文为两者之上的<strong>单一开发者共识稿</strong>。</p>
+<p>深度参考（同目录，随 s7 分支合并已入 main）：<a href="protocol-b2a.md"><code>protocol-b2a.md</code></a>（B2A 全命令集）、<a href="protocol-zqdata.md"><code>protocol-zqdata.md</code></a>（zqdata 全量审计与差异核查）。本文为两者之上的<strong>单一开发者共识稿</strong>；ZQDATA 下一代重设计见 <a href="protocol-zqdata-uhtp-v1.md"><code>protocol-zqdata-uhtp-v1.md</code></a>。</p>
 </blockquote>
 <table>
 <thead>

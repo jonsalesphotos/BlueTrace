@@ -3,6 +3,18 @@
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
 
+## 2026-07-06 · ZQDATA·UHTP V1 协议重设计（离线优先）（第 21 轮）
+
+- **需求**：以 `E:\UHTP_BLE_Protocol_Design_V4.md`（5B 头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象）为最佳实践基线，重设计 ZQDATA 协议。范围钉死：**离线数据回传为主体**、在线数据控制透传、可开关的算法结果上传、可写个人信息；其余（LOG/OTA/SENSOR/SECURITY）保留编号不实现。
+- **产出**：[protocol-zqdata-uhtp-v1.md](protocol-zqdata-uhtp-v1.md) + [.html](protocol-zqdata-uhtp-v1.html)（3 张 SVG + ASCII 位图）+ 机器可读契约 [zqdata_uhtp_v1_draft.proto](zqdata_uhtp_v1_draft.proto) + 示例脚本 [assets/gen_zqdata_uhtp_examples.py](assets/gen_zqdata_uhtp_examples.py)（protobuf wire + CRC32 实算，全帧 len 自洽断言）。
+- **要点**：复用 ZQDATA GATT 服务与开发仓新 zqdata 传输模块；FILE 域深化为 CATALOG/READ(BEGIN/READY/DATA/ACK/END)/ABORT/DELETE——窗口 ACK 授信 + resume_offset 断点续传 + 整档 CRC32 + 显式删除；新增 TUNNEL 域透传汇顶 EVK；CTRL 域含 HELLO 协商（AlgorithmManifest/content_format 注册表）、NTP 式四时戳对时（离线 UTC 锚点）、USER_PROFILE、ALGO_CTRL（结果上传开关，active_ids 对账）；REPORT_TLV 收编 UHTP §10（time_delta 冻结为 ×100ms）。
+- **迁移**：legacy B2A 帧首字节 0xBB 与 UHTP 0x1? 完全不相交 → 固件可双栈分流；App HELLO 超时回落 legacy。文件格式经 content_format 解耦（先原样回传现网 ECG1_V2/PPGHR40/GS18，推荐迁移目标 UOF1 统一格式：32B 头 + 流描述表 + 8B 帧头多流交错）。
+- **状态**：设计稿 V1，待与固件端评审冻结（开放问题 O-1~O-8 见文档 §13）。
+
+## 2026-07-06 · S7 协议共识规格（B2A + 采集固件专用协议）（第 20 轮）
+
+- 新增 [S7协议共识规格.md](S7协议共识规格.md) + [.html](S7协议共识规格.html)：跨项目（固件双仓 ↔ BlueTrace）单一共识稿，全字段 file:line 溯源固件代码；覆盖 GATT 服务地图 / B2A 信封逐位 / 采集仓新增 DC 会话协议（TEST 0x10-0x12 + ecg_raw.dat v2）/ ZQDATA 上行（40B→28B 重打包等）/ 7 组实算示例包（金帧 0x462D 自校验，脚本 [assets/gen_s7_protocol_examples.py](assets/gen_s7_protocol_examples.py)）/ 双固件 git diff 实证差异表。详细条目见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。
+
 ## 2026-07-03 · zqdata 上行协议核查 + 规格文档（逐字节·含位域）（第 19 轮）
 
 - **需求**：核查 zqdata(离线采集数据通道)协议文档的完整性/与代码一致性(像 B2A 那样代码实证 vs 文档,代码在采集固件 `apollo4_watch_s7_collect`),再拉进 BlueTrace 生成工程侧 HTML,与 protocol-b2a 并列。

@@ -122,7 +122,7 @@
 <!-- ==================== 2 可注册解析器 ==================== -->
 <section>
   <h2><span class="num">02</span>可注册通道解析器架构 —— ProtocolProfile / ChannelParser / Registry</h2>
-  <p class="desc">完整设计见 <a href="02_parser_registry_design.md">02_parser_registry_design.md</a>。解决三件事：S7 等新协议接入、通道（GATT UUID）成为一等公民、多协议同会话并存。<b>新协议接入 = 写一个 Profile + 注册一行。</b></p>
+  <p class="desc">完整设计见 <a href="../../architecture/02_parser_registry_design.md">02_parser_registry_design.md</a>。解决三件事：S7 等新协议接入、通道（GATT UUID）成为一等公民、多协议同会话并存。<b>新协议接入 = 写一个 Profile + 注册一行。</b></p>
   <div class="flow">BleClient.notifications(deviceId)      BleNotification(deviceId, <b>channel</b>, bytes, receivedAtMs)
         │
         ▼
@@ -155,7 +155,7 @@ DefaultSessionController（单 Channel 串行，机制不变）
 <!-- ==================== 3 BTCP/1 ==================== -->
 <section>
   <h2><span class="num">03</span>采集链路协议 BTCP/1 —— 在线流式 + 离线回传</h2>
-  <p class="desc">完整设计见 <a href="03_collect_protocol_design.md">03_collect_protocol_design.md</a>，schema 草案 <a href="btcp1_draft.proto">btcp1_draft.proto</a>。信封完全复用 SPEC §4（12B TLV 头 + 分片 + CRC），对 <code>bluetrace_v0.proto</code> 纯增量扩展。</p>
+  <p class="desc">完整设计见 <a href="../../architecture/03_collect_protocol_design.md">03_collect_protocol_design.md</a>，schema 草案 <a href="btcp1_draft.proto">btcp1_draft.proto</a>。信封完全复用 SPEC §4（12B TLV 头 + 分片 + CRC），对 <code>bluetrace_v0.proto</code> 纯增量扩展。</p>
 
   <div class="callout"><b>核心决策 P-1：离线会话文件 = 在线帧流的落盘镜像。</b>设备把与在线 Notify 同构的「12B 头+payload 帧序列」写进 Flash；App 导入时逐帧喂同一个 BlueTraceV0Parser。<b>双端都只有一套编解码</b>，在线/离线数据进同一条 hexlog→CSV→manifest 落盘流水线。</div>
 

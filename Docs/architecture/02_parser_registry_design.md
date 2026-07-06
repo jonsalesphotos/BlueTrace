@@ -1,7 +1,7 @@
 # 02 · 可注册通道解析器架构（ProtocolProfile / ChannelParser / Registry）
 
 > 状态：设计稿 v1（2026-07-02）。评审通过后按 §8 迁移路线落码。
-> 前置阅读：[00_prior_discussions.md](00_prior_discussions.md) §4（现状与空白）。
+> 前置阅读：[00_prior_discussions.md](../归档/架构讨论区_v2/00_prior_discussions.md) §4（现状与空白）。
 
 ## 1. 问题
 
