@@ -6,6 +6,16 @@
 
 ---
 
+## [文档] 架构评估：现状、问题与演进 — ✅ 2026-07-06
+[`architecture/架构评估_20260706.{md,html}`](architecture/架构评估_20260706.md)（2 张 SVG：现状分层问题标注图 + M7 目标数据流图）。输入 = 四路代码审查 + 本轮**结构层审计**（模块/包依赖矩阵、KMP 边界、DI、协程纪律逐项核对）。
+- **保持项**：commonMain 零泄漏/零 expect-actual、单消费者串行化、hexlog source-of-truth、版本目录、s7 逻辑下沉（1094 行+4 测试类）、实现引用收敛 DI 组装点。
+- **新发现 P0**：采集落盘跑在 `Dispatchers.Default` CPU 池（AppModule:53 + 会话 runScope 继承）；全仓零 `CoroutineExceptionHandler`；IO 切换散落 7 调用点（3 处在 Composable）。
+- **P1 结构**：包级双向环 ×2（ble↔protocol、ble↔s7，Mock 混放接口包所致）；ConnectionRegistry vs linkState 状态双真相；iOS 债（ConnectionRegistry/CollectDraft/S7Person 映射等纯 Kotlin 写在 app）；协议接入仍全局单解码器 → **落地 02 注册式设计 R1–R3（不等冻结）**。
+- **P2 卫生**：DI 单模块+裸泛型、UI 19 处 koinInject 绕 VM、DiagnosticsLog 下转型、DeviceLogStore 包名、会话索引、CI 缺失。
+- **三个待拍板**：D1 R1–R3 现在落码（建议是）；D2 采集档传输 Nordic vs 自研补五件事（倾向 Nordic）；D3 上 CI（建议是）。
+
+---
+
 ## [文档] 里程碑与进度 全面刷新 — ✅ 2026-07-06
 [`里程碑与进度.md`](里程碑与进度.md) 从 2026-06-24 口径刷新到当前：新增 **M6.1 权限/环境态加固**、**M6.2 真实 BLE + S7 控制台**（M7 传输半边提前落地 + Mock/真实可切换）、**M6.3 审查修复线 v8–v10**（四波收官 + 真机回归）、**M6.4 文档与协议规格线**（Docs 中文化、帧规格、S7 共识稿、UHTP V1 设计稿）四个已完成里程碑；**M7 范围收窄为"采集协议解码"**（冻结路径：UHTP V1 评审 / 自研 .proto 二选一）；修正两处过期口径（"本地未推送"、"BLE/DUT 全程 Mock"）；⏸ 清单同步（DUT 维护已落地、离线采集实壳改挂 UHTP 冻结）；质量/验证状态与下一步优先级重写。
 
@@ -23,7 +33,7 @@
 ---
 
 ## [文档] ZQDATA·UHTP V1 协议重设计（离线优先，设计稿） — ✅ 2026-07-06
-[`architecture/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（`E:\UHTP_BLE_Protocol_Design_V4.md`，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 21 轮。
+[`architecture/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（[`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md)，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输；原在 E:\ 根、已归档入仓）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 21 轮。
 
 ---
 
