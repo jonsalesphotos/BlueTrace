@@ -54,7 +54,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 ## 相关
 
 - 真源：[`/SPEC.md`](../../SPEC.md)（规格/协议/工程口径）、[`prototypes/v4_android.html`](../prototypes/v4_android.html)（37 屏 UI）
-- 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、[`architecture/s7/CHANGELOG.md`](../architecture/s7/CHANGELOG.md)（s7 协议线，随合并已入 main）
+- 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、[`architecture/s7/CHANGELOG.md`](../architecture/s7/CHANGELOG.md)（s7 协议线，随合并已入 main）。Docs 已三轮深度整理（2026-07-06：s7 五要素/architecture 导航 README/全库死链清零+孤儿截图归档），目录地图见 [`../README.md`](../README.md) 与 [`../architecture/README.md`](../architecture/README.md)
 - 架构：[`architecture/存储与日志设计.md`](../architecture/存储与日志设计.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/BLE协议帧规格_开发者版.md`](../architecture/BLE协议帧规格_开发者版.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture/02_parser_registry_design.md`](../architecture/02_parser_registry_design.md)（协议注册架构）、[`architecture/03_collect_protocol_design.md`](../architecture/03_collect_protocol_design.md) + `btcp1_draft.proto`（自研采集协议候选；2026-07-06 起 architecture-v2 已并入 architecture/，讨论区壳在 `归档/架构讨论区_v2/`）
 - 设计验收：[`设计审查报告_v6.md`](../设计/设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计/设计稿与真机对比_v2.html)
 - 测试：`shared`（commonTest/jvmTest 共 108 例，含注册表/连接登记线）、`app/src/test`；真机 M2101K9C / Android 13

@@ -6,6 +6,14 @@
 
 ---
 
+## [文档] Docs 三轮深度整理：s7 分册五要素 → architecture 导航 → 全库死链清零 — ✅ 2026-07-06
+提交 `fd14878` / `955ee7f` / `12f29b7`，同一条整理线的三级递进：
+- **s7 子目录**（`fd14878`，s7/CHANGELOG 第 22 轮）：对照协议文档五要素审计——共识稿本达标；补 protocol-zqdata（40B 帧 bit 图 + B2A 封装标尺 + 实例包 decode 脚本实算 + 离线上行状态机）与 protocol-b2a（帧信封 ASCII 标尺 + OTA 状态机图）；plan/review/_raw 十份工作底稿 → `归档/s7协议工作底稿/`。
+- **architecture 目录**（`955ee7f`）：新建 [`architecture/README.md`](architecture/README.md)（文档角色/状态清单 + **三线协议关系图**：自研 v0.1+BTCP/1 vs UWTP 二选一待固件评审、S7 现网线与 M7 无关 + 变更纪律）；6 份文档状态行对齐现实（02 已落码/存储已实施/自研线补 UWTP 关系）；v0.proto 死引用修复。**不物理合并**：机器契约路径冻结 + 各文档角色不同，缺的是关系说明不是文件合并。
+- **Docs 全库**（`12f29b7`）：脚本全库死链扫描——活区 10 处全修（s7 底稿归档的引用断链），归档历史文档内部死链按冻结原则不动，复扫活区清零；md/html 8 对全同步；`assets/{screenshots,device_v5,device_v6,pic}` 92 文件零活引用 → `归档/历史截图/`（compare 考古页目录常量随迁修复）；代码审查报告/设计审查报告补收官状态行；里程碑 3 处过期口径修正（UHTP→UWTP、解码器口径→注册式架构、D2 Nordic 已拍板）。
+
+---
+
 ## [v11·波次B] 架构演进：注册式协议架构 R1–R3 + Registry 事件驱动 + iOS 债下沉 — ✅ 2026-07-06
 来源：[`architecture/架构评估_20260706.md`](architecture/架构评估_20260706.md) 波次B（B2/B3/B4）+ [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md) 迁移节拍 R1–R3。
 - **B4 = 02 设计 R1–R3 落码**：新增 `shared.protocol.registry` 包——`ChannelId`/`ChannelParser`/`ProtocolProfile`/`ProtocolRegistry`/`DeviceParserHost`（R1 骨架）+ `ProtocolEvent` 事件模型（Samples/CommandAck/DeviceEvent/Malformed，R3；Capability/State/AlgoResult/FileChunk 四类 payload 依赖 M7 冻结，R5 再补）+ `MockBleProfile`（R2：MockPacketCodec 装进 Profile 形状）+ `HrsProfile`/`HrsParser`（SIG 0x180D/0x2A37，u8/u16 bpm——R4 心率带真实链路的先行协议，不依赖冻结）+ `RegistrySampleDecoder` 适配器。`SampleDecoder` 增 `onDeviceAttached`/`decodeEvents` 默认方法（旧实现零改动）；会话控制器改消费事件流（Malformed→WARN 诊断，raw HEX 照常落盘）+ start 逐设备 attach；DI 注册表按后端拼装（Mock 后端全员 Mock 线协议 / 真实后端注册 HRS；无 profileId 的自研 DUT 回退 Mock→malformed 告警，等价旧 unparseable 行为）。
