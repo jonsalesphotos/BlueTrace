@@ -65,7 +65,7 @@ import org.koin.androidx.compose.koinViewModel
 
 /**
  * 设置F · 设备维护（DUT）—— S7 手表控制台（工程风格）。
- * 协议：Docs/architecture-v2/s7/protocol-spec.md；取舍与缺口边界：同目录 plan.md / completeness-audit.md。
+ * 协议：Docs/architecture/s7/protocol-spec.md；缺口边界：同目录 completeness-audit.md。
  */
 @Composable
 fun DeviceConsoleScreen(

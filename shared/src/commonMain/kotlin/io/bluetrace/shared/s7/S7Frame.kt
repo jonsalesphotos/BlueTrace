@@ -1,7 +1,7 @@
 package io.bluetrace.shared.s7
 
 /**
- * S7 手表 B2A 协议帧信封（规格：Docs/architecture-v2/s7/protocol-spec.md §2）。
+ * S7 手表 B2A 协议帧信封（规格：Docs/architecture/s7/protocol-spec.md §2）。
  *
  * 线格式（全小端、packed、无转义）：
  * ```

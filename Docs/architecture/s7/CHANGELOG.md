@@ -2,6 +2,13 @@
 
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
 > 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [command-status.md](command-status.md)（工作底稿 plan/review/_raw 已归档至 [`../../归档/s7协议工作底稿/`](../../归档/s7协议工作底稿/)）。
+> **截图/日志证据归档说明（2026-07-06）**：下文各轮 `assets/*.png` 截图与 devlog 引用均已迁至 [`../../归档/s7协议工作底稿/assets/`](../../归档/s7协议工作底稿/assets/)（历史条目原文保真不逐条改写）；本目录 `assets/` 只留协议文档的示例帧生成脚本。
+
+## 2026-07-06 · 调试证据归档：s7/ 收敛为纯协议文档目录（第 23 轮）
+
+- **归档**：assets/ 下 60 张联调过程截图（s7_* 第 1–19 轮 + c/d/…/q 体验优化系列）+ 2 份 devlog → `../../归档/s7协议工作底稿/assets/`；本目录 assets/ 只留 3 个示例帧生成脚本（协议文档活配套）。CHANGELOG 顶部加归档说明，历史条目原文保真。
+- **归属澄清**（用户口径）：protocol-zqdata-uhtp-v1 是 **S7 设备线自己的下一代协议稿**（现役演进方向），不并入 UWTP 通用目录；留本目录，待按 UWTP §22 待办 1 改写为 S7 采集 Profile。
+- **代码注释勘误**：4 处 `Docs/architecture-v2/s7/...` 旧路径（Device.kt/S7Frame.kt/S7Messages.kt/DeviceConsoleScreen.kt）→ `Docs/architecture/s7/...`；编译验证绿。
 
 ## 2026-07-06 · 协议分册补齐五要素 + 目录归档（第 22 轮）
 

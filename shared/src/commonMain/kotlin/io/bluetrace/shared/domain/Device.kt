@@ -23,7 +23,7 @@ object DeviceLimits {
 /** 标准心率带 profile id，写入 manifest device.profileId（§6.2）。 */
 const val PROFILE_HRS = "HeartRate.SIG.0x180D"
 
-/** S7 手表（B2A 协议）profile id —— 设备维护控制台按此识别（Docs/architecture-v2/s7）。 */
+/** S7 手表（B2A 协议）profile id —— 设备维护控制台按此识别（Docs/architecture/s7）。 */
 const val PROFILE_S7 = "SKG.S7.B2A"
 
 /**

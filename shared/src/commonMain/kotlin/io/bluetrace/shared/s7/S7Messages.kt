@@ -6,7 +6,7 @@ import io.bluetrace.shared.s7.S7FrameCodec.readLe16
 import io.bluetrace.shared.s7.S7FrameCodec.writeLe16
 
 /**
- * B2A 命令字/子键常量 + 维护命令 payload 编解码（规格：Docs/architecture-v2/s7/protocol-spec.md §3–4）。
+ * B2A 命令字/子键常量 + 维护命令 payload 编解码（规格：Docs/architecture/s7/protocol-spec.md §3–4）。
  * 解析全部带越界防御：长度不符返回 null，不抛异常（线内容不可信）。
  */
 object S7 {

@@ -6,6 +6,16 @@
 
 ---
 
+## [文档] 目录整理第四轮：s7 调试证据归档 + assets 收纳 + 代码注释勘误 — ✅ 2026-07-06
+用户点名四目录复查（s7/architecture/assets/prototypes）：
+- **s7/**（s7/CHANGELOG 第 23 轮）：60 张联调截图 + 2 devlog → `归档/s7协议工作底稿/assets/`，s7/ 收敛为**纯协议文档目录**（assets 只留 3 个示例帧脚本）；**归属澄清**——protocol-zqdata-uhtp-v1 是 S7 设备线自己的下一代稿（非 UWTP 家族文件），留 s7/ 待改写为采集 Profile。
+- **代码注释勘误**：4 个 kt 文件里 `architecture-v2` 旧路径 → 现路径（编译绿）。
+- **assets/**：34 张 v6/v7 全屏巡检散图（零活引用）→ `归档/历史截图/device_v7/`；图标/首屏源图收纳 `assets/brand/`；`screenshots_device/` 只剩两个活证据集（regress/waveB）。
+- **architecture/ 根**：无进一步动作（上轮已导航+状态行；02/03 编号命名保留——全仓引用密集，改名纯成本）。**prototypes/**：无动作（v4_android.html 真源路径冻结，单文件目录即正确形态）。
+- 死链复扫零新增；两级 README 树同步。
+
+---
+
 ## [文档] Docs 三轮深度整理：s7 分册五要素 → architecture 导航 → 全库死链清零 — ✅ 2026-07-06
 提交 `fd14878` / `955ee7f` / `12f29b7`，同一条整理线的三级递进：
 - **s7 子目录**（`fd14878`，s7/CHANGELOG 第 22 轮）：对照协议文档五要素审计——共识稿本达标；补 protocol-zqdata（40B 帧 bit 图 + B2A 封装标尺 + 实例包 decode 脚本实算 + 离线上行状态机）与 protocol-b2a（帧信封 ASCII 标尺 + OTA 状态机图）；plan/review/_raw 十份工作底稿 → `归档/s7协议工作底稿/`。

@@ -14,7 +14,7 @@
 | [bluetrace_v0.proto](bluetrace_v0.proto) | 自研协议 payload 机器契约 | v0.1 草案；**路径冻结勿挪**（SPEC 引用） |
 | [03_collect_protocol_design.md](03_collect_protocol_design.md) + [btcp1_draft.proto](btcp1_draft.proto) | 自研线演进稿 BTCP/1（补离线回传/会话绑定/对时） | 设计稿 v1，评审通过才并入 v0.proto |
 | [scenes.json](scenes.json) | 场景词表机器契约（与 app assets 同源） | **路径冻结勿挪勿改** |
-| [s7/](s7/) | S7 手表现网协议线（B2A + zqdata），独立 CHANGELOG | 活——共识稿为准，分册五要素齐（2026-07-06 第 22 轮） |
+| [s7/](s7/) | S7 手表协议线：现网（B2A + zqdata）+ 本设备线下一代稿（protocol-zqdata-uhtp-v1，待按 UWTP 改写为采集 Profile），独立 CHANGELOG | 活——共识稿为准，分册五要素齐；调试截图/日志已归档，assets 只留示例帧脚本 |
 | assets/ | 帧规格示例脚本等 | 随所属文档 |
 
 ## 2. 三条协议线的关系（M7 冻结怎么选）
