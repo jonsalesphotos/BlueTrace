@@ -91,6 +91,30 @@ B2A（BLE-to-App）是 SKG WATCH S7 手表与配套 App 间的应用层协议，
 
 ## 2. 帧格式逐字节
 
+
+帧信封 bit-level memory map（与共识稿 §3.2 同源，此处为分册自包含）：
+
+```
+Byte Offset:   0        1        2        3        4        5        6        7
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+B2A_HEAD      | 0xBB   | status |  uiLen u16 LE   |  uiCRC u16 LE   | uiIndex u16 LE  |
+              | SOF    | 位图↓  |  头后字节数     |  覆盖偏移8起    | 首包0, 续包++   |
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   8        9        10       11       12 ...
+              +--------+--------+--------+--------+---------------------------+
+B2A_DATA_CMD  | ucCmd  | ucKey  | uiParamLen LE   | szParam ...               |  ← 仅 Index==0
+              +--------+--------+--------+--------+---------------------------+
+
+ucStatus (byte 1)，bit7 → bit0（ble2appEx.h:26-43）：
+              +----------+------+------+---------------+---------------+----------+----------+
+         bit  |    7     |  6   |  5   |       3       |       2       |    1     |    0     |
+              +----------+------+------+---------------+---------------+----------+----------+
+              | OTA_PART |    保留     | MULTI_PKT_END | IS_MULTI_PKT  |   ACK    |   FAIL   |
+              |   0x80   |             |     0x08      |     0x04      |   0x02   |   0x01   |
+              +----------+------+------+---------------+---------------+----------+----------+
+（uiLen<4 的短帧无 uiParamLen 域，见 §3.3 例①；bit[5:4] 另作多包 ID，见 §2.4）
+```
+
 ### 2.1 帧头 B2A_HEAD（固定 8 字节，全小端）
 
 代码实证：`S7Frame.kt:100-109`（编码）/ `:151-177`（解码）。字段名对齐固件 `ble2appEx.h:74-81`。
@@ -538,6 +562,25 @@ Key 枚举 `ENUM_B2A_FILE_TRANS_KEY_TYPE`（`ble2appEx.h:451-461`）。双向。
 **枚举**：ModuleId `ble2appEx.h:464-477`：OTA1/GPS_FW2/WATCH_BG3/MODEM_FW4/SECBL_FW5/BP_FW6。FileType `:480-495`：BOOTLOADER1/FW2/RES3/MODEM4/GPS_FW5/GPS_HIS6/FONT7/WATCH_BG8/WATCH_CFG9/BP_FW10。Req 状态 `:498-509`：OK0/DISK_FULL1/BUSY2/MEMORY3。
 
 **OTA 状态机**：`EOTA_IDLE→REQ→READY→START→TRANS_DATA(续片)→END`；出错 `OTAR_ERROR` 回 IDLE。OTA 期间非 FILE_TRANS 帧被丢弃。60 秒超时 `B2A_OtaTimeoutCb`。
+
+```
+EOTA_IDLE ──REQ(Key=0x04: ModuleId+IsOffset+FileCount+TotalSize)──▶ EOTA_REQ
+    ▲                                                                  │
+    │                                         表回 12B: Status+SliceMaxSize+Offset
+    │                                                                  ▼
+    │                                                             EOTA_READY
+    │                                                                  │
+    │            START(Key=0x01: CurrFileSize+Offset+SliceSize+Type+ZipFlag+FileName)
+    │                                                                  ▼
+    │◀── 60s 超时 B2A_OtaTimeoutCb ────────────  EOTA_TRANS_DATA ◀─TRANS(Key=0x02)×N─┐
+    │◀── STOP(Key=0x03) / OTAR_ERROR ──────────        │      └───────续片───────────┘
+    │                                                  ▼ 传完
+    └───────────────────────────────────────────  EOTA_END
+
+断点续传：OFFSET(Key=0x06) 查表侧已收水位 → 从应答 Offset 处续发 TRANS
+OTA 期间非 FILE_TRANS 帧被丢弃；差分模式由帧头 EHST_OTA_PART(bit7) 标记
+```
+
 
 > **三套独立 OTA（来源③，供二期参考）**：
 > | 路径 | per-packet 校验 | 整体校验 | 复位方式 | 编译状态 |

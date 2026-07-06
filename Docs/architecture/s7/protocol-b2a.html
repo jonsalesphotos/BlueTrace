@@ -1,708 +1,2100 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>S7 · B2A 协议完整规格（逐字节 · 含位域展开）</title>
 <style>
-  :root{
-    --primary:#2BAEEA; --primary-deep:#1C8EC5; --primary-c:#DCF1FB;
-    --bg:#F3F5F8; --surface:#FFFFFF; --on-surface:#1B1D22; --on-surface-v:#4C525C;
-    --outline-v:#D7DAE0; --ok:#2AAE6D; --ok-c:#D4F4E2; --warn:#E89F40; --warn-c:#FFE8C9;
-    --err:#E5484D; --err-c:#FFE3E3; --gray:#8A9099; --gray-c:#ECEEF3;
-    --font:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--on-surface);font-family:var(--font);line-height:1.6;padding:30px 18px 70px}
-  .wrap{max-width:1080px;margin:0 auto}
-  header.hero{background:linear-gradient(135deg,var(--primary-c),#fff 70%);border:1px solid var(--outline-v);border-radius:18px;padding:26px 30px;margin-bottom:22px}
-  h1{font-size:23px;font-weight:800}
-  .hero .sub{color:var(--on-surface-v);margin-top:8px;font-size:14px;max-width:920px}
-  .hero .sub b{color:var(--primary-deep)}
-  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  section{background:var(--surface);border:1px solid var(--outline-v);border-radius:16px;padding:22px 26px;margin-bottom:18px;scroll-margin-top:14px}
-  h2{font-size:18px;font-weight:800;color:var(--primary-deep);margin-bottom:12px}
-  h3{font-size:14.5px;font-weight:700;margin:18px 0 6px;scroll-margin-top:14px}
-  h4{font-size:13.5px;font-weight:700;margin:14px 0 5px;color:var(--on-surface-v);scroll-margin-top:14px}
-  p{margin:8px 0}
-  ul,ol{margin:8px 0 8px 22px}
-  li{margin:3px 0}
-  .tbl{overflow-x:auto;margin:6px 0}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin:0}
-  th{background:var(--bg);text-align:left;padding:7px 9px;font-weight:700;border-bottom:2px solid var(--outline-v);white-space:nowrap}
-  td{padding:6px 9px;border-bottom:1px solid var(--outline-v);vertical-align:top}
-  tr:last-child td{border-bottom:none}
-  code{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--outline-v);border-radius:5px;padding:1px 5px;white-space:nowrap}
-  strong{font-weight:700}
-  .b{display:inline-block;border-radius:999px;font-size:11px;font-weight:700;padding:2px 9px;white-space:nowrap}
-  .ok{background:var(--ok-c);color:#156B42}
-  .warn{background:var(--warn-c);color:#8A5A14}
-  .err{background:var(--err-c);color:#9B2226}
-  .gray{background:var(--gray-c);color:#4C525C}
-  .callout{border-left:4px solid var(--ok);background:var(--ok-c);border-radius:0 12px 12px 0;padding:12px 16px;font-size:13.5px;margin:12px 0}
-  .callout.warn{border-left-color:var(--warn);background:var(--warn-c)}
-  .callout.note{border-left-color:var(--primary);background:var(--primary-c)}
-  .callout code{background:#fff}
-  .hex{background:#1B1D22;color:#E6E8EC;font-family:var(--mono);font-size:12.5px;padding:14px 16px;border-radius:10px;overflow-x:auto;line-height:1.5;white-space:pre;margin:10px 0}
-  .toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-  .toc a{display:inline-block;background:var(--bg);border:1px solid var(--outline-v);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--primary-deep);text-decoration:none;transition:background .15s}
-  .toc a:hover{background:var(--primary-c)}
-  a{color:var(--primary-deep)}
-  footer{text-align:center;color:var(--gray);font-size:12px;margin-top:26px;line-height:1.9}
-  footer a{color:var(--primary-deep)}
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
 </style>
 </head>
-<body><div class="wrap">
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-b2a">S7 · B2A 协议完整规格（逐字节 · 含位域展开）</a><ul>
+<li><a href="#_1">目录</a></li>
+<li><a href="#1-gatt-mtu">1. 概述与传输栈（GATT / MTU / 分包重组）</a><ul>
+<li><a href="#11-gatt-b2a">1.1 GATT 服务 / 特征（承载 B2A）</a></li>
+<li><a href="#12">1.2 链路 / 连接参数</a></li>
+<li><a href="#13">1.3 分包 / 重组机制（关键结论）</a></li>
+<li><a href="#14-b2adetect">1.4 扫描识别（B2aDetect）</a></li>
+</ul>
+</li>
+<li><a href="#2">2. 帧格式逐字节</a><ul>
+<li><a href="#21-b2a_head-8">2.1 帧头 B2A_HEAD（固定 8 字节，全小端）</a></li>
+<li><a href="#22-b2a_data_cmdpayload-4">2.2 命令头 B2A_DATA_CMD（payload 起始 4 字节，仅首包携带）</a></li>
+<li><a href="#23-crc16-ccitt-false">2.3 CRC16-CCITT-FALSE（代码实证精确算法）</a></li>
+<li><a href="#24-ucstatus-bit">2.4 ucStatus 位域逐 bit 展开</a></li>
+</ul>
+</li>
+<li><a href="#3">3. 数据组包：逻辑包→分片→重组</a><ul>
+<li><a href="#31">3.1 逻辑包 → 分片（发送侧）</a></li>
+<li><a href="#32-s7framekt179-256">3.2 分片 → 重组（接收侧，代码实证 S7Frame.kt:179-256）</a></li>
+<li><a href="#33-hex">3.3 示例 hex</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 命令总览与分发</a><ul>
+<li><a href="#41-enum_b2a_cmd_type">4.1 一级命令字（ENUM_B2A_CMD_TYPE）</a></li>
+<li><a href="#42">4.2 命令分类实现状态一览</a></li>
+</ul>
+</li>
+<li><a href="#5-bond-cmd0x01">5. BOND 绑定命令族（Cmd=0x01）</a></li>
+<li><a href="#6-get-cmd0x02">6. GET 读命令族（Cmd=0x02）</a><ul>
+<li><a href="#61-get">6.1 维护控制台已实现的 GET（代码实证逐字节）</a></li>
+<li><a href="#62-get">6.2 其余 GET（业务类·⬜不在维护工具范围）</a></li>
+</ul>
+</li>
+<li><a href="#7-set-0x03-push0x04-ind0x05-rpt_data0x060x86">7. SET 写命令族（0x03）· PUSH（0x04）· IND（0x05）· RPT_DATA（0x06/0x86）</a><ul>
+<li><a href="#71-set-cmd0x03">7.1 SET 写命令族（Cmd=0x03）</a></li>
+<li><a href="#72-push-cmd0x04">7.2 PUSH 推送（Cmd=0x04）</a></li>
+<li><a href="#73-ind-cmd0x05">7.3 IND 指示/控制（Cmd=0x05）</a></li>
+<li><a href="#74-rpt_data-cmd0x060x86">7.4 RPT_DATA 健康数据同步（Cmd=0x06/0x86）</a></li>
+</ul>
+</li>
+<li><a href="#8-dev_ctrl-0x07-test-0x08">8. DEV_CTRL 设备控制（0x07）· TEST 工厂（0x08）</a><ul>
+<li><a href="#81-dev_ctrl-cmd0x07">8.1 DEV_CTRL 设备控制（Cmd=0x07）</a></li>
+<li><a href="#82-test-cmd0x08">8.2 TEST 工厂测试（Cmd=0x08）</a></li>
+</ul>
+</li>
+<li><a href="#9-file_trans-ota0x0f">9. FILE_TRANS / OTA（0x0F）· 日志拉取子协议</a><ul>
+<li><a href="#91-file_trans-otacmd0x0f">9.1 FILE_TRANS / OTA（Cmd=0x0F）</a></li>
+<li><a href="#92-dev_ctrl-0x070x09">9.2 日志拉取子协议（DEV_CTRL 0x07/0x09）</a></li>
+</ul>
+</li>
+<li><a href="#10-vs">10. 代码实证 vs 文档（源码）差异汇总</a></li>
+<li><a href="#11-crc">11. 附录：枚举 / 状态码 / CRC / 命令索引</a><ul>
+<li><a href="#111-ebecenum_b2a_error_code_type">11.1 应用层错误码 EBEC（ENUM_B2A_ERROR_CODE_TYPE）</a></li>
+<li><a href="#112-ucstatus-s7status">11.2 帧头 ucStatus 位（S7Status）</a></li>
+<li><a href="#113-crc">11.3 CRC 算法</a></li>
+<li><a href="#114-cmdkey-hex">11.4 全命令索引（cmd/key hex）</a></li>
+<li><a href="#115">11.5 关键源文件路径</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
 
-<header class="hero">
-  <h1>S7 · B2A 协议完整规格（逐字节 · 含位域展开）</h1>
-  <p class="sub">
-    SKG WATCH S7 手表与配套 App 应用层协议 · <b>逐字节含位域展开</b>；字节布局以 BlueTrace 侧<b>代码实证</b>为准，命令全集/示例/语义补自固件源码。真机 SKG WATCH S7-FCC4 联调验证。
-  </p>
-  <div class="legend">
-    <span class="b ok">✅ 已实现</span>
-    <span class="b gray">⬜ 业务类 / 未做</span>
-    <span class="b err">⛔ 固件未开（#if 0）</span>
-    <span class="b warn">🅾 OTA 二期</span>
-  </div>
-</header>
+</div>
+</nav>
+<main><h1 id="s7-b2a">S7 · B2A 协议完整规格（逐字节 · 含位域展开）</h1>
+<blockquote>
+<p><strong>合成说明</strong>：本文由四份独立抽取结果合成——
+①传输/帧层（固件 <code>apollo4_watch_s7</code> 源码）②应用命令全集（固件 <code>ble2appWrap.c</code>）③日志+OTA 子协议（固件）④<strong>代码实证</strong>（BlueTrace 侧 <code>shared/.../s7/*.kt</code>，真机 SKG WATCH S7-FCC4 联调过）。</p>
+<p><strong>权威顺序</strong>：字节布局以<strong>第 4 份代码实证</strong>为最高权威（真机验证过）；语义、命令全集、示例以固件源文档（①②③）补充；两者冲突处于该字段/命令下<strong>标注 <code>⚠差异</code></strong>，并在 <a href="#10-代码实证-vs-文档源码差异汇总">第 10 章</a>集中列出。</p>
+<p><strong>实现状态口径</strong>：参考 <a href="command-status.md">command-status.md</a>。每条命令标注 <code>✅已实现</code> / <code>⬜未实现（业务类·不在维护工具范围）</code> / <code>⛔固件未开(#if 0)</code> / <code>🅾OTA二期</code>。</p>
+<p><strong>CRC / golden 锚点</strong>：<code>CRC16-CCITT-FALSE(08 01 01) = 0x462D</code>；完整帧 <code>BB 02 03 00 2D 46 00 00 08 01 01</code>（产测握手，代码实证 <code>S7Frame.kt:119</code>）。</p>
+</blockquote>
+<hr />
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-概述与传输栈gatt--mtu--分包重组">概述与传输栈</a></li>
+<li><a href="#2-帧格式逐字节">帧格式逐字节</a></li>
+<li><a href="#3-数据组包逻辑包分片重组">数据组包：逻辑包→分片→重组</a></li>
+<li><a href="#4-命令总览与分发">命令总览与分发</a></li>
+<li><a href="#5-bond-绑定命令族-cmd0x01">BOND 绑定命令族（0x01）</a></li>
+<li><a href="#6-get-读命令族-cmd0x02">GET 读命令族（0x02）</a></li>
+<li><a href="#7-set-写命令族-0x03--push-0x04--ind-0x05--rpt_data-0x060x86">SET 写命令族（0x03）· PUSH（0x04）· IND（0x05）· RPT_DATA（0x06/0x86）</a></li>
+<li><a href="#8-dev_ctrl-设备控制-0x07--test-工厂-0x08">DEV_CTRL 设备控制（0x07）· TEST 工厂（0x08）</a></li>
+<li><a href="#9-file_trans--ota-0x0f--日志拉取子协议">FILE_TRANS / OTA（0x0F）· 日志拉取子协议</a></li>
+<li><a href="#10-代码实证-vs-文档源码差异汇总">代码实证 vs 文档（源码）差异汇总</a></li>
+<li><a href="#11-附录枚举--状态码--crc--命令索引">附录：枚举 / 状态码 / CRC / 命令索引</a></li>
+</ol>
+<hr />
+<h2 id="1-gatt-mtu">1. 概述与传输栈（GATT / MTU / 分包重组）</h2>
+<p>B2A（BLE-to-App）是 SKG WATCH S7 手表与配套 App 间的应用层协议，承载于 <strong>AMDTP</strong> 128-bit 厂商私有 GATT 服务之上。所有多字节字段<strong>小端（LE）</strong>，帧结构 <strong>packed 无填充、无转义</strong>。</p>
+<h3 id="11-gatt-b2a">1.1 GATT 服务 / 特征（承载 B2A）</h3>
+<p>128-bit 私有 base：<code>0000xxxx-3C17-D293-8E48-14FE2E4DA212</code>（广播里以 16-bit <code>0xFFE0/E1/E2</code> 段出现）。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>完整 UUID</th>
+<th>属性 / 方向</th>
+<th>值句柄</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AMDTP Service</strong></td>
+<td><code>0000FFE0-3C17-D293-8E48-14FE2E4DA212</code></td>
+<td>Primary Service</td>
+<td><code>0x0800</code></td>
+</tr>
+<tr>
+<td><strong>RX 特征</strong></td>
+<td><code>0000FFE1-3C17-D293-8E48-14FE2E4DA212</code></td>
+<td><strong>Write Without Response</strong>（App→表，下行命令）</td>
+<td><code>0x0802</code></td>
+</tr>
+<tr>
+<td><strong>TX 特征</strong></td>
+<td><code>0000FFE2-3C17-D293-8E48-14FE2E4DA212</code></td>
+<td><strong>Notify</strong>（表→App，应答/上报）</td>
+<td><code>0x0804</code></td>
+</tr>
+<tr>
+<td><strong>TX CCC</strong></td>
+<td><code>0x2902</code></td>
+<td>Read/Write CCC，安全级 <code>DM_SEC_LEVEL_NONE</code>（开 notify <strong>不要求加密</strong>）</td>
+<td><code>0x0805</code></td>
+</tr>
+<tr>
+<td>~~ACK 特征 FFEB~~</td>
+<td><code>0000FFEB-...</code></td>
+<td>广播 UUID 表列出但<strong>实际不建服务</strong>（<code>__BLE_AMDTPS_SUPPORT__</code> 下整段被排除）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>另有 <strong>GH3X2X 工厂数据服务</strong>（<code>0x190E</code>，标准蓝牙 base，句柄基址 <code>0x0A00</code>），是产测专用通道，<strong>与 B2A 数据面独立</strong>，不走 B2A 帧协议。本文不展开。</p>
+</blockquote>
+<p><strong>收发链路（旁证 B2A 承载路径）</strong>：
+- <strong>接收</strong>（App→表，写 FFE1）：ATTS write → <code>amdtps_write_cback</code> → <code>SYS_BleRecvData</code> → <code>B2A_RecvData</code>（校验 SOF/Len/CRC16）→ <code>B2A_RecvDataHandle</code> → <code>switch(ucCmd)</code>。
+- <strong>发送</strong>（表→App，notify FFE2）：<code>SYS_BleSendData</code> → <code>SDK_BleSendData</code> → <code>amdtpsSendData</code>（检查 txReady）→ <code>AttsHandleValueNtf(connId, AMDTPS_TX_HDL, ...)</code>。</p>
+<h3 id="12">1.2 链路 / 连接参数</h3>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>值</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>广播间隔</td>
+<td>1000ms（连续广播 duration=0）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>最大连接数</td>
+<td><strong>1</strong></td>
+<td>设备侧限制</td>
+</tr>
+<tr>
+<td>期望连接参数</td>
+<td>interval min 8(10ms) / max 18(22.5ms) / latency 0</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>MTU 协商</strong></td>
+<td>连接后表端主动 <code>AttcMtuReq(247)</code></td>
+<td>App 侧接受协商结果即可</td>
+</tr>
+<tr>
+<td><strong>DLE 数据长度扩展</strong></td>
+<td><code>DmConnSetDataLen(251, 0x848)</code>；HCI 最大 RX ACL 251</td>
+<td>单 BLE 逻辑包链路层可承载 ~244B ATT payload</td>
+</tr>
+<tr>
+<td>配对</td>
+<td>Just Works（<code>SMP_IO_NO_IN_NO_OUT</code>），仅绑定（<code>DM_AUTH_BOND_FLAG</code>），TX CCC 不要求加密</td>
+<td><strong>连上即可通信</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 分包 / 重组机制（关键结论）</h3>
+<p><strong>B2A 没有独立的「分片头」。</strong> 逻辑包的拆分/重组完全由 <strong>8 字节帧头</strong>里的三个字段承担：
+- <strong><code>Status</code>（偏移 1）</strong>：多包标志位 <code>IS_MULTI_PKT</code> / <code>MULTI_PKT_END</code> + 多包 ID <code>bit[5:4]</code>；
+- <strong><code>Index</code>（偏移 6，LE16）</strong>：包序号，首包 0，续包递增，用于顺序校验；
+- <strong><code>Len</code>（偏移 2，LE16）</strong>：本帧 payload 长度。</p>
+<p>每个 BLE 分片本身即携带完整的 8 字节 B2A 帧头。<strong>首包</strong>带 4 字节命令头（<code>cmd/key/paramLen</code>），<strong>续包</strong>只有裸 param 续段（命令字由首包延续）。链路层（L2CAP/ACL）的分段/重组由 ExactLE/Cordio 协议栈透明完成，应用层不可见。</p>
+<p><strong>App 侧必须自建的可靠性层</strong>（协议未定义超时/重传/事务 ID）：
+1. <strong>单飞串行队列</strong>：同一时刻最多一个未决请求（无事务 ID，同 Cmd/Key 并发无法区分应答）；
+2. <strong>超时</strong>：默认 3s；
+3. <strong>不回包命令</strong>（关机/重启/恢复出厂）：以 <strong>LinkState 断链</strong> 作为成功判据，10s 未断链报「设备未响应」；
+4. <strong>设备主动帧</strong>（心跳/日志块/告警）与应答共用 Notify 通道：分发器先按未决请求的 Cmd/Key 拦截应答，其余走上报处理器；
+5. <strong>下行分片</strong>：维护控制台全部命令 payload ≤ 20B，<strong>永不分片</strong>；日志/OTA 上行重组按 <a href="#3-数据组包逻辑包分片重组">第 3 章</a>规则实现。</p>
+<h3 id="14-b2adetect">1.4 扫描识别（B2aDetect）</h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>判据</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★★★</td>
+<td>广播 16-bit Service UUID 含 <strong><code>0xFFE0</code></strong></td>
+<td>ADV_IND，AD type 0x03（实测广播含 180A + FFE0/E1/E2/EB）</td>
+</tr>
+<tr>
+<td>★★☆</td>
+<td>连接后 service discovery 查 <strong>RX=FFE1 且 TX=FFE2</strong> 同时存在</td>
+<td>GATT</td>
+</tr>
+<tr>
+<td>★☆☆</td>
+<td>设备名前缀 <code>SKG WATCH S7-</code></td>
+<td><strong>SCAN_RSP</strong>（被动扫描拿不到，仅辅助过滤，不作协议判据）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>完整设备名 = <code>"SKG WATCH S7-" + 4 位大写 hex</code>；后缀算法 = <code>大写Hex(MAC[1]) + 大写Hex(MAC[0])</code>（先字节[1] 后字节[0]，各 2 位大写 hex）。例：MAC <code>71:61:48:19:FC:C4</code> → 名 <code>SKG WATCH S7-FCC4</code>（代码实证真机）。</li>
+<li><code>B2aDetect.extract16</code>：4 位 UUID 直返；<code>0000</code> 前缀 128-bit 取 <code>[4,8)</code>（bits16..31 段）。</li>
+</ul>
+<hr />
+<h2 id="2">2. 帧格式逐字节</h2>
+<p>帧信封 bit-level memory map（与共识稿 §3.2 同源，此处为分册自包含）：</p>
+<pre><code>Byte Offset:   0        1        2        3        4        5        6        7
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+B2A_HEAD      | 0xBB   | status |  uiLen u16 LE   |  uiCRC u16 LE   | uiIndex u16 LE  |
+              | SOF    | 位图↓  |  头后字节数     |  覆盖偏移8起    | 首包0, 续包++   |
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   8        9        10       11       12 ...
+              +--------+--------+--------+--------+---------------------------+
+B2A_DATA_CMD  | ucCmd  | ucKey  | uiParamLen LE   | szParam ...               |  ← 仅 Index==0
+              +--------+--------+--------+--------+---------------------------+
 
-<section id="toc-nav">
-  <h2>目录</h2>
-  <nav class="toc">
-    <a href="#ch1">1. 概述与传输栈（GATT / MTU / 分包重组）</a>
-    <a href="#ch2">2. 帧格式逐字节</a>
-    <a href="#ch3">3. 数据组包：逻辑包→分片→重组</a>
-    <a href="#ch4">4. 命令总览与分发</a>
-    <a href="#ch5">5. BOND 绑定命令族（0x01）</a>
-    <a href="#ch6">6. GET 读命令族（0x02）</a>
-    <a href="#ch7">7. SET（0x03）· PUSH（0x04）· IND（0x05）· RPT_DATA（0x06/0x86）</a>
-    <a href="#ch8">8. DEV_CTRL 设备控制（0x07）· TEST 工厂（0x08）</a>
-    <a href="#ch9">9. FILE_TRANS / OTA（0x0F）· 日志拉取子协议</a>
-    <a href="#ch10">10. 代码实证 vs 文档（源码）差异汇总</a>
-    <a href="#ch11">11. 附录：枚举 / 状态码 / CRC / 命令索引</a>
-  </nav>
-
-  <div class="callout note">
-    <strong>合成说明：</strong>本文由四份独立抽取结果合成——
-    ①传输/帧层（固件 <code>apollo4_watch_s7</code> 源码）②应用命令全集（固件 <code>ble2appWrap.c</code>）③日志+OTA 子协议（固件）④<strong>代码实证</strong>（BlueTrace 侧 <code>shared/.../s7/*.kt</code>，真机 SKG WATCH S7-FCC4 联调过）。
-    <br><br>
-    <strong>权威顺序：</strong>字节布局以<strong>第 4 份代码实证</strong>为最高权威（真机验证过）；语义、命令全集、示例以固件源文档（①②③）补充；两者冲突处于该字段/命令下<strong>标注 <code>⚠差异</code></strong>，并在<a href="#ch10">第 10 章</a>集中列出。
-    <br><br>
-    <strong>实现状态口径：</strong>参考 <a href="command-status.md">command-status.md</a>。每条命令标注 <span class="b ok">✅已实现</span> / <span class="b gray">⬜未实现（业务类·不在维护工具范围）</span> / <span class="b err">⛔固件未开(#if 0)</span> / <span class="b warn">🅾OTA二期</span>。
-    <br><br>
-    <strong>CRC / golden 锚点：</strong><code>CRC16-CCITT-FALSE(08 01 01) = 0x462D</code>；完整帧 <code>BB 02 03 00 2D 46 00 00 08 01 01</code>（产测握手，代码实证 <code>S7Frame.kt:119</code>）。
-  </div>
-</section>
-
-<!-- ============================= 第 1 章 ============================= -->
-<section id="ch1">
-  <h2>1. 概述与传输栈（GATT / MTU / 分包重组）</h2>
-  <p>B2A（BLE-to-App）是 SKG WATCH S7 手表与配套 App 间的应用层协议，承载于 <strong>AMDTP</strong> 128-bit 厂商私有 GATT 服务之上。所有多字节字段<strong>小端（LE）</strong>，帧结构 <strong>packed 无填充、无转义</strong>。</p>
-
-  <h3 id="s1-1">1.1 GATT 服务 / 特征（承载 B2A）</h3>
-  <p>128-bit 私有 base：<code>0000xxxx-3C17-D293-8E48-14FE2E4DA212</code>（广播里以 16-bit <code>0xFFE0/E1/E2</code> 段出现）。</p>
-  <div class="tbl"><table>
-    <tr><th>名称</th><th>完整 UUID</th><th>属性 / 方向</th><th>值句柄</th></tr>
-    <tr><td><strong>AMDTP Service</strong></td><td><code>0000FFE0-3C17-D293-8E48-14FE2E4DA212</code></td><td>Primary Service</td><td><code>0x0800</code></td></tr>
-    <tr><td><strong>RX 特征</strong></td><td><code>0000FFE1-3C17-D293-8E48-14FE2E4DA212</code></td><td><strong>Write Without Response</strong>（App→表，下行命令）</td><td><code>0x0802</code></td></tr>
-    <tr><td><strong>TX 特征</strong></td><td><code>0000FFE2-3C17-D293-8E48-14FE2E4DA212</code></td><td><strong>Notify</strong>（表→App，应答/上报）</td><td><code>0x0804</code></td></tr>
-    <tr><td><strong>TX CCC</strong></td><td><code>0x2902</code></td><td>Read/Write CCC，安全级 <code>DM_SEC_LEVEL_NONE</code>（开 notify <strong>不要求加密</strong>）</td><td><code>0x0805</code></td></tr>
-    <tr><td><s>ACK 特征 FFEB</s></td><td><code>0000FFEB-...</code></td><td>广播 UUID 表列出但<strong>实际不建服务</strong>（<code>__BLE_AMDTPS_SUPPORT__</code> 下整段被排除）</td><td>—</td></tr>
-  </table></div>
-  <div class="callout note">另有 <strong>GH3X2X 工厂数据服务</strong>（<code>0x190E</code>，标准蓝牙 base，句柄基址 <code>0x0A00</code>），是产测专用通道，<strong>与 B2A 数据面独立</strong>，不走 B2A 帧协议。本文不展开。</div>
-  <p><strong>收发链路（旁证 B2A 承载路径）：</strong></p>
-  <ul>
-    <li><strong>接收</strong>（App→表，写 FFE1）：ATTS write → <code>amdtps_write_cback</code> → <code>SYS_BleRecvData</code> → <code>B2A_RecvData</code>（校验 SOF/Len/CRC16）→ <code>B2A_RecvDataHandle</code> → <code>switch(ucCmd)</code>。</li>
-    <li><strong>发送</strong>（表→App，notify FFE2）：<code>SYS_BleSendData</code> → <code>SDK_BleSendData</code> → <code>amdtpsSendData</code>（检查 txReady）→ <code>AttsHandleValueNtf(connId, AMDTPS_TX_HDL, ...)</code>。</li>
-  </ul>
-
-  <h3 id="s1-2">1.2 链路 / 连接参数</h3>
-  <div class="tbl"><table>
-    <tr><th>参数</th><th>值</th><th>备注</th></tr>
-    <tr><td>广播间隔</td><td>1000ms（连续广播 duration=0）</td><td>—</td></tr>
-    <tr><td>最大连接数</td><td><strong>1</strong></td><td>设备侧限制</td></tr>
-    <tr><td>期望连接参数</td><td>interval min 8(10ms) / max 18(22.5ms) / latency 0</td><td>—</td></tr>
-    <tr><td><strong>MTU 协商</strong></td><td>连接后表端主动 <code>AttcMtuReq(247)</code></td><td>App 侧接受协商结果即可</td></tr>
-    <tr><td><strong>DLE 数据长度扩展</strong></td><td><code>DmConnSetDataLen(251, 0x848)</code>；HCI 最大 RX ACL 251</td><td>单 BLE 逻辑包链路层可承载 ~244B ATT payload</td></tr>
-    <tr><td>配对</td><td>Just Works（<code>SMP_IO_NO_IN_NO_OUT</code>），仅绑定（<code>DM_AUTH_BOND_FLAG</code>），TX CCC 不要求加密</td><td><strong>连上即可通信</strong></td></tr>
-  </table></div>
-
-  <h3 id="s1-3">1.3 分包 / 重组机制（关键结论）</h3>
-  <p><strong>B2A 没有独立的「分片头」。</strong> 逻辑包的拆分/重组完全由 <strong>8 字节帧头</strong>里的三个字段承担：</p>
-  <ul>
-    <li><strong><code>Status</code>（偏移 1）</strong>：多包标志位 <code>IS_MULTI_PKT</code> / <code>MULTI_PKT_END</code> + 多包 ID <code>bit[5:4]</code>；</li>
-    <li><strong><code>Index</code>（偏移 6，LE16）</strong>：包序号，首包 0，续包递增，用于顺序校验；</li>
-    <li><strong><code>Len</code>（偏移 2，LE16）</strong>：本帧 payload 长度。</li>
-  </ul>
-  <p>每个 BLE 分片本身即携带完整的 8 字节 B2A 帧头。<strong>首包</strong>带 4 字节命令头（<code>cmd/key/paramLen</code>），<strong>续包</strong>只有裸 param 续段（命令字由首包延续）。链路层（L2CAP/ACL）的分段/重组由 ExactLE/Cordio 协议栈透明完成，应用层不可见。</p>
-  <p><strong>App 侧必须自建的可靠性层</strong>（协议未定义超时/重传/事务 ID）：</p>
-  <ol>
-    <li><strong>单飞串行队列</strong>：同一时刻最多一个未决请求（无事务 ID，同 Cmd/Key 并发无法区分应答）；</li>
-    <li><strong>超时</strong>：默认 3s；</li>
-    <li><strong>不回包命令</strong>（关机/重启/恢复出厂）：以 <strong>LinkState 断链</strong> 作为成功判据，10s 未断链报「设备未响应」；</li>
-    <li><strong>设备主动帧</strong>（心跳/日志块/告警）与应答共用 Notify 通道：分发器先按未决请求的 Cmd/Key 拦截应答，其余走上报处理器；</li>
-    <li><strong>下行分片</strong>：维护控制台全部命令 payload ≤ 20B，<strong>永不分片</strong>；日志/OTA 上行重组按<a href="#ch3">第 3 章</a>规则实现。</li>
-  </ol>
-
-  <h3 id="s1-4">1.4 扫描识别（B2aDetect）</h3>
-  <div class="tbl"><table>
-    <tr><th>优先级</th><th>判据</th><th>位置</th></tr>
-    <tr><td>★★★</td><td>广播 16-bit Service UUID 含 <strong><code>0xFFE0</code></strong></td><td>ADV_IND，AD type 0x03（实测广播含 180A + FFE0/E1/E2/EB）</td></tr>
-    <tr><td>★★☆</td><td>连接后 service discovery 查 <strong>RX=FFE1 且 TX=FFE2</strong> 同时存在</td><td>GATT</td></tr>
-    <tr><td>★☆☆</td><td>设备名前缀 <code>SKG WATCH S7-</code></td><td><strong>SCAN_RSP</strong>（被动扫描拿不到，仅辅助过滤，不作协议判据）</td></tr>
-  </table></div>
-  <ul>
-    <li>完整设备名 = <code>"SKG WATCH S7-" + 4 位大写 hex</code>；后缀算法 = <code>大写Hex(MAC[1]) + 大写Hex(MAC[0])</code>（先字节[1] 后字节[0]，各 2 位大写 hex）。例：MAC <code>71:61:48:19:FC:C4</code> → 名 <code>SKG WATCH S7-FCC4</code>（代码实证真机）。</li>
-    <li><code>B2aDetect.extract16</code>：4 位 UUID 直返；<code>0000</code> 前缀 128-bit 取 <code>[4,8)</code>（bits16..31 段）。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 2 章 ============================= -->
-<section id="ch2">
-  <h2>2. 帧格式逐字节</h2>
-
-  <h3 id="s2-1">2.1 帧头 B2A_HEAD（固定 8 字节，全小端）</h3>
-  <p>代码实证：<code>S7Frame.kt:100-109</code>（编码）/ <code>:151-177</code>（解码）。字段名对齐固件 <code>ble2appEx.h:74-81</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序</th><th>含义 / 取值</th></tr>
-    <tr><td><strong><code>0</code></strong></td><td><code>ucStartFlag</code>（SOF）</td><td>1</td><td>—</td><td>固定 <strong><code>0xBB</code></strong>（<code>S7FrameCodec.SOF</code>；固件 <code>MAC_B2A_HEAD_FLAG</code>）</td></tr>
-    <tr><td><strong><code>1</code></strong></td><td><code>ucStatus</code></td><td>1</td><td>—</td><td>状态位域，见 <a href="#s2-4">§2.4</a>（含多包/ACK/OTA 标志）</td></tr>
-    <tr><td><strong><code>2</code></strong></td><td><code>uiLen</code></td><td>2</td><td><strong>LE</strong></td><td>帧头之后 payload 字节数（首包 = 4 + paramLen；续包 = 续段长）</td></tr>
-    <tr><td><strong><code>4</code></strong></td><td><code>uiCRC</code></td><td>2</td><td><strong>LE</strong></td><td><strong>CRC16-CCITT-FALSE</strong>，<strong>仅覆盖 payload（偏移 8 起 uiLen 字节），不含帧头本身</strong></td></tr>
-    <tr><td><strong><code>6</code></strong></td><td><code>uiIndex</code></td><td>2</td><td><strong>LE</strong></td><td>包序号：首包 0，续包递增</td></tr>
-    <tr><td><strong><code>8..</code></strong></td><td><code>payload</code></td><td>uiLen</td><td>—</td><td>首包=命令头(4B)+param；续包=裸续段</td></tr>
-  </table></div>
-  <p>空中示意：<code>BB | Status | Len(LE16) | CRC16(LE16) | Index(LE16) | payload[Len]</code></p>
-
-  <h3 id="s2-2">2.2 命令头 B2A_DATA_CMD（payload 起始 4 字节，仅首包携带）</h3>
-  <p>代码实证：<code>S7Frame.kt:78-83</code>。字段名对齐固件 <code>ble2appEx.h:513-518</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移（payload 内）</th><th>字段</th><th>字节数</th><th>字节序</th><th>含义</th></tr>
-    <tr><td>0</td><td><code>ucCmd</code></td><td>1</td><td>—</td><td>一级命令字（<a href="#s4-1">§4.1</a>）</td></tr>
-    <tr><td>1</td><td><code>ucKey</code></td><td>1</td><td>—</td><td>子命令 / 键</td></tr>
-    <tr><td>2</td><td><code>uiParamLen</code>（SubLen）</td><td>2</td><td><strong>LE</strong></td><td>参数长度</td></tr>
-    <tr><td>4..</td><td><code>szParam[]</code></td><td>paramLen</td><td>—</td><td>命令参数体</td></tr>
-  </table></div>
-
-  <h3 id="s2-3">2.3 CRC16-CCITT-FALSE（代码实证精确算法）</h3>
-  <p><code>S7Frame.kt:13-26</code>：</p>
-  <ul>
-    <li><strong>poly = 0x1021</strong> · <strong>init = 0xFFFF</strong> · <strong>输入不反转 / 输出不反转</strong>（无 refin/refout，直接按 MSB 处理）· <strong>xorout = 0</strong>。</li>
-    <li>逐字节：<code>crc ^= (byte &lt;&lt; 8)</code>；每字节循环 8 次：<code>if (crc &amp; 0x8000) crc = (crc&lt;&lt;1)^0x1021 else crc &lt;&lt;= 1</code>；每轮 <code>crc &amp;= 0xFFFF</code>。</li>
-    <li><strong>覆盖范围 = 仅 payload</strong>（帧偏移 8 起、共 uiLen 字节），<strong>不含 8 字节帧头</strong>。</li>
-    <li>别名：CRC-16/CCITT-FALSE，又称 CRC-16/AUTOSAR（init=0xFFFF 版）。</li>
-    <li><strong>golden 锚点</strong>：<code>CRC16-CCITT-FALSE(08 01 01) = 0x462D</code>。</li>
-  </ul>
-
-  <h3 id="s2-4">2.4 <code>ucStatus</code> 位域逐 bit 展开</h3>
-  <p>代码实证 <code>S7Frame.kt:29-39</code>（<code>S7Status</code>），语义对齐固件 <code>ENUM_HEAD_STATUS_TYPE</code>（<code>ble2appEx.h:26-43</code>）。<strong>整字节按位与判定</strong>；分片包 ID 取 <code>(status&gt;&gt;4)&amp;0x03</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>名称</th><th>值 / bit</th><th>含义</th></tr>
-    <tr><td><code>SUCC</code></td><td><strong>0x00</strong>（无位置位）</td><td>成功；也是不回包命令的下行请求 status（代码实证，见 <a href="#ch10">§10-4</a>）</td></tr>
-    <tr><td><code>FAIL</code></td><td><strong>bit0 = 0x01</strong></td><td>失败（CRC 错被动 NAK）；<code>isFail = (status &amp; 0x01) != 0</code></td></tr>
-    <tr><td><code>ACK</code></td><td><strong>bit1 = 0x02</strong></td><td>请求方置位 = <strong>要求应答</strong></td></tr>
-    <tr><td><code>IS_MULTI_PKT</code></td><td><strong>bit2 = 0x04</strong></td><td>多包/分片中</td></tr>
-    <tr><td><code>MULTI_PKT_END</code></td><td><strong>bit3 = 0x08</strong></td><td>多包末片</td></tr>
-    <tr><td>（多包 ID）</td><td><strong>bit[5:4]</strong></td><td><code>multiPktId = (status&gt;&gt;4)&amp;0x03</code>，同一逻辑事务的各分片须相同</td></tr>
-    <tr><td><code>OTA_PART</code></td><td><strong>bit7 = 0x80</strong></td><td>OTA 续传/分片标志</td></tr>
-  </table></div>
-  <div class="callout note">bit6 未定义。解码判定：<code>multi = status &amp; 0x04</code>，<code>end = status &amp; 0x08</code>（<code>S7Frame.kt:180-181</code>）。</div>
-</section>
-
-<!-- ============================= 第 3 章 ============================= -->
-<section id="ch3">
-  <h2>3. 数据组包：逻辑包→分片→重组</h2>
-
-  <h3 id="s3-1">3.1 逻辑包 → 分片（发送侧）</h3>
-  <p>一个逻辑事务（如一条 GET 应答、一个日志块）超过单帧承载能力时，拆成多帧：</p>
-  <pre class="hex">逻辑 param（总长 = 首包命令头声明的 paramLen）
+ucStatus (byte 1)，bit7 → bit0（ble2appEx.h:26-43）：
+              +----------+------+------+---------------+---------------+----------+----------+
+         bit  |    7     |  6   |  5   |       3       |       2       |    1     |    0     |
+              +----------+------+------+---------------+---------------+----------+----------+
+              | OTA_PART |    保留     | MULTI_PKT_END | IS_MULTI_PKT  |   ACK    |   FAIL   |
+              |   0x80   |             |     0x08      |     0x04      |   0x02   |   0x01   |
+              +----------+------+------+---------------+---------------+----------+----------+
+（uiLen&lt;4 的短帧无 uiParamLen 域，见 §3.3 例①；bit[5:4] 另作多包 ID，见 §2.4）
+</code></pre>
+<h3 id="21-b2a_head-8">2.1 帧头 B2A_HEAD（固定 8 字节，全小端）</h3>
+<p>代码实证：<code>S7Frame.kt:100-109</code>（编码）/ <code>:151-177</code>（解码）。字段名对齐固件 <code>ble2appEx.h:74-81</code>。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+<th>含义 / 取值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0</strong></td>
+<td><code>ucStartFlag</code>（SOF）</td>
+<td>1</td>
+<td>—</td>
+<td>固定 <strong><code>0xBB</code></strong>（<code>S7FrameCodec.SOF</code>；固件 <code>MAC_B2A_HEAD_FLAG</code>）</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><code>ucStatus</code></td>
+<td>1</td>
+<td>—</td>
+<td>状态位域，见 <a href="#24-ucstatus-位域逐-bit-展开">§2.4</a>（含多包/ACK/OTA 标志）</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><code>uiLen</code></td>
+<td>2</td>
+<td><strong>LE</strong></td>
+<td>帧头之后 payload 字节数（首包 = 4 + paramLen；续包 = 续段长）</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><code>uiCRC</code></td>
+<td>2</td>
+<td><strong>LE</strong></td>
+<td><strong>CRC16-CCITT-FALSE</strong>，<strong>仅覆盖 payload（偏移 8 起 uiLen 字节），不含帧头本身</strong></td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td><code>uiIndex</code></td>
+<td>2</td>
+<td><strong>LE</strong></td>
+<td>包序号：首包 0，续包递增</td>
+</tr>
+<tr>
+<td><strong>8..</strong></td>
+<td><code>payload</code></td>
+<td>uiLen</td>
+<td>—</td>
+<td>首包=命令头(4B)+param；续包=裸续段</td>
+</tr>
+</tbody>
+</table>
+<p>空中示意：<code>BB | Status | Len(LE16) | CRC16(LE16) | Index(LE16) | payload[Len]</code></p>
+<h3 id="22-b2a_data_cmdpayload-4">2.2 命令头 B2A_DATA_CMD（payload 起始 4 字节，仅首包携带）</h3>
+<p>代码实证：<code>S7Frame.kt:78-83</code>。字段名对齐固件 <code>ble2appEx.h:513-518</code>。</p>
+<table>
+<thead>
+<tr>
+<th>偏移（payload 内）</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>ucCmd</code></td>
+<td>1</td>
+<td>—</td>
+<td>一级命令字（<a href="#41-一级命令字">§4.1</a>）</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>ucKey</code></td>
+<td>1</td>
+<td>—</td>
+<td>子命令 / 键</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>uiParamLen</code>（SubLen）</td>
+<td>2</td>
+<td><strong>LE</strong></td>
+<td>参数长度</td>
+</tr>
+<tr>
+<td>4..</td>
+<td><code>szParam[]</code></td>
+<td>paramLen</td>
+<td>—</td>
+<td>命令参数体</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-crc16-ccitt-false">2.3 CRC16-CCITT-FALSE（代码实证精确算法）</h3>
+<p><code>S7Frame.kt:13-26</code>：</p>
+<ul>
+<li><strong>poly = 0x1021</strong> · <strong>init = 0xFFFF</strong> · <strong>输入不反转 / 输出不反转</strong>（无 refin/refout，直接按 MSB 处理）· <strong>xorout = 0</strong>。</li>
+<li>逐字节：<code>crc ^= (byte &lt;&lt; 8)</code>；每字节循环 8 次：<code>if (crc &amp; 0x8000) crc = (crc&lt;&lt;1)^0x1021 else crc &lt;&lt;= 1</code>；每轮 <code>crc &amp;= 0xFFFF</code>。</li>
+<li><strong>覆盖范围 = 仅 payload</strong>（帧偏移 8 起、共 uiLen 字节），<strong>不含 8 字节帧头</strong>。</li>
+<li>别名：CRC-16/CCITT-FALSE，又称 CRC-16/AUTOSAR（init=0xFFFF 版）。</li>
+<li><strong>golden 锚点</strong>：<code>CRC16-CCITT-FALSE(08 01 01) = 0x462D</code>。</li>
+</ul>
+<h3 id="24-ucstatus-bit">2.4 <code>ucStatus</code> 位域逐 bit 展开</h3>
+<p>代码实证 <code>S7Frame.kt:29-39</code>（<code>S7Status</code>），语义对齐固件 <code>ENUM_HEAD_STATUS_TYPE</code>（<code>ble2appEx.h:26-43</code>）。<strong>整字节按位与判定</strong>；分片包 ID 取 <code>(status&gt;&gt;4)&amp;0x03</code>。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>值 / bit</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SUCC</code></td>
+<td><strong>0x00</strong>（无位置位）</td>
+<td>成功；也是不回包命令的下行请求 status（代码实证，见 <a href="#10-代码实证-vs-文档源码差异汇总">§10-4</a>）</td>
+</tr>
+<tr>
+<td><code>FAIL</code></td>
+<td><strong>bit0 = 0x01</strong></td>
+<td>失败（CRC 错被动 NAK）；<code>isFail = (status &amp; 0x01) != 0</code></td>
+</tr>
+<tr>
+<td><code>ACK</code></td>
+<td><strong>bit1 = 0x02</strong></td>
+<td>请求方置位 = <strong>要求应答</strong></td>
+</tr>
+<tr>
+<td><code>IS_MULTI_PKT</code></td>
+<td><strong>bit2 = 0x04</strong></td>
+<td>多包/分片中</td>
+</tr>
+<tr>
+<td><code>MULTI_PKT_END</code></td>
+<td><strong>bit3 = 0x08</strong></td>
+<td>多包末片</td>
+</tr>
+<tr>
+<td>（多包 ID）</td>
+<td><strong>bit[5:4]</strong></td>
+<td><code>multiPktId = (status&gt;&gt;4)&amp;0x03</code>，同一逻辑事务的各分片须相同</td>
+</tr>
+<tr>
+<td><code>OTA_PART</code></td>
+<td><strong>bit7 = 0x80</strong></td>
+<td>OTA 续传/分片标志</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>bit6 未定义。解码判定：<code>multi = status &amp; 0x04</code>，<code>end = status &amp; 0x08</code>（<code>S7Frame.kt:180-181</code>）。</p>
+</blockquote>
+<hr />
+<h2 id="3">3. 数据组包：逻辑包→分片→重组</h2>
+<h3 id="31">3.1 逻辑包 → 分片（发送侧）</h3>
+<p>一个逻辑事务（如一条 GET 应答、一个日志块）超过单帧承载能力时，拆成多帧：</p>
+<pre><code>逻辑 param（总长 = 首包命令头声明的 paramLen）
         │
         ├─ 首包 index=0：帧头(status 置 IS_MULTI_PKT + 多包ID) + [cmd|key|paramLen(LE16)|param 首段]
         ├─ 续包 index=1：帧头(status 置 IS_MULTI_PKT，同多包ID)  + [param 续段]（无命令头）
         ├─ 续包 index=2：…
-        └─ 末包 index=n：帧头(status 置 MULTI_PKT_END[+IS_MULTI_PKT]，同多包ID) + [param 末段]</pre>
-  <p>每帧 CRC 独立覆盖各自 payload。控制台<strong>下行</strong>命令 payload ≤ 20B，永不分片（单帧 index=0）；<strong>上行</strong>（表→App）的日志块、GET 长应答、OTA 走多包。</p>
-
-  <h3 id="s3-2">3.2 分片 → 重组（接收侧，代码实证 <code>S7Frame.kt:179-256</code>）</h3>
-  <p>单次 notification 可含多帧，逐帧切分并重组，容错逻辑：</p>
-  <div class="tbl"><table>
-    <tr><th>步骤</th><th>规则</th><th>代码行</th></tr>
-    <tr><td>SOF 校验</td><td><code>payload[pos] != 0xBB</code> → <code>frameErrors++</code>，<strong>丢弃余下</strong>（无转义无法再同步）</td><td><code>:155-158</code></td></tr>
-    <tr><td>长度越界</td><td><code>pos+8+len &gt; size</code> → <code>frameErrors++</code>，丢弃余下</td><td><code>:163-166</code></td></tr>
-    <tr><td>CRC 校验</td><td><code>crc16(payload) != uiCRC</code> → <code>crcErrors++</code>，<code>continue</code> 跳过本帧（帧边界仍可信）</td><td><code>:169-172</code></td></tr>
-    <tr><td>尾部残余</td><td>剩 &lt;8B → <code>frameErrors++</code></td><td><code>:175</code></td></tr>
-    <tr><td><strong>单帧特例</strong></td><td><code>!multi &amp;&amp; !end</code> → 不动重组缓冲，直接产出（设备主动帧/心跳与多包共用通道，插帧合法）</td><td><code>:182-185</code></td></tr>
-    <tr><td>多包首片</td><td><code>index==0</code>：读命令头，<code>pendingDeclaredLen = readLe16(payload,2)</code>，缓存 cmd/key/多包ID</td><td><code>:189-200</code></td></tr>
-    <tr><td>多包续片</td><td><strong>双校验</strong>：<code>pendingId==id</code> 且 <code>index==pendingNextIndex</code>，否则 <code>reset()</code> 整片丢弃</td><td><code>:204-208</code></td></tr>
-    <tr><td>多包末片</td><td>校验<strong>重组总长 == 首片声明 paramLen</strong>，否则丢弃</td><td><code>:214-219</code></td></tr>
-    <tr><td>短帧特例</td><td>payload&lt;4B 但 ≥2B（产测握手）：<code>cmd=payload[0]</code>、<code>key=payload[1]</code>、其余为参数；&lt;2B 丢弃</td><td><code>:245-254</code></td></tr>
-    <tr><td>单帧长度自愈</td><td>单帧 paramLen 与实际不符 → 以实际为准（<code>take = declared in 0..avail ? declared : avail</code>）</td><td><code>:236</code></td></tr>
-  </table></div>
-
-  <h3 id="s3-3">3.3 示例 hex</h3>
-  <p><strong>① 产测握手短帧</strong>（uiLen=3 &lt; 4，无 paramLen 域，代码实证 golden）：</p>
-  <pre class="hex">BB 02 03 00 2D 46 00 00 08 01 01
+        └─ 末包 index=n：帧头(status 置 MULTI_PKT_END[+IS_MULTI_PKT]，同多包ID) + [param 末段]
+</code></pre>
+<p>每帧 CRC 独立覆盖各自 payload。控制台<strong>下行</strong>命令 payload ≤ 20B，永不分片（单帧 index=0）；<strong>上行</strong>（表→App）的日志块、GET 长应答、OTA 走多包。</p>
+<h3 id="32-s7framekt179-256">3.2 分片 → 重组（接收侧，代码实证 <code>S7Frame.kt:179-256</code>）</h3>
+<p>单次 notification 可含多帧，逐帧切分并重组，容错逻辑：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>规则</th>
+<th>代码行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SOF 校验</td>
+<td><code>payload[pos] != 0xBB</code> → <code>frameErrors++</code>，<strong>丢弃余下</strong>（无转义无法再同步）</td>
+<td><code>:155-158</code></td>
+</tr>
+<tr>
+<td>长度越界</td>
+<td><code>pos+8+len &gt; size</code> → <code>frameErrors++</code>，丢弃余下</td>
+<td><code>:163-166</code></td>
+</tr>
+<tr>
+<td>CRC 校验</td>
+<td><code>crc16(payload) != uiCRC</code> → <code>crcErrors++</code>，<code>continue</code> 跳过本帧（帧边界仍可信）</td>
+<td><code>:169-172</code></td>
+</tr>
+<tr>
+<td>尾部残余</td>
+<td>剩 &lt;8B → <code>frameErrors++</code></td>
+<td><code>:175</code></td>
+</tr>
+<tr>
+<td><strong>单帧特例</strong></td>
+<td><code>!multi &amp;&amp; !end</code> → 不动重组缓冲，直接产出（设备主动帧/心跳与多包共用通道，插帧合法）</td>
+<td><code>:182-185</code></td>
+</tr>
+<tr>
+<td>多包首片</td>
+<td><code>index==0</code>：读命令头，<code>pendingDeclaredLen = readLe16(payload,2)</code>，缓存 cmd/key/多包ID</td>
+<td><code>:189-200</code></td>
+</tr>
+<tr>
+<td>多包续片</td>
+<td><strong>双校验</strong>：<code>pendingId==id</code> 且 <code>index==pendingNextIndex</code>，否则 <code>reset()</code> 整片丢弃</td>
+<td><code>:204-208</code></td>
+</tr>
+<tr>
+<td>多包末片</td>
+<td>校验<strong>重组总长 == 首片声明 paramLen</strong>，否则丢弃</td>
+<td><code>:214-219</code></td>
+</tr>
+<tr>
+<td>短帧特例</td>
+<td>payload&lt;4B 但 ≥2B（产测握手）：<code>cmd=payload[0]</code>、<code>key=payload[1]</code>、其余为参数；&lt;2B 丢弃</td>
+<td><code>:245-254</code></td>
+</tr>
+<tr>
+<td>单帧长度自愈</td>
+<td>单帧 paramLen 与实际不符 → 以实际为准（<code>take = declared in 0..avail ? declared : avail</code>）</td>
+<td><code>:236</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-hex">3.3 示例 hex</h3>
+<p><strong>① 产测握手短帧</strong>（uiLen=3 &lt; 4，无 paramLen 域，代码实证 golden）：</p>
+<pre><code>BB 02 03 00 2D 46 00 00 08 01 01
 └┘ │  └─┬─┘ └─┬─┘ └─┬─┘ │  │  │
 SOF │  Len=3 CRC   Index │  │  └ 选择子 0x01（BLE 模式）
     │        =462D  =0   │  └ key=0x01（ENTER_FACTORY_MODE）
-    status=ACK           └ cmd=0x08（TEST）</pre>
-  <p>CRC16-CCITT-FALSE(<code>08 01 01</code>) = 0x462D 自洽。</p>
-
-  <p><strong>② 健康数据上报单帧</strong>（Cmd=0x86 RPT_DATA2 / Key=0x03 DATA，固件注释 <code>ble2appWrap.c:6521</code>）：</p>
-  <pre class="hex">BB 00 08 00 57 92 00 00 86 03 04 00 00 00 00 00 00
+    status=ACK           └ cmd=0x08（TEST）
+</code></pre>
+<p>CRC16-CCITT-FALSE(<code>08 01 01</code>) = 0x462D 自洽。</p>
+<p><strong>② 健康数据上报单帧</strong>（Cmd=0x86 RPT_DATA2 / Key=0x03 DATA，固件注释 <code>ble2appWrap.c:6521</code>）：</p>
+<pre><code>BB 00 08 00 57 92 00 00 86 03 04 00 00 00 00 00 00
 └┘ │  └─┬─┘ └─┬─┘ └─┬─┘ │  │  └─┬─┘ └────┬────┘
 SOF │  Len=8 CRC   Idx0 │  │  plen=4    param 4B = RPT_DATA_REQ_PARAM
     st=SUCC              │  └ key=0x03（DATA）
-                        cmd=0x86（RPT_DATA2）</pre>
-  <p>第二帧同结构，param <code>0A 00 00 00</code>（type=0x0A=ACTIVITY）。</p>
-
-  <p><strong>③ 拉算法文件</strong>（Cmd=0x07 DEV_CTRL / Key=0x0A FILE_ALGO，固件注释 <code>ble2appWrap.c:11828</code>）：</p>
-  <pre class="hex">BB 02 06 00 A6 5E 00 00 07 0A 02 00 01 00
+                        cmd=0x86（RPT_DATA2）
+</code></pre>
+<p>第二帧同结构，param <code>0A 00 00 00</code>（type=0x0A=ACTIVITY）。</p>
+<p><strong>③ 拉算法文件</strong>（Cmd=0x07 DEV_CTRL / Key=0x0A FILE_ALGO，固件注释 <code>ble2appWrap.c:11828</code>）：</p>
+<pre><code>BB 02 06 00 A6 5E 00 00 07 0A 02 00 01 00
                           │  │  └─┬─┘ └─┬─┘
                           │  │  plen=2  param=01 00（RPT_FEA_FILE_SLEEP=1）
                           │  └ key=0x0A
-                          cmd=0x07</pre>
-</section>
-
-<!-- ============================= 第 4 章 ============================= -->
-<section id="ch4">
-  <h2>4. 命令总览与分发</h2>
-
-  <h3 id="s4-1">4.1 一级命令字（<code>ENUM_B2A_CMD_TYPE</code>）</h3>
-  <p>代码实证 <code>S7Messages.kt:12-21</code>，对齐固件 <code>ble2appEx.h:85-104</code>。分发主体 <code>B2A_RecvDataHandle</code> <code>switch(ucCmd)</code>（固件 <code>ble2appWrap.c:11883/12037</code>）。</p>
-  <div class="tbl"><table>
-    <tr><th>命令</th><th>值</th><th>方向主体</th><th>说明</th></tr>
-    <tr><td><code>CMD_BOND</code></td><td><strong>0x01</strong></td><td>App→表</td><td>绑定握手 / 鉴权码</td></tr>
-    <tr><td><code>CMD_GET</code></td><td><strong>0x02</strong></td><td>App→表（表应答）</td><td>读设备设置/信息</td></tr>
-    <tr><td><code>CMD_SET</code></td><td><strong>0x03</strong></td><td>App→表（1B CommAck）</td><td>写设备设置</td></tr>
-    <tr><td><code>CMD_PUSH</code></td><td><strong>0x04</strong></td><td>App→表</td><td>推送来电/消息/天气</td></tr>
-    <tr><td><code>CMD_IND</code></td><td><strong>0x05</strong></td><td>双向</td><td>指示/控制（多为表发起）</td></tr>
-    <tr><td><code>CMD_RPT_DATA</code></td><td><strong>0x06</strong></td><td>双向</td><td>健康数据同步</td></tr>
-    <tr><td><code>CMD_DEV_CTRL</code></td><td><strong>0x07</strong></td><td>App→表</td><td>危险命令 / 找表 / 日志</td></tr>
-    <tr><td><code>CMD_TEST</code></td><td><strong>0x08</strong></td><td>App→表</td><td>工厂测试</td></tr>
-    <tr><td><code>CMD_FILE_TRANS</code></td><td><strong>0x0F</strong></td><td>双向</td><td>文件传输 / OTA</td></tr>
-    <tr><td><code>CMD_RPT_DATA2</code></td><td><strong>0x86</strong>（=0x80|0x06）</td><td>双向</td><td>健康数据同步（变体）</td></tr>
-  </table></div>
-
-  <h3 id="s4-2">4.2 命令分类实现状态一览</h3>
-  <div class="tbl"><table>
-    <tr><th>分类</th><th>Cmd</th><th>维护控制台实现</th><th>备注</th></tr>
-    <tr><td>BOND</td><td>0x01</td><td><span class="b gray">⬜</span> 未做（真机实证维护指令无需绑定）</td><td><a href="#ch5">第 5 章</a></td></tr>
-    <tr><td>GET</td><td>0x02</td><td><span class="b ok">✅</span> 8 个 Key 已实现；其余业务类未做</td><td><a href="#ch6">第 6 章</a></td></tr>
-    <tr><td>SET</td><td>0x03</td><td><span class="b ok">✅</span> 时间/用户已实现；其余业务类未做</td><td><a href="#s7-1">§7.1</a></td></tr>
-    <tr><td>PUSH</td><td>0x04</td><td><span class="b gray">⬜</span> 业务类</td><td><a href="#s7-2">§7.2</a></td></tr>
-    <tr><td>IND</td><td>0x05</td><td><span class="b ok">✅</span> 心跳被动解析；其余业务类</td><td><a href="#s7-3">§7.3</a></td></tr>
-    <tr><td>RPT_DATA</td><td>0x06/0x86</td><td><span class="b gray">⬜</span> 业务类（常量定义但控制台未路由）</td><td><a href="#s7-4">§7.4</a></td></tr>
-    <tr><td>DEV_CTRL</td><td>0x07</td><td><span class="b ok">✅</span> 关机/重启/恢复/找表/日志已实现</td><td><a href="#s8-1">§8.1</a></td></tr>
-    <tr><td>TEST</td><td>0x08</td><td><span class="b gray">⬜</span> 产测专用</td><td><a href="#s8-2">§8.2</a></td></tr>
-    <tr><td>FILE_TRANS</td><td>0x0F</td><td><span class="b warn">🅾</span> OTA 二期</td><td><a href="#s9-1">§9.1</a></td></tr>
-  </table></div>
-</section>
-
-<!-- ============================= 第 5 章 ============================= -->
-<section id="ch5">
-  <h2>5. BOND 绑定命令族（Cmd=0x01）</h2>
-  <p>Key 枚举 <code>ENUM_B2A_BOND_KEY_TYPE</code>（<code>ble2appEx.h:121-133</code>）。方向：App→表（应答表→App）。分发 <code>ble2appWrap.c:12040-12238</code>。</p>
-  <p><strong>实现状态：<span class="b gray">⬜</span> 全族未实现</strong>——真机实证维护指令无需绑定即可直发（<code>completeness-audit §7</code>），KEYCODE 固件不校验。仅当未来固件加门控才需要。</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>是否回复</th><th>payload（App→表）</th></tr>
-    <tr><td>0x01</td><td><code>BOND_REQ</code> 绑定请求</td><td>是（<code>B2A_BondReqAck</code>，已绑回 EBRT_BOND）</td><td>变长 <code>BOND_DATA_INFO</code>：<code>ucPhoneType(1) + ucPhoneInfoLen(1) + szPhoneInfo[]</code></td></tr>
-    <tr><td>0x02</td><td><code>BOND_DEV</code> 设备绑定</td><td>ACK 位置位才回</td><td><code>BOND_DEV_DATA_INFO</code>：<code>ulUrlLen(1)+szUrl[]+ulPort(4 LE)+bp_res_len(1)+bp_res[]+ecg_res_len(1)+ecg_res[]+user_id_len(1)+user_id[]+comm_res_len(1)+comm_res[]</code></td></tr>
-    <tr><td>0x03</td><td><code>BOND_DEL</code> 删除绑定</td><td>ACK 位置位才回，随后 <code>SYS_Restore()</code></td><td>无实质 payload</td></tr>
-    <tr><td>0x04</td><td><code>BOND_CANCEL</code> 取消</td><td>是（<code>EBRT_SUCC</code>）</td><td>无</td></tr>
-    <tr><td>0x05</td><td><code>BOND_KEYCODE</code> 鉴权码</td><td>是（<code>EBEC_SUCC</code>；<strong>固件不校验内容</strong>）</td><td><strong>≥20B</strong>：<code>Code[0..15](16) + ble_heart(1,off16) + daily_ack(1,off17) + pro_id(2 LE,off18-19)</code></td></tr>
-    <tr><td>0x06</td><td><code>BOND_REQINFO_GET</code></td><td>—</td><td>手表侧无独立分支（读取用）</td></tr>
-    <tr><td>0x07</td><td><code>BOND_REQINFO_RESET</code></td><td>是（信息变化时 <code>EBEC_SUCC</code> 并重启 BLE）</td><td><code>BOND_DATA_INFO</code>：<code>ucPhoneType + ucPhoneInfoLen + szPhoneInfo[]</code></td></tr>
-  </table></div>
-</section>
-
-<!-- ============================= 第 6 章 ============================= -->
-<section id="ch6">
-  <h2>6. GET 读命令族（Cmd=0x02）</h2>
-  <p>Key 枚举 <code>ENUM_B2A_GET_KEY_TYPE</code>（<code>ble2appEx.h:135-178</code>）。请求 payload 一般为空；下表列<strong>应答帧的 payload 逐字节</strong>。分发 <code>ble2appWrap.c:12241-12375</code>。GET 应答超 MTU 时按 <code>iMaxParamPktLen</code> 拆多包，<code>uiIndex=0..m</code> 递增。</p>
-
-  <h3 id="s6-1">6.1 维护控制台已实现的 GET（代码实证逐字节）</h3>
-
-  <h4 id="s6-1-1">6.1.1 GET DATE_TIME（Key=0x01）— 9B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:58-105</code>（<code>S7DateTime</code>，GET 响应/SET 请求同布局）。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序/编码</th><th>含义 / 取值</th></tr>
-    <tr><td>0</td><td>year</td><td>2</td><td><strong>LE16</strong></td><td>年</td></tr>
-    <tr><td>2</td><td>month</td><td>1</td><td>u8</td><td>月 1..12</td></tr>
-    <tr><td>3</td><td>day</td><td>1</td><td>u8</td><td>日 1..31</td></tr>
-    <tr><td>4</td><td>hour</td><td>1</td><td>u8</td><td>时 ≤23</td></tr>
-    <tr><td>5</td><td>minute</td><td>1</td><td>u8</td><td>分 ≤59</td></tr>
-    <tr><td>6</td><td>second</td><td>1</td><td>u8</td><td>秒 ≤59</td></tr>
-    <tr><td>7</td><td>week</td><td>1</td><td>u8</td><td>星期 1=周一…7=周日（Zeller 自算）</td></tr>
-    <tr><td>8</td><td>timezone</td><td>1</td><td><strong>有符号 int8</strong></td><td>时区偏移；SET 时 0=保持设备本地时区不改</td></tr>
-  </table></div>
-  <div class="callout warn"><code>⚠差异</code>（代码新增，见 <a href="#ch10">§10-2</a>）：<code>S7Messages.kt:98</code> 对 month/day/hour/min/sec 做<strong>值域校验</strong>，非法即 <code>parse</code> 返回 null → 上层报 FORMAT(0x03)（防 RTC 未初始化/恢复出厂回垃圾值）。</div>
-  <p>示例（无 golden，字段口径示意）：<code>BB 02 0D 00 &lt;crc&gt; 00 00  02 01 09 00  E9 07 07 03 0A 1E 00 05 08</code>（year=0x07E9=2025、07-03、10:30:00、周五、tz=+8）。</p>
-
-  <h4 id="s6-1-2">6.1.2 GET PERSON_DATA（Key=0x04）— 7B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:223-255</code>（<code>S7Person</code>，GET 7B）。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序</th><th>含义</th></tr>
-    <tr><td>0</td><td>heightCm</td><td>1</td><td>u8</td><td>身高 cm</td></tr>
-    <tr><td>1</td><td>weightKg</td><td>1</td><td>u8</td><td>体重 kg</td></tr>
-    <tr><td>2</td><td>gender</td><td>1</td><td>u8</td><td>性别</td></tr>
-    <tr><td>3</td><td>birthYear</td><td>2</td><td><strong>LE16</strong></td><td>出生年</td></tr>
-    <tr><td>5</td><td>birthMonth</td><td>1</td><td>u8</td><td>出生月</td></tr>
-    <tr><td>6</td><td>birthDay</td><td>1</td><td>u8</td><td>出生日</td></tr>
-  </table></div>
-
-  <h4 id="s6-1-3">6.1.3 GET DEV_INFO（Key=0x21）— 变长 TLV — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:177-220</code>（<code>S7DeviceInfo</code>）。布局：<code>swLen(1)+sw | mdLen(1)+md | secLen(1)+sec | reserved(1B=1) | bpLen(1)+bp</code>（各段 ASCII，段内 <code>takeWhile{0x20..0x7E}</code> 截断非打印尾部；bp 缺失容忍为 <code>""</code>）。固件副作用：置 <code>ucOtaMode=0xFF</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>含义</th></tr>
-    <tr><td>0</td><td>swLen</td><td>1</td><td>软件版本串长</td></tr>
-    <tr><td>1</td><td>swVer[]</td><td>swLen</td><td>软件版本（仅数字与 <code>.</code>）</td></tr>
-    <tr><td>…</td><td>mdLen(1)+mdVer[]</td><td>1+md</td><td>Modem 版本（如 "1.0"）</td></tr>
-    <tr><td>…</td><td>secLen(1)+secVer[]</td><td>1+sec</td><td>SecBL 版本（如 "1.0"）</td></tr>
-    <tr><td>…</td><td>reserved</td><td>1</td><td>固定 <strong>1</strong></td></tr>
-    <tr><td>…</td><td>bpLen(1)+bpVer[]</td><td>1+bp</td><td>血压算法版本</td></tr>
-  </table></div>
-
-  <h4 id="s6-1-4">6.1.4 GET DEV_FUNC（Key=0x22）— 4B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Console.kt:245-250</code>：4B 功能位掩码 <strong>u32 LE</strong>，返回 Long。<code>⚠</code> <strong>逐位含义缺失</strong>——固件本目录未定义 bit 语义，真机回 0，UI 仅 hex 展示。要求 ≥4B。</p>
-
-  <h4 id="s6-1-5">6.1.5 GET DEV_BLE_MAC（Key=0x23）— 6B — <span class="b ok">✅已实现（未单列）</span></h4>
-  <p>6B MAC。控制台未单列（SN_INFO 已含 MAC）。</p>
-
-  <h4 id="s6-1-6">6.1.6 GET DEV_VOL 电量（Key=0x24）— 10B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:108-126</code>（<code>S7Battery</code>，要求 ≥10B）。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序</th><th>含义</th></tr>
-    <tr><td>0</td><td>capacityMah</td><td>2</td><td><strong>LE16</strong></td><td>容量 mAh</td></tr>
-    <tr><td>2</td><td>voltageMv</td><td>2</td><td><strong>LE16</strong></td><td>电压 mV</td></tr>
-    <tr><td>4</td><td>percent</td><td>1</td><td>u8</td><td>电量 %</td></tr>
-    <tr><td>5</td><td>chargeStatus</td><td>1</td><td>u8</td><td>充电状态</td></tr>
-    <tr><td>6</td><td>ulLastTime</td><td>4</td><td>LE32</td><td>固件恒 0，<strong>代码忽略不解析</strong></td></tr>
-  </table></div>
-
-  <h4 id="s6-1-7">6.1.7 GET SN_INFO 身份（Key=0x26）— 59B 定长 — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:133-174</code>（<code>S7SnInfo</code>，要求 ≥59B，零填充）。布局 <code>5+12+6+16+20 = 59</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>编码</th><th>含义 / 取值</th></tr>
-    <tr><td>0</td><td>DevType</td><td>5</td><td><strong>二进制型号码 → hex 展示</strong>（空格分隔；全 0 则空串）</td><td>真机 <code>68 39 71 25 81</code></td></tr>
-    <tr><td>5</td><td>SN</td><td>12</td><td>ASCII（遇 0x00 或非打印字节截断）</td><td>序列号</td></tr>
-    <tr><td>17</td><td>BleMac</td><td>6</td><td><strong>LE 反序存储 → 展示时 <code>.reversed()</code></strong>，<code>:</code> 分隔大写 hex</td><td>真机线上 <code>C4:FC:19:48:61:71</code> = 实际 <code>71:61:48:19:FC:C4</code></td></tr>
-    <tr><td>23</td><td>IMEI</td><td>16</td><td>ASCII 截断</td><td>—</td></tr>
-    <tr><td>39</td><td>ICCID</td><td>20</td><td>ASCII 截断</td><td>—</td></tr>
-  </table></div>
-  <div class="callout warn"><code>⚠差异</code>（文档已过时，见 <a href="#ch10">§10-1</a>）：源文档 protocol-spec §4.3 曾记「MAC/IMEI/ICCID 字节序待核对，按原序 hex 展示」。<strong>代码实证已推翻</strong>：MAC 确定为 <strong>LE 反序</strong>（展示 <code>.reversed()</code>）；SN/IMEI/ICCID 为 <strong>ASCII 非 hex</strong>；DevType 为二进制码走 hex 回退。<code>asciiTrim</code>（<code>:155-161</code>）只保留连续 0x20..0x7E，遇首个非打印字节即停。</div>
-
-  <h4 id="s6-1-8">6.1.8 GET BOND 绑定状态（Key=0x28）— 1B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Console.kt:252-256</code>：1B 绑定状态 <code>param[0]</code>（对应 <code>NVM_ID_BIN_BOND</code> 低字节）。要求 ≥1B。</p>
-
-  <h3 id="s6-2">6.2 其余 GET（业务类·<span class="b gray">⬜</span>不在维护工具范围）</h3>
-  <p>固件全集（应答 payload 语义摘要，来源②）：</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>应答 payload 摘要</th></tr>
-    <tr><td>0x02</td><td><code>ALARM</code> 闹钟</td><td>首字节闹钟计数 + <code>MAX_SDM_ALARM_NUM × ALARM_DATA_INFO</code></td></tr>
-    <tr><td>0x03</td><td><code>GOALS</code> 目标</td><td><code>EGOALS_DATA_INFO</code>（见 SET 0x03 镜像）</td></tr>
-    <tr><td>0x05</td><td><code>WEAR</code> 佩戴</td><td>1B 佩戴开关</td></tr>
-    <tr><td>0x06</td><td><code>UNIT</code> 单位</td><td><code>UNIT_SET_DATA_INFO</code>：<code>ucHeight+ucWeight+ucDistance+ucCalorie+…</code></td></tr>
-    <tr><td>0x07</td><td><code>SEDENTARY</code> 久坐</td><td>久坐提醒结构</td></tr>
-    <tr><td>0x08</td><td><code>DRINK_WATER</code> 喝水</td><td>喝水提醒结构</td></tr>
-    <tr><td>0x09</td><td><code>QUIET_MODE</code> 勿扰</td><td>勿扰结构</td></tr>
-    <tr><td>0x0A</td><td><code>HR_MODE</code> 心率模式</td><td>心率模式结构</td></tr>
-    <tr><td>0x0B</td><td><code>SPO2</code> 血氧</td><td>血氧结构</td></tr>
-    <tr><td>0x0C</td><td><code>PRESSURE</code> 压力</td><td>压力结构</td></tr>
-    <tr><td>0x0D</td><td><code>HRSO_MODE</code> 心率血氧模式</td><td>结构</td></tr>
-    <tr><td>0x0E</td><td><code>HR_REMIND</code> 心率提醒</td><td>阈值</td></tr>
-    <tr><td>0x0F</td><td><code>SPO2_REMIND</code> 血氧提醒</td><td>阈值</td></tr>
-    <tr><td>0x10</td><td><code>PRESSURE_REMIND</code> 压力提醒</td><td>阈值</td></tr>
-    <tr><td>0x12</td><td><code>MEDICINE_REMIND</code> 吃药提醒</td><td>结构</td></tr>
-    <tr><td>0x13</td><td><code>SLEEP_REMIND</code> 睡眠提醒</td><td>结构</td></tr>
-    <tr><td>0x15</td><td><code>ECG_TEST_SET</code> ECG 定时测量</td><td>结构</td></tr>
-    <tr><td>0x25</td><td><code>DIAL_INFO</code> 表盘信息</td><td>可分片</td></tr>
-    <tr><td>0x27</td><td><code>IOS_MSG</code> iOS 消息提醒</td><td>文件内容，多包 END 标志</td></tr>
-    <tr><td>0x2A</td><td><code>BLP_RAW_STATE</code> BP 原始态</td><td>5B：<code>on_utc(4 LE)+on_flag(1)</code></td></tr>
-  </table></div>
-  <div class="callout note">各 <code>*_DATA_INFO</code> 结构体的精确逐字节布局定义在固件 <code>product/apollo_eiot/</code> 的 <code>sdm_*.h</code>/<code>adm_*.h</code>（非 Ble2App 目录），本合成未逐个展开——属业务类，非维护范围。</div>
-</section>
-
-<!-- ============================= 第 7 章 ============================= -->
-<section id="ch7">
-  <h2>7. SET 写命令族（0x03）· PUSH（0x04）· IND（0x05）· RPT_DATA（0x06/0x86）</h2>
-
-  <h3 id="s7-1">7.1 SET 写命令族（Cmd=0x03）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_SET_KEY_TYPE</code>（<code>ble2appEx.h:181-223</code>，与 GET 镜像 + 表盘/iOS 系列）。方向 App→表；<strong>ACK 位置位统一回 1B CommAck（<code>EBEC_SUCC</code>）</strong>（<code>ble2appWrap.c:12924-12929</code>）。分发 <code>:12379-12931</code>。</p>
-
-  <h4 id="s7-1-1">7.1.1 SET DATE_TIME 对时（Key=0x01）— 9B — <span class="b ok">✅已实现</span></h4>
-  <p>布局与 <a href="#s6-1-1">GET 0x01</a> <strong>完全一致</strong>（代码实证 <code>S7Messages.kt:232</code> encode）。SET 时 timezone=0 保持设备本地时区不改。响应 = 1B CommAck。</p>
-
-  <h4 id="s7-1-2">7.1.2 SET PERSON_DATA 用户信息（Key=0x04）— 8B — <span class="b ok">✅已实现</span></h4>
-  <p>代码实证 <code>S7Messages.kt:232-240</code>（<code>encodeSet</code>）= GET 7B 布局 + 偏移 7 处 <code>ulReserve(1B)=0</code>。响应 1B CommAck。控制台<strong>可编辑写入</strong> + 快捷写采集用户。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序</th></tr>
-    <tr><td>0..6</td><td>同 GET PERSON 7B</td><td>7</td><td>—</td></tr>
-    <tr><td>7</td><td>ulReserve</td><td>1</td><td>=0</td></tr>
-  </table></div>
-
-  <h4 id="s7-1-3">7.1.3 其余 SET（业务类·<span class="b gray">⬜</span>不在维护工具范围）</h4>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>payload 摘要</th></tr>
-    <tr><td>0x02</td><td><code>ALARM</code></td><td><code>pszParam[0]</code>=闹钟索引 + <code>ALARM_DATA_INFO</code> 数组</td></tr>
-    <tr><td>0x03</td><td><code>GOALS</code></td><td><code>EGOALS_DATA_INFO</code>：<code>ulStep(4)+uiSportTime(2)+ucStandCount(1)…</code></td></tr>
-    <tr><td>0x05..0x15</td><td>各提醒/模式</td><td>与 GET 镜像结构。0x15 <code>ECG_TEST_REMIND</code>：<code>hour/minute/on_off/snooze/repeate</code></td></tr>
-    <tr><td>0x25</td><td><code>DIAL_CURR</code> 当前表盘</td><td><code>SDM_SetDevDialCurr</code>（不自动 ACK）</td></tr>
-    <tr><td>0x26</td><td><code>DIAL_SEQ</code> 表盘序列</td><td><strong>支持多包</strong>，<code>ucMultiPktId=(status&gt;&gt;4)&amp;0x03</code></td></tr>
-    <tr><td>0x27</td><td><code>IOS_MSG</code></td><td><strong>支持多包</strong>，END 帧回 EBEC_SUCC</td></tr>
-    <tr><td>0x28</td><td><code>DIAL_DEL</code> 删表盘</td><td>支持多包；表盘开关激活回 NOT_SUPPORT</td></tr>
-    <tr><td>0x29</td><td><code>SCIMEASURE_PARA</code> 科学测量参数</td><td><code>APP_Setting_ScientificMeasure_Extral</code></td></tr>
-    <tr><td>0x2A</td><td><code>BLP_RAW_MODE</code> BP 原始模式</td><td>≥5B：<code>time_per(4 LE)+on_flag(1)</code>（纯回显）</td></tr>
-  </table></div>
-
-  <h3 id="s7-2">7.2 PUSH 推送（Cmd=0x04）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_PUSH_KEY_TYPE</code>（<code>ble2appEx.h:227-239</code>）。方向 App→表，ACK 位置位回 EBEC_SUCC。<strong><span class="b gray">⬜</span> 全族业务类，不在维护工具范围。</strong></p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>payload 摘要</th></tr>
-    <tr><td>0x01</td><td><code>PHONE</code> 来电</td><td>来电数据 → <code>SDM_SetIncomingData</code></td></tr>
-    <tr><td>0x02</td><td><code>MSG</code> 消息</td><td><strong>接收侧特例</strong>：该帧只校验 SOF，长度不符也放行、可超长/分片（<code>B2A_RecvData</code> <code>ble2appEx.c:616-623</code>）</td></tr>
-    <tr><td>0x03</td><td><code>WEATHER</code> 天气</td><td>变长：<code>weather_ver(1)+city_len(1)+city_name[]+utc(4 LE)+day_count(1)+今日块7B(type/temp/temp_max/temp_min/humidity/UV/PM)+(day_count-1)×未来块3B(type/temp_max/temp_min)</code></td></tr>
-    <tr><td>0x04</td><td><code>MUSIC</code> 音乐</td><td>固件 <code>#if 0</code> 关闭</td></tr>
-    <tr><td>0x05</td><td><code>CAMERA</code> 相机</td><td>固件 <code>#if 0</code> 关闭</td></tr>
-    <tr><td>0x07</td><td><code>MEDICAL_INFO</code> 医疗信息</td><td>字符串（≤64B 截断），变化才写 <code>NVM_SetMedicalInfo</code></td></tr>
-  </table></div>
-
-  <h3 id="s7-3">7.3 IND 指示/控制（Cmd=0x05）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_IND_KEY_TYPE</code>（<code>ble2appEx.h:243-262</code>）。双向（多数表→App 发起；App→表为 ACK）。分发 <code>ble2appWrap.c:13003-13074</code>。</p>
-
-  <h4 id="s7-3-1">7.3.1 IND HEARTBEAT 心跳（Key=0x0C）— 8B — <span class="b ok">✅已实现（被动解析）</span></h4>
-  <p>代码实证 <code>S7Messages.kt:258-271</code>（<code>S7Heartbeat</code>，设备→App，要求 ≥8B）。固件发送时置 <code>EHST_ACK</code>（<code>B2A_DevNotifyHeartbeat</code>）。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字段</th><th>字节数</th><th>字节序</th><th>含义</th></tr>
-    <tr><td>0</td><td>utcSeconds</td><td>4</td><td><strong>LE32</strong></td><td>UTC 秒（返回 Long）</td></tr>
-    <tr><td>4</td><td>seq</td><td>2</td><td><strong>LE16</strong></td><td>自增序号</td></tr>
-    <tr><td>6</td><td>batteryPercent</td><td>1</td><td>u8</td><td>电量 %</td></tr>
-    <tr><td>7</td><td>reserved</td><td>1</td><td>—</td><td>忽略</td></tr>
-  </table></div>
-  <div class="callout note">App 可回 8B（<code>utc(4)+seq(2)+network_status(1)+reserved(1)</code>），设备不逐字节解析。被动解析可白捡电量与链路活性。控制台头部显示。</div>
-
-  <h4 id="s7-3-2">7.3.2 其余 IND（业务类·<span class="b gray">⬜</span>不在维护工具范围）</h4>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>方向</th><th>payload 摘要</th></tr>
-    <tr><td>0x01</td><td><code>INCOMING</code></td><td>双向</td><td>空处理</td></tr>
-    <tr><td>0x02</td><td><code>SCIENTIFICMEASURE</code> 科学测量</td><td>App→表</td><td><code>pszParam[0]==0x00</code>→测量完成回调</td></tr>
-    <tr><td>0x03</td><td><code>SPORTS</code></td><td>双向</td><td><code>ENUM_B2A_IND_SPORT_TYPE</code>：READY1/START2/PAUSE3/CONT4/STOP5</td></tr>
-    <tr><td>0x04</td><td><code>MUSIC</code></td><td>双向</td><td><code>ENUM_B2A_IND_MUSIC_TYPE</code>：PLAY1/PAUSE2/STOP3/PREV4/NEXT5/VOL_U6/VOL_D7</td></tr>
-    <tr><td>0x05</td><td><code>CAMERA</code></td><td>双向</td><td><code>ENUM_B2A_IND_CAMERA_TYPE</code>：ENTER1/EXIT2/CAP_SINGLE3/CAP_MULTI4</td></tr>
-    <tr><td>0x06</td><td><code>SPORTS_DATA</code></td><td>双向</td><td>空</td></tr>
-    <tr><td>0x07</td><td><code>OTHER_CTRL</code> 其它控制</td><td>双向</td><td><code>pszParam[0]</code>=<code>ENUM_B2A_OTHER_CTRL_TYPE</code>：FIND_PHONE1/FIND_PHONE_END2/WEATHER_REQ3/CHARGE_STATUS4/POWER_OFF5/FIND_WATCH_END6/MEDICAL_INFO_REQ7</td></tr>
-    <tr><td>0x0A</td><td><code>HEALTH_DATA_UPDATE</code></td><td>App→表</td><td><code>pszParam[0]</code>=索引：BLOOD_PRESSURE(7)/ECG(8)</td></tr>
-    <tr><td>0x0C</td><td><code>HEARTBEAT</code></td><td>双向</td><td>见 §7.3.1</td></tr>
-    <tr><td>0x0D</td><td><code>BLP_RAW_STATE</code></td><td>双向</td><td>表→App 上报 5B：<code>time_per(4 LE)+on_flag(1)</code></td></tr>
-    <tr><td>0x0E</td><td><code>HEALTH_ALERT</code> 主动健康告警</td><td>表→App</td><td>海外版主动告警上报（替代 4G 上传）</td></tr>
-  </table></div>
-
-  <h3 id="s7-4">7.4 RPT_DATA 健康数据同步（Cmd=0x06/0x86）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_RPT_DATA_KEY_TYPE</code>（<code>ble2appEx.h:410-419</code>）。双向。分发 <code>ble2appWrap.c:13078-13101</code>（0x06 与 0x86 合并 case）。<strong><span class="b gray">⬜</span> 业务类，不在维护工具范围</strong>——代码实证 <code>CMD_RPT_DATA2=0x86</code> 常量存在但 <code>S7Console.route</code> 未路由，走 else 塞 responses 通道（见 <a href="#ch10">§10-6</a>）。</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>方向</th><th>payload 摘要</th></tr>
-    <tr><td>0x01</td><td><code>START</code> 请求同步</td><td>App→表（表回摘要）</td><td>请求：<code>ulMask(4 LE)</code> 功能位掩码；应答：掩码内每项 <code>未同步天数(1)+未同步大小(4)</code> 依索引顺序</td></tr>
-    <tr><td>0x02</td><td><code>STOP</code> 停止</td><td>App→表</td><td>—</td></tr>
-    <tr><td>0x03</td><td><code>DATA</code> 数据体</td><td>双向</td><td>头部 <code>RPT_DATA_REQ_PARAM</code>=<code>ucType(1)+ucOperate(1)+ucToday(1)+ucReserve(1)</code></td></tr>
-    <tr><td>0x04</td><td><code>ACK</code> 确认</td><td>App→表</td><td>≥3B：<code>type(1)+result(1: 0成功/1失败)+today(1: 0今日/1历史)</code></td></tr>
-  </table></div>
-  <div class="callout note">数据索引 <code>ENUM_B2A_RPT_DATA_IDX_TYPE</code>：HR0/SPO2 1/PRESS2/ACTIVITY3/SLEEP4/BREATHING5/SPORT6/BLOOD_PRESSURE7/ECG8/BP_TREND9/WEAR10/SSHR11/SHRV12/SRRI13/SDETECT14/BP_TREND_EX15/TEMP_SLEEP16。功能掩码 <code>RptDataMask = 1&lt;&lt;idx</code>。同步模式：BLE=0 / 4G=1。</div>
-</section>
-
-<!-- ============================= 第 8 章 ============================= -->
-<section id="ch8">
-  <h2>8. DEV_CTRL 设备控制（0x07）· TEST 工厂（0x08）</h2>
-
-  <h3 id="s8-1">8.1 DEV_CTRL 设备控制（Cmd=0x07）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_DEV_CTRL_KEY_TYPE</code>（<code>ble2appEx.h:430-446</code>）。方向 App→表。多数<strong>无 payload</strong>，直接执行系统级动作（<strong>危险命令</strong>）。分发 <code>ble2appWrap.c:13105-13176</code>。代码实证子键值 <code>S7Messages.kt:34-40</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>危险性</th><th>实现</th><th>动作 / payload</th></tr>
-    <tr><td>0x01</td><td><code>POWER_OFF</code> 关机</td><td>⚠</td><td><span class="b ok">✅</span></td><td><code>SYS_PowerOff()</code>，无 payload，<strong>不回包</strong>（固件强制 ucIsOk=0）</td></tr>
-    <tr><td>0x02</td><td><code>RESET</code> 重启</td><td>⚠</td><td><span class="b ok">✅</span></td><td><code>SYS_Reset()</code>，不回包</td></tr>
-    <tr><td>0x03</td><td><code>RESTORE</code> 恢复出厂</td><td>⚠</td><td><span class="b ok">✅</span></td><td><code>SYS_Restore()</code>，不回包</td></tr>
-    <tr><td>0x04</td><td><code>FIND</code> 找表</td><td>—</td><td><span class="b ok">✅</span></td><td><code>UI_EVT_FIND_WATCH_START</code>；带 EHST_ACK 时回 1B</td></tr>
-    <tr><td>0x05</td><td><code>FIND_END</code> 停止找表</td><td>—</td><td><span class="b ok">✅</span></td><td><code>UI_EVT_FIND_WATCH_END</code></td></tr>
-    <tr><td>0x06</td><td><code>FIND_PHONE_END</code> 停止找手机</td><td>—</td><td><span class="b gray">⬜</span>（手机侧被找）</td><td><code>APP_Find_Tip_indAck_proc</code> + <code>UI_EVT_FIND_PHONE_END</code></td></tr>
-    <tr><td>0x07</td><td><code>FILE_LOG</code> 拉日志</td><td>—</td><td><span class="b ok">✅</span></td><td>触发 <code>B2A_FileLogCtrlAck</code>，见 <a href="#s9-2">§9.2</a></td></tr>
-    <tr><td>0x08</td><td><code>BLE_LOG</code> 实时日志</td><td>—</td><td><span class="b err">⛔ 固件 #if 0</span></td><td>—</td></tr>
-    <tr><td>0x09</td><td><code>ACK_FILE_LOG</code> 日志回传块</td><td>—</td><td><span class="b ok">✅（接收侧）</span></td><td>设备发起的日志块用此 Key（表→App）</td></tr>
-    <tr><td>0x0A</td><td><code>FILE_ALGO</code> 拉算法文件</td><td>—</td><td><span class="b gray">⬜</span></td><td><code>pszParam[0]</code>=<code>RPT_FEA_FILE_*</code>（SLEEP=1）；示例帧 <code>BB 02 06 00 A6 5E 00 00 07 0A 02 00 01 00</code></td></tr>
-    <tr><td>0x0B</td><td><code>ACK_FILE_ALGO</code></td><td>—</td><td><span class="b gray">⬜</span></td><td>应答 Key</td></tr>
-  </table></div>
-  <p><strong>危险命令（0x01/0x02/0x03）请求帧逐字节</strong>（代码实证 <code>S7Frame.kt:74/312</code>，<code>needAck=false</code>）：</p>
-  <pre class="hex">BB 00 04 00 &lt;crc LE16&gt; 00 00  07 &lt;key&gt; 00 00
+                          cmd=0x07
+</code></pre>
+<hr />
+<h2 id="4">4. 命令总览与分发</h2>
+<h3 id="41-enum_b2a_cmd_type">4.1 一级命令字（<code>ENUM_B2A_CMD_TYPE</code>）</h3>
+<p>代码实证 <code>S7Messages.kt:12-21</code>，对齐固件 <code>ble2appEx.h:85-104</code>。分发主体 <code>B2A_RecvDataHandle</code> <code>switch(ucCmd)</code>（固件 <code>ble2appWrap.c:11883/12037</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>值</th>
+<th>方向主体</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CMD_BOND</code></td>
+<td><strong>0x01</strong></td>
+<td>App→表</td>
+<td>绑定握手 / 鉴权码</td>
+</tr>
+<tr>
+<td><code>CMD_GET</code></td>
+<td><strong>0x02</strong></td>
+<td>App→表（表应答）</td>
+<td>读设备设置/信息</td>
+</tr>
+<tr>
+<td><code>CMD_SET</code></td>
+<td><strong>0x03</strong></td>
+<td>App→表（1B CommAck）</td>
+<td>写设备设置</td>
+</tr>
+<tr>
+<td><code>CMD_PUSH</code></td>
+<td><strong>0x04</strong></td>
+<td>App→表</td>
+<td>推送来电/消息/天气</td>
+</tr>
+<tr>
+<td><code>CMD_IND</code></td>
+<td><strong>0x05</strong></td>
+<td>双向</td>
+<td>指示/控制（多为表发起）</td>
+</tr>
+<tr>
+<td><code>CMD_RPT_DATA</code></td>
+<td><strong>0x06</strong></td>
+<td>双向</td>
+<td>健康数据同步</td>
+</tr>
+<tr>
+<td><code>CMD_DEV_CTRL</code></td>
+<td><strong>0x07</strong></td>
+<td>App→表</td>
+<td>危险命令 / 找表 / 日志</td>
+</tr>
+<tr>
+<td><code>CMD_TEST</code></td>
+<td><strong>0x08</strong></td>
+<td>App→表</td>
+<td>工厂测试</td>
+</tr>
+<tr>
+<td><code>CMD_FILE_TRANS</code></td>
+<td><strong>0x0F</strong></td>
+<td>双向</td>
+<td>文件传输 / OTA</td>
+</tr>
+<tr>
+<td><code>CMD_RPT_DATA2</code></td>
+<td><strong>0x86</strong>（=0x80|0x06）</td>
+<td>双向</td>
+<td>健康数据同步（变体）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 命令分类实现状态一览</h3>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>Cmd</th>
+<th>维护控制台实现</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BOND</td>
+<td>0x01</td>
+<td>⬜ 未做（真机实证维护指令无需绑定）</td>
+<td><a href="#5-bond-绑定命令族-cmd0x01">第 5 章</a></td>
+</tr>
+<tr>
+<td>GET</td>
+<td>0x02</td>
+<td>✅ 8 个 Key 已实现；其余业务类未做</td>
+<td><a href="#6-get-读命令族-cmd0x02">第 6 章</a></td>
+</tr>
+<tr>
+<td>SET</td>
+<td>0x03</td>
+<td>✅ 时间/用户已实现；其余业务类未做</td>
+<td><a href="#71-set-写命令族-cmd0x03">§7.1</a></td>
+</tr>
+<tr>
+<td>PUSH</td>
+<td>0x04</td>
+<td>⬜ 业务类</td>
+<td><a href="#72-push-推送-cmd0x04">§7.2</a></td>
+</tr>
+<tr>
+<td>IND</td>
+<td>0x05</td>
+<td>✅ 心跳被动解析；其余业务类</td>
+<td><a href="#73-ind-指示控制-cmd0x05">§7.3</a></td>
+</tr>
+<tr>
+<td>RPT_DATA</td>
+<td>0x06/0x86</td>
+<td>⬜ 业务类（常量定义但控制台未路由）</td>
+<td><a href="#74-rpt_data-健康数据同步-cmd0x060x86">§7.4</a></td>
+</tr>
+<tr>
+<td>DEV_CTRL</td>
+<td>0x07</td>
+<td>✅ 关机/重启/恢复/找表/日志已实现</td>
+<td><a href="#81-dev_ctrl-设备控制-cmd0x07">§8.1</a></td>
+</tr>
+<tr>
+<td>TEST</td>
+<td>0x08</td>
+<td>⬜ 产测专用</td>
+<td><a href="#82-test-工厂测试-cmd0x08">§8.2</a></td>
+</tr>
+<tr>
+<td>FILE_TRANS</td>
+<td>0x0F</td>
+<td>🅾 OTA 二期</td>
+<td><a href="#91-file_trans--ota-cmd0x0f">§9.1</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-bond-cmd0x01">5. BOND 绑定命令族（Cmd=0x01）</h2>
+<p>Key 枚举 <code>ENUM_B2A_BOND_KEY_TYPE</code>（<code>ble2appEx.h:121-133</code>）。方向：App→表（应答表→App）。分发 <code>ble2appWrap.c:12040-12238</code>。
+<strong>实现状态：⬜ 全族未实现</strong>——真机实证维护指令无需绑定即可直发（<code>completeness-audit §7</code>），KEYCODE 固件不校验。仅当未来固件加门控才需要。</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>是否回复</th>
+<th>payload（App→表）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>BOND_REQ</code> 绑定请求</td>
+<td>是（<code>B2A_BondReqAck</code>，已绑回 EBRT_BOND）</td>
+<td>变长 <code>BOND_DATA_INFO</code>：<code>ucPhoneType(1) + ucPhoneInfoLen(1) + szPhoneInfo[]</code></td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>BOND_DEV</code> 设备绑定</td>
+<td>ACK 位置位才回</td>
+<td><code>BOND_DEV_DATA_INFO</code>：<code>ulUrlLen(1)+szUrl[]+ulPort(4 LE)+bp_res_len(1)+bp_res[]+ecg_res_len(1)+ecg_res[]+user_id_len(1)+user_id[]+comm_res_len(1)+comm_res[]</code></td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>BOND_DEL</code> 删除绑定</td>
+<td>ACK 位置位才回，随后 <code>SYS_Restore()</code></td>
+<td>无实质 payload</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>BOND_CANCEL</code> 取消</td>
+<td>是（<code>EBRT_SUCC</code>）</td>
+<td>无</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>BOND_KEYCODE</code> 鉴权码</td>
+<td>是（<code>EBEC_SUCC</code>；<strong>固件不校验内容</strong>）</td>
+<td><strong>≥20B</strong>：<code>Code[0..15](16) + ble_heart(1,off16) + daily_ack(1,off17) + pro_id(2 LE,off18-19)</code></td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>BOND_REQINFO_GET</code></td>
+<td>—</td>
+<td>手表侧无独立分支（读取用）</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>BOND_REQINFO_RESET</code></td>
+<td>是（信息变化时 <code>EBEC_SUCC</code> 并重启 BLE）</td>
+<td><code>BOND_DATA_INFO</code>：<code>ucPhoneType + ucPhoneInfoLen + szPhoneInfo[]</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-get-cmd0x02">6. GET 读命令族（Cmd=0x02）</h2>
+<p>Key 枚举 <code>ENUM_B2A_GET_KEY_TYPE</code>（<code>ble2appEx.h:135-178</code>）。请求 payload 一般为空；下表列<strong>应答帧的 payload 逐字节</strong>。分发 <code>ble2appWrap.c:12241-12375</code>。GET 应答超 MTU 时按 <code>iMaxParamPktLen</code> 拆多包，<code>uiIndex=0..m</code> 递增。</p>
+<h3 id="61-get">6.1 维护控制台已实现的 GET（代码实证逐字节）</h3>
+<h4 id="611-get-date_timekey0x01-9b">6.1.1 GET DATE_TIME（Key=0x01）— 9B — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:58-105</code>（<code>S7DateTime</code>，GET 响应/SET 请求同布局）。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序/编码</th>
+<th>含义 / 取值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>year</td>
+<td>2</td>
+<td><strong>LE16</strong></td>
+<td>年</td>
+</tr>
+<tr>
+<td>2</td>
+<td>month</td>
+<td>1</td>
+<td>u8</td>
+<td>月 1..12</td>
+</tr>
+<tr>
+<td>3</td>
+<td>day</td>
+<td>1</td>
+<td>u8</td>
+<td>日 1..31</td>
+</tr>
+<tr>
+<td>4</td>
+<td>hour</td>
+<td>1</td>
+<td>u8</td>
+<td>时 ≤23</td>
+</tr>
+<tr>
+<td>5</td>
+<td>minute</td>
+<td>1</td>
+<td>u8</td>
+<td>分 ≤59</td>
+</tr>
+<tr>
+<td>6</td>
+<td>second</td>
+<td>1</td>
+<td>u8</td>
+<td>秒 ≤59</td>
+</tr>
+<tr>
+<td>7</td>
+<td>week</td>
+<td>1</td>
+<td>u8</td>
+<td>星期 1=周一…7=周日（Zeller 自算）</td>
+</tr>
+<tr>
+<td>8</td>
+<td>timezone</td>
+<td>1</td>
+<td><strong>有符号 int8</strong></td>
+<td>时区偏移；SET 时 0=保持设备本地时区不改</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>⚠差异</code>（代码新增，见 <a href="#10-代码实证-vs-文档源码差异汇总">§10-2</a>）：<code>S7Messages.kt:98</code> 对 month/day/hour/min/sec 做<strong>值域校验</strong>，非法即 <code>parse</code> 返回 null → 上层报 FORMAT(0x03)（防 RTC 未初始化/恢复出厂回垃圾值）。</p>
+</blockquote>
+<p>示例（无 golden，字段口径示意）：<code>BB 02 0D 00 &lt;crc&gt; 00 00  02 01 09 00  E9 07 07 03 0A 1E 00 05 08</code>（year=0x07E9=2025、07-03、10:30:00、周五、tz=+8）。</p>
+<h4 id="612-get-person_datakey0x04-7b">6.1.2 GET PERSON_DATA（Key=0x04）— 7B — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:223-255</code>（<code>S7Person</code>，GET 7B）。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>heightCm</td>
+<td>1</td>
+<td>u8</td>
+<td>身高 cm</td>
+</tr>
+<tr>
+<td>1</td>
+<td>weightKg</td>
+<td>1</td>
+<td>u8</td>
+<td>体重 kg</td>
+</tr>
+<tr>
+<td>2</td>
+<td>gender</td>
+<td>1</td>
+<td>u8</td>
+<td>性别</td>
+</tr>
+<tr>
+<td>3</td>
+<td>birthYear</td>
+<td>2</td>
+<td><strong>LE16</strong></td>
+<td>出生年</td>
+</tr>
+<tr>
+<td>5</td>
+<td>birthMonth</td>
+<td>1</td>
+<td>u8</td>
+<td>出生月</td>
+</tr>
+<tr>
+<td>6</td>
+<td>birthDay</td>
+<td>1</td>
+<td>u8</td>
+<td>出生日</td>
+</tr>
+</tbody>
+</table>
+<h4 id="613-get-dev_infokey0x21-tlv">6.1.3 GET DEV_INFO（Key=0x21）— 变长 TLV — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:177-220</code>（<code>S7DeviceInfo</code>）。布局：<code>swLen(1)+sw | mdLen(1)+md | secLen(1)+sec | reserved(1B=1) | bpLen(1)+bp</code>（各段 ASCII，段内 <code>takeWhile{0x20..0x7E}</code> 截断非打印尾部；bp 缺失容忍为 <code>""</code>）。固件副作用：置 <code>ucOtaMode=0xFF</code>。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>swLen</td>
+<td>1</td>
+<td>软件版本串长</td>
+</tr>
+<tr>
+<td>1</td>
+<td>swVer[]</td>
+<td>swLen</td>
+<td>软件版本（仅数字与 <code>.</code>）</td>
+</tr>
+<tr>
+<td>…</td>
+<td>mdLen(1)+mdVer[]</td>
+<td>1+md</td>
+<td>Modem 版本（如 "1.0"）</td>
+</tr>
+<tr>
+<td>…</td>
+<td>secLen(1)+secVer[]</td>
+<td>1+sec</td>
+<td>SecBL 版本（如 "1.0"）</td>
+</tr>
+<tr>
+<td>…</td>
+<td>reserved</td>
+<td>1</td>
+<td>固定 <strong>1</strong></td>
+</tr>
+<tr>
+<td>…</td>
+<td>bpLen(1)+bpVer[]</td>
+<td>1+bp</td>
+<td>血压算法版本</td>
+</tr>
+</tbody>
+</table>
+<h4 id="614-get-dev_funckey0x22-4b">6.1.4 GET DEV_FUNC（Key=0x22）— 4B — ✅已实现</h4>
+<p>代码实证 <code>S7Console.kt:245-250</code>：4B 功能位掩码 <strong>u32 LE</strong>，返回 Long。<code>⚠</code> <strong>逐位含义缺失</strong>——固件本目录未定义 bit 语义，真机回 0，UI 仅 hex 展示。要求 ≥4B。</p>
+<h4 id="615-get-dev_ble_mackey0x23-6b">6.1.5 GET DEV_BLE_MAC（Key=0x23）— 6B — ✅已实现（未单列）</h4>
+<p>6B MAC。控制台未单列（SN_INFO 已含 MAC）。</p>
+<h4 id="616-get-dev_vol-key0x24-10b">6.1.6 GET DEV_VOL 电量（Key=0x24）— 10B — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:108-126</code>（<code>S7Battery</code>，要求 ≥10B）。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>capacityMah</td>
+<td>2</td>
+<td><strong>LE16</strong></td>
+<td>容量 mAh</td>
+</tr>
+<tr>
+<td>2</td>
+<td>voltageMv</td>
+<td>2</td>
+<td><strong>LE16</strong></td>
+<td>电压 mV</td>
+</tr>
+<tr>
+<td>4</td>
+<td>percent</td>
+<td>1</td>
+<td>u8</td>
+<td>电量 %</td>
+</tr>
+<tr>
+<td>5</td>
+<td>chargeStatus</td>
+<td>1</td>
+<td>u8</td>
+<td>充电状态</td>
+</tr>
+<tr>
+<td>6</td>
+<td>ulLastTime</td>
+<td>4</td>
+<td>LE32</td>
+<td>固件恒 0，<strong>代码忽略不解析</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="617-get-sn_info-key0x26-59b">6.1.7 GET SN_INFO 身份（Key=0x26）— 59B 定长 — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:133-174</code>（<code>S7SnInfo</code>，要求 ≥59B，零填充）。布局 <code>5+12+6+16+20 = 59</code>。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>编码</th>
+<th>含义 / 取值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>DevType</td>
+<td>5</td>
+<td><strong>二进制型号码 → hex 展示</strong>（空格分隔；全 0 则空串）</td>
+<td>真机 <code>68 39 71 25 81</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>SN</td>
+<td>12</td>
+<td>ASCII（遇 0x00 或非打印字节截断）</td>
+<td>序列号</td>
+</tr>
+<tr>
+<td>17</td>
+<td>BleMac</td>
+<td>6</td>
+<td><strong>LE 反序存储 → 展示时 <code>.reversed()</code></strong>，<code>:</code> 分隔大写 hex</td>
+<td>真机线上 <code>C4:FC:19:48:61:71</code> = 实际 <code>71:61:48:19:FC:C4</code></td>
+</tr>
+<tr>
+<td>23</td>
+<td>IMEI</td>
+<td>16</td>
+<td>ASCII 截断</td>
+<td>—</td>
+</tr>
+<tr>
+<td>39</td>
+<td>ICCID</td>
+<td>20</td>
+<td>ASCII 截断</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>⚠差异</code>（文档已过时，见 <a href="#10-代码实证-vs-文档源码差异汇总">§10-1</a>）：源文档 protocol-spec §4.3 曾记「MAC/IMEI/ICCID 字节序待核对，按原序 hex 展示」。<strong>代码实证已推翻</strong>：MAC 确定为 <strong>LE 反序</strong>（展示 <code>.reversed()</code>）；SN/IMEI/ICCID 为 <strong>ASCII 非 hex</strong>；DevType 为二进制码走 hex 回退。<code>asciiTrim</code>（<code>:155-161</code>）只保留连续 0x20..0x7E，遇首个非打印字节即停。</p>
+</blockquote>
+<h4 id="618-get-bond-key0x28-1b">6.1.8 GET BOND 绑定状态（Key=0x28）— 1B — ✅已实现</h4>
+<p>代码实证 <code>S7Console.kt:252-256</code>：1B 绑定状态 <code>param[0]</code>（对应 <code>NVM_ID_BIN_BOND</code> 低字节）。要求 ≥1B。</p>
+<h3 id="62-get">6.2 其余 GET（业务类·⬜不在维护工具范围）</h3>
+<p>固件全集（应答 payload 语义摘要，来源②）：</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>应答 payload 摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x02</td>
+<td><code>ALARM</code> 闹钟</td>
+<td>首字节闹钟计数 + <code>MAX_SDM_ALARM_NUM × ALARM_DATA_INFO</code></td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>GOALS</code> 目标</td>
+<td><code>EGOALS_DATA_INFO</code>（见 SET 0x03 镜像）</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>WEAR</code> 佩戴</td>
+<td>1B 佩戴开关</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>UNIT</code> 单位</td>
+<td><code>UNIT_SET_DATA_INFO</code>：<code>ucHeight+ucWeight+ucDistance+ucCalorie+…</code></td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>SEDENTARY</code> 久坐</td>
+<td>久坐提醒结构</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td><code>DRINK_WATER</code> 喝水</td>
+<td>喝水提醒结构</td>
+</tr>
+<tr>
+<td>0x09</td>
+<td><code>QUIET_MODE</code> 勿扰</td>
+<td>勿扰结构</td>
+</tr>
+<tr>
+<td>0x0A</td>
+<td><code>HR_MODE</code> 心率模式</td>
+<td>心率模式结构</td>
+</tr>
+<tr>
+<td>0x0B</td>
+<td><code>SPO2</code> 血氧</td>
+<td>血氧结构</td>
+</tr>
+<tr>
+<td>0x0C</td>
+<td><code>PRESSURE</code> 压力</td>
+<td>压力结构</td>
+</tr>
+<tr>
+<td>0x0D</td>
+<td><code>HRSO_MODE</code> 心率血氧模式</td>
+<td>结构</td>
+</tr>
+<tr>
+<td>0x0E</td>
+<td><code>HR_REMIND</code> 心率提醒</td>
+<td>阈值</td>
+</tr>
+<tr>
+<td>0x0F</td>
+<td><code>SPO2_REMIND</code> 血氧提醒</td>
+<td>阈值</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td><code>PRESSURE_REMIND</code> 压力提醒</td>
+<td>阈值</td>
+</tr>
+<tr>
+<td>0x12</td>
+<td><code>MEDICINE_REMIND</code> 吃药提醒</td>
+<td>结构</td>
+</tr>
+<tr>
+<td>0x13</td>
+<td><code>SLEEP_REMIND</code> 睡眠提醒</td>
+<td>结构</td>
+</tr>
+<tr>
+<td>0x15</td>
+<td><code>ECG_TEST_SET</code> ECG 定时测量</td>
+<td>结构</td>
+</tr>
+<tr>
+<td>0x25</td>
+<td><code>DIAL_INFO</code> 表盘信息</td>
+<td>可分片</td>
+</tr>
+<tr>
+<td>0x27</td>
+<td><code>IOS_MSG</code> iOS 消息提醒</td>
+<td>文件内容，多包 END 标志</td>
+</tr>
+<tr>
+<td>0x2A</td>
+<td><code>BLP_RAW_STATE</code> BP 原始态</td>
+<td>5B：<code>on_utc(4 LE)+on_flag(1)</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>各 <code>*_DATA_INFO</code> 结构体的精确逐字节布局定义在固件 <code>product/apollo_eiot/</code> 的 <code>sdm_*.h</code>/<code>adm_*.h</code>（非 Ble2App 目录），本合成未逐个展开——属业务类，非维护范围。</p>
+</blockquote>
+<hr />
+<h2 id="7-set-0x03-push0x04-ind0x05-rpt_data0x060x86">7. SET 写命令族（0x03）· PUSH（0x04）· IND（0x05）· RPT_DATA（0x06/0x86）</h2>
+<h3 id="71-set-cmd0x03">7.1 SET 写命令族（Cmd=0x03）</h3>
+<p>Key 枚举 <code>ENUM_B2A_SET_KEY_TYPE</code>（<code>ble2appEx.h:181-223</code>，与 GET 镜像 + 表盘/iOS 系列）。方向 App→表；<strong>ACK 位置位统一回 1B CommAck（<code>EBEC_SUCC</code>）</strong>（<code>ble2appWrap.c:12924-12929</code>）。分发 <code>:12379-12931</code>。</p>
+<h4 id="711-set-date_time-key0x01-9b">7.1.1 SET DATE_TIME 对时（Key=0x01）— 9B — ✅已实现</h4>
+<p>布局与 <a href="#611-get-date_timekey0x01-9b-已实现">GET 0x01</a> <strong>完全一致</strong>（代码实证 <code>S7Messages.kt:232</code> encode）。SET 时 timezone=0 保持设备本地时区不改。响应 = 1B CommAck。</p>
+<h4 id="712-set-person_data-key0x04-8b">7.1.2 SET PERSON_DATA 用户信息（Key=0x04）— 8B — ✅已实现</h4>
+<p>代码实证 <code>S7Messages.kt:232-240</code>（<code>encodeSet</code>）= GET 7B 布局 + 偏移 7 处 <code>ulReserve(1B)=0</code>。响应 1B CommAck。控制台<strong>可编辑写入</strong> + 快捷写采集用户。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0..6</td>
+<td>同 GET PERSON 7B</td>
+<td>7</td>
+<td>—</td>
+</tr>
+<tr>
+<td>7</td>
+<td>ulReserve</td>
+<td>1</td>
+<td>=0</td>
+</tr>
+</tbody>
+</table>
+<h4 id="713-set">7.1.3 其余 SET（业务类·⬜不在维护工具范围）</h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>payload 摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x02</td>
+<td><code>ALARM</code></td>
+<td><code>pszParam[0]</code>=闹钟索引 + <code>ALARM_DATA_INFO</code> 数组</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>GOALS</code></td>
+<td><code>EGOALS_DATA_INFO</code>：<code>ulStep(4)+uiSportTime(2)+ucStandCount(1)…</code></td>
+</tr>
+<tr>
+<td>0x05..0x15</td>
+<td>各提醒/模式</td>
+<td>与 GET 镜像结构。0x15 <code>ECG_TEST_REMIND</code>：<code>hour/minute/on_off/snooze/repeate</code></td>
+</tr>
+<tr>
+<td>0x25</td>
+<td><code>DIAL_CURR</code> 当前表盘</td>
+<td><code>SDM_SetDevDialCurr</code>（不自动 ACK）</td>
+</tr>
+<tr>
+<td>0x26</td>
+<td><code>DIAL_SEQ</code> 表盘序列</td>
+<td><strong>支持多包</strong>，<code>ucMultiPktId=(status&gt;&gt;4)&amp;0x03</code></td>
+</tr>
+<tr>
+<td>0x27</td>
+<td><code>IOS_MSG</code></td>
+<td><strong>支持多包</strong>，END 帧回 EBEC_SUCC</td>
+</tr>
+<tr>
+<td>0x28</td>
+<td><code>DIAL_DEL</code> 删表盘</td>
+<td>支持多包；表盘开关激活回 NOT_SUPPORT</td>
+</tr>
+<tr>
+<td>0x29</td>
+<td><code>SCIMEASURE_PARA</code> 科学测量参数</td>
+<td><code>APP_Setting_ScientificMeasure_Extral</code></td>
+</tr>
+<tr>
+<td>0x2A</td>
+<td><code>BLP_RAW_MODE</code> BP 原始模式</td>
+<td>≥5B：<code>time_per(4 LE)+on_flag(1)</code>（纯回显）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-push-cmd0x04">7.2 PUSH 推送（Cmd=0x04）</h3>
+<p>Key 枚举 <code>ENUM_B2A_PUSH_KEY_TYPE</code>（<code>ble2appEx.h:227-239</code>）。方向 App→表，ACK 位置位回 EBEC_SUCC。<strong>⬜ 全族业务类，不在维护工具范围。</strong></p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>payload 摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>PHONE</code> 来电</td>
+<td>来电数据 → <code>SDM_SetIncomingData</code></td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>MSG</code> 消息</td>
+<td><strong>接收侧特例</strong>：该帧只校验 SOF，长度不符也放行、可超长/分片（<code>B2A_RecvData</code> <code>ble2appEx.c:616-623</code>）</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>WEATHER</code> 天气</td>
+<td>变长：<code>weather_ver(1)+city_len(1)+city_name[]+utc(4 LE)+day_count(1)+今日块7B(type/temp/temp_max/temp_min/humidity/UV/PM)+(day_count-1)×未来块3B(type/temp_max/temp_min)</code></td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>MUSIC</code> 音乐</td>
+<td>固件 <code>#if 0</code> 关闭</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>CAMERA</code> 相机</td>
+<td>固件 <code>#if 0</code> 关闭</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>MEDICAL_INFO</code> 医疗信息</td>
+<td>字符串（≤64B 截断），变化才写 <code>NVM_SetMedicalInfo</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-ind-cmd0x05">7.3 IND 指示/控制（Cmd=0x05）</h3>
+<p>Key 枚举 <code>ENUM_B2A_IND_KEY_TYPE</code>（<code>ble2appEx.h:243-262</code>）。双向（多数表→App 发起；App→表为 ACK）。分发 <code>ble2appWrap.c:13003-13074</code>。</p>
+<h4 id="731-ind-heartbeat-key0x0c-8b">7.3.1 IND HEARTBEAT 心跳（Key=0x0C）— 8B — ✅已实现（被动解析）</h4>
+<p>代码实证 <code>S7Messages.kt:258-271</code>（<code>S7Heartbeat</code>，设备→App，要求 ≥8B）。固件发送时置 <code>EHST_ACK</code>（<code>B2A_DevNotifyHeartbeat</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>字节数</th>
+<th>字节序</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>utcSeconds</td>
+<td>4</td>
+<td><strong>LE32</strong></td>
+<td>UTC 秒（返回 Long）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>seq</td>
+<td>2</td>
+<td><strong>LE16</strong></td>
+<td>自增序号</td>
+</tr>
+<tr>
+<td>6</td>
+<td>batteryPercent</td>
+<td>1</td>
+<td>u8</td>
+<td>电量 %</td>
+</tr>
+<tr>
+<td>7</td>
+<td>reserved</td>
+<td>1</td>
+<td>—</td>
+<td>忽略</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>App 可回 8B（<code>utc(4)+seq(2)+network_status(1)+reserved(1)</code>），设备不逐字节解析。被动解析可白捡电量与链路活性。控制台头部显示。</p>
+</blockquote>
+<h4 id="732-ind">7.3.2 其余 IND（业务类·⬜不在维护工具范围）</h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>方向</th>
+<th>payload 摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>INCOMING</code></td>
+<td>双向</td>
+<td>空处理</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>SCIENTIFICMEASURE</code> 科学测量</td>
+<td>App→表</td>
+<td><code>pszParam[0]==0x00</code>→测量完成回调</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>SPORTS</code></td>
+<td>双向</td>
+<td><code>ENUM_B2A_IND_SPORT_TYPE</code>：READY1/START2/PAUSE3/CONT4/STOP5</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>MUSIC</code></td>
+<td>双向</td>
+<td><code>ENUM_B2A_IND_MUSIC_TYPE</code>：PLAY1/PAUSE2/STOP3/PREV4/NEXT5/VOL_U6/VOL_D7</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>CAMERA</code></td>
+<td>双向</td>
+<td><code>ENUM_B2A_IND_CAMERA_TYPE</code>：ENTER1/EXIT2/CAP_SINGLE3/CAP_MULTI4</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>SPORTS_DATA</code></td>
+<td>双向</td>
+<td>空</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>OTHER_CTRL</code> 其它控制</td>
+<td>双向</td>
+<td><code>pszParam[0]</code>=<code>ENUM_B2A_OTHER_CTRL_TYPE</code>：FIND_PHONE1/FIND_PHONE_END2/WEATHER_REQ3/CHARGE_STATUS4/POWER_OFF5/FIND_WATCH_END6/MEDICAL_INFO_REQ7</td>
+</tr>
+<tr>
+<td>0x0A</td>
+<td><code>HEALTH_DATA_UPDATE</code></td>
+<td>App→表</td>
+<td><code>pszParam[0]</code>=索引：BLOOD_PRESSURE(7)/ECG(8)</td>
+</tr>
+<tr>
+<td>0x0C</td>
+<td><code>HEARTBEAT</code></td>
+<td>双向</td>
+<td>见 §7.3.1</td>
+</tr>
+<tr>
+<td>0x0D</td>
+<td><code>BLP_RAW_STATE</code></td>
+<td>双向</td>
+<td>表→App 上报 5B：<code>time_per(4 LE)+on_flag(1)</code></td>
+</tr>
+<tr>
+<td>0x0E</td>
+<td><code>HEALTH_ALERT</code> 主动健康告警</td>
+<td>表→App</td>
+<td>海外版主动告警上报（替代 4G 上传）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-rpt_data-cmd0x060x86">7.4 RPT_DATA 健康数据同步（Cmd=0x06/0x86）</h3>
+<p>Key 枚举 <code>ENUM_B2A_RPT_DATA_KEY_TYPE</code>（<code>ble2appEx.h:410-419</code>）。双向。分发 <code>ble2appWrap.c:13078-13101</code>（0x06 与 0x86 合并 case）。<strong>⬜ 业务类，不在维护工具范围</strong>——代码实证 <code>CMD_RPT_DATA2=0x86</code> 常量存在但 <code>S7Console.route</code> 未路由，走 else 塞 responses 通道（见 <a href="#10-代码实证-vs-文档源码差异汇总">§10-6</a>）。</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>方向</th>
+<th>payload 摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>START</code> 请求同步</td>
+<td>App→表（表回摘要）</td>
+<td>请求：<code>ulMask(4 LE)</code> 功能位掩码；应答：掩码内每项 <code>未同步天数(1)+未同步大小(4)</code> 依索引顺序</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>STOP</code> 停止</td>
+<td>App→表</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>DATA</code> 数据体</td>
+<td>双向</td>
+<td>头部 <code>RPT_DATA_REQ_PARAM</code>=<code>ucType(1)+ucOperate(1)+ucToday(1)+ucReserve(1)</code></td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>ACK</code> 确认</td>
+<td>App→表</td>
+<td>≥3B：<code>type(1)+result(1: 0成功/1失败)+today(1: 0今日/1历史)</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>数据索引 <code>ENUM_B2A_RPT_DATA_IDX_TYPE</code>：HR0/SPO2 1/PRESS2/ACTIVITY3/SLEEP4/BREATHING5/SPORT6/BLOOD_PRESSURE7/ECG8/BP_TREND9/WEAR10/SSHR11/SHRV12/SRRI13/SDETECT14/BP_TREND_EX15/TEMP_SLEEP16。功能掩码 <code>RptDataMask = 1&lt;&lt;idx</code>。同步模式：BLE=0 / 4G=1。</p>
+</blockquote>
+<hr />
+<h2 id="8-dev_ctrl-0x07-test-0x08">8. DEV_CTRL 设备控制（0x07）· TEST 工厂（0x08）</h2>
+<h3 id="81-dev_ctrl-cmd0x07">8.1 DEV_CTRL 设备控制（Cmd=0x07）</h3>
+<p>Key 枚举 <code>ENUM_B2A_DEV_CTRL_KEY_TYPE</code>（<code>ble2appEx.h:430-446</code>）。方向 App→表。多数<strong>无 payload</strong>，直接执行系统级动作（<strong>危险命令</strong>）。分发 <code>ble2appWrap.c:13105-13176</code>。代码实证子键值 <code>S7Messages.kt:34-40</code>。</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>危险性</th>
+<th>实现</th>
+<th>动作 / payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>POWER_OFF</code> 关机</td>
+<td>⚠</td>
+<td>✅</td>
+<td><code>SYS_PowerOff()</code>，无 payload，<strong>不回包</strong>（固件强制 ucIsOk=0）</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>RESET</code> 重启</td>
+<td>⚠</td>
+<td>✅</td>
+<td><code>SYS_Reset()</code>，不回包</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>RESTORE</code> 恢复出厂</td>
+<td>⚠</td>
+<td>✅</td>
+<td><code>SYS_Restore()</code>，不回包</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>FIND</code> 找表</td>
+<td>—</td>
+<td>✅</td>
+<td><code>UI_EVT_FIND_WATCH_START</code>；带 EHST_ACK 时回 1B</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>FIND_END</code> 停止找表</td>
+<td>—</td>
+<td>✅</td>
+<td><code>UI_EVT_FIND_WATCH_END</code></td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>FIND_PHONE_END</code> 停止找手机</td>
+<td>—</td>
+<td>⬜（手机侧被找）</td>
+<td><code>APP_Find_Tip_indAck_proc</code> + <code>UI_EVT_FIND_PHONE_END</code></td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>FILE_LOG</code> 拉日志</td>
+<td>—</td>
+<td>✅</td>
+<td>触发 <code>B2A_FileLogCtrlAck</code>，见 <a href="#92-日志拉取子协议dev_ctrl-0x070x09">§9.2</a></td>
+</tr>
+<tr>
+<td>0x08</td>
+<td><code>BLE_LOG</code> 实时日志</td>
+<td>—</td>
+<td>⛔ 固件 <code>#if 0</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x09</td>
+<td><code>ACK_FILE_LOG</code> 日志回传块</td>
+<td>—</td>
+<td>✅（接收侧）</td>
+<td>设备发起的日志块用此 Key（表→App）</td>
+</tr>
+<tr>
+<td>0x0A</td>
+<td><code>FILE_ALGO</code> 拉算法文件</td>
+<td>—</td>
+<td>⬜ 诊断增强，后续</td>
+<td><code>pszParam[0]</code>=<code>RPT_FEA_FILE_*</code>（SLEEP=1）；示例帧 <code>BB 02 06 00 A6 5E 00 00 07 0A 02 00 01 00</code></td>
+</tr>
+<tr>
+<td>0x0B</td>
+<td><code>ACK_FILE_ALGO</code></td>
+<td>—</td>
+<td>⬜</td>
+<td>应答 Key</td>
+</tr>
+</tbody>
+</table>
+<p><strong>危险命令（0x01/0x02/0x03）请求帧逐字节</strong>（代码实证 <code>S7Frame.kt:74/312</code>，<code>needAck=false</code>）：</p>
+<pre><code>BB 00 04 00 &lt;crc LE16&gt; 00 00  07 &lt;key&gt; 00 00
 └┘ │  └─┬┘             └─┬┘   │   │    └─┬┘
 SOF │  Len=4            Idx0  │  key    paramLen=0
-    status=SUCC(0x00) ⚠      cmd=0x07</pre>
-  <div class="callout warn"><code>⚠差异</code>（见 <a href="#ch10">§10-4</a>）：代码对不回包命令置 <code>status=SUCC(0x00)</code> 而非 ACK；关机/重启/恢复出厂<strong>不置 ACK 位</strong>。以 <code>disconnectWaitMs</code>（默认 10s）内断链为成功判据（<code>S7Console.sendPowerCommand:304-322</code>）。</div>
+    status=SUCC(0x00) ⚠      cmd=0x07
+</code></pre>
+<blockquote>
+<p><code>⚠差异</code>（见 <a href="#10-代码实证-vs-文档源码差异汇总">§10-4</a>）：代码对不回包命令置 <code>status=SUCC(0x00)</code> 而非 ACK；关机/重启/恢复出厂<strong>不置 ACK 位</strong>。以 <code>disconnectWaitMs</code>（默认 10s）内断链为成功判据（<code>S7Console.sendPowerCommand:304-322</code>）。</p>
+</blockquote>
+<h3 id="82-test-cmd0x08">8.2 TEST 工厂测试（Cmd=0x08）</h3>
+<p>Key 枚举 <code>ENUM_B2A_TEST_KEY_TYPE</code>（<code>ble2appEx.h:108-117</code>）。方向 App→表。分发 <code>ble2appWrap.c:13180-13263</code>。<strong>⬜ 产测专用，不在维护工具范围。</strong></p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>ENTER_FACTORY_MODE</code></td>
+<td><code>pszParam[0]</code>=子模式：0x00 退出/0x01 BLE/0x02 UART/0x03 apollo/0x04 ASR/0x05 ECG。ACK 位置位回 <code>Factory_B2A_CommAck</code></td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>MOTO_ON</code> 马达开</td>
+<td>按 <code>pszParam[0]</code> 细分（固件无 handler，实测未实现）</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>MOTO_OFF</code> 马达关</td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>产测握手 golden 帧</strong>：<code>BB 02 03 00 2D 46 00 00 08 01 01</code>（Cmd=0x08/Key=0x01/子模式 01=BLE；短帧特例 uiLen=3；CRC=0x462D）。工厂 UART 注入：<code>factory_uartmode_flg==1</code> 时 UART 字节直灌 <code>SYS_BleRecvData</code>。</p>
+</blockquote>
+<hr />
+<h2 id="9-file_trans-ota0x0f">9. FILE_TRANS / OTA（0x0F）· 日志拉取子协议</h2>
+<h3 id="91-file_trans-otacmd0x0f">9.1 FILE_TRANS / OTA（Cmd=0x0F）</h3>
+<p>Key 枚举 <code>ENUM_B2A_FILE_TRANS_KEY_TYPE</code>（<code>ble2appEx.h:451-461</code>）。双向。分发 <code>ble2appWrap.c:13267-13340</code>。<strong>🅾 OTA 二期</strong>——端到端编排（文件清单/类型组合/生效触发）文档缺失，需固件组补升级包规范。OTA 承载于 AMDTP（<strong>不是独立 amota BLE 服务</strong>），<code>ucModuleId==BMID_FILE_TRANS_OTA</code>。</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>方向</th>
+<th>payload 逐字节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td><code>START</code> 开始传输</td>
+<td>App→表（表回）</td>
+<td><code>CurrFileSize(4 LE)+Offset(4 LE)+SliceSize(4 LE)+Type(1)+ZipFlag(1)+FileNameLen(2 LE)+FileName[]</code></td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>TRANS</code> 数据分片</td>
+<td>App→表</td>
+<td>裸文件数据（分片走 <code>EHST_IS_MULTI_PKT</code>）；首包 index=0 时 <code>g_ulSliceDeclLen=cmd.uiLen</code></td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>STOP</code> 停止</td>
+<td>App→表</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>REQ</code> 传输请求</td>
+<td>App→表（表回）</td>
+<td><strong>请求</strong>：<code>ModuleId(1)+IsOffset(1)+FileCount(1)+Reserved(1)+TotalSize(4 LE)</code>（<code>EHST_OTA_PART</code> 位→差分模式）。<strong>应答 12B</strong>：<code>Status(1)+ModuleId(1)+FileCount(1)+CurrFileIdx(1)+SliceMaxSize(4 LE)+Offset(4 LE)</code></td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>OFFSET</code> 断点偏移</td>
+<td>App→表（表回）</td>
+<td>应答：<code>Offset(4 LE)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>枚举</strong>：ModuleId <code>ble2appEx.h:464-477</code>：OTA1/GPS_FW2/WATCH_BG3/MODEM_FW4/SECBL_FW5/BP_FW6。FileType <code>:480-495</code>：BOOTLOADER1/FW2/RES3/MODEM4/GPS_FW5/GPS_HIS6/FONT7/WATCH_BG8/WATCH_CFG9/BP_FW10。Req 状态 <code>:498-509</code>：OK0/DISK_FULL1/BUSY2/MEMORY3。</p>
+<p><strong>OTA 状态机</strong>：<code>EOTA_IDLE→REQ→READY→START→TRANS_DATA(续片)→END</code>；出错 <code>OTAR_ERROR</code> 回 IDLE。OTA 期间非 FILE_TRANS 帧被丢弃。60 秒超时 <code>B2A_OtaTimeoutCb</code>。</p>
+<pre><code>EOTA_IDLE ──REQ(Key=0x04: ModuleId+IsOffset+FileCount+TotalSize)──▶ EOTA_REQ
+    ▲                                                                  │
+    │                                         表回 12B: Status+SliceMaxSize+Offset
+    │                                                                  ▼
+    │                                                             EOTA_READY
+    │                                                                  │
+    │            START(Key=0x01: CurrFileSize+Offset+SliceSize+Type+ZipFlag+FileName)
+    │                                                                  ▼
+    │◀── 60s 超时 B2A_OtaTimeoutCb ────────────  EOTA_TRANS_DATA ◀─TRANS(Key=0x02)×N─┐
+    │◀── STOP(Key=0x03) / OTAR_ERROR ──────────        │      └───────续片───────────┘
+    │                                                  ▼ 传完
+    └───────────────────────────────────────────  EOTA_END
 
-  <h3 id="s8-2">8.2 TEST 工厂测试（Cmd=0x08）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_TEST_KEY_TYPE</code>（<code>ble2appEx.h:108-117</code>）。方向 App→表。分发 <code>ble2appWrap.c:13180-13263</code>。<strong><span class="b gray">⬜</span> 产测专用，不在维护工具范围。</strong></p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>payload</th></tr>
-    <tr><td>0x01</td><td><code>ENTER_FACTORY_MODE</code></td><td><code>pszParam[0]</code>=子模式：0x00 退出/0x01 BLE/0x02 UART/0x03 apollo/0x04 ASR/0x05 ECG。ACK 位置位回 <code>Factory_B2A_CommAck</code></td></tr>
-    <tr><td>0x02</td><td><code>MOTO_ON</code> 马达开</td><td>按 <code>pszParam[0]</code> 细分（固件无 handler，实测未实现）</td></tr>
-    <tr><td>0x03</td><td><code>MOTO_OFF</code> 马达关</td><td>同上</td></tr>
-  </table></div>
-  <div class="callout note"><strong>产测握手 golden 帧</strong>：<code>BB 02 03 00 2D 46 00 00 08 01 01</code>（Cmd=0x08/Key=0x01/子模式 01=BLE；短帧特例 uiLen=3；CRC=0x462D）。工厂 UART 注入：<code>factory_uartmode_flg==1</code> 时 UART 字节直灌 <code>SYS_BleRecvData</code>。</div>
-</section>
-
-<!-- ============================= 第 9 章 ============================= -->
-<section id="ch9">
-  <h2>9. FILE_TRANS / OTA（0x0F）· 日志拉取子协议</h2>
-
-  <h3 id="s9-1">9.1 FILE_TRANS / OTA（Cmd=0x0F）</h3>
-  <p>Key 枚举 <code>ENUM_B2A_FILE_TRANS_KEY_TYPE</code>（<code>ble2appEx.h:451-461</code>）。双向。分发 <code>ble2appWrap.c:13267-13340</code>。<strong><span class="b warn">🅾</span> OTA 二期</strong>——端到端编排（文件清单/类型组合/生效触发）文档缺失，需固件组补升级包规范。OTA 承载于 AMDTP（<strong>不是独立 amota BLE 服务</strong>），<code>ucModuleId==BMID_FILE_TRANS_OTA</code>。</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>方向</th><th>payload 逐字节</th></tr>
-    <tr><td>0x01</td><td><code>START</code> 开始传输</td><td>App→表（表回）</td><td><code>CurrFileSize(4 LE)+Offset(4 LE)+SliceSize(4 LE)+Type(1)+ZipFlag(1)+FileNameLen(2 LE)+FileName[]</code></td></tr>
-    <tr><td>0x02</td><td><code>TRANS</code> 数据分片</td><td>App→表</td><td>裸文件数据（分片走 <code>EHST_IS_MULTI_PKT</code>）；首包 index=0 时 <code>g_ulSliceDeclLen=cmd.uiLen</code></td></tr>
-    <tr><td>0x03</td><td><code>STOP</code> 停止</td><td>App→表</td><td>—</td></tr>
-    <tr><td>0x04</td><td><code>REQ</code> 传输请求</td><td>App→表（表回）</td><td><strong>请求</strong>：<code>ModuleId(1)+IsOffset(1)+FileCount(1)+Reserved(1)+TotalSize(4 LE)</code>（<code>EHST_OTA_PART</code> 位→差分模式）。<strong>应答 12B</strong>：<code>Status(1)+ModuleId(1)+FileCount(1)+CurrFileIdx(1)+SliceMaxSize(4 LE)+Offset(4 LE)</code></td></tr>
-    <tr><td>0x06</td><td><code>OFFSET</code> 断点偏移</td><td>App→表（表回）</td><td>应答：<code>Offset(4 LE)</code></td></tr>
-  </table></div>
-  <p><strong>枚举</strong>：ModuleId <code>ble2appEx.h:464-477</code>：OTA1/GPS_FW2/WATCH_BG3/MODEM_FW4/SECBL_FW5/BP_FW6。FileType <code>:480-495</code>：BOOTLOADER1/FW2/RES3/MODEM4/GPS_FW5/GPS_HIS6/FONT7/WATCH_BG8/WATCH_CFG9/BP_FW10。Req 状态 <code>:498-509</code>：OK0/DISK_FULL1/BUSY2/MEMORY3。</p>
-  <p><strong>OTA 状态机</strong>：<code>EOTA_IDLE→REQ→READY→START→TRANS_DATA(续片)→END</code>；出错 <code>OTAR_ERROR</code> 回 IDLE。OTA 期间非 FILE_TRANS 帧被丢弃。60 秒超时 <code>B2A_OtaTimeoutCb</code>。</p>
-  <div class="callout note">
-    <strong>三套独立 OTA（来源③，供二期参考）：</strong>
-    <div class="tbl" style="margin-top:8px"><table>
-      <tr><th>路径</th><th>per-packet 校验</th><th>整体校验</th><th>复位方式</th><th>编译状态</th></tr>
-      <tr><td><strong>A</strong> AMOTA BLE（参考实现）</td><td>CRC32（4B 包尾）</td><td>fwCrc（44B FW 头，VERIFY 比对累加 CRC）</td><td><code>am_hal_reset_control(SWPOI)</code> 200ms</td><td><strong>未编译</strong>（Ambiq 参考）</td></tr>
-      <tr><td><strong>B</strong> 资源+SecBL（已编译）</td><td>—（文件级）</td><td>字算累加和（写前/写后比对）</td><td><code>SYS_Reset()</code> 延时 1s</td><td>已编译。SecBL 基址 <code>0x001E2000</code>，MRAM Key <code>0x12344321</code>，<code>MAC_OTA_FLAG=0x01</code>，回滚阈值 30</td></tr>
-      <tr><td><strong>C</strong> AP_OTA SPI（Modem，已编译）</td><td>buf 字节累加和（4B fcs）</td><td><strong>CRC16 init=0xFFFF</strong>（整文件）</td><td>reboot_slave（CP 断电重上电）</td><td>已编译。握手 主→从 <code>0x12345678</code> / 从→主 <code>0x87654321</code>；单包 2000B</td></tr>
-    </table></div>
-    <p style="margin-top:8px"><strong>注</strong>：B2A 的 FILE_TRANS（Cmd=0x0F）是<strong>手表主 MCU 固件/资源</strong>的 OTA 承载通道；上表 A/B/C 是固件内部三套底层刷写实现，与 B2A FILE_TRANS 命令族配合（B 路径）或独立（C=Modem SPI）。</p>
-  </div>
-
-  <h3 id="s9-2">9.2 日志拉取子协议（DEV_CTRL 0x07/0x09）</h3>
-  <p><strong>定位</strong>：日志<strong>非实时逐条</strong>回传。运行期日志先落 eMMC 文件 <code>0:/sdm/eiotlog.log</code>（主）+ <code>eiotlog2.log</code>（备份，300KB 轮替），App 触发后设备<strong>整文件读出并分块回传</strong>，<strong>无压缩、无应用层 CRC</strong>（完整性依赖 BLE 链路层）。处理函数 <code>B2A_FileLogCtrlAck</code>（<code>ble2appWrap.c:11307-11655</code>）。<strong><span class="b ok">✅ 已实现</span></strong>（→ Download/BlueTrace/logs/）。</p>
-  <p><strong>触发（App→表，Cmd=0x07/Key=0x07）请求 payload</strong>（代码实证 <code>S7Console.kt:275</code>）：</p>
-  <pre class="hex">01 00 00 00 00
+断点续传：OFFSET(Key=0x06) 查表侧已收水位 → 从应答 Offset 处续发 TRANS
+OTA 期间非 FILE_TRANS 帧被丢弃；差分模式由帧头 EHST_OTA_PART(bit7) 标记
+</code></pre>
+<blockquote>
+<p><strong>三套独立 OTA（来源③，供二期参考）</strong>：
+| 路径 | per-packet 校验 | 整体校验 | 复位方式 | 编译状态 |
+|---|---|---|---|---|
+| <strong>A</strong> AMOTA BLE（参考实现） | CRC32（4B 包尾） | fwCrc（44B FW 头，VERIFY 比对累加 CRC） | <code>am_hal_reset_control(SWPOI)</code> 200ms | <strong>未编译</strong>（Ambiq 参考） |
+| <strong>B</strong> 资源+SecBL（已编译） | —（文件级） | 字算累加和（写前/写后比对） | <code>SYS_Reset()</code> 延时 1s | 已编译。SecBL 基址 <code>0x001E2000</code>，MRAM Key <code>0x12344321</code>，<code>MAC_OTA_FLAG=0x01</code>，回滚阈值 30 |
+| <strong>C</strong> AP_OTA SPI（Modem，已编译） | buf 字节累加和（4B fcs） | <strong>CRC16 init=0xFFFF</strong>（整文件） | reboot_slave（CP 断电重上电） | 已编译。握手 主→从 <code>0x12345678</code> / 从→主 <code>0x87654321</code>；单包 2000B |</p>
+<p><strong>注</strong>：B2A 的 FILE_TRANS（Cmd=0x0F）是<strong>手表主 MCU 固件/资源</strong>的 OTA 承载通道；上表 A/B/C 是固件内部三套底层刷写实现，与 B2A FILE_TRANS 命令族配合（B 路径）或独立（C=Modem SPI）。</p>
+</blockquote>
+<h3 id="92-dev_ctrl-0x070x09">9.2 日志拉取子协议（DEV_CTRL 0x07/0x09）</h3>
+<p><strong>定位</strong>：日志<strong>非实时逐条</strong>回传。运行期日志先落 eMMC 文件 <code>0:/sdm/eiotlog.log</code>（主）+ <code>eiotlog2.log</code>（备份，300KB 轮替），App 触发后设备<strong>整文件读出并分块回传</strong>，<strong>无压缩、无应用层 CRC</strong>（完整性依赖 BLE 链路层）。处理函数 <code>B2A_FileLogCtrlAck</code>（<code>ble2appWrap.c:11307-11655</code>）。<strong>✅ 已实现</strong>（→ Download/BlueTrace/logs/）。</p>
+<p><strong>触发（App→表，Cmd=0x07/Key=0x07）请求 payload</strong>（代码实证 <code>S7Console.kt:275</code>）：</p>
+<pre><code>01 00 00 00 00
 └┘ └────┬────┘
 ucModel │ szPassthru（4B，透传，语义未定）
-=1（==1 拉 now+bak 两文件；!=1 走硬件日志出口）</pre>
-  <p><strong>回传块（表→App，Cmd=0x07/Key=0x09，设备发起）</strong>：</p>
-  <pre class="hex">[szReqPrefix(=请求 payload 逐字节回显，5B)] + [szLogChunk(裸日志片，~200+B/块)]</pre>
-  <ul>
-    <li>单包缓冲上限 237B；单包真正日志字节 <code>maxLogChunkLen = 237 - 8 - 入参头长 ≈ 200+B</code>（<code>ble2appWrap.c:11479</code>，字节 memcpy 直传无变换）。</li>
-    <li><strong>无块序号、无 EOF 标志</strong> → App 按到达顺序拼接，剥掉 5B 前缀后拼接（<code>S7Console.kt:286</code>）。</li>
-    <li><strong>完成判据 = 空闲超时</strong>（代码实证 <code>logIdleTimeoutMs=4_000</code>，<code>S7Console.kt:55</code>；文档建议 4s，<a href="#ch10">§10-5</a>）。UI 需注明「日志可能不完整」。</li>
-    <li>流控：每块 <code>vTaskDelay(5)</code> 节流；<code>B2A_MakePkt</code> 返回 <code>!=EECT_OK</code> 立即 break。进度 <code>log_update_progress</code> 25%→100%。</li>
-    <li>互斥：全局 <code>filelog_is_sending</code>，上送期间 <code>SYS_Log2File</code> 直接 return（防边传边写）。两文件间无边界分隔。</li>
-  </ul>
-  <p><strong>日志文件内行格式</strong>（<code>log.c:78</code>，仅供解读回传内容）：</p>
-  <pre class="hex">[%08lu] %c/%s: &lt;正文&gt;\r\n
- tick(8位0填充十进制,FreeRTOS tick 非RTC) 级别(E/W/I/D) 模块名</pre>
-  <p>等级枚举：<code>NONE=0 ERR=1 WRN=2 INF=3 DBG=4</code>（越小越紧急，编译期默认上限 INF）。崩溃 dump 也追加进 <code>eiotlog.log</code>（含 <code>RESET MARK:</code> 复位标记行）。</p>
-</section>
-
-<!-- ============================= 第 10 章 ============================= -->
-<section id="ch10">
-  <h2>10. 代码实证 vs 文档（源码）差异汇总</h2>
-  <p>以下 6 处为<strong>第 4 份代码实证与固件源文档（①②③）的差异</strong>，字节布局一律以代码实证为准：</p>
-  <div class="tbl"><table>
-    <tr><th>#</th><th>主题</th><th>文档口径</th><th>代码实证</th><th>结论</th></tr>
-    <tr><td><strong>1</strong></td><td><strong>SN_INFO 字节序</strong></td><td>protocol-spec §4.3：MAC/IMEI/ICCID「字节序待核对，按原序 hex 展示」</td><td><code>S7Messages.kt:146-150</code>（真机 S7-FCC4 2026-07-02）：<strong>MAC 确为 LE 反序</strong>（展示 <code>.reversed()</code>）；SN/IMEI/ICCID 为 <strong>ASCII 非 hex</strong>，遇非打印字节截断；DevType 二进制码走 hex 回退</td><td><strong>文档已过时，采纳代码</strong>。command-status 已同步</td></tr>
-    <tr><td><strong>2</strong></td><td><strong>DateTime 值域校验</strong></td><td>§4.1 未提及</td><td><code>S7Messages.kt:98</code>：month/day/hour/min/sec 合法性校验，非法即 null→上层 FORMAT(0x03)</td><td><strong>代码新增防御</strong>（针对 RTC 未初始化/恢复出厂垃圾值），采纳</td></tr>
-    <tr><td><strong>3</strong></td><td><strong>CommAck 判定</strong></td><td>§2：定义 0/1/5 三值（0成功/1失败/5不支持）</td><td><code>commAckOk</code>（<code>S7Messages.kt:54</code>）：只判 <code>param[0]==0</code>，非 0 一律当失败（错误码原样上抛）</td><td>语义等价；代码未区分 1 与 5，但错误码透传给 DeviceError</td></tr>
-    <tr><td><strong>4</strong></td><td><strong>不回包命令请求帧 status</strong></td><td>§4.7 只说「不回包」，未明确请求帧 status</td><td><code>S7Frame.kt:74,87 / S7Console.kt:312</code>：<code>needAck=false</code> 时 <strong>status=SUCC(0x00)</strong> 而非 ACK</td><td>采纳代码：关机/重启/恢复出厂<strong>不置 ACK 位</strong></td></tr>
-    <tr><td><strong>5</strong></td><td><strong>日志拉取完成判据</strong></td><td>§4.8 建议空闲 4s</td><td><code>S7Console.kt:55</code>：<code>logIdleTimeoutMs=4_000</code> 落实；请求超时 3s（<code>:54</code>）、断链等待 10s（<code>:56</code>）</td><td>一致，代码已落实数值</td></tr>
-    <tr><td><strong>6</strong></td><td><strong>RPT_DATA2 (0x86) 路由</strong></td><td>定义为健康数据同步命令</td><td><code>S7Messages.kt:21</code> 定义 <code>CMD_RPT_DATA2=0x86</code>，但 <code>S7Console.route</code>（<code>:104-126</code>）<strong>未路由</strong>，走 else 塞 responses 通道</td><td>业务类上报，非维护范围，代码有意不处理</td></tr>
-  </table></div>
-  <p><strong>未坐实项（需以固件编译结果核对，来源③标注）</strong>：</p>
-  <ul>
-    <li><code>BKEY_DEV_CTRL_FILE_LOG</code> 数值：固件源码未见显式赋值，按枚举顺序推断为 0x07（代码实证侧 <code>CTRL_FILE_LOG=0x07</code> 已确认，与推断一致）；</li>
-    <li>各 <code>*_DATA_INFO</code> 业务结构体的逐字节布局（在 <code>sdm_*.h</code>/<code>adm_*.h</code>，未展开）；</li>
-    <li><code>DEV_FUNC</code>（0x22）功能掩码的逐位含义（固件本目录未定义，真机回 0）；</li>
-    <li>AMOTA 状态码枚举中间项完整顺序（来源③仅列首尾锚点）。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 11 章 ============================= -->
-<section id="ch11">
-  <h2>11. 附录：枚举 / 状态码 / CRC / 命令索引</h2>
-
-  <h3 id="s11-1">11.1 应用层错误码 EBEC（<code>ENUM_B2A_ERROR_CODE_TYPE</code>）</h3>
-  <p>代码实证 <code>S7Messages.kt:46-51</code>，对齐固件 <code>ble2appEx.h:47-71</code>：</p>
-  <div class="tbl"><table>
-    <tr><th>值</th><th>名</th><th>值</th><th>名</th></tr>
-    <tr><td>0x00</td><td>SUCC 成功</td><td>0x07</td><td>BUSY 忙</td></tr>
-    <tr><td>0x01</td><td>FAIL 失败</td><td>0x08</td><td>LOW_BAT 低电</td></tr>
-    <tr><td>0x02</td><td>TIMEOUT 超时</td><td>0x09</td><td>NO_DATA 无数据</td></tr>
-    <tr><td>0x03</td><td>FORMAT 格式错</td><td>0x0A</td><td>MD5 校验错</td></tr>
-    <tr><td>0x04</td><td>MEMORY 内存错</td><td>0x0B</td><td>CRC 校验错</td></tr>
-    <tr><td>0x05</td><td>NOT_SUPPORT 不支持</td><td>0x0C</td><td>FATAL 致命错</td></tr>
-    <tr><td>0x06</td><td>PARAM 参数错</td><td>0x0D</td><td>FSUM_FAIL 文件累加和错</td></tr>
-  </table></div>
-  <p><strong>通用应答 CommAck（1B）</strong>：payload = 1 字节错误码；<code>commAckOk = param 非空 &amp;&amp; param[0]==0</code>（代码只判是否为 0）。SET 类响应统一 1B CommAck。</p>
-
-  <h3 id="s11-2">11.2 帧头 ucStatus 位（<code>S7Status</code>）</h3>
-  <p>见 <a href="#s2-4">§2.4</a>：SUCC 0x00 / FAIL bit0 / ACK bit1 / IS_MULTI_PKT bit2 / MULTI_PKT_END bit3 / 多包ID bit[5:4] / OTA_PART bit7。</p>
-
-  <h3 id="s11-3">11.3 CRC 算法</h3>
-  <p><strong>CRC16-CCITT-FALSE</strong>：poly 0x1021 / init 0xFFFF / 不反转 / xorout 0，覆盖仅 payload。golden：<code>CRC16(08 01 01)=0x462D</code>。（另：OTA-C 整文件亦用 CRC16 init 0xFFFF；OTA-A 包级用 CRC32。）</p>
-
-  <h3 id="s11-4">11.4 全命令索引（cmd/key hex）</h3>
-  <div class="tbl"><table>
-    <tr><th>Cmd</th><th>Key</th><th>命令</th><th>方向</th><th>回复</th><th>实现</th></tr>
-    <tr><td>0x01</td><td>0x01-0x07</td><td>BOND 绑定族</td><td>App→表</td><td>部分</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x02</td><td>0x01</td><td>GET DATE_TIME</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x04</td><td>GET PERSON_DATA</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x21</td><td>GET DEV_INFO</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x22</td><td>GET DEV_FUNC</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x23</td><td>GET DEV_BLE_MAC</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x24</td><td>GET DEV_VOL 电量</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x26</td><td>GET SN_INFO 身份</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x28</td><td>GET BOND 绑定态</td><td>App→表</td><td>是</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x02</td><td>0x02/03/05-15/25/27/2A</td><td>GET 业务类</td><td>App→表</td><td>是</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x03</td><td>0x01</td><td>SET DATE_TIME 对时</td><td>App→表</td><td>1B Ack</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x03</td><td>0x04</td><td>SET PERSON_DATA</td><td>App→表</td><td>1B Ack</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x03</td><td>0x02/03/05-15/25-2A</td><td>SET 业务类</td><td>App→表</td><td>1B Ack</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x04</td><td>0x01-0x07</td><td>PUSH 推送族</td><td>App→表</td><td>Ack</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x05</td><td>0x0C</td><td>IND HEARTBEAT 心跳</td><td>表→App</td><td>(ACK)</td><td><span class="b ok">✅ 被动</span></td></tr>
-    <tr><td>0x05</td><td>其余</td><td>IND 业务类</td><td>双向</td><td>部分</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x06/0x86</td><td>0x01-0x04</td><td>RPT_DATA 健康同步</td><td>双向</td><td>部分</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x07</td><td>0x01</td><td>DEV_CTRL POWER_OFF 关机</td><td>App→表</td><td>否</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x02</td><td>DEV_CTRL RESET 重启</td><td>App→表</td><td>否</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x03</td><td>DEV_CTRL RESTORE 恢复出厂</td><td>App→表</td><td>否</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x04</td><td>DEV_CTRL FIND 找表</td><td>App→表</td><td>可</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x05</td><td>DEV_CTRL FIND_END 停止找表</td><td>App→表</td><td>可</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x06</td><td>DEV_CTRL FIND_PHONE_END</td><td>App→表</td><td>可</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x07</td><td>0x07</td><td>DEV_CTRL FILE_LOG 拉日志</td><td>App→表</td><td>块流</td><td><span class="b ok">✅</span></td></tr>
-    <tr><td>0x07</td><td>0x08</td><td>DEV_CTRL BLE_LOG</td><td>—</td><td>—</td><td><span class="b err">⛔ #if 0</span></td></tr>
-    <tr><td>0x07</td><td>0x09</td><td>DEV_CTRL ACK_FILE_LOG 日志块</td><td>表→App</td><td>—</td><td><span class="b ok">✅ 接收</span></td></tr>
-    <tr><td>0x07</td><td>0x0A/0x0B</td><td>DEV_CTRL FILE_ALGO 算法文件</td><td>双向</td><td>—</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x08</td><td>0x01-0x03</td><td>TEST 工厂</td><td>App→表</td><td>部分</td><td><span class="b gray">⬜</span></td></tr>
-    <tr><td>0x0F</td><td>0x01-0x06</td><td>FILE_TRANS / OTA</td><td>双向</td><td>部分</td><td><span class="b warn">🅾 二期</span></td></tr>
-  </table></div>
-  <p><strong>命令总数</strong>：一级命令 <strong>10 个</strong>（0x01-0x08 + 0x0F + 0x86）；Key 级命令条目穷尽后约 <strong>90+ 条</strong>（BOND 7 + GET 28 + SET 29 + PUSH 6 + IND 14 + RPT_DATA 4 + DEV_CTRL 11 + TEST 3 + FILE_TRANS 6）。维护控制台<strong>已实现 15 条</strong>（GET 8 + SET 2 + DEV_CTRL 7 中的核心 + IND 心跳 1，去重计）。</p>
-
-  <h3 id="s11-5">11.5 关键源文件路径</h3>
-  <p><strong>BlueTrace 侧（代码实证，字节布局最高权威）</strong>：</p>
-  <ul>
-    <li><code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Frame.kt</code>（帧编解码 + CRC + 位域）</li>
-    <li><code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Messages.kt</code>（各消息数据类逐字节）</li>
-    <li><code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Console.kt</code>（请求编码 + 日志拉取 + 危险命令）</li>
-    <li><code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\B2aDetect.kt</code>（扫描识别）</li>
-  </ul>
-  <p><strong>固件侧（语义/命令全集/示例来源）</strong>：</p>
-  <ul>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appEx.h</code>（枚举/结构 :20,26-43,74-81,85-104,513-518）</li>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appEx.c</code>（帧头/CRC/收发 :555,595-611,644）</li>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appWrap.c</code>（命令分发 + 各 <code>B2A_*Ack</code> payload 构造 + 日志 :11307-11655）</li>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/SDK/ambiq_ble/services/svc_amdtp.h</code>（UUID/句柄）</li>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/log/log.c</code>（日志行格式 :78）</li>
-    <li><code>E:/1/apollo4_watch_s7/product/apollo_eiot/OTA/OTA_Main.c</code>（OTA-B）、<code>AMUX/AP_OTA/src/master_ota_spi.c</code>（OTA-C）</li>
-  </ul>
-</section>
-
-<footer>
-  本文档为<strong>合成稿</strong>。字节布局以 BlueTrace 代码实证为准，命令全集/示例/语义补自固件源码。差异见 <a href="#ch10">第 10 章</a>。<br>
-  相关：<a href="protocol-spec.md">protocol-spec.md</a>（实现级收敛稿）· <a href="command-status.md">command-status.md</a>（实现状态清单）· <a href="command-status.html">command-status.html</a><br>
-  BlueTrace · Docs/architecture-v2/s7/protocol-b2a · 真机 SKG WATCH S7-FCC4 (FW 1.0.102)
-</footer>
-
-</div></body>
+=1（==1 拉 now+bak 两文件；!=1 走硬件日志出口）
+</code></pre>
+<p><strong>回传块（表→App，Cmd=0x07/Key=0x09，设备发起）</strong>：</p>
+<pre><code>[szReqPrefix(=请求 payload 逐字节回显，5B)] + [szLogChunk(裸日志片，~200+B/块)]
+</code></pre>
+<ul>
+<li>单包缓冲上限 237B；单包真正日志字节 <code>maxLogChunkLen = 237 - 8 - 入参头长 ≈ 200+B</code>（<code>ble2appWrap.c:11479</code>，字节 memcpy 直传无变换）。</li>
+<li><strong>无块序号、无 EOF 标志</strong> → App 按到达顺序拼接，剥掉 5B 前缀后拼接（<code>S7Console.kt:286</code>）。</li>
+<li><strong>完成判据 = 空闲超时</strong>（代码实证 <code>logIdleTimeoutMs=4_000</code>，<code>S7Console.kt:55</code>；文档建议 4s，<a href="#10-代码实证-vs-文档源码差异汇总">§10-5</a>）。UI 需注明「日志可能不完整」。</li>
+<li>流控：每块 <code>vTaskDelay(5)</code> 节流；<code>B2A_MakePkt</code> 返回 <code>!=EECT_OK</code> 立即 break。进度 <code>log_update_progress</code> 25%→100%。</li>
+<li>互斥：全局 <code>filelog_is_sending</code>，上送期间 <code>SYS_Log2File</code> 直接 return（防边传边写）。两文件间无边界分隔。</li>
+</ul>
+<p><strong>日志文件内行格式</strong>（<code>log.c:78</code>，仅供解读回传内容）：</p>
+<pre><code>[%08lu] %c/%s: &lt;正文&gt;\r\n
+ tick(8位0填充十进制,FreeRTOS tick 非RTC) 级别(E/W/I/D) 模块名
+</code></pre>
+<p>等级枚举：<code>NONE=0 ERR=1 WRN=2 INF=3 DBG=4</code>（越小越紧急，编译期默认上限 INF）。崩溃 dump 也追加进 <code>eiotlog.log</code>（含 <code>RESET MARK:</code> 复位标记行）。</p>
+<hr />
+<h2 id="10-vs">10. 代码实证 vs 文档（源码）差异汇总</h2>
+<p>以下 6 处为<strong>第 4 份代码实证与固件源文档（①②③）的差异</strong>，字节布局一律以代码实证为准：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>主题</th>
+<th>文档口径</th>
+<th>代码实证</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>SN_INFO 字节序</strong></td>
+<td>protocol-spec §4.3：MAC/IMEI/ICCID「字节序待核对，按原序 hex 展示」</td>
+<td><code>S7Messages.kt:146-150</code>（真机 S7-FCC4 2026-07-02）：<strong>MAC 确为 LE 反序</strong>（展示 <code>.reversed()</code>）；SN/IMEI/ICCID 为 <strong>ASCII 非 hex</strong>，遇非打印字节截断；DevType 二进制码走 hex 回退</td>
+<td><strong>文档已过时，采纳代码</strong>。command-status 已同步</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>DateTime 值域校验</strong></td>
+<td>§4.1 未提及</td>
+<td><code>S7Messages.kt:98</code>：month/day/hour/min/sec 合法性校验，非法即 null→上层 FORMAT(0x03)</td>
+<td><strong>代码新增防御</strong>（针对 RTC 未初始化/恢复出厂垃圾值），采纳</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>CommAck 判定</strong></td>
+<td>§2：定义 0/1/5 三值（0成功/1失败/5不支持）</td>
+<td><code>commAckOk</code>（<code>S7Messages.kt:54</code>）：只判 <code>param[0]==0</code>，非 0 一律当失败（错误码原样上抛）</td>
+<td>语义等价；代码未区分 1 与 5，但错误码透传给 DeviceError</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>不回包命令请求帧 status</strong></td>
+<td>§4.7 只说「不回包」，未明确请求帧 status</td>
+<td><code>S7Frame.kt:74,87 / S7Console.kt:312</code>：<code>needAck=false</code> 时 <strong>status=SUCC(0x00)</strong> 而非 ACK</td>
+<td>采纳代码：关机/重启/恢复出厂<strong>不置 ACK 位</strong></td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td><strong>日志拉取完成判据</strong></td>
+<td>§4.8 建议空闲 4s</td>
+<td><code>S7Console.kt:55</code>：<code>logIdleTimeoutMs=4_000</code> 落实；请求超时 3s（<code>:54</code>）、断链等待 10s（<code>:56</code>）</td>
+<td>一致，代码已落实数值</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td><strong>RPT_DATA2 (0x86) 路由</strong></td>
+<td>定义为健康数据同步命令</td>
+<td><code>S7Messages.kt:21</code> 定义 <code>CMD_RPT_DATA2=0x86</code>，但 <code>S7Console.route</code>（<code>:104-126</code>）<strong>未路由</strong>，走 else 塞 responses 通道</td>
+<td>业务类上报，非维护范围，代码有意不处理</td>
+</tr>
+</tbody>
+</table>
+<p><strong>未坐实项（需以固件编译结果核对，来源③标注）</strong>：
+- <code>BKEY_DEV_CTRL_FILE_LOG</code> 数值：固件源码未见显式赋值，按枚举顺序推断为 0x07（代码实证侧 <code>CTRL_FILE_LOG=0x07</code> 已确认，与推断一致）；
+- 各 <code>*_DATA_INFO</code> 业务结构体的逐字节布局（在 <code>sdm_*.h</code>/<code>adm_*.h</code>，未展开）；
+- <code>DEV_FUNC</code>（0x22）功能掩码的逐位含义（固件本目录未定义，真机回 0）；
+- AMOTA 状态码枚举中间项完整顺序（来源③仅列首尾锚点）。</p>
+<hr />
+<h2 id="11-crc">11. 附录：枚举 / 状态码 / CRC / 命令索引</h2>
+<h3 id="111-ebecenum_b2a_error_code_type">11.1 应用层错误码 EBEC（<code>ENUM_B2A_ERROR_CODE_TYPE</code>）</h3>
+<p>代码实证 <code>S7Messages.kt:46-51</code>，对齐固件 <code>ble2appEx.h:47-71</code>：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>名</th>
+<th>值</th>
+<th>名</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td>SUCC 成功</td>
+<td>0x07</td>
+<td>BUSY 忙</td>
+</tr>
+<tr>
+<td>0x01</td>
+<td>FAIL 失败</td>
+<td>0x08</td>
+<td>LOW_BAT 低电</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>TIMEOUT 超时</td>
+<td>0x09</td>
+<td>NO_DATA 无数据</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td>FORMAT 格式错</td>
+<td>0x0A</td>
+<td>MD5 校验错</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>MEMORY 内存错</td>
+<td>0x0B</td>
+<td>CRC 校验错</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td>NOT_SUPPORT 不支持</td>
+<td>0x0C</td>
+<td>FATAL 致命错</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td>PARAM 参数错</td>
+<td>0x0D</td>
+<td>FSUM_FAIL 文件累加和错</td>
+</tr>
+</tbody>
+</table>
+<p><strong>通用应答 CommAck（1B）</strong>：payload = 1 字节错误码；<code>commAckOk = param 非空 &amp;&amp; param[0]==0</code>（代码只判是否为 0）。SET 类响应统一 1B CommAck。</p>
+<h3 id="112-ucstatus-s7status">11.2 帧头 ucStatus 位（<code>S7Status</code>）</h3>
+<p>见 <a href="#24-ucstatus-位域逐-bit-展开">§2.4</a>：SUCC 0x00 / FAIL bit0 / ACK bit1 / IS_MULTI_PKT bit2 / MULTI_PKT_END bit3 / 多包ID bit[5:4] / OTA_PART bit7。</p>
+<h3 id="113-crc">11.3 CRC 算法</h3>
+<p><strong>CRC16-CCITT-FALSE</strong>：poly 0x1021 / init 0xFFFF / 不反转 / xorout 0，覆盖仅 payload。golden：<code>CRC16(08 01 01)=0x462D</code>。（另：OTA-C 整文件亦用 CRC16 init 0xFFFF；OTA-A 包级用 CRC32。）</p>
+<h3 id="114-cmdkey-hex">11.4 全命令索引（cmd/key hex）</h3>
+<table>
+<thead>
+<tr>
+<th>Cmd</th>
+<th>Key</th>
+<th>命令</th>
+<th>方向</th>
+<th>回复</th>
+<th>实现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x01</td>
+<td>0x01-0x07</td>
+<td>BOND 绑定族</td>
+<td>App→表</td>
+<td>部分</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x01</td>
+<td>GET DATE_TIME</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x04</td>
+<td>GET PERSON_DATA</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x21</td>
+<td>GET DEV_INFO</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x22</td>
+<td>GET DEV_FUNC</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x23</td>
+<td>GET DEV_BLE_MAC</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x24</td>
+<td>GET DEV_VOL 电量</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x26</td>
+<td>GET SN_INFO 身份</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x28</td>
+<td>GET BOND 绑定态</td>
+<td>App→表</td>
+<td>是</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td>0x02/03/05-15/25/27/2A</td>
+<td>GET 业务类</td>
+<td>App→表</td>
+<td>是</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td>0x01</td>
+<td>SET DATE_TIME 对时</td>
+<td>App→表</td>
+<td>1B Ack</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td>0x04</td>
+<td>SET PERSON_DATA</td>
+<td>App→表</td>
+<td>1B Ack</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td>0x02/03/05-15/25-2A</td>
+<td>SET 业务类</td>
+<td>App→表</td>
+<td>1B Ack</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>0x01-0x07</td>
+<td>PUSH 推送族</td>
+<td>App→表</td>
+<td>Ack</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td>0x0C</td>
+<td>IND HEARTBEAT 心跳</td>
+<td>表→App</td>
+<td>(ACK)</td>
+<td>✅ 被动</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td>其余</td>
+<td>IND 业务类</td>
+<td>双向</td>
+<td>部分</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x06/0x86</td>
+<td>0x01-0x04</td>
+<td>RPT_DATA 健康同步</td>
+<td>双向</td>
+<td>部分</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x01</td>
+<td>DEV_CTRL POWER_OFF 关机</td>
+<td>App→表</td>
+<td>否</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x02</td>
+<td>DEV_CTRL RESET 重启</td>
+<td>App→表</td>
+<td>否</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x03</td>
+<td>DEV_CTRL RESTORE 恢复出厂</td>
+<td>App→表</td>
+<td>否</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x04</td>
+<td>DEV_CTRL FIND 找表</td>
+<td>App→表</td>
+<td>可</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x05</td>
+<td>DEV_CTRL FIND_END 停止找表</td>
+<td>App→表</td>
+<td>可</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x06</td>
+<td>DEV_CTRL FIND_PHONE_END</td>
+<td>App→表</td>
+<td>可</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x07</td>
+<td>DEV_CTRL FILE_LOG 拉日志</td>
+<td>App→表</td>
+<td>块流</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x08</td>
+<td>DEV_CTRL BLE_LOG</td>
+<td>—</td>
+<td>—</td>
+<td>⛔ #if 0</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x09</td>
+<td>DEV_CTRL ACK_FILE_LOG 日志块</td>
+<td>表→App</td>
+<td>—</td>
+<td>✅ 接收</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>0x0A/0x0B</td>
+<td>DEV_CTRL FILE_ALGO 算法文件</td>
+<td>双向</td>
+<td>—</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td>0x01-0x03</td>
+<td>TEST 工厂</td>
+<td>App→表</td>
+<td>部分</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>0x0F</td>
+<td>0x01-0x06</td>
+<td>FILE_TRANS / OTA</td>
+<td>双向</td>
+<td>部分</td>
+<td>🅾 二期</td>
+</tr>
+</tbody>
+</table>
+<p><strong>命令总数</strong>：一级命令 <strong>10 个</strong>（0x01-0x08 + 0x0F + 0x86）；Key 级命令条目穷尽后约 <strong>90+ 条</strong>（BOND 7 + GET 28 + SET 29 + PUSH 6 + IND 14 + RPT_DATA 4 + DEV_CTRL 11 + TEST 3 + FILE_TRANS 6）。维护控制台<strong>已实现 15 条</strong>（GET 8 + SET 2 + DEV_CTRL 7 中的核心 + IND 心跳 1，去重计）。</p>
+<h3 id="115">11.5 关键源文件路径</h3>
+<p><strong>BlueTrace 侧（代码实证，字节布局最高权威）</strong>：
+- <code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Frame.kt</code>（帧编解码 + CRC + 位域）
+- <code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Messages.kt</code>（各消息数据类逐字节）
+- <code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\S7Console.kt</code>（请求编码 + 日志拉取 + 危险命令）
+- <code>E:\BlueTrace\shared\src\commonMain\kotlin\io\bluetrace\shared\s7\B2aDetect.kt</code>（扫描识别）</p>
+<p><strong>固件侧（语义/命令全集/示例来源）</strong>：
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appEx.h</code>（枚举/结构 :20,26-43,74-81,85-104,513-518）
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appEx.c</code>（帧头/CRC/收发 :555,595-611,644）
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/Ble2App/ble2appWrap.c</code>（命令分发 + 各 <code>B2A_*Ack</code> payload 构造 + 日志 :11307-11655）
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/SDK/ambiq_ble/services/svc_amdtp.h</code>（UUID/句柄）
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/log/log.c</code>（日志行格式 :78）
+- <code>E:/1/apollo4_watch_s7/product/apollo_eiot/OTA/OTA_Main.c</code>（OTA-B）、<code>AMUX/AP_OTA/src/master_ota_spi.c</code>（OTA-C）</p>
+<hr />
+<blockquote>
+<p>本文档为合成稿。字节布局以 BlueTrace 代码实证为准，命令全集/示例/语义补自固件源码。差异见 <a href="#10-代码实证-vs-文档源码差异汇总">第 10 章</a>。相关：<a href="protocol-spec.md">protocol-spec.md</a>（实现级收敛稿）、<a href="command-status.md">command-status.md</a>（实现状态清单）。</p>
+</blockquote></main>
+</div>
+</body>
 </html>

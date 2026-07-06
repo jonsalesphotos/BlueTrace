@@ -1,7 +1,15 @@
 # S7 设备维护控制台 · 修改记录
 
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
-> 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [plan.md](plan.md) / [command-status.md](command-status.md)。
+> 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [command-status.md](command-status.md)（工作底稿 plan/review/_raw 已归档至 [`../../归档/s7协议工作底稿/`](../../归档/s7协议工作底稿/)）。
+
+## 2026-07-06 · 协议分册补齐五要素 + 目录归档（第 22 轮）
+
+- **需求**：对照协议文档标准五要素（Frame 表 / bit-level ASCII 图 / 逐字节 payload / 实例包 decode / 状态机）审计本目录——共识稿达标；两份分册缺项：b2a 缺 ASCII 标尺图与 OTA 状态机图，zqdata 缺 ASCII 图、**实例包**、状态机。
+- **protocol-zqdata.md** 补齐：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据的分界可视化）、§3.8 实例包 decode（HR 起帧 16B 全注解 + HR 数据包 212B 帧0/帧1 逐字段，脚本 [assets/gen_zqdata_wire_examples.py](assets/gen_zqdata_wire_examples.py) 实算 CRC + 金帧 0x462D 自校验；**数值为构造演示值，无真机抓包待采集固件手表实录替换**）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
+- **protocol-b2a.md** 补齐：§2 增帧信封 bit-level 标尺图（与共识稿 §3.2 同源自包含）；§9.1 OTA 状态机由一行文字扩为 ASCII 图（REQ→READY→START→TRANS→END + 60s 超时/STOP/ERROR 回边 + OFFSET 断点续传）。
+- **目录归档**：`plan.md` / `review-report.md` / `_raw/`（10 份工作底稿）→ `Docs/归档/s7协议工作底稿/`；保留活文档 command-status（实现追踪）与 completeness-audit（缺口清单，OTA 编排缺口在册）。
+- 两份 html 重新生成。
 
 ## 2026-07-06 · ZQDATA·UHTP V1 协议重设计（离线优先）（第 21 轮）
 

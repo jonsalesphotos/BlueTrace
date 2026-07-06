@@ -1,660 +1,1506 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S7 · zqdata 数据通道与离线采集上行协议（逐字节 · 含位域）</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 · zqdata 数据通道与离线采集上行协议完整规格</title>
 <style>
-  :root{
-    --primary:#2BAEEA; --primary-deep:#1C8EC5; --primary-c:#DCF1FB;
-    --bg:#F3F5F8; --surface:#FFFFFF; --on-surface:#1B1D22; --on-surface-v:#4C525C;
-    --outline-v:#D7DAE0; --ok:#2AAE6D; --ok-c:#D4F4E2; --warn:#E89F40; --warn-c:#FFE8C9;
-    --err:#E5484D; --err-c:#FFE3E3; --gray:#8A9099; --gray-c:#ECEEF3;
-    --font:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--on-surface);font-family:var(--font);line-height:1.6;padding:30px 18px 70px}
-  .wrap{max-width:1080px;margin:0 auto}
-  header.hero{background:linear-gradient(135deg,var(--primary-c),#fff 70%);border:1px solid var(--outline-v);border-radius:18px;padding:26px 30px;margin-bottom:22px}
-  h1{font-size:23px;font-weight:800}
-  .hero .sub{color:var(--on-surface-v);margin-top:8px;font-size:14px;max-width:920px}
-  .hero .sub b{color:var(--primary-deep)}
-  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  section{background:var(--surface);border:1px solid var(--outline-v);border-radius:16px;padding:22px 26px;margin-bottom:18px;scroll-margin-top:14px}
-  h2{font-size:18px;font-weight:800;color:var(--primary-deep);margin-bottom:12px}
-  h3{font-size:14.5px;font-weight:700;margin:18px 0 6px;scroll-margin-top:14px}
-  h4{font-size:13.5px;font-weight:700;margin:14px 0 5px;color:var(--on-surface-v);scroll-margin-top:14px}
-  p{margin:8px 0}
-  ul,ol{margin:8px 0 8px 22px}
-  li{margin:3px 0}
-  .tbl{overflow-x:auto;margin:6px 0}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin:0}
-  th{background:var(--bg);text-align:left;padding:7px 9px;font-weight:700;border-bottom:2px solid var(--outline-v);white-space:nowrap}
-  td{padding:6px 9px;border-bottom:1px solid var(--outline-v);vertical-align:top}
-  tr:last-child td{border-bottom:none}
-  code{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--outline-v);border-radius:5px;padding:1px 5px;white-space:nowrap}
-  strong{font-weight:700}
-  .b{display:inline-block;border-radius:999px;font-size:11px;font-weight:700;padding:2px 9px;white-space:nowrap}
-  .ok{background:var(--ok-c);color:#156B42}
-  .warn{background:var(--warn-c);color:#8A5A14}
-  .err{background:var(--err-c);color:#9B2226}
-  .gray{background:var(--gray-c);color:#4C525C}
-  .callout{border-left:4px solid var(--ok);background:var(--ok-c);border-radius:0 12px 12px 0;padding:12px 16px;font-size:13.5px;margin:12px 0}
-  .callout.warn{border-left-color:var(--warn);background:var(--warn-c)}
-  .callout.note{border-left-color:var(--primary);background:var(--primary-c)}
-  .callout code{background:#fff}
-  .hex{background:#1B1D22;color:#E6E8EC;font-family:var(--mono);font-size:12.5px;padding:14px 16px;border-radius:10px;overflow-x:auto;line-height:1.5;white-space:pre;margin:10px 0}
-  .toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-  .toc a{display:inline-block;background:var(--bg);border:1px solid var(--outline-v);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--primary-deep);text-decoration:none;transition:background .15s}
-  .toc a:hover{background:var(--primary-c)}
-  a{color:var(--primary-deep)}
-  footer{text-align:center;color:var(--gray);font-size:12px;margin-top:26px;line-height:1.9}
-  footer a{color:var(--primary-deep)}
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
 </style>
 </head>
-<body><div class="wrap">
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-zqdata">S7 · zqdata 数据通道与离线采集上行协议完整规格（逐字节 · 含位域展开）</a><ul>
+<li><a href="#_1">目录</a></li>
+<li><a href="#1">1. 概述与三通道架构</a></li>
+<li><a href="#2-zqdata-gatt-3">2. zqdata GATT 传输层逐字节（代码实证 ③ 为准）</a><ul>
+<li><a href="#21-0x0a10-0x0a15">2.1 句柄枚举 0x0A10-0x0A15</a></li>
+<li><a href="#22-uuid128-bit">2.2 UUID（128-bit 自定义）</a></li>
+<li><a href="#23-6-attsattr_t">2.3 属性表（6 条 attsAttr_t）—— 权限与属性</a></li>
+<li><a href="#24-add-remove-write_cback">2.4 服务组 add / remove / write_cback</a></li>
+<li><a href="#25-zqdata_ring">2.5 环形缓冲（zqdata_ring.*）</a></li>
+<li><a href="#26-rxtx-txready">2.6 线程模型（RX/TX 双线程 + txReady 背压）</a></li>
+<li><a href="#27-api">2.7 API 契约</a></li>
+<li><a href="#28-mtu">2.8 MTU / 长度约束（传输层硬事实）</a></li>
+<li><a href="#29-sys_data_collect_svc">2.9 编译门控 SYS_DATA_COLLECT_SVC</a></li>
+</ul>
+</li>
+<li><a href="#3-2">3. 上行数据协议逐字节（代码实证 ② 为最高权威）</a><ul>
+<li><a href="#30">3.0 字节序总纲（一句话记住）</a></li>
+<li><a href="#31-hr-ppghrdat-40b">3.1 HR 落盘帧（ppghr.dat，每帧 40B）</a></li>
+<li><a href="#32-spo2-ppgspodat-40b">3.2 SpO2 落盘帧（ppgspo.dat，每帧 40B）</a></li>
+<li><a href="#33-40b-28b">3.3 40B → 28B 重打包（兼容核心，逐字节）</a></li>
+<li><a href="#34-spo2-40b-28b-1-hr">3.4 SpO2 40B → 28B 重打包（帧≥1 与 HR 有偏移差异）</a></li>
+<li><a href="#35-gsensor-18b">3.5 gsensor 上行/落盘帧（18B，无重打包）</a></li>
+<li><a href="#36-b2a-bcmd_test0x08">3.6 B2A 封装（BCMD_TEST=0x08）</a></li>
+<li><a href="#37-bit-level-memory-mapb2a">3.7 Bit-level memory map（B2A 封装上行包）</a></li>
+<li><a href="#38-decode">3.8 实例包 + decode（脚本实算）</a></li>
+<li><a href="#39">3.9 离线上行发送序列（状态机）</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 下行与控制通道 · 广播 / 服务发现 · 约束</a><ul>
+<li><a href="#41-goodix-b2a-getset">4.1 数据通道下行（Goodix，非 B2A GET/SET）</a></li>
+<li><a href="#42-ecg-b2a-bcmd_test-a-ble2appwrapc">4.2 采集起停 / ECG 会话下行命令（B2A BCMD_TEST 子键，A 树 ble2appWrap.c）</a></li>
+<li><a href="#43-ecg-ecg_rawdat-ppg">4.3 ECG 会话落盘帧（ecg_raw.dat，小端，与 PPG 相反）</a></li>
+<li><a href="#44">4.4 广播 / 服务发现</a></li>
+<li><a href="#45">4.5 约束汇总</a></li>
+</ul>
+</li>
+<li><a href="#5-vs">5. 代码实证 vs 文档 差异与完整性核查</a></li>
+<li><a href="#6-fileline">6. 附录：关键结构体 / 常量 / file:line 索引</a><ul>
+<li><a href="#61">6.1 关键常量</a></li>
+<li><a href="#62">6.2 关键结构体 / 符号</a></li>
+<li><a href="#63-fileline">6.3 file:line 索引（两树分栏）</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
 
-<header class="hero">
-  <h1>S7 · zqdata 数据通道与离线采集上行协议（逐字节 · 含位域）</h1>
-  <p class="sub">
-    SKG WATCH S7 <b>离线采集上行协议</b>完整规格 · <b>逐字节含位域展开</b>；<b>上行字节以采集固件 <code>_collect</code> 代码实证为准</b>（A 树手工 <code>&gt;&gt;24</code> 组帧真相），<b>GATT 传输层以 zqdata 模块为准</b>（B 树独立静态库）；设计意图/跨模块语义补自文档①。
-  </p>
-  <div class="legend">
-    <span class="b ok">✅ 一致</span>
-    <span class="b warn">⚠ 差异（以代码为准）</span>
-    <span class="b gray">📄 文档未覆盖</span>
-    <span class="b warn">🔬 需固件核对</span>
-  </div>
-</header>
-
-<section id="toc-nav">
-  <h2>目录</h2>
-  <nav class="toc">
-    <a href="#ch1">1. 概述与三通道架构</a>
-    <a href="#ch2">2. zqdata GATT 传输层逐字节</a>
-    <a href="#ch3">3. 上行数据协议逐字节（最高权威）</a>
-    <a href="#ch4">4. 下行与控制通道 · 广播 / 服务发现 · 约束</a>
-    <a href="#ch5">5. 代码实证 vs 文档 差异与完整性核查</a>
-    <a href="#ch6">6. 附录：关键结构体 / 常量 / file:line 索引</a>
-  </nav>
-
-  <div class="callout note">
-    <strong>合成说明：</strong>本文由三份独立抽取结果合成——
-    ①<strong>文档侧声明</strong>（<code>06_.../离线采集_zqdata服务与上行协议.md</code> v1.0 + <code>05_.../离线采集_接口与数据格式_SPEC.md</code>）
-    ②<strong>采集固件 <code>_collect</code> 代码实证</strong>（<code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code>，<strong>上行数据协议最高权威</strong>）
-    ③<strong>新 zqdata 模块代码实证</strong>（<code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata/</code>，<strong>GATT 传输层最高权威</strong>）。
-    <br><br>
-    <strong>权威顺序：</strong>
-    <br>· <strong>上行数据帧字节布局</strong>（40B 落盘 / 28B 上行 / 18B gsensor / B2A 封装）以<strong>第 ② 份 <code>_collect</code> 代码实证为最高权威</strong>（手工 <code>&gt;&gt;24</code> 拼装真相）；
-    <br>· <strong>GATT 传输层</strong>（句柄段 <code>0x0A10-0x0A15</code>、RX/TX/CCC、环/线程、MTU/长度约束）以<strong>第 ③ 份 zqdata 模块代码实证为最高权威</strong>；
-    <br>· 文档①提供设计意图、三通道架构、跨模块语义；三者冲突处于该字段/命令下<strong>标注 <code>⚠差异</code></strong>，并在<a href="#ch5">第 5 章</a>集中列出。
-    <br><br>
-    <strong>⚠️ 两棵源码树，务必区分</strong>（本文最重要的前置认知）：
-    <div class="tbl"><table>
-      <tr><th>树</th><th>路径</th><th>承担</th><th>上行 TX 句柄符号</th></tr>
-      <tr><td><strong>A｜采集固件 <code>_collect</code></strong></td><td><code>E:/1/apollo4_watch_s7_collect</code></td><td><strong>上行协议实证来源</strong>（HR/SpO2/gsensor/ECG 组帧 + B2A 封装 + 起停命令）</td><td><code>GH3X2X_BLE_TX_HDL</code>（强制 <code>svcSwFlag[0]=0x01</code> 切 ZQDATA 服务 Service <code>0x1540</code>/RX <code>0x1541</code>/TX <code>0x1542</code>）</td></tr>
-      <tr><td><strong>B｜zqdata 新模块</strong></td><td><code>E:/1/apollo4_watch_s7</code></td><td><strong>传输层实证来源</strong>（纯 GATT 收发通道，不定义业务帧）</td><td><code>ZQDATA_BLE_TX_HDL = 0x0A14</code>（独立句柄段 <code>0x0A10-0x0A15</code>）</td></tr>
-    </table></div>
-    两棵树的 UUID base <strong>同为</strong> <code>4512XXXX-51F2-406E-927A-3E1E183412E0</code>、句柄同落 <code>0x0A1x</code> 区间、Service/RX/TX part 同为 <code>0x1540/0x1541/0x1542</code>；差别在<strong>软件实现</strong>：A 树复用旧 <code>factory_gh3x2x_ble_server</code> 的强制切换 + 调用者线程直发；B 树是重写的独立静态库（私有环 + RX/TX 双线程）。<strong>文档①把二者当同一条通道叙述，本文分栏澄清</strong>（见 <a href="#ch5">§5</a>）。
-  </div>
-</section>
-
-<!-- ============================= 第 1 章 ============================= -->
-<section id="ch1">
-  <h2>1. 概述与三通道架构</h2>
-  <p>同一条 BLE 连接上并存<strong>三条独立通道</strong>，句柄段 / 协议各自独立、不交织。文档①的核心澄清是：<strong>「B2A」是主控制通道（AMDTP <code>0xFFE0</code> 服务）的协议，不是 zqdata</strong>；zqdata / 190E 数据通道<strong>只借用 B2A 的打包格式</strong>做上行，其下行是 Goodix 汇顶协议。</p>
-
-  <div class="tbl"><table>
-    <tr><th>通道</th><th>角色</th><th>上行 (TX Notify)</th><th>下行 (RX Write)</th><th>协议</th><th>用途</th></tr>
-    <tr><td><strong>① 主控制通道 = B2A</strong>（AMDTP <code>0xFFE0</code>）</td><td>控制命令 + 上传触发</td><td><code>0x0804</code> notify</td><td><code>0x0802</code> write → <code>B2A_RecvData</code></td><td><strong>B2A</strong>（GET/SET/PUSH/IND/RPT_DATA/TEST/DEV_CTRL/FILE_TRANS）</td><td>承载控制命令与「上传触发」（<code>RPT_DATA → skg_rpt_4G_upload_start</code>）；详见 <a href="protocol-b2a.html">protocol-b2a.html</a></td></tr>
-    <tr><td><strong>② 数据上行通道</strong>（借 B2A 打包，绕开主 B2A 传输）</td><td>原始采集数据上行</td><td><code>0x0A14</code>（zqdata）/ <code>0x0A04</code>（190E）notify</td><td>—（本通道无下行）</td><td>数据帧封进 <strong>B2A <code>BCMD_TEST(0x08)</code></strong> 帧，经<strong>栈缓冲 + 显式 <code>pfSend</code></strong> 直发，不依赖主 B2A 连接态</td><td>HR/SpO2/gsensor 离线数据回传</td></tr>
-    <tr><td><strong>③ 数据通道下行</strong>（控制/命令）</td><td>数据通道的命令</td><td>—</td><td><code>0x0A12</code>（zqdata）/ <code>0x0A02</code>（190E）write</td><td><strong>Goodix 汇顶协议</strong>（<code>Gh3x2xDemoProtocolProcess</code>）或 zqdata <code>rx_handler</code></td><td>采集起止 / 参数；与 ① 的 B2A 命令集无关</td></tr>
-  </table></div>
-
-  <p><strong>句柄段划分：</strong></p>
-  <ul>
-    <li>gh3x2x（190E，16-bit UUID）：<code>0x0A00-0x0A05</code></li>
-    <li>zqdata（<code>4512…</code>，128-bit UUID）：<code>0x0A10-0x0A15</code></li>
-    <li>主 AMDTP/B2A：<code>0x0800</code>(Svc) / <code>0x0802</code>(RX) / <code>0x0804</code>(TX) / <code>0x0805</code>(CCC)</li>
-  </ul>
-
-  <p><strong>三个「角色」的关系（务必厘清）：</strong></p>
-  <ul>
-    <li><strong>zqdata（B 树新模块）</strong>：纯<strong>传输层</strong>，只搬 <code>(buf,len)</code> 不透明字节流，<strong>不定义 28B 业务帧</strong>（<code>zqdata.h:36-41</code>）。是「未来主线」的收发骨架。</li>
-    <li><strong>gh3x2x 190E</strong>：老现网数据服务（16-bit <code>0x190E</code>），产测/汇顶原生通道。</li>
-    <li><strong>B2A <code>0xFFE0</code>（AMDTP）</strong>：主控制通道协议本体；数据通道<strong>只借它的 8B 帧头 + <code>BCMD_TEST</code> 打包格式</strong>，用 <code>B2A_MakePkt2Send(..., pfSend=gh3x2x_ble_send_to_zqdata)</code> 栈缓冲直发，<code>GetBuffCb</code>/<code>SendDataCb</code> 全 <code>#if 0</code>，<strong>不占用主 B2A 状态机</strong>。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 2 章 ============================= -->
-<section id="ch2">
-  <h2>2. zqdata GATT 传输层逐字节（代码实证 ③ 为准）</h2>
-  <div class="callout note">本章描述 <strong>B 树新模块</strong> <code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata/</code>。它是纯传输层——RX/TX 均以 <code>(buf,len)</code> 为单位，业务帧格式由调用方决定。</div>
-
-  <h3 id="s2-1">2.1 句柄枚举 <code>0x0A10-0x0A15</code></h3>
-  <p>来源 <code>zqdata_svc.h:18-31</code>：</p>
-  <div class="tbl"><table>
-    <tr><th>句柄</th><th>枚举符号</th><th>含义</th><th>file:line</th></tr>
-    <tr><td><strong>0x0A10</strong></td><td><code>ZQDATA_BLE_SVC_HDL</code></td><td>Primary Service 声明</td><td><code>zqdata_svc.h:22</code></td></tr>
-    <tr><td><strong>0x0A11</strong></td><td><code>ZQDATA_BLE_RX_CH_HDL</code></td><td>RX 特征声明（Characteristic Declaration）</td><td><code>zqdata_svc.h:23</code></td></tr>
-    <tr><td><strong>0x0A12</strong></td><td><code>ZQDATA_BLE_RX_HDL</code></td><td><strong>RX 值</strong> —— 手机写命令落点</td><td><code>zqdata_svc.h:24</code></td></tr>
-    <tr><td><strong>0x0A13</strong></td><td><code>ZQDATA_BLE_TX_CH_HDL</code></td><td>TX 特征声明</td><td><code>zqdata_svc.h:25</code></td></tr>
-    <tr><td><strong>0x0A14</strong></td><td><code>ZQDATA_BLE_TX_HDL</code></td><td><strong>TX 值</strong> —— 表→手机通知源</td><td><code>zqdata_svc.h:26</code></td></tr>
-    <tr><td><strong>0x0A15</strong></td><td><code>ZQDATA_BLE_TX_CH_CCC_HDL</code></td><td><strong>TX CCC</strong>（客户端订阅开关）</td><td><code>zqdata_svc.h:27</code></td></tr>
-  </table></div>
-  <ul>
-    <li>起始 <code>ZQDATA_BLE_START_HDL = 0x0A10</code>（<code>zqdata_svc.h:18</code>）；结束 <code>ZQDATA_BLE_END_HDL = ZQDATA_BLE_MAX_HDL-1 = 0x0A15</code>（<code>zqdata_svc.h:31</code>）。</li>
-    <li><strong>独立句柄段</strong>，与 gh3x2x（190E，<code>0x0A00-0x0A05</code>）<strong>并行注册、互不重叠</strong>（<code>zqdata_svc.h:4-7</code>、<code>zqdata_svc.c:7-8</code>）。</li>
-  </ul>
-  <div class="callout warn">⚠️ <strong>注意</strong>：文档②表内 <code>0x0A12(RX)</code> 直接给 part <code>0x1541</code>、<code>0x0A14(TX)</code> 给 part <code>0x1542</code>——代码实证证明 <code>0x0A11</code>/<code>0x0A13</code> 是<strong>特征声明</strong>（<code>attChUuid</code>），128-bit 值 UUID 落在 <code>0x0A12</code>/<code>0x0A14</code>。文档句柄→含义对应正确，只是未显式列出 <code>0x0A11</code>/<code>0x0A13</code> 两个声明句柄。</div>
-
-  <h3 id="s2-2">2.2 UUID（128-bit 自定义）</h3>
-  <p>来源 <code>zqdata_svc.c:26-38</code>：</p>
-  <ul>
-    <li><strong>Base</strong>（小端存储，可读式 <code>4512XXXX-51F2-406E-927A-3E1E183412E0</code>）：<code>zqdata_svc.c:28-29</code></li>
-    <li>构造宏 <code>ATT_UUID_ZQDATA_BUILD(part) = Base(12B 小端) + UINT16_TO_BYTES(part) + 0x12,0x45</code>（<code>zqdata_svc.c:30</code>），原型移植自 <code>factory_gh3x2x_ble_server.h:63-87</code>（<code>zqdata_svc.c:26</code> 注）。</li>
-  </ul>
-  <div class="tbl"><table>
-    <tr><th>角色</th><th>part</th><th>完整 UUID</th><th>file:line</th></tr>
-    <tr><td>Service</td><td><code>0x1540</code></td><td><code>45121540-51F2-406E-927A-3E1E183412E0</code></td><td><code>zqdata_svc.c:32,36</code></td></tr>
-    <tr><td>RX</td><td><code>0x1541</code></td><td><code>45121541-…</code></td><td><code>zqdata_svc.c:33,37</code></td></tr>
-    <tr><td>TX</td><td><code>0x1542</code></td><td><code>45121542-…</code></td><td><code>zqdata_svc.c:34,38</code></td></tr>
-  </table></div>
-
-  <h3 id="s2-3">2.3 属性表（6 条 <code>attsAttr_t</code>）—— 权限与属性</h3>
-  <p>来源 <code>zqdata_svc.c:68-118</code>：</p>
-  <div class="tbl"><table>
-    <tr><th>#</th><th>句柄</th><th>UUID</th><th>permissions</th><th>settings(flags)</th><th>特征属性</th><th>file:line</th></tr>
-    <tr><td>1</td><td>0x0A10</td><td><code>attPrimSvcUuid</code></td><td><code>ATTS_PERMIT_READ</code></td><td>0</td><td>Service 声明</td><td><code>:70-77</code></td></tr>
-    <tr><td>2</td><td>0x0A11</td><td><code>attChUuid</code></td><td><code>ATTS_PERMIT_READ</code></td><td>0</td><td>RX 声明，内含 <code>ATT_PROP_WRITE_NO_RSP</code></td><td><code>:78-85</code>（声明体 <code>:50</code>）</td></tr>
-    <tr><td>3</td><td>0x0A12</td><td><code>svcZqdataRxUuid</code>(128b)</td><td><code>ATTS_PERMIT_WRITE</code></td><td><code>ATTS_SET_UUID_128 | ATTS_SET_VARIABLE_LEN | ATTS_SET_WRITE_CBACK</code></td><td><strong>RX 值</strong>，变长、走写回调</td><td><code>:86-93</code></td></tr>
-    <tr><td>4</td><td>0x0A13</td><td><code>attChUuid</code></td><td><code>ATTS_PERMIT_READ</code></td><td>0</td><td>TX 声明，内含 <code>ATT_PROP_NOTIFY</code></td><td><code>:94-101</code>（声明体 <code>:54</code>）</td></tr>
-    <tr><td>5</td><td>0x0A14</td><td><code>svcZqdataTxUuid</code>(128b)</td><td><strong>0</strong></td><td><strong>0</strong></td><td><strong>TX 值</strong>；flags=0 刻意（UUID 由声明属性携带），通知源</td><td><code>:102-109</code></td></tr>
-    <tr><td>6</td><td>0x0A15</td><td><code>attCliChCfgUuid</code></td><td><code>ATTS_PERMIT_READ | ATTS_PERMIT_WRITE</code></td><td><code>ATTS_SET_CCC</code></td><td><strong>TX CCC</strong>，订阅开关（初值 <code>0x0000</code>）</td><td><code>:110-117</code>（初值 <code>:64</code>）</td></tr>
-  </table></div>
-  <p>关键点：</p>
-  <ul>
-    <li><strong>RX = Write Without Response</strong>（<code>ATT_PROP_WRITE_NO_RSP</code>，<code>zqdata_svc.c:50</code>），值属性最大长度 <code>ATT_VALUE_MAX_LEN</code>（<code>:90</code>），变长 + 写回调。</li>
-    <li><strong>TX = Notify</strong>（<code>ATT_PROP_NOTIFY</code>，<code>zqdata_svc.c:54</code>）；CCC 由 Cordio ATT 管理订阅状态（<code>ATTS_SET_CCC</code>，<code>:115</code>）。</li>
-    <li><strong>TX 值 flags=0 是刻意的</strong>（<code>:107</code> 注），照搬勿改——TX UUID 由声明属性携带。</li>
-  </ul>
-
-  <h3 id="s2-4">2.4 服务组 add / remove / write_cback</h3>
-  <ul>
-    <li>服务组 <code>svcZqdataGroup</code>（<code>zqdata_svc.c:121-129</code>）：属性表 <code>zqdataList</code>，句柄段 <code>START..END</code>，<code>readCback=NULL</code>。</li>
-    <li><strong>add</strong>：<code>zqdata_svc_add_group()</code>（<code>zqdata_svc.c:142-147</code>）—— 设 <code>writeCback = zqdata_ble_write_cback</code> 后调 <code>AttsAddGroup(&amp;svcZqdataGroup)</code>。</li>
-    <li><strong>remove</strong>：<code>zqdata_svc_remove_group()</code>（<code>zqdata_svc.c:149-152</code>）—— <code>AttsRemoveGroup(ZQDATA_BLE_START_HDL)</code>。</li>
-    <li><strong>写回调</strong> <code>zqdata_ble_write_cback</code>（<code>zqdata_svc.c:132-139</code>）：忽略 connId/handle/operation/offset/pAttr，仅 <code>zqdata_on_rx(pValue,len)</code> 入 RX 环即 <code>return ATT_SUCCESS</code>——O(1)，<strong>不在 WSF 上下文做任何业务</strong>。未装 readCback（TX 无读需求）。</li>
-  </ul>
-
-  <h3 id="s2-5">2.5 环形缓冲（<code>zqdata_ring.*</code>）</h3>
-  <p>编译期配置（可父级 <code>-D</code> 覆盖），<code>zqdata.c:27-56</code>：</p>
-  <div class="tbl"><table>
-    <tr><th>宏</th><th>默认值</th><th>含义</th><th>file:line</th></tr>
-    <tr><td><code>ZQ_TX_RING_SIZE</code></td><td><strong>4096（4KB）</strong></td><td>TX 环容量（100Hz PPG ~2.8KB/s，4KB 平滑突发）</td><td><code>zqdata.c:28</code></td></tr>
-    <tr><td><code>ZQ_RX_RING_SIZE</code></td><td><strong>512</strong></td><td>RX 环（命令量小）</td><td><code>zqdata.c:31</code></td></tr>
-    <tr><td><code>ZQ_TX_FRAME_MAX</code></td><td><strong>244</strong></td><td>TX 单帧上限（= 典型 247 MTU − 3 ATT notify 头）</td><td><code>zqdata.c:34</code></td></tr>
-    <tr><td><code>ZQ_RX_FRAME_MAX</code></td><td><strong>244</strong></td><td>RX 单帧上限</td><td><code>zqdata.c:37</code></td></tr>
-  </table></div>
-  <ul>
-    <li>缓冲区 <code>s_tx_buf[4096]</code> / <code>s_rx_buf[512]</code>（<code>zqdata.c:59-60</code>），存于普通 <code>.bss</code>（TCM），不入 <code>.shared</code>，避开 LVGL SSRAM 堆（<code>zqdata.c:59</code> 注）。</li>
-    <li>记录格式 <code>[u16 payload_len][payload]</code>（<code>zqdata_ring.h:5-8</code>、<code>zqdata_ring.c:12-13</code>）；记录<strong>不跨尾</strong>，尾部放不下则留 skip 区写 <code>ZQR_SKIP_MARK=0xFFFF</code> wrap-skip 标记。</li>
-    <li>环结构 <code>zqring_t</code>（<code>zqdata_ring.h:23-30</code>）：<code>buf/size/head/tail/count/dropped</code>。</li>
-    <li><strong>丢弃路径</strong>（累加 <code>r->dropped</code>）：非法/过大 <code>payload==0 || payload>=0xFFFF || n>size</code> → 返回 false <strong>不计</strong> dropped（<code>zqdata_ring.c:60-62</code>）；<strong>空间不足</strong> <code>need > (size-count)</code> → <code>dropped++</code> 返回 false（<code>:70-74</code>）。</li>
-    <li><strong>pop 侧健壮性</strong>：<code>len > cap</code>（消费者缓冲太小）→ <strong>跳过该条防卡死</strong>、不计 dropped（<code>:132-140</code>）；skip 标记 / 尾部不足自动绕尾（<code>:120-130</code>）。</li>
-    <li><strong>并发</strong>：上下文自适应临界区 <code>zqr_lock/unlock</code>（<code>zqdata_ring.c:16-32</code>）——ISR 用 <code>taskENTER_CRITICAL_FROM_ISR</code>，task 用 <code>taskENTER_CRITICAL</code>，<strong>可从中断安全调用</strong>。多生产者 / 单消费者；u16 用 <code>memcpy</code> 非对齐安全读写（<code>:35-36</code>）。</li>
-  </ul>
-
-  <h3 id="s2-6">2.6 线程模型（RX/TX 双线程 + txReady 背压）</h3>
-  <p>创建于 <code>zqdata_init()</code>（<code>zqdata.c:203-217</code>）：</p>
-  <div class="tbl"><table>
-    <tr><th>线程</th><th>名</th><th>函数</th><th>栈</th><th>优先级</th><th>file:line</th></tr>
-    <tr><td><strong>TX</strong></td><td><code>"zq_tx"</code></td><td><code>zqdata_tx_task</code></td><td><code>ZQ_TX_TASK_STACK=256</code> word</td><td><code>ZQ_TX_TASK_PRIO=2</code></td><td><code>zqdata.c:40,46,210-211</code></td></tr>
-    <tr><td><strong>RX</strong></td><td><code>"zq_rx"</code></td><td><code>zqdata_rx_task</code></td><td>256 word</td><td>2</td><td><code>zqdata.c:43,49,214-215</code></td></tr>
-  </table></div>
-  <ul>
-    <li><strong>通知只发信号（0 数据）</strong>：<code>zq_notify</code>（<code>zqdata.c:71-83</code>）ISR 用 <code>vTaskNotifyGiveFromISR</code>+<code>portYIELD_FROM_ISR</code>，task 用 <code>xTaskNotifyGive</code>；数据全走私有环（<code>zqdata.h:8-9</code>）。</li>
-    <li><strong>TX 线程循环</strong>（<code>zqdata.c:147-159</code>）：<code>ulTaskNotifyTake(pdTRUE, 50ms)</code> 兜底唤醒防丢通知（<code>ZQ_TX_PERIOD_MS=50</code>，<code>:52</code>），然后 <code>while(zqring_pop>0) zqdata_ble_notify(...)</code> 排空。</li>
-    <li><strong>发送 + 背压</strong> <code>zqdata_ble_notify</code>（<code>zqdata.c:132-145</code>）：① <code>AppConnIsOpen()</code> 无连接→丢帧、<code>s_tx_ready=true</code> 保持就绪（<code>:136-139</code>）；② 上一帧未确认则 <code>zqdata_tx_wait_ready()</code> 等待，超时丢本帧（<code>:140-142</code>）；③ 置 <code>s_tx_ready=false</code> 后 <code>AttsHandleValueNtf(connId, ZQDATA_BLE_TX_HDL, len, buf)</code>（<code>:143-144</code>）。</li>
-    <li><strong>等待就绪</strong> <code>zqdata_tx_wait_ready</code>（<code>zqdata.c:116-128</code>）：1ms 轮询直至 <code>s_tx_ready</code> 或 <code>waited >= ZQ_TX_READY_TMO_MS=1000</code>（<code>:55</code>）；超时则 <code>s_tx_ready=true</code> 复位 + 返回 false（丢帧防永久卡死）。</li>
-    <li><strong>txReady 置位</strong> <code>zqdata_on_att_cnf</code>（<code>zqdata.c:107-113</code>）：BLE 事件派发收到 <code>ATTS_HANDLE_VALUE_CNF</code> 时，<code>handle==ZQDATA_BLE_TX_HDL</code> 才置 <code>s_tx_ready=true</code>；<strong>忽略 status</strong>（成功/超时/MTU 超限一律放行防卡死，<code>:109</code>）。初值 <code>s_tx_ready=true</code>（<code>:68</code>）。与 gh3x2x 各持独立 TX 句柄 / txReady，互不干扰。</li>
-    <li><strong>RX 线程</strong> <code>zqdata_rx_task</code>（<code>zqdata.c:184-200</code>）：<code>ulTaskNotifyTake(pdTRUE, portMAX_DELAY)</code> 纯事件驱动，排空环；有 handler 则 <code>s_rx_handler(frame,n)</code>（<strong>非 WSF 上下文</strong>，可落库/起停采集），否则 <code>s_rx_dropped++</code>。</li>
-  </ul>
-
-  <h3 id="s2-7">2.7 API 契约</h3>
-  <div class="tbl"><table>
-    <tr><th>API</th><th>签名 / 位置</th><th>契约</th></tr>
-    <tr><td><code>zqdata_send</code></td><td><code>bool zqdata_send(const void*, uint16_t)</code>（<code>zqdata.h:41</code>，<code>zqdata.c:86-98</code>）</td><td><code>buf==NULL || len==0</code>→false；入 TX 环成功→通知返回 true，空间不足→丢弃累加 dropped 返回 false。<strong>非阻塞</strong>，真正 notify 在 TX 线程。<code>len</code> 建议 ≤244，更长由调用方先分帧（<code>zqdata.h:39-40</code>）</td></tr>
-    <tr><td><code>zqdata_on_rx</code></td><td><code>void(const uint8_t*, uint16_t)</code>（<code>zqdata.h:55</code>，<code>zqdata.c:167-177</code>）</td><td>供 write_cback 调用；入 RX 环 + 唤醒 RX 线程，失败 <code>s_rx_dropped++</code></td></tr>
-    <tr><td><code>zqdata_set_rx_handler</code></td><td><code>void(zqdata_rx_handler_t)</code>（<code>zqdata.h:51</code>，<code>zqdata.c:162-165</code>）</td><td>注册 RX 命令处理回调，在 RX 线程上下文（非 WSF）回调；未注册则 RX 数据丢弃并计 dropped</td></tr>
-    <tr><td><code>zqdata_on_att_cnf</code></td><td><code>void(uint16_t, uint8_t)</code>（<code>zqdata.h:65</code>，<code>zqdata.c:107-113</code>）</td><td><code>ATTS_HANDLE_VALUE_CNF</code> 时调用；<code>handle==ZQDATA_BLE_TX_HDL</code> 置 txReady；<strong>status 被忽略</strong></td></tr>
-    <tr><td><code>zqdata_tx_dropped</code> / <code>_rx_dropped</code></td><td><code>uint32_t</code>（<code>zqdata.c:100-103</code> / <code>179-182</code>）</td><td>TX 溢出诊断 / RX 环溢出 + 无处理器丢弃</td></tr>
-    <tr><td><code>zqdata_init</code></td><td><code>void</code>（<code>zqdata.c:203-217</code>）</td><td>复位 RX/TX 环、清 <code>s_rx_dropped</code>、创建两线程；<code>vTaskStartScheduler</code> 前调用安全</td></tr>
-    <tr><td><code>zqdata_svc_add_group</code> / <code>_remove_group</code></td><td><code>void</code>（<code>zqdata.h:33-34</code>）</td><td>BLE 初始化期挂/摘服务组（见 <a href="#s2-4">§2.4</a>）</td></tr>
-  </table></div>
-
-  <h3 id="s2-8">2.8 MTU / 长度约束（传输层硬事实）</h3>
-  <ul>
-    <li><strong>单帧硬上限 244B</strong>：注释建议 ≤244（<code>zqdata.h:40</code>）；硬上限由环 <code>ZQ_TX_FRAME_MAX=244</code>（<code>zqdata.c:34</code>）——<code>zqring_pop</code> 传 <code>cap=244</code>，<strong>超 244 的记录在 pop 侧被静默跳过丢弃</strong>（<code>zqdata_ring.c:132-140</code>）。注意：<code>zqring_put</code> 本身只拒 <code>n>size(=4096)</code>，不按 244 拒；若入了 &gt;244 帧，是在 pop 侧被丢。</li>
-    <li><strong>244 = 247 MTU − 3</strong>（ATT notify 头）。文档①「<code>len&lt;=MTU-3</code>」「212B 上行包要求 MTU≥215（实际协商多为 247）」与此一致。</li>
-  </ul>
-  <div class="callout warn">⚠️ <strong>一致性提醒</strong>：文档①§2.4 说单帧 <code>len&lt;=MTU-3</code>；传输层实际是<strong>固定 244 硬上限</strong>（不随协商 MTU 动态放大）。若协商 MTU&gt;247，单帧仍被 244 截断。见 <a href="#ch5">§5</a> 第 9 条。</div>
-
-  <h3 id="s2-9">2.9 编译门控 <code>SYS_DATA_COLLECT_SVC</code></h3>
-  <ul>
-    <li>独立静态库 <code>zqdata_svc</code>（<code>CMakeLists.txt:16-20</code>），父工程 <code>add_subdirectory(zqdata zqdata_svc)</code> + <code>target_link_libraries(apollo_watch zqdata_svc)</code>（<code>:4-5</code>）。</li>
-    <li><strong>库本身无 <code>#ifdef SYS_DATA_COLLECT_SVC</code></strong>；门控在<strong>调用方</strong>：仅采集固件（<code>=1</code>）才调 <code>zqdata_init()</code>/<code>zqdata_svc_add_group()</code>。主线不引用入口 → 整库经 <code>--gc-sections</code> 丢弃、零占用（<code>CMakeLists.txt:12-13</code>、<code>zqdata.h:12</code>）。</li>
-    <li>文档①声明的「3 处门控 + 1 处 CNF 分支」（<code>rtos.c</code> / <code>watch_main.c</code> / <code>factory_..._main.c</code> 的 <code>ATTS_HANDLE_VALUE_CNF</code>）——<strong>门控实际引用点在 zqdata 7 文件之外</strong>（调用方固件），模块代码实证只能坐实「设计意图 = 调用方门控 + gc」。见 <a href="#ch5">§5</a> 第 12 条。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 3 章 ============================= -->
-<section id="ch3">
-  <h2>3. 上行数据协议逐字节（代码实证 ② 为最高权威）</h2>
-  <div class="callout note">
-    本章描述 <strong>A 树采集固件 <code>_collect</code></strong> <code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code> 的真实字节布局。<strong>所有字段/字节序/长度均给 file:line。</strong>
-    <br><br>
-    <strong>总链路</strong>：算法执行 → 落盘 40B/帧（<code>ppghr.dat</code>/<code>ppgspo.dat</code>，8192B 攒批落盘）→ 触发上传时 <strong>40B→28B 重打包</strong> → 封 <strong>B2A <code>BCMD_TEST(0x08)</code></strong> 帧 → <code>gh3x2x_ble_send_to_zqdata()</code> → <code>AttsHandleValueNtf(GH3X2X_BLE_TX_HDL)</code>。gsensor 走独立 18B 链，无重打包。
-  </div>
-
-  <h3 id="s3-0">3.0 字节序总纲（一句话记住）</h3>
-  <div class="tbl"><table>
-    <tr><th>数据</th><th>字节序</th><th>依据</th></tr>
-    <tr><td>HR/SpO2 落盘 40B 主体（ticks/PPG/ACC/cnt）</td><td><strong>大端 BE</strong>（手工 <code>&gt;&gt;24/&gt;&gt;16/&gt;&gt;8</code>，非 htonl）</td><td><code>hr.c:778-803</code></td></tr>
-    <tr><td>HR/SpO2 落盘 40B 尾 12B AGC</td><td><strong>逐字节 / 半字节位域，无字节序</strong></td><td><code>hr.c:814-820</code></td></tr>
-    <tr><td>28B 上行主体</td><td><strong>大端 BE</strong>（24B 从 40B 原样搬）</td><td><code>hr.c:1091</code></td></tr>
-    <tr><td>gsensor 18B 落盘/上行</td><td><strong>大端 BE</strong></td><td><code>user_gsensor_api.c:462-492</code></td></tr>
-    <tr><td>B2A 8B 帧头 + 4B 命令头（Len/CRC/Index/内层 Len）</td><td><strong>小端 LE</strong></td><td><code>ble2appEx.c:59-71,376-377</code></td></tr>
-    <tr><td>ECG 会话 <code>ecg_raw.dat</code> 文件头 / ACC 镜像</td><td><strong>小端 LE</strong>（唯一例外通道）</td><td><code>data_collect_session.c</code> 显式注释</td></tr>
-  </table></div>
-  <div class="callout note"><strong>一句话</strong>：<strong>PPG/HR/SpO2/gsensor 数据帧 = 大端；B2A 封装头 = 小端；新 ECG 会话 = 小端</strong>。同一固件三种字节序并存，解析器必须按通道区分。文档①「28B 帧内字段全大端」成立，但需补充「40B 尾 AGC 是逐字节位域、非大端」这一层——见 <a href="#ch5">§5</a> 第 1 条。</div>
-
-  <h3 id="s3-1">3.1 HR 落盘帧（<code>ppghr.dat</code>，每帧 40B）</h3>
-  <p>组装位置 <code>gh3x2x_demo_algo_call_hr.c:773-823</code>（<code>GH3x2xHrFeedAlgoCacheFrame</code>）；长度常量 <code>data_len = 4 + 4*4 + 3*2 + 2 + 12 = 40</code>（<code>hr.c:628</code>），<code>HR_COV_FRAME_AGC_LEN=12</code>（<code>:74</code>），<code>ALGO_HR_TOTAL_CHN=HBA_TOTAL_CHN</code>（<code>:66</code>）。</p>
-
-  <h4 id="s3-1-1">28B 数据主体（offset 0..27，大端）</h4>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字节数</th><th>字段</th><th>类型</th><th>字节序</th><th>file:line</th></tr>
-    <tr><td>0</td><td>4</td><td>ticks（帧0=UTC 秒 / 帧≥1=OS-tick 递推）</td><td>u32</td><td><strong>大端</strong></td><td><code>hr.c:778-781</code></td></tr>
-    <tr><td>4</td><td>16</td><td>PPG raw[4]（绿1..绿4，各 24bit ADC 存 int32）</td><td>int32×4</td><td><strong>大端</strong></td><td><code>hr.c:785-791</code></td></tr>
-    <tr><td>20</td><td>2</td><td>acc_x</td><td>int16</td><td><strong>大端</strong></td><td><code>hr.c:794-795</code></td></tr>
-    <tr><td>22</td><td>2</td><td>acc_y</td><td>int16</td><td><strong>大端</strong></td><td><code>hr.c:796-797</code></td></tr>
-    <tr><td>24</td><td>2</td><td>acc_z</td><td>int16</td><td><strong>大端</strong></td><td><code>hr.c:798-799</code></td></tr>
-    <tr><td>26</td><td>2</td><td>frame_cnt（<code>g_PPGRawDataFrameCnt</code>）</td><td>u16</td><td><strong>大端</strong></td><td><code>hr.c:802-803</code></td></tr>
-  </table></div>
-
-  <h4 id="s3-1-2">12B AGC 尾（offset 28..39，逐字节 / 位域，无字节序）</h4>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字节数</th><th>字段</th><th>编码</th><th>file:line</th></tr>
-    <tr><td>28</td><td>4</td><td>AGC drv0[绿1..绿4]</td><td>u8×4</td><td><code>hr.c:814</code></td></tr>
-    <tr><td>32</td><td>4</td><td>AGC drv1[绿1..绿4]</td><td>u8×4</td><td><code>hr.c:816</code></td></tr>
-    <tr><td>36</td><td>1</td><td>gain 打包 <code>(gain[绿2]&lt;&lt;4)|gain[绿1]</code></td><td>半字节位域</td><td><code>hr.c:817</code></td></tr>
-    <tr><td>37</td><td>1</td><td>gain 打包 <code>(gain[绿4]&lt;&lt;4)|gain[绿3]</code></td><td>半字节位域</td><td><code>hr.c:818</code></td></tr>
-    <tr><td>38</td><td>1</td><td>cur_adj 位图（bit0..bit3=绿1..绿4）</td><td>位图</td><td><code>hr.c:807-811,819</code></td></tr>
-    <tr><td>39</td><td>1</td><td>保留=0</td><td>—</td><td><code>hr.c:820</code></td></tr>
-  </table></div>
-  <ul>
-    <li><strong>AGC 源拆位</strong>（<code>hr.c:327-331</code>）：<code>gain = unAgcInfo &amp; 0x0F</code>；<code>drv0 = (unAgcInfo>>8)&amp;0xFF</code>；<code>drv1 = (unAgcInfo>>16)&amp;0xFF</code>；<code>cur_adj = (punFrameFlag[0]>>ch)&amp;0x01</code>。</li>
-    <li><strong>帧 0（起始帧）</strong>：<code>GH3x2xHrSendStartFrame</code>（<code>hr.c:426-491</code>）只写真实 UTC（<code>EQC_GetUtcTimeStampSec</code>，<code>:447</code>）到前 4B，其余 36B（含 12B AGC）留 0（<code>:452-463</code>）。</li>
-  </ul>
-
-  <h3 id="s3-2">3.2 SpO2 落盘帧（<code>ppgspo.dat</code>，每帧 40B）</h3>
-  <p>组装位置 <code>gh3x2x_demo_algo_call_spo2.c:641-703</code>（<code>GH3x2xSpo2FeedAlgoCacheFrame</code>）；<code>SPO2_COV_FRAME_AGC_LEN=12</code>（<code>spo2.c:61</code>），<code>ALGO_SPO2_TOTAL_CHN=SPO2_TOTAL_CHN</code>（<code>spo2.c:50</code>）。<strong>布局与 HR 逐字节同构</strong>，仅 4 通道语义不同：</p>
-  <ul>
-    <li>PPG 4 通道 = <strong>IR1/IR2/RED1/RED2</strong>，取自算法 ppg_rawdata 的通道 4/5/8/9（<code>spo2.c:647-650</code>）。SpO2 映射：RED←<code>rawdata[0]</code>、IR←<code>rawdata[4]</code>（<code>algo_config.c:422-424</code>）。</li>
-    <li>AGC 通道索引 <code>{4,5,8,9}</code>（<code>spo2.c:685</code>）；gain 打包 byte36=<code>gain[IR2]&lt;&lt;4|gain[IR1]</code>、byte37=<code>gain[RED2]&lt;&lt;4|gain[RED1]</code>（<code>spo2.c:696-697</code>）；cur_adj bit0..3=IR1/IR2/RED1/RED2（<code>spo2.c:686-691</code>）。</li>
-    <li>类型字节 = <strong>0x04</strong>（HR 为 0x03）。</li>
-  </ul>
-
-  <h3 id="s3-3">3.3 40B → 28B 重打包（兼容核心，逐字节）</h3>
-  <p>重打包核心 <code>hr.c:1074-1092</code>。发送域单帧 <code>data_len = 4 + 4*4 + 3*2 + 2 = 28</code>（<code>hr.c:973</code>）；文件仍 40B/帧（<code>file_frame_len = data_len + 12 = 40</code>，<code>hr.c:1064</code>）；按帧号 seek <code>frame_base*40</code>，整包读入 <code>s_file_stage</code>（<code>hr.c:1067-1068</code>）。</p>
-  <p><strong>帧 0（全局帧序号 == 0）</strong>：保留原始前 4B（真实 UTC 锚点），<code>dst[0..3]=src[0..3]</code>（<code>hr.c:1078-1082</code>）；<code>dst[4..27]=src[4..27]</code> 原样。</p>
-  <p><strong>帧 ≥1（ticks 4B 槽改装成 AGC）</strong>（<code>hr.c:1085-1089</code>）：</p>
-  <div class="tbl"><table>
-    <tr><th>目标字节</th><th>来源 / 变换</th><th>语义</th><th>file:line</th></tr>
-    <tr><td><code>dst[0]</code></td><td><code>= src[28]</code></td><td>drv0 绿1</td><td><code>hr.c:1085</code></td></tr>
-    <tr><td><code>dst[1]</code></td><td><code>= src[36] &amp; 0x0F</code></td><td>gain 绿1</td><td><code>hr.c:1086</code></td></tr>
-    <tr><td><code>dst[2]</code></td><td><code>= src[32]</code></td><td>drv1 绿1</td><td><code>hr.c:1087</code></td></tr>
-    <tr><td><code>dst[3]</code></td><td><code>= (src[36] >> 4) &amp; 0x0F</code></td><td>gain 绿2</td><td><code>hr.c:1088</code></td></tr>
-    <tr><td><code>dst[4..27]</code></td><td><code>= src[4..27]</code>（24B 原样，保持大端）</td><td>PPG16 + ACC6 + cnt2</td><td><code>hr.c:1091</code></td></tr>
-  </table></div>
-  <ul>
-    <li><strong>丢弃</strong>：drv0/drv1 绿2..绿4、gain 绿3/绿4（<code>src[37]</code>）、cur_adj（<code>src[38]</code>）——线上 28B 只带 drv0绿1 / drv1绿1 / gain绿1 / gain绿2。</li>
-    <li>✅ <strong>与文档①§5.2 映射表逐字节一致</strong>（<code>dst[2]=src[32]</code> 均为 drv1 绿1）。</li>
-    <li>每包 <code>HR_COV_SEND_FRAME_NUM=7</code> 帧（<code>hr.c:70</code>）= <code>28*7=196B</code> + 4B 应用头。</li>
-    <li>断电截尾自检：fileSize 非 40 倍数 → 按整帧向下取整丢残尾（<code>hr.c:988-989</code>）。</li>
-  </ul>
-
-  <h3 id="s3-4">3.4 SpO2 40B → 28B 重打包（帧≥1 与 HR 有偏移差异）</h3>
-  <p>重打包核心 <code>spo2.c:920-938</code>。帧≥1 的 AGC 改装（<code>spo2.c:932-935</code>）：</p>
-  <div class="tbl"><table>
-    <tr><th>目标字节</th><th>来源 / 变换</th><th>语义</th><th>file:line</th></tr>
-    <tr><td><code>dst[0]</code></td><td><code>= src[28]</code></td><td>drv0 IR1</td><td><code>spo2.c:932</code></td></tr>
-    <tr><td><code>dst[1]</code></td><td><code>= src[36] &amp; 0x0F</code></td><td>gain IR1</td><td><code>spo2.c:933</code></td></tr>
-    <tr><td><code>dst[2]</code></td><td><code>= src[30]</code></td><td><strong>drv0 RED1</strong>（注意用 <code>src[30]</code> 而非 HR 的 <code>src[32]</code>）</td><td><code>spo2.c:934</code></td></tr>
-    <tr><td><code>dst[3]</code></td><td><code>= src[37] &amp; 0x0F</code></td><td><strong>gain RED1</strong>（用 <code>src[37]&amp;0x0F</code> 而非 HR 的 <code>src[36]>>4</code>）</td><td><code>spo2.c:935</code></td></tr>
-  </table></div>
-  <ul>
-    <li>✅ <strong>与文档①§7 的 SpO2 差异声明一致</strong>（SpO2 用 <code>src[28]/[30]/[36]/[37]</code>）。<strong>HR 与 SpO2 的 dst[2]/dst[3] 来源不同</strong>：HR=<code>src[32]</code>(drv1绿1)/<code>src[36]>>4</code>(gain绿2)；SpO2=<code>src[30]</code>(drv0 RED1)/<code>src[37]&amp;0x0F</code>(gain RED1)。</li>
-    <li>每包 <code>SPO2_COV_SEND_FRAME_NUM=8</code> 帧（<code>spo2.c:53</code>）。</li>
-    <li>断电截尾自检 <code>spo2.c:854-860</code>。</li>
-  </ul>
-
-  <h3 id="s3-5">3.5 gsensor 上行/落盘帧（18B，无重打包）</h3>
-  <p>组装 <code>Gsensor_CovrtSendFrame</code>（<code>user_gsensor_api.c:430-509</code>）。<strong>文档①几乎未覆盖此帧</strong>（只讲 PPG 28B）——此处以代码实证补全。</p>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字节数</th><th>字段</th><th>字节序</th><th>file:line</th></tr>
-    <tr><td>0</td><td>4</td><td>ticks（起始 UTC + 累加 deltaticks）</td><td><strong>大端</strong></td><td><code>:462-465</code></td></tr>
-    <tr><td>4</td><td>2</td><td>acc_x</td><td>大端</td><td><code>:468-469</code></td></tr>
-    <tr><td>6</td><td>2</td><td>acc_y</td><td>大端</td><td><code>:470-471</code></td></tr>
-    <tr><td>8</td><td>2</td><td>acc_z</td><td>大端</td><td><code>:472-473</code></td></tr>
-    <tr><td>10</td><td>6</td><td>gyro（<strong>恒 0 占位</strong>，gyro 关）</td><td>—</td><td><code>:483-488</code></td></tr>
-    <tr><td>16</td><td>2</td><td>frame_id（<code>g_unGsFrameCnt</code>）</td><td>大端</td><td><code>:491-492</code></td></tr>
-  </table></div>
-  <ul>
-    <li>起始帧 <code>Gsensor_SendStartFrame</code>（<code>:390-428</code>）：前 4B 真实 UTC 大端，后 14B 留 0（共 18B）。</li>
-    <li>落盘文件 <code>AGS.dat</code>（<code>GS_COV_SAVE_FRAME_FILE</code>，<code>:32</code>），<code>GS_COV_SAVE_CFG=1</code>（<code>:31</code>）走落盘分支。上行 <code>Gsensor_SendSavedData</code>（<code>:590-705</code>）<strong>逐帧原样发、无重打包</strong>，每包 <code>18*10=180B</code>（<code>:630</code>）。</li>
-  </ul>
-
-  <h3 id="s3-6">3.6 B2A 封装（<code>BCMD_TEST=0x08</code>）</h3>
-  <p>封装函数 <code>B2A_MakePkt2Send(BCMD_TEST, Key, temp_buff, len, 0,0, gh3x2x_ble_send_to_zqdata)</code>（<code>ble2appEx.c:339-425</code>）。<strong>栈缓冲 <code>pszBuff[256]</code></strong>（<code>:345</code>），<code>GetBuffCb</code>/<code>SendDataCb</code> 全 <code>#if 0</code>——不依赖主 B2A 状态。</p>
-
-  <h4 id="s3-6-1">3.6.1 B2A 8B 帧头（全小端）</h4>
-  <div class="tbl"><table>
-    <tr><th>偏移</th><th>字节数</th><th>字段</th><th>字节序</th><th>组装 file:line</th></tr>
-    <tr><td>0</td><td>1</td><td>StartFlag = <code>0xBB</code>（<code>MAC_B2A_HEAD_FLAG</code>）</td><td>—</td><td><code>ble2appEx.c:57</code></td></tr>
-    <tr><td>1</td><td>1</td><td>Status（<code>ENUM_HEAD_STATUS_TYPE</code> 位域）</td><td>—</td><td><code>:58</code></td></tr>
-    <tr><td>2</td><td>2</td><td>Len（<strong>不含 8B 头</strong>）</td><td><strong>小端</strong></td><td><code>:59-60</code></td></tr>
-    <tr><td>4</td><td>2</td><td>CRC16/CCITT-FALSE（over payload，不含头）</td><td><strong>小端</strong></td><td><code>:64,67-68</code></td></tr>
-    <tr><td>6</td><td>2</td><td>Index（分包索引）</td><td>小端</td><td><code>:70-71</code></td></tr>
-  </table></div>
-  <ul>
-    <li>CRC = <code>CRC16_CCITT_FALSE</code>（Poly <code>0x1021</code>，Init <code>0xFFFF</code>，Refin/out=False，Xorout=0，<code>crc16_ccitt_false.c:24-42</code>），作用域 <code>pszData+8, len-8</code>（<code>ble2appEx.c:64</code>）。<strong>与 B2A 主协议 CRC 完全一致</strong>。</li>
-    <li>Status 位（<code>ble2appEx.h:26-43</code>）：<code>EHST_FAIL=0x01</code> / <code>EHST_ACK=0x02</code> / <code>EHST_IS_MULTI_PKT=0x04</code> / <code>EHST_MULTI_PKT_END=0x08</code> / <code>EHST_OTA_PART=0x80</code>。28B 上行始终 <code>Index=0</code> 单包。</li>
-  </ul>
-
-  <h4 id="s3-6-2">3.6.2 内层命令头 4B（仅 Index==0 首包带）</h4>
-  <div class="tbl"><table>
-    <tr><th>偏移(头后)</th><th>字节数</th><th>字段</th><th>字节序</th><th>file:line</th></tr>
-    <tr><td>8</td><td>1</td><td>Cmd = <code>BCMD_TEST</code>=0x08</td><td>—</td><td><code>ble2appEx.c:374,610</code></td></tr>
-    <tr><td>9</td><td>1</td><td>Key（子命令）</td><td>—</td><td><code>:375,612</code></td></tr>
-    <tr><td>10</td><td>2</td><td>内层 Len</td><td><strong>小端</strong></td><td><code>:376-377,614</code></td></tr>
-    <tr><td>12</td><td>N</td><td>payload（4B 应用头 + 数据帧组）</td><td>—</td><td><code>:382</code></td></tr>
-  </table></div>
-
-  <h4 id="s3-6-3">3.6.3 Key 与应用头（4B 自定义头）</h4>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>用途</th><th>应用头 4B</th><th>payload 结构</th><th>file:line</th></tr>
-    <tr><td><code>0x05</code></td><td>HR 起帧</td><td><code>{0x01, 0x03, 0x02, 0x00}</code></td><td>4B（<code>type=HR</code>，通道数占位）</td><td><code>hr.c:998-1002,1179</code></td></tr>
-    <tr><td><code>0x05</code></td><td>HR 止帧</td><td><code>{0x00, 0x03, 0x02, 0x00}</code>（首字节 <code>0x00</code>）</td><td>4B</td><td>文档①§6.4；<code>hr.c</code> 起止用同一 Key</td></tr>
-    <tr><td><code>0x06</code></td><td>HR 数据</td><td><code>{0x01, 0x03, 0x00, ALGO_HR_TOTAL_CHN=4}</code></td><td>4B + 7×28=196B = <strong>200B</strong></td><td><code>hr.c:1042-1045,1122</code></td></tr>
-    <tr><td><code>0x05</code></td><td>SpO2 起帧</td><td><code>{0x01, 0x04, 0x02, 0x00}</code></td><td>4B</td><td><code>spo2.c:873,977</code></td></tr>
-    <tr><td><code>0x06</code></td><td>SpO2 数据</td><td><code>{0x01, 0x04, 0x00, ALGO_SPO2_TOTAL_CHN=4}</code></td><td>4B + 8×28=224B = <strong>228B</strong></td><td><code>spo2.c:889-892,940</code></td></tr>
-    <tr><td><code>0x01</code></td><td>gsensor 起止</td><td>—</td><td>通知</td><td><code>user_gsensor_api.c:618,696</code></td></tr>
-    <tr><td><code>0x02</code></td><td>gsensor 数据</td><td>—</td><td>18×10=180B</td><td><code>user_gsensor_api.c:654</code></td></tr>
-  </table></div>
-  <ul>
-    <li>应用头字节 1（type）：HR=<code>0x03</code>，SpO2=<code>0x04</code>。</li>
-  </ul>
-
-  <h4 id="s3-6-4">3.6.4 212B 总包核算（HR，以文档①标称为例）</h4>
-  <p>文档①标「212B = 8 + 4 + 4 + 196」。代码实证核算：</p>
-  <pre class="hex">B2A 8B 帧头  ┐
+</div>
+</nav>
+<main><h1 id="s7-zqdata">S7 · zqdata 数据通道与离线采集上行协议完整规格（逐字节 · 含位域展开）</h1>
+<blockquote>
+<p><strong>合成说明</strong>：本文由三份独立抽取结果合成——
+①<strong>文档侧声明</strong>（<code>06_.../离线采集_zqdata服务与上行协议.md</code> v1.0 + <code>05_.../离线采集_接口与数据格式_SPEC.md</code>）
+②<strong>采集固件 <code>_collect</code> 代码实证</strong>（<code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code>，<strong>上行数据协议最高权威</strong>）
+③<strong>新 zqdata 模块代码实证</strong>（<code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata/</code>，<strong>GATT 传输层最高权威</strong>）。</p>
+<p><strong>权威顺序</strong>：
+- <strong>上行数据帧字节布局</strong>（40B 落盘 / 28B 上行 / 18B gsensor / B2A 封装）以<strong>第 ② 份 <code>_collect</code> 代码实证为最高权威</strong>（手工 <code>&gt;&gt;24</code> 拼装真相）；
+- <strong>GATT 传输层</strong>（句柄段 <code>0x0A10-0x0A15</code>、RX/TX/CCC、环/线程、MTU/长度约束）以<strong>第 ③ 份 zqdata 模块代码实证为最高权威</strong>；
+- 文档①提供设计意图、三通道架构、跨模块语义；三者冲突处于该字段/命令下<strong>标注 <code>⚠差异</code></strong>，并在 <a href="#5-代码实证-vs-文档-差异与完整性核查">第 5 章</a> 集中列出。</p>
+<p><strong>⚠️ 两棵源码树，务必区分</strong>（本文最重要的前置认知）：
+| 树 | 路径 | 承担 | 上行 TX 句柄符号 |
+|---|---|---|---|
+| <strong>A｜采集固件 <code>_collect</code></strong> | <code>E:/1/apollo4_watch_s7_collect</code> | <strong>上行协议实证来源</strong>（HR/SpO2/gsensor/ECG 组帧 + B2A 封装 + 起停命令） | <code>GH3X2X_BLE_TX_HDL</code>（强制 <code>svcSwFlag[0]=0x01</code> 切 ZQDATA 服务 Service <code>0x1540</code>/RX <code>0x1541</code>/TX <code>0x1542</code>） |
+| <strong>B｜zqdata 新模块</strong> | <code>E:/1/apollo4_watch_s7</code> | <strong>传输层实证来源</strong>（纯 GATT 收发通道，不定义业务帧） | <code>ZQDATA_BLE_TX_HDL = 0x0A14</code>（独立句柄段 <code>0x0A10-0x0A15</code>） |</p>
+<p>两棵树的 UUID base <strong>同为</strong> <code>4512XXXX-51F2-406E-927A-3E1E183412E0</code>、句柄同落 <code>0x0A1x</code> 区间、Service/RX/TX part 同为 <code>0x1540/0x1541/0x1542</code>；差别在<strong>软件实现</strong>：A 树复用旧 <code>factory_gh3x2x_ble_server</code> 的强制切换 + 调用者线程直发；B 树是重写的独立静态库（私有环 + RX/TX 双线程）。<strong>文档①把二者当同一条通道叙述，本文分栏澄清</strong>（见 <a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a>）。</p>
+</blockquote>
+<hr />
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-概述与三通道架构">概述与三通道架构</a></li>
+<li><a href="#2-zqdata-gatt-传输层逐字节代码实证-③-为准">zqdata GATT 传输层逐字节</a></li>
+<li><a href="#3-上行数据协议逐字节代码实证-②-为最高权威">上行数据协议逐字节（最高权威）</a></li>
+<li><a href="#4-下行与控制通道--广播--服务发现--约束">下行与控制通道 · 广播 / 服务发现 · 约束</a></li>
+<li><a href="#5-代码实证-vs-文档-差异与完整性核查">代码实证 vs 文档 差异与完整性核查</a></li>
+<li><a href="#6-附录关键结构体--常量--filelne-索引">附录：关键结构体 / 常量 / file:line 索引</a></li>
+</ol>
+<hr />
+<h2 id="1">1. 概述与三通道架构</h2>
+<p>同一条 BLE 连接上并存<strong>三条独立通道</strong>，句柄段 / 协议各自独立、不交织。文档①的核心澄清是：<strong>「B2A」是主控制通道（AMDTP <code>0xFFE0</code> 服务）的协议，不是 zqdata</strong>；zqdata / 190E 数据通道<strong>只借用 B2A 的打包格式</strong>做上行，其下行是 Goodix 汇顶协议。</p>
+<table>
+<thead>
+<tr>
+<th>通道</th>
+<th>角色</th>
+<th>上行 (TX Notify)</th>
+<th>下行 (RX Write)</th>
+<th>协议</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>① 主控制通道 = B2A</strong>（AMDTP <code>0xFFE0</code>）</td>
+<td>控制命令 + 上传触发</td>
+<td><code>0x0804</code> notify</td>
+<td><code>0x0802</code> write → <code>B2A_RecvData</code></td>
+<td><strong>B2A</strong>（GET/SET/PUSH/IND/RPT_DATA/TEST/DEV_CTRL/FILE_TRANS）</td>
+<td>承载控制命令与「上传触发」（<code>RPT_DATA → skg_rpt_4G_upload_start</code>）；详见 <a href="protocol-b2a.md">protocol-b2a.md</a></td>
+</tr>
+<tr>
+<td><strong>② 数据上行通道</strong>（借 B2A 打包，绕开主 B2A 传输）</td>
+<td>原始采集数据上行</td>
+<td><code>0x0A14</code>（zqdata）/ <code>0x0A04</code>（190E）notify</td>
+<td>—（本通道无下行）</td>
+<td>数据帧封进 <strong>B2A <code>BCMD_TEST(0x08)</code></strong> 帧，经<strong>栈缓冲 + 显式 <code>pfSend</code></strong> 直发，不依赖主 B2A 连接态</td>
+<td>HR/SpO2/gsensor 离线数据回传</td>
+</tr>
+<tr>
+<td><strong>③ 数据通道下行</strong>（控制/命令）</td>
+<td>数据通道的命令</td>
+<td>—</td>
+<td><code>0x0A12</code>（zqdata）/ <code>0x0A02</code>（190E）write</td>
+<td><strong>Goodix 汇顶协议</strong>（<code>Gh3x2xDemoProtocolProcess</code>）或 zqdata <code>rx_handler</code></td>
+<td>采集起止 / 参数；与 ① 的 B2A 命令集无关</td>
+</tr>
+</tbody>
+</table>
+<p><strong>句柄段划分：</strong>
+- gh3x2x（190E，16-bit UUID）：<code>0x0A00-0x0A05</code>
+- zqdata（<code>4512…</code>，128-bit UUID）：<code>0x0A10-0x0A15</code>
+- 主 AMDTP/B2A：<code>0x0800</code>(Svc) / <code>0x0802</code>(RX) / <code>0x0804</code>(TX) / <code>0x0805</code>(CCC)</p>
+<p><strong>三个「角色」的关系（务必厘清）：</strong>
+- <strong>zqdata（B 树新模块）</strong>：纯<strong>传输层</strong>，只搬 <code>(buf,len)</code> 不透明字节流，<strong>不定义 28B 业务帧</strong>（<code>zqdata.h:36-41</code>）。是「未来主线」的收发骨架。
+- <strong>gh3x2x 190E</strong>：老现网数据服务（16-bit <code>0x190E</code>），产测/汇顶原生通道。
+- <strong>B2A <code>0xFFE0</code>（AMDTP）</strong>：主控制通道协议本体；数据通道<strong>只借它的 8B 帧头 + <code>BCMD_TEST</code> 打包格式</strong>，用 <code>B2A_MakePkt2Send(..., pfSend=gh3x2x_ble_send_to_zqdata)</code> 栈缓冲直发，<code>GetBuffCb</code>/<code>SendDataCb</code> 全 <code>#if 0</code>，<strong>不占用主 B2A 状态机</strong>。</p>
+<hr />
+<h2 id="2-zqdata-gatt-3">2. zqdata GATT 传输层逐字节（代码实证 ③ 为准）</h2>
+<blockquote>
+<p>本章描述 <strong>B 树新模块</strong> <code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata/</code>。它是纯传输层——RX/TX 均以 <code>(buf,len)</code> 为单位，业务帧格式由调用方决定。</p>
+</blockquote>
+<h3 id="21-0x0a10-0x0a15">2.1 句柄枚举 <code>0x0A10-0x0A15</code></h3>
+<p>来源 <code>zqdata_svc.h:18-31</code>：</p>
+<table>
+<thead>
+<tr>
+<th>句柄</th>
+<th>枚举符号</th>
+<th>含义</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0x0A10</strong></td>
+<td><code>ZQDATA_BLE_SVC_HDL</code></td>
+<td>Primary Service 声明</td>
+<td><code>zqdata_svc.h:22</code></td>
+</tr>
+<tr>
+<td><strong>0x0A11</strong></td>
+<td><code>ZQDATA_BLE_RX_CH_HDL</code></td>
+<td>RX 特征声明（Characteristic Declaration）</td>
+<td><code>zqdata_svc.h:23</code></td>
+</tr>
+<tr>
+<td><strong>0x0A12</strong></td>
+<td><code>ZQDATA_BLE_RX_HDL</code></td>
+<td><strong>RX 值</strong> —— 手机写命令落点</td>
+<td><code>zqdata_svc.h:24</code></td>
+</tr>
+<tr>
+<td><strong>0x0A13</strong></td>
+<td><code>ZQDATA_BLE_TX_CH_HDL</code></td>
+<td>TX 特征声明</td>
+<td><code>zqdata_svc.h:25</code></td>
+</tr>
+<tr>
+<td><strong>0x0A14</strong></td>
+<td><code>ZQDATA_BLE_TX_HDL</code></td>
+<td><strong>TX 值</strong> —— 表→手机通知源</td>
+<td><code>zqdata_svc.h:26</code></td>
+</tr>
+<tr>
+<td><strong>0x0A15</strong></td>
+<td><code>ZQDATA_BLE_TX_CH_CCC_HDL</code></td>
+<td><strong>TX CCC</strong>（客户端订阅开关）</td>
+<td><code>zqdata_svc.h:27</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>起始 <code>ZQDATA_BLE_START_HDL = 0x0A10</code>（<code>zqdata_svc.h:18</code>）；结束 <code>ZQDATA_BLE_END_HDL = ZQDATA_BLE_MAX_HDL-1 = 0x0A15</code>（<code>zqdata_svc.h:31</code>）。</li>
+<li><strong>独立句柄段</strong>，与 gh3x2x（190E，<code>0x0A00-0x0A05</code>）<strong>并行注册、互不重叠</strong>（<code>zqdata_svc.h:4-7</code>、<code>zqdata_svc.c:7-8</code>）。</li>
+<li>⚠️ <strong>注意</strong>：文档②表内 <code>0x0A12(RX)</code> 直接给 part <code>0x1541</code>、<code>0x0A14(TX)</code> 给 part <code>0x1542</code>——代码实证证明 <code>0x0A11</code>/<code>0x0A13</code> 是<strong>特征声明</strong>（<code>attChUuid</code>），128-bit 值 UUID 落在 <code>0x0A12</code>/<code>0x0A14</code>。文档句柄→含义对应正确，只是未显式列出 <code>0x0A11</code>/<code>0x0A13</code> 两个声明句柄。</li>
+</ul>
+<h3 id="22-uuid128-bit">2.2 UUID（128-bit 自定义）</h3>
+<p>来源 <code>zqdata_svc.c:26-38</code>：</p>
+<ul>
+<li><strong>Base</strong>（小端存储，可读式 <code>4512XXXX-51F2-406E-927A-3E1E183412E0</code>）：<code>zqdata_svc.c:28-29</code></li>
+<li>构造宏 <code>ATT_UUID_ZQDATA_BUILD(part) = Base(12B 小端) + UINT16_TO_BYTES(part) + 0x12,0x45</code>（<code>zqdata_svc.c:30</code>），原型移植自 <code>factory_gh3x2x_ble_server.h:63-87</code>（<code>zqdata_svc.c:26</code> 注）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>part</th>
+<th>完整 UUID</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Service</td>
+<td><code>0x1540</code></td>
+<td><code>45121540-51F2-406E-927A-3E1E183412E0</code></td>
+<td><code>zqdata_svc.c:32,36</code></td>
+</tr>
+<tr>
+<td>RX</td>
+<td><code>0x1541</code></td>
+<td><code>45121541-…</code></td>
+<td><code>zqdata_svc.c:33,37</code></td>
+</tr>
+<tr>
+<td>TX</td>
+<td><code>0x1542</code></td>
+<td><code>45121542-…</code></td>
+<td><code>zqdata_svc.c:34,38</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-6-attsattr_t">2.3 属性表（6 条 <code>attsAttr_t</code>）—— 权限与属性</h3>
+<p>来源 <code>zqdata_svc.c:68-118</code>：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>句柄</th>
+<th>UUID</th>
+<th>permissions</th>
+<th>settings(flags)</th>
+<th>特征属性</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0x0A10</td>
+<td><code>attPrimSvcUuid</code></td>
+<td><code>ATTS_PERMIT_READ</code></td>
+<td>0</td>
+<td>Service 声明</td>
+<td><code>:70-77</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>0x0A11</td>
+<td><code>attChUuid</code></td>
+<td><code>ATTS_PERMIT_READ</code></td>
+<td>0</td>
+<td>RX 声明，内含 <code>ATT_PROP_WRITE_NO_RSP</code></td>
+<td><code>:78-85</code>（声明体 <code>:50</code>）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0x0A12</td>
+<td><code>svcZqdataRxUuid</code>(128b)</td>
+<td><code>ATTS_PERMIT_WRITE</code></td>
+<td><code>ATTS_SET_UUID_128 \| ATTS_SET_VARIABLE_LEN \| ATTS_SET_WRITE_CBACK</code></td>
+<td><strong>RX 值</strong>，变长、走写回调</td>
+<td><code>:86-93</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>0x0A13</td>
+<td><code>attChUuid</code></td>
+<td><code>ATTS_PERMIT_READ</code></td>
+<td>0</td>
+<td>TX 声明，内含 <code>ATT_PROP_NOTIFY</code></td>
+<td><code>:94-101</code>（声明体 <code>:54</code>）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>0x0A14</td>
+<td><code>svcZqdataTxUuid</code>(128b)</td>
+<td><strong>0</strong></td>
+<td><strong>0</strong></td>
+<td><strong>TX 值</strong>；flags=0 刻意（UUID 由声明属性携带），通知源</td>
+<td><code>:102-109</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>0x0A15</td>
+<td><code>attCliChCfgUuid</code></td>
+<td><code>ATTS_PERMIT_READ \| ATTS_PERMIT_WRITE</code></td>
+<td><code>ATTS_SET_CCC</code></td>
+<td><strong>TX CCC</strong>，订阅开关（初值 <code>0x0000</code>）</td>
+<td><code>:110-117</code>（初值 <code>:64</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>关键点：
+- <strong>RX = Write Without Response</strong>（<code>ATT_PROP_WRITE_NO_RSP</code>，<code>zqdata_svc.c:50</code>），值属性最大长度 <code>ATT_VALUE_MAX_LEN</code>（<code>:90</code>），变长 + 写回调。
+- <strong>TX = Notify</strong>（<code>ATT_PROP_NOTIFY</code>，<code>zqdata_svc.c:54</code>）；CCC 由 Cordio ATT 管理订阅状态（<code>ATTS_SET_CCC</code>，<code>:115</code>）。
+- <strong>TX 值 flags=0 是刻意的</strong>（<code>:107</code> 注），照搬勿改——TX UUID 由声明属性携带。</p>
+<h3 id="24-add-remove-write_cback">2.4 服务组 add / remove / write_cback</h3>
+<ul>
+<li>服务组 <code>svcZqdataGroup</code>（<code>zqdata_svc.c:121-129</code>）：属性表 <code>zqdataList</code>，句柄段 <code>START..END</code>，<code>readCback=NULL</code>。</li>
+<li><strong>add</strong>：<code>zqdata_svc_add_group()</code>（<code>zqdata_svc.c:142-147</code>）—— 设 <code>writeCback = zqdata_ble_write_cback</code> 后调 <code>AttsAddGroup(&amp;svcZqdataGroup)</code>。</li>
+<li><strong>remove</strong>：<code>zqdata_svc_remove_group()</code>（<code>zqdata_svc.c:149-152</code>）—— <code>AttsRemoveGroup(ZQDATA_BLE_START_HDL)</code>。</li>
+<li><strong>写回调</strong> <code>zqdata_ble_write_cback</code>（<code>zqdata_svc.c:132-139</code>）：忽略 connId/handle/operation/offset/pAttr，仅 <code>zqdata_on_rx(pValue,len)</code> 入 RX 环即 <code>return ATT_SUCCESS</code>——O(1)，<strong>不在 WSF 上下文做任何业务</strong>。未装 readCback（TX 无读需求）。</li>
+</ul>
+<h3 id="25-zqdata_ring">2.5 环形缓冲（<code>zqdata_ring.*</code>）</h3>
+<p>编译期配置（可父级 <code>-D</code> 覆盖），<code>zqdata.c:27-56</code>：</p>
+<table>
+<thead>
+<tr>
+<th>宏</th>
+<th>默认值</th>
+<th>含义</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ZQ_TX_RING_SIZE</code></td>
+<td><strong>4096（4KB）</strong></td>
+<td>TX 环容量（100Hz PPG ~2.8KB/s，4KB 平滑突发）</td>
+<td><code>zqdata.c:28</code></td>
+</tr>
+<tr>
+<td><code>ZQ_RX_RING_SIZE</code></td>
+<td><strong>512</strong></td>
+<td>RX 环（命令量小）</td>
+<td><code>zqdata.c:31</code></td>
+</tr>
+<tr>
+<td><code>ZQ_TX_FRAME_MAX</code></td>
+<td><strong>244</strong></td>
+<td>TX 单帧上限（= 典型 247 MTU − 3 ATT notify 头）</td>
+<td><code>zqdata.c:34</code></td>
+</tr>
+<tr>
+<td><code>ZQ_RX_FRAME_MAX</code></td>
+<td><strong>244</strong></td>
+<td>RX 单帧上限</td>
+<td><code>zqdata.c:37</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>缓冲区 <code>s_tx_buf[4096]</code> / <code>s_rx_buf[512]</code>（<code>zqdata.c:59-60</code>），存于普通 <code>.bss</code>（TCM），不入 <code>.shared</code>，避开 LVGL SSRAM 堆（<code>zqdata.c:59</code> 注）。</li>
+<li>记录格式 <code>[u16 payload_len][payload]</code>（<code>zqdata_ring.h:5-8</code>、<code>zqdata_ring.c:12-13</code>）；记录<strong>不跨尾</strong>，尾部放不下则留 skip 区写 <code>ZQR_SKIP_MARK=0xFFFF</code> wrap-skip 标记。</li>
+<li>环结构 <code>zqring_t</code>（<code>zqdata_ring.h:23-30</code>）：<code>buf/size/head/tail/count/dropped</code>。</li>
+<li><strong>丢弃路径</strong>（累加 <code>r-&gt;dropped</code>）：非法/过大 <code>payload==0 || payload&gt;=0xFFFF || n&gt;size</code> → 返回 false <strong>不计</strong> dropped（<code>zqdata_ring.c:60-62</code>）；<strong>空间不足</strong> <code>need &gt; (size-count)</code> → <code>dropped++</code> 返回 false（<code>:70-74</code>）。</li>
+<li><strong>pop 侧健壮性</strong>：<code>len &gt; cap</code>（消费者缓冲太小）→ <strong>跳过该条防卡死</strong>、不计 dropped（<code>:132-140</code>）；skip 标记 / 尾部不足自动绕尾（<code>:120-130</code>）。</li>
+<li><strong>并发</strong>：上下文自适应临界区 <code>zqr_lock/unlock</code>（<code>zqdata_ring.c:16-32</code>）——ISR 用 <code>taskENTER_CRITICAL_FROM_ISR</code>，task 用 <code>taskENTER_CRITICAL</code>，<strong>可从中断安全调用</strong>。多生产者 / 单消费者；u16 用 <code>memcpy</code> 非对齐安全读写（<code>:35-36</code>）。</li>
+</ul>
+<h3 id="26-rxtx-txready">2.6 线程模型（RX/TX 双线程 + txReady 背压）</h3>
+<p>创建于 <code>zqdata_init()</code>（<code>zqdata.c:203-217</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>线程</th>
+<th>名</th>
+<th>函数</th>
+<th>栈</th>
+<th>优先级</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TX</strong></td>
+<td><code>"zq_tx"</code></td>
+<td><code>zqdata_tx_task</code></td>
+<td><code>ZQ_TX_TASK_STACK=256</code> word</td>
+<td><code>ZQ_TX_TASK_PRIO=2</code></td>
+<td><code>zqdata.c:40,46,210-211</code></td>
+</tr>
+<tr>
+<td><strong>RX</strong></td>
+<td><code>"zq_rx"</code></td>
+<td><code>zqdata_rx_task</code></td>
+<td>256 word</td>
+<td>2</td>
+<td><code>zqdata.c:43,49,214-215</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>通知只发信号（0 数据）</strong>：<code>zq_notify</code>（<code>zqdata.c:71-83</code>）ISR 用 <code>vTaskNotifyGiveFromISR</code>+<code>portYIELD_FROM_ISR</code>，task 用 <code>xTaskNotifyGive</code>；数据全走私有环（<code>zqdata.h:8-9</code>）。</li>
+<li><strong>TX 线程循环</strong>（<code>zqdata.c:147-159</code>）：<code>ulTaskNotifyTake(pdTRUE, 50ms)</code> 兜底唤醒防丢通知（<code>ZQ_TX_PERIOD_MS=50</code>，<code>:52</code>），然后 <code>while(zqring_pop&gt;0) zqdata_ble_notify(...)</code> 排空。</li>
+<li><strong>发送 + 背压</strong> <code>zqdata_ble_notify</code>（<code>zqdata.c:132-145</code>）：① <code>AppConnIsOpen()</code> 无连接→丢帧、<code>s_tx_ready=true</code> 保持就绪（<code>:136-139</code>）；② 上一帧未确认则 <code>zqdata_tx_wait_ready()</code> 等待，超时丢本帧（<code>:140-142</code>）；③ 置 <code>s_tx_ready=false</code> 后 <code>AttsHandleValueNtf(connId, ZQDATA_BLE_TX_HDL, len, buf)</code>（<code>:143-144</code>）。</li>
+<li><strong>等待就绪</strong> <code>zqdata_tx_wait_ready</code>（<code>zqdata.c:116-128</code>）：1ms 轮询直至 <code>s_tx_ready</code> 或 <code>waited &gt;= ZQ_TX_READY_TMO_MS=1000</code>（<code>:55</code>）；超时则 <code>s_tx_ready=true</code> 复位 + 返回 false（丢帧防永久卡死）。</li>
+<li><strong>txReady 置位</strong> <code>zqdata_on_att_cnf</code>（<code>zqdata.c:107-113</code>）：BLE 事件派发收到 <code>ATTS_HANDLE_VALUE_CNF</code> 时，<code>handle==ZQDATA_BLE_TX_HDL</code> 才置 <code>s_tx_ready=true</code>；<strong>忽略 status</strong>（成功/超时/MTU 超限一律放行防卡死，<code>:109</code>）。初值 <code>s_tx_ready=true</code>（<code>:68</code>）。与 gh3x2x 各持独立 TX 句柄 / txReady，互不干扰。</li>
+<li><strong>RX 线程</strong> <code>zqdata_rx_task</code>（<code>zqdata.c:184-200</code>）：<code>ulTaskNotifyTake(pdTRUE, portMAX_DELAY)</code> 纯事件驱动，排空环；有 handler 则 <code>s_rx_handler(frame,n)</code>（<strong>非 WSF 上下文</strong>，可落库/起停采集），否则 <code>s_rx_dropped++</code>。</li>
+</ul>
+<h3 id="27-api">2.7 API 契约</h3>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>签名 / 位置</th>
+<th>契约</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zqdata_send</code></td>
+<td><code>bool zqdata_send(const void*, uint16_t)</code>（<code>zqdata.h:41</code>，<code>zqdata.c:86-98</code>）</td>
+<td><code>buf==NULL \|\| len==0</code>→false；入 TX 环成功→通知返回 true，空间不足→丢弃累加 dropped 返回 false。<strong>非阻塞</strong>，真正 notify 在 TX 线程。<code>len</code> 建议 ≤244，更长由调用方先分帧（<code>zqdata.h:39-40</code>）</td>
+</tr>
+<tr>
+<td><code>zqdata_on_rx</code></td>
+<td><code>void(const uint8_t*, uint16_t)</code>（<code>zqdata.h:55</code>，<code>zqdata.c:167-177</code>）</td>
+<td>供 write_cback 调用；入 RX 环 + 唤醒 RX 线程，失败 <code>s_rx_dropped++</code></td>
+</tr>
+<tr>
+<td><code>zqdata_set_rx_handler</code></td>
+<td><code>void(zqdata_rx_handler_t)</code>（<code>zqdata.h:51</code>，<code>zqdata.c:162-165</code>）</td>
+<td>注册 RX 命令处理回调，在 RX 线程上下文（非 WSF）回调；未注册则 RX 数据丢弃并计 dropped</td>
+</tr>
+<tr>
+<td><code>zqdata_on_att_cnf</code></td>
+<td><code>void(uint16_t, uint8_t)</code>（<code>zqdata.h:65</code>，<code>zqdata.c:107-113</code>）</td>
+<td><code>ATTS_HANDLE_VALUE_CNF</code> 时调用；<code>handle==ZQDATA_BLE_TX_HDL</code> 置 txReady；<strong>status 被忽略</strong></td>
+</tr>
+<tr>
+<td><code>zqdata_tx_dropped</code> / <code>_rx_dropped</code></td>
+<td><code>uint32_t</code>（<code>zqdata.c:100-103</code> / <code>179-182</code>）</td>
+<td>TX 溢出诊断 / RX 环溢出 + 无处理器丢弃</td>
+</tr>
+<tr>
+<td><code>zqdata_init</code></td>
+<td><code>void</code>（<code>zqdata.c:203-217</code>）</td>
+<td>复位 RX/TX 环、清 <code>s_rx_dropped</code>、创建两线程；<code>vTaskStartScheduler</code> 前调用安全</td>
+</tr>
+<tr>
+<td><code>zqdata_svc_add_group</code> / <code>_remove_group</code></td>
+<td><code>void</code>（<code>zqdata.h:33-34</code>）</td>
+<td>BLE 初始化期挂/摘服务组（见 §2.4）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="28-mtu">2.8 MTU / 长度约束（传输层硬事实）</h3>
+<ul>
+<li><strong>单帧硬上限 244B</strong>：注释建议 ≤244（<code>zqdata.h:40</code>）；硬上限由环 <code>ZQ_TX_FRAME_MAX=244</code>（<code>zqdata.c:34</code>）——<code>zqring_pop</code> 传 <code>cap=244</code>，<strong>超 244 的记录在 pop 侧被静默跳过丢弃</strong>（<code>zqdata_ring.c:132-140</code>）。注意：<code>zqring_put</code> 本身只拒 <code>n&gt;size(=4096)</code>，不按 244 拒；若入了 &gt;244 帧，是在 pop 侧被丢。</li>
+<li><strong>244 = 247 MTU − 3</strong>（ATT notify 头）。文档①「<code>len&lt;=MTU-3</code>」「212B 上行包要求 MTU≥215（实际协商多为 247）」与此一致。</li>
+<li>⚠️ <strong>一致性提醒</strong>：文档①§2.4 说单帧 <code>len&lt;=MTU-3</code>；传输层实际是<strong>固定 244 硬上限</strong>（不随协商 MTU 动态放大）。若协商 MTU&gt;247，单帧仍被 244 截断。见 <a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a> 第 9 条。</li>
+</ul>
+<h3 id="29-sys_data_collect_svc">2.9 编译门控 <code>SYS_DATA_COLLECT_SVC</code></h3>
+<ul>
+<li>独立静态库 <code>zqdata_svc</code>（<code>CMakeLists.txt:16-20</code>），父工程 <code>add_subdirectory(zqdata zqdata_svc)</code> + <code>target_link_libraries(apollo_watch zqdata_svc)</code>（<code>:4-5</code>）。</li>
+<li><strong>库本身无 <code>#ifdef SYS_DATA_COLLECT_SVC</code></strong>；门控在<strong>调用方</strong>：仅采集固件（<code>=1</code>）才调 <code>zqdata_init()</code>/<code>zqdata_svc_add_group()</code>。主线不引用入口 → 整库经 <code>--gc-sections</code> 丢弃、零占用（<code>CMakeLists.txt:12-13</code>、<code>zqdata.h:12</code>）。</li>
+<li>文档①声明的「3 处门控 + 1 处 CNF 分支」（<code>rtos.c</code> / <code>watch_main.c</code> / <code>factory_..._main.c</code> 的 <code>ATTS_HANDLE_VALUE_CNF</code>）——<strong>门控实际引用点在 zqdata 7 文件之外</strong>（调用方固件），模块代码实证只能坐实「设计意图 = 调用方门控 + gc」。见 <a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a> 第 12 条。</li>
+</ul>
+<hr />
+<h2 id="3-2">3. 上行数据协议逐字节（代码实证 ② 为最高权威）</h2>
+<blockquote>
+<p>本章描述 <strong>A 树采集固件 <code>_collect</code></strong> <code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code> 的真实字节布局。<strong>所有字段/字节序/长度均给 file:line。</strong></p>
+<p><strong>总链路</strong>：算法执行 → 落盘 40B/帧（<code>ppghr.dat</code>/<code>ppgspo.dat</code>，8192B 攒批落盘）→ 触发上传时 <strong>40B→28B 重打包</strong> → 封 <strong>B2A <code>BCMD_TEST(0x08)</code></strong> 帧 → <code>gh3x2x_ble_send_to_zqdata()</code> → <code>AttsHandleValueNtf(GH3X2X_BLE_TX_HDL)</code>。gsensor 走独立 18B 链，无重打包。</p>
+</blockquote>
+<h3 id="30">3.0 字节序总纲（一句话记住）</h3>
+<table>
+<thead>
+<tr>
+<th>数据</th>
+<th>字节序</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HR/SpO2 落盘 40B 主体（ticks/PPG/ACC/cnt）</td>
+<td><strong>大端 BE</strong>（手工 <code>&gt;&gt;24/&gt;&gt;16/&gt;&gt;8</code>，非 htonl）</td>
+<td><code>hr.c:778-803</code></td>
+</tr>
+<tr>
+<td>HR/SpO2 落盘 40B 尾 12B AGC</td>
+<td><strong>逐字节 / 半字节位域，无字节序</strong></td>
+<td><code>hr.c:814-820</code></td>
+</tr>
+<tr>
+<td>28B 上行主体</td>
+<td><strong>大端 BE</strong>（24B 从 40B 原样搬）</td>
+<td><code>hr.c:1091</code></td>
+</tr>
+<tr>
+<td>gsensor 18B 落盘/上行</td>
+<td><strong>大端 BE</strong></td>
+<td><code>user_gsensor_api.c:462-492</code></td>
+</tr>
+<tr>
+<td>B2A 8B 帧头 + 4B 命令头（Len/CRC/Index/内层 Len）</td>
+<td><strong>小端 LE</strong></td>
+<td><code>ble2appEx.c:59-71,376-377</code></td>
+</tr>
+<tr>
+<td>ECG 会话 <code>ecg_raw.dat</code> 文件头 / ACC 镜像</td>
+<td><strong>小端 LE</strong>（唯一例外通道）</td>
+<td><code>data_collect_session.c</code> 显式注释</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一句话</strong>：<strong>PPG/HR/SpO2/gsensor 数据帧 = 大端；B2A 封装头 = 小端；新 ECG 会话 = 小端</strong>。同一固件三种字节序并存，解析器必须按通道区分。文档①「28B 帧内字段全大端」成立，但需补充「40B 尾 AGC 是逐字节位域、非大端」这一层——见 <a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a> 第 1 条。</p>
+</blockquote>
+<h3 id="31-hr-ppghrdat-40b">3.1 HR 落盘帧（<code>ppghr.dat</code>，每帧 40B）</h3>
+<p>组装位置 <code>gh3x2x_demo_algo_call_hr.c:773-823</code>（<code>GH3x2xHrFeedAlgoCacheFrame</code>）；长度常量 <code>data_len = 4 + 4*4 + 3*2 + 2 + 12 = 40</code>（<code>hr.c:628</code>），<code>HR_COV_FRAME_AGC_LEN=12</code>（<code>:74</code>），<code>ALGO_HR_TOTAL_CHN=HBA_TOTAL_CHN</code>（<code>:66</code>）。</p>
+<h4 id="28b-offset-027">28B 数据主体（offset 0..27，大端）</h4>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字节数</th>
+<th>字段</th>
+<th>类型</th>
+<th>字节序</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td>ticks（帧0=UTC 秒 / 帧≥1=OS-tick 递推）</td>
+<td>u32</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:778-781</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>16</td>
+<td>PPG raw[4]（绿1..绿4，各 24bit ADC 存 int32）</td>
+<td>int32×4</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:785-791</code></td>
+</tr>
+<tr>
+<td>20</td>
+<td>2</td>
+<td>acc_x</td>
+<td>int16</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:794-795</code></td>
+</tr>
+<tr>
+<td>22</td>
+<td>2</td>
+<td>acc_y</td>
+<td>int16</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:796-797</code></td>
+</tr>
+<tr>
+<td>24</td>
+<td>2</td>
+<td>acc_z</td>
+<td>int16</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:798-799</code></td>
+</tr>
+<tr>
+<td>26</td>
+<td>2</td>
+<td>frame_cnt（<code>g_PPGRawDataFrameCnt</code>）</td>
+<td>u16</td>
+<td><strong>大端</strong></td>
+<td><code>hr.c:802-803</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="12b-agc-offset-2839">12B AGC 尾（offset 28..39，逐字节 / 位域，无字节序）</h4>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字节数</th>
+<th>字段</th>
+<th>编码</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>28</td>
+<td>4</td>
+<td>AGC drv0[绿1..绿4]</td>
+<td>u8×4</td>
+<td><code>hr.c:814</code></td>
+</tr>
+<tr>
+<td>32</td>
+<td>4</td>
+<td>AGC drv1[绿1..绿4]</td>
+<td>u8×4</td>
+<td><code>hr.c:816</code></td>
+</tr>
+<tr>
+<td>36</td>
+<td>1</td>
+<td>gain 打包 <code>(gain[绿2]&lt;&lt;4)\|gain[绿1]</code></td>
+<td>半字节位域</td>
+<td><code>hr.c:817</code></td>
+</tr>
+<tr>
+<td>37</td>
+<td>1</td>
+<td>gain 打包 <code>(gain[绿4]&lt;&lt;4)\|gain[绿3]</code></td>
+<td>半字节位域</td>
+<td><code>hr.c:818</code></td>
+</tr>
+<tr>
+<td>38</td>
+<td>1</td>
+<td>cur_adj 位图（bit0..bit3=绿1..绿4）</td>
+<td>位图</td>
+<td><code>hr.c:807-811,819</code></td>
+</tr>
+<tr>
+<td>39</td>
+<td>1</td>
+<td>保留=0</td>
+<td>—</td>
+<td><code>hr.c:820</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>AGC 源拆位</strong>（<code>hr.c:327-331</code>）：<code>gain = unAgcInfo &amp; 0x0F</code>；<code>drv0 = (unAgcInfo&gt;&gt;8)&amp;0xFF</code>；<code>drv1 = (unAgcInfo&gt;&gt;16)&amp;0xFF</code>；<code>cur_adj = (punFrameFlag[0]&gt;&gt;ch)&amp;0x01</code>。</li>
+<li><strong>帧 0（起始帧）</strong>：<code>GH3x2xHrSendStartFrame</code>（<code>hr.c:426-491</code>）只写真实 UTC（<code>EQC_GetUtcTimeStampSec</code>，<code>:447</code>）到前 4B，其余 36B（含 12B AGC）留 0（<code>:452-463</code>）。</li>
+</ul>
+<h4 id="40b-bit-level-memory-maphrspo2-32">40B 帧 bit-level memory map（HR；SpO2 同构，通道语义见 §3.2）</h4>
+<pre><code>Byte Offset:   0        1        2        3
+              +--------+--------+--------+--------+
+ticks         |  u32 大端：帧0=UTC 秒 / 帧≥1=OS-tick 递推        (hr.c:778-781)
+              +--------+--------+--------+--------+
+Byte Offset:   4        ...                        19
+              +-----------------------------------+
+PPG raw       |  int32×4 大端：绿1..绿4（24bit ADC）             (hr.c:785-791)
+              +-----------------------------------+
+Byte Offset:   20       21       22       23       24       25       26       27
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+              | acc_x s16 大端  | acc_y s16 大端  | acc_z s16 大端  | frame_cnt u16 BE|
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   28       29       30       31       32       33       34       35
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+AGC 尾        | drv0绿1| drv0绿2| drv0绿3| drv0绿4| drv1绿1| drv1绿2| drv1绿3| drv1绿4|
+(hr.c:814-816)+--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   36                 37                 38       39
+              +------------------+------------------+--------+--------+
+              | b7-4:gain绿2     | b7-4:gain绿4     | cur_adj| 保留=0 |
+              | b3-0:gain绿1     | b3-0:gain绿3     | 位图↓  |        |
+              +------------------+------------------+--------+--------+
+cur_adj(38)：bit0..bit3 = 绿1..绿4 电流调整标志                  (hr.c:807-811,819)
+</code></pre>
+<h3 id="32-spo2-ppgspodat-40b">3.2 SpO2 落盘帧（<code>ppgspo.dat</code>，每帧 40B）</h3>
+<p>组装位置 <code>gh3x2x_demo_algo_call_spo2.c:641-703</code>（<code>GH3x2xSpo2FeedAlgoCacheFrame</code>）；<code>SPO2_COV_FRAME_AGC_LEN=12</code>（<code>spo2.c:61</code>），<code>ALGO_SPO2_TOTAL_CHN=SPO2_TOTAL_CHN</code>（<code>spo2.c:50</code>）。<strong>布局与 HR 逐字节同构</strong>，仅 4 通道语义不同：</p>
+<ul>
+<li>PPG 4 通道 = <strong>IR1/IR2/RED1/RED2</strong>，取自算法 ppg_rawdata 的通道 4/5/8/9（<code>spo2.c:647-650</code>）。SpO2 映射：RED←<code>rawdata[0]</code>、IR←<code>rawdata[4]</code>（<code>algo_config.c:422-424</code>）。</li>
+<li>AGC 通道索引 <code>{4,5,8,9}</code>（<code>spo2.c:685</code>）；gain 打包 byte36=<code>gain[IR2]&lt;&lt;4\|gain[IR1]</code>、byte37=<code>gain[RED2]&lt;&lt;4\|gain[RED1]</code>（<code>spo2.c:696-697</code>）；cur_adj bit0..3=IR1/IR2/RED1/RED2（<code>spo2.c:686-691</code>）。</li>
+<li>类型字节 = <strong>0x04</strong>（HR 为 0x03）。</li>
+</ul>
+<h3 id="33-40b-28b">3.3 40B → 28B 重打包（兼容核心，逐字节）</h3>
+<p>重打包核心 <code>hr.c:1074-1092</code>。发送域单帧 <code>data_len = 4 + 4*4 + 3*2 + 2 = 28</code>（<code>hr.c:973</code>）；文件仍 40B/帧（<code>file_frame_len = data_len + 12 = 40</code>，<code>hr.c:1064</code>）；按帧号 seek <code>frame_base*40</code>，整包读入 <code>s_file_stage</code>（<code>hr.c:1067-1068</code>）。</p>
+<p><strong>帧 0（全局帧序号 == 0）</strong>：保留原始前 4B（真实 UTC 锚点），<code>dst[0..3]=src[0..3]</code>（<code>hr.c:1078-1082</code>）；<code>dst[4..27]=src[4..27]</code> 原样。</p>
+<p><strong>帧 ≥1（ticks 4B 槽改装成 AGC）</strong>（<code>hr.c:1085-1089</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>目标字节</th>
+<th>来源 / 变换</th>
+<th>语义</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dst[0]</code></td>
+<td><code>= src[28]</code></td>
+<td>drv0 绿1</td>
+<td><code>hr.c:1085</code></td>
+</tr>
+<tr>
+<td><code>dst[1]</code></td>
+<td><code>= src[36] &amp; 0x0F</code></td>
+<td>gain 绿1</td>
+<td><code>hr.c:1086</code></td>
+</tr>
+<tr>
+<td><code>dst[2]</code></td>
+<td><code>= src[32]</code></td>
+<td>drv1 绿1</td>
+<td><code>hr.c:1087</code></td>
+</tr>
+<tr>
+<td><code>dst[3]</code></td>
+<td><code>= (src[36] &gt;&gt; 4) &amp; 0x0F</code></td>
+<td>gain 绿2</td>
+<td><code>hr.c:1088</code></td>
+</tr>
+<tr>
+<td><code>dst[4..27]</code></td>
+<td><code>= src[4..27]</code>（24B 原样，保持大端）</td>
+<td>PPG16 + ACC6 + cnt2</td>
+<td><code>hr.c:1091</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>丢弃</strong>：drv0/drv1 绿2..绿4、gain 绿3/绿4（<code>src[37]</code>）、cur_adj（<code>src[38]</code>）——线上 28B 只带 drv0绿1 / drv1绿1 / gain绿1 / gain绿2。</li>
+<li>✅ <strong>与文档①§5.2 映射表逐字节一致</strong>（<code>dst[2]=src[32]</code> 均为 drv1 绿1）。</li>
+<li>每包 <code>HR_COV_SEND_FRAME_NUM=7</code> 帧（<code>hr.c:70</code>）= <code>28*7=196B</code> + 4B 应用头。</li>
+<li>断电截尾自检：fileSize 非 40 倍数 → 按整帧向下取整丢残尾（<code>hr.c:988-989</code>）。</li>
+</ul>
+<h3 id="34-spo2-40b-28b-1-hr">3.4 SpO2 40B → 28B 重打包（帧≥1 与 HR 有偏移差异）</h3>
+<p>重打包核心 <code>spo2.c:920-938</code>。帧≥1 的 AGC 改装（<code>spo2.c:932-935</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>目标字节</th>
+<th>来源 / 变换</th>
+<th>语义</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dst[0]</code></td>
+<td><code>= src[28]</code></td>
+<td>drv0 IR1</td>
+<td><code>spo2.c:932</code></td>
+</tr>
+<tr>
+<td><code>dst[1]</code></td>
+<td><code>= src[36] &amp; 0x0F</code></td>
+<td>gain IR1</td>
+<td><code>spo2.c:933</code></td>
+</tr>
+<tr>
+<td><code>dst[2]</code></td>
+<td><code>= src[30]</code></td>
+<td><strong>drv0 RED1</strong>（注意用 <code>src[30]</code> 而非 HR 的 <code>src[32]</code>）</td>
+<td><code>spo2.c:934</code></td>
+</tr>
+<tr>
+<td><code>dst[3]</code></td>
+<td><code>= src[37] &amp; 0x0F</code></td>
+<td><strong>gain RED1</strong>（用 <code>src[37]&amp;0x0F</code> 而非 HR 的 <code>src[36]&gt;&gt;4</code>）</td>
+<td><code>spo2.c:935</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>✅ <strong>与文档①§7 的 SpO2 差异声明一致</strong>（SpO2 用 <code>src[28]/[30]/[36]/[37]</code>）。<strong>HR 与 SpO2 的 dst[2]/dst[3] 来源不同</strong>：HR=<code>src[32]</code>(drv1绿1)/<code>src[36]&gt;&gt;4</code>(gain绿2)；SpO2=<code>src[30]</code>(drv0 RED1)/<code>src[37]&amp;0x0F</code>(gain RED1)。</li>
+<li>每包 <code>SPO2_COV_SEND_FRAME_NUM=8</code> 帧（<code>spo2.c:53</code>）。</li>
+<li>断电截尾自检 <code>spo2.c:854-860</code>。</li>
+</ul>
+<h3 id="35-gsensor-18b">3.5 gsensor 上行/落盘帧（18B，无重打包）</h3>
+<p>组装 <code>Gsensor_CovrtSendFrame</code>（<code>user_gsensor_api.c:430-509</code>）。<strong>文档①几乎未覆盖此帧</strong>（只讲 PPG 28B）——此处以代码实证补全。</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字节数</th>
+<th>字段</th>
+<th>字节序</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td>ticks（起始 UTC + 累加 deltaticks）</td>
+<td><strong>大端</strong></td>
+<td><code>:462-465</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td>acc_x</td>
+<td>大端</td>
+<td><code>:468-469</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>2</td>
+<td>acc_y</td>
+<td>大端</td>
+<td><code>:470-471</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>2</td>
+<td>acc_z</td>
+<td>大端</td>
+<td><code>:472-473</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>6</td>
+<td>gyro（<strong>恒 0 占位</strong>，gyro 关）</td>
+<td>—</td>
+<td><code>:483-488</code></td>
+</tr>
+<tr>
+<td>16</td>
+<td>2</td>
+<td>frame_id（<code>g_unGsFrameCnt</code>）</td>
+<td>大端</td>
+<td><code>:491-492</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>起始帧 <code>Gsensor_SendStartFrame</code>（<code>:390-428</code>）：前 4B 真实 UTC 大端，后 14B 留 0（共 18B）。</li>
+<li>落盘文件 <code>AGS.dat</code>（<code>GS_COV_SAVE_FRAME_FILE</code>，<code>:32</code>），<code>GS_COV_SAVE_CFG=1</code>（<code>:31</code>）走落盘分支。上行 <code>Gsensor_SendSavedData</code>（<code>:590-705</code>）<strong>逐帧原样发、无重打包</strong>，每包 <code>18*10=180B</code>（<code>:630</code>）。</li>
+</ul>
+<h3 id="36-b2a-bcmd_test0x08">3.6 B2A 封装（<code>BCMD_TEST=0x08</code>）</h3>
+<p>封装函数 <code>B2A_MakePkt2Send(BCMD_TEST, Key, temp_buff, len, 0,0, gh3x2x_ble_send_to_zqdata)</code>（<code>ble2appEx.c:339-425</code>）。<strong>栈缓冲 <code>pszBuff[256]</code></strong>（<code>:345</code>），<code>GetBuffCb</code>/<code>SendDataCb</code> 全 <code>#if 0</code>——不依赖主 B2A 状态。</p>
+<h4 id="361-b2a-8b">3.6.1 B2A 8B 帧头（全小端）</h4>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字节数</th>
+<th>字段</th>
+<th>字节序</th>
+<th>组装 file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>StartFlag = <code>0xBB</code>（<code>MAC_B2A_HEAD_FLAG</code>）</td>
+<td>—</td>
+<td><code>ble2appEx.c:57</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>Status（<code>ENUM_HEAD_STATUS_TYPE</code> 位域）</td>
+<td>—</td>
+<td><code>:58</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>2</td>
+<td>Len（<strong>不含 8B 头</strong>）</td>
+<td><strong>小端</strong></td>
+<td><code>:59-60</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td>CRC16/CCITT-FALSE（over payload，不含头）</td>
+<td><strong>小端</strong></td>
+<td><code>:64,67-68</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>2</td>
+<td>Index（分包索引）</td>
+<td>小端</td>
+<td><code>:70-71</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>CRC = <code>CRC16_CCITT_FALSE</code>（Poly <code>0x1021</code>，Init <code>0xFFFF</code>，Refin/out=False，Xorout=0，<code>crc16_ccitt_false.c:24-42</code>），作用域 <code>pszData+8, len-8</code>（<code>ble2appEx.c:64</code>）。<strong>与 B2A 主协议 CRC 完全一致</strong>。</li>
+<li>Status 位（<code>ble2appEx.h:26-43</code>）：<code>EHST_FAIL=0x01</code> / <code>EHST_ACK=0x02</code> / <code>EHST_IS_MULTI_PKT=0x04</code> / <code>EHST_MULTI_PKT_END=0x08</code> / <code>EHST_OTA_PART=0x80</code>。28B 上行始终 <code>Index=0</code> 单包。</li>
+</ul>
+<h4 id="362-4b-index0">3.6.2 内层命令头 4B（仅 Index==0 首包带）</h4>
+<table>
+<thead>
+<tr>
+<th>偏移(头后)</th>
+<th>字节数</th>
+<th>字段</th>
+<th>字节序</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8</td>
+<td>1</td>
+<td>Cmd = <code>BCMD_TEST</code>=0x08</td>
+<td>—</td>
+<td><code>ble2appEx.c:374,610</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>1</td>
+<td>Key（子命令）</td>
+<td>—</td>
+<td><code>:375,612</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>2</td>
+<td>内层 Len</td>
+<td><strong>小端</strong></td>
+<td><code>:376-377,614</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>N</td>
+<td>payload（4B 应用头 + 数据帧组）</td>
+<td>—</td>
+<td><code>:382</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="363-key-4b">3.6.3 Key 与应用头（4B 自定义头）</h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>用途</th>
+<th>应用头 4B</th>
+<th>payload 结构</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x05</code></td>
+<td>HR 起帧</td>
+<td><code>{0x01, 0x03, 0x02, 0x00}</code></td>
+<td>4B（<code>type=HR</code>，通道数占位）</td>
+<td><code>hr.c:998-1002,1179</code></td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td>HR 止帧</td>
+<td><code>{0x00, 0x03, 0x02, 0x00}</code>（首字节 <code>0x00</code>）</td>
+<td>4B</td>
+<td>文档①§6.4；<code>hr.c</code> 起止用同一 Key</td>
+</tr>
+<tr>
+<td><code>0x06</code></td>
+<td>HR 数据</td>
+<td><code>{0x01, 0x03, 0x00, ALGO_HR_TOTAL_CHN=4}</code></td>
+<td>4B + 7×28=196B = <strong>200B</strong></td>
+<td><code>hr.c:1042-1045,1122</code></td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td>SpO2 起帧</td>
+<td><code>{0x01, 0x04, 0x02, 0x00}</code></td>
+<td>4B</td>
+<td><code>spo2.c:873,977</code></td>
+</tr>
+<tr>
+<td><code>0x06</code></td>
+<td>SpO2 数据</td>
+<td><code>{0x01, 0x04, 0x00, ALGO_SPO2_TOTAL_CHN=4}</code></td>
+<td>4B + 8×28=224B = <strong>228B</strong></td>
+<td><code>spo2.c:889-892,940</code></td>
+</tr>
+<tr>
+<td><code>0x01</code></td>
+<td>gsensor 起止</td>
+<td>—</td>
+<td>通知</td>
+<td><code>user_gsensor_api.c:618,696</code></td>
+</tr>
+<tr>
+<td><code>0x02</code></td>
+<td>gsensor 数据</td>
+<td>—</td>
+<td>18×10=180B</td>
+<td><code>user_gsensor_api.c:654</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>应用头字节 1（type）：HR=<code>0x03</code>，SpO2=<code>0x04</code>。</li>
+</ul>
+<h4 id="364-212b-hr1">3.6.4 212B 总包核算（HR，以文档①标称为例）</h4>
+<p>文档①标「212B = 8 + 4 + 4 + 196」。代码实证核算：</p>
+<pre><code>B2A 8B 帧头  ┐
              ├─ Len16 域 = 内层命令头4B + 内层payload
 命令头 4B     │       内层payload = 应用头4B + 数据196B = 200B
 应用头 4B  ┐  │       ∴ 内层 Len(off10) = 200
 数据 196B  ┘  ┘       ∴ B2A Len16(off2) = 4(命令头) + 200 = 204
 ─────────────
-总包 = 8(帧头) + 204(Len16 域) = 212B  ✅ 自洽</pre>
-  <ul>
-    <li>✅ <strong>212B 层级归属确认</strong>：<code>B2A_MakePkt2Send(..., 0x06, temp_buff, 4+196=200, ...)</code> 的第 4 参 <code>200</code> = <strong>内层 payload 长度</strong>（应用头4 + 数据196），写入内层命令头 off10 的 Len=200；B2A 帧头 Len16(off2)=204=命令头4+payload200；总包 212=8+204。文档图注「4+4+196」与「Len200」的层级归属<strong>由代码坐实</strong>。</li>
-  </ul>
-  <div class="callout warn">⚠ <strong>SpO2 每包 8 帧 → 包长不同</strong>：SpO2 内层 payload = 4 + 8×28 = <strong>228B</strong>，B2A Len16 = 232，<strong>总包 = 8 + 232 = 240B</strong>（非 212B）。文档①只给 HR 的 212B 类比，未给 SpO2 完整包长。见 <a href="#ch5">§5</a> 第 6 条。</div>
+总包 = 8(帧头) + 204(Len16 域) = 212B  ✅ 自洽
+</code></pre>
+<ul>
+<li>✅ <strong>212B 层级归属确认</strong>：<code>B2A_MakePkt2Send(..., 0x06, temp_buff, 4+196=200, ...)</code> 的第 4 参 <code>200</code> = <strong>内层 payload 长度</strong>（应用头4 + 数据196），写入内层命令头 off10 的 Len=200；B2A 帧头 Len16(off2)=204=命令头4+payload200；总包 212=8+204。文档图注「4+4+196」与「Len200」的层级归属<strong>由代码坐实</strong>。</li>
+<li>⚠️ <strong>SpO2 每包 8 帧 → 包长不同</strong>：SpO2 内层 payload = 4 + 8×28 = <strong>228B</strong>，B2A Len16 = 232，<strong>总包 = 8 + 232 = 240B</strong>（非 212B）。文档①只给 HR 的 212B 类比，未给 SpO2 完整包长。见 <a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a> 第 6 条。</li>
+</ul>
+<h4 id="365-b2a_makepkt2send">3.6.5 B2A_MakePkt2Send 硬约束（代码实证）</h4>
+<ul>
+<li><strong>payload 上限 <code>244-16=228B</code></strong>（<code>ble2appEx.c:355-359</code>），超限直接返回。⚠️ <strong>SpO2 单包 228B 正好顶格</strong>（4+8×28），无余量。</li>
+<li><strong>早退条件</strong>：<code>svcSwFlag[0]==0 || OtaFlag&gt;0</code>（<code>:351</code>）、<code>payload&gt;228</code>（<code>:355</code>）——采集必须先 <code>svcSwFlag[0]=0x01</code> 生效（<code>factory_gh3x2x_ble_server.c:416</code>）。</li>
+<li>发送叶子 <code>gh3x2x_ble_send_to_zqdata</code>（<code>ble_server_main.c:576-632</code>）：<strong>单包一次 <code>AttsHandleValueNtf(GH3X2X_BLE_TX_HDL)</code></strong>（<code>:595</code>，不再切片，因 B2A payload 已 ≤228 保证单 MTU），带 <code>gh3x2xBleCheckTxReady()</code> 流控（<code>:607</code>，最多 1000×1ms，<code>:201-215</code>）。</li>
+</ul>
+<hr />
+<h3 id="37-bit-level-memory-mapb2a">3.7 Bit-level memory map（B2A 封装上行包）</h3>
+<pre><code>Byte Offset:   0        1        2        3        4        5        6        7
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+B2A 帧头      | 0xBB   | status | Len u16 LE      | CRC u16 LE      | Index u16 LE=0  |
+(全小端)      | SOF    | 0x00   | 不含 8B 头      | 覆盖偏移 8 起   | 上行恒单包      |
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   8        9        10       11       12       13       14       15
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+命令头+应用头 | 0x08   | Key    | 内层 Len u16 LE | 应用头 4B（逐 Key 定义见 §3.6.3： |
+              | TEST   | 05/06  | =应用头+数据    |  HR数据={01 03 00 04}             |
+              |        | 01/02  |                 |  HR起帧={01 03 02 00}）           |
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   16 ...
+              +---------------------------------------------------------------+
+数据帧组      | 28B×7（HR）/ 28B×8（SpO2）/ 18B×10（gsensor）—— 数据帧全大端  |
+              +---------------------------------------------------------------+
+</code></pre>
+<p>注意字节序分界：<strong>偏移 0..15 全小端（B2A 信封），偏移 16 起全大端（数据帧）</strong>——§4.5 约束汇总的"三种字节序并存"在同一个包里就有两种。</p>
+<h3 id="38-decode">3.8 实例包 + decode（脚本实算）</h3>
+<blockquote>
+<p>布局与常量全部代码实证（§3.1/§3.3/§3.6 各表 file:line）；<strong>数值为构造演示值</strong>——zqdata 通道尚无真机抓包（需采集固件手表），待实录后替换。CRC 为真实算（生成脚本 <a href="assets/gen_zqdata_wire_examples.py"><code>assets/gen_zqdata_wire_examples.py</code></a>，含 B2A 真机金帧 <code>CRC16("08 01 01")=0x462D</code> 自校验）。</p>
+</blockquote>
+<p><strong>例① HR 起帧包（16B，Key=0x05）</strong>：</p>
+<pre><code>BB 00 08 00 64 19 00 00 08 05 04 00 01 03 02 00
+└┘ │  └─┬─┘ └─┬─┘ └─┬─┘ │  │  └─┬─┘ └────┬────┘
+SOF│  Len=8  CRC   Idx=0 │  │  内层    应用头{01 03 02 00}
+   st=0x00   =0x1964     │  │  Len=4   [0]=0x01 起帧
+                         │  └ Key=0x05（起止帧）[1]=0x03 type=HR
+                         └ Cmd=0x08（BCMD_TEST） [2]=0x02 [3]=0x00
+</code></pre>
+<p><strong>例② HR 数据包（212B，Key=0x06，7 帧/包）</strong>：</p>
+<pre><code>BB 00 CC 00 C7 F8 00 00 08 06 C8 00 01 03 00 04   ← 信封：Len=0xCC=204、CRC=0xF8C7、
+68 6A 9C 80 00 01 D4 C0 00 01 DA 9C 00 01 D3 F8      内层 Len=0xC8=200、应用头{01 03 00 04}
+00 01 DD BC 00 0C FF F8 04 00 00 00 2A 05 33 06   ← 帧0 后半 + 帧1 起始
+00 01 D4 C1 00 01 DA 9D 00 01 D3 F9 00 01 DD BD
+00 0C FF F8 04 00 00 01 2A 05 33 06 00 01 D4 C2      …（帧2..帧6 同构，共 212B）…
+</code></pre>
+<p>Decoded（帧 0，偏移 16..43，重打包保留真实 UTC，<code>hr.c:1078-1082</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字节</th>
+<th>字段</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>16</td>
+<td><code>68 6A 9C 80</code></td>
+<td>ticks（帧0=UTC 秒，大端）</td>
+<td>0x686A9C80 = 1751817344</td>
+</tr>
+<tr>
+<td>20</td>
+<td><code>00 01 D4 C0</code></td>
+<td>PPG 绿1（int32 大端）</td>
+<td>120000</td>
+</tr>
+<tr>
+<td>24..35</td>
+<td>…</td>
+<td>PPG 绿2/绿3/绿4</td>
+<td>121500 / 119800 / 122300</td>
+</tr>
+<tr>
+<td>36</td>
+<td><code>00 0C</code></td>
+<td>acc_x（s16 大端）</td>
+<td>12</td>
+</tr>
+<tr>
+<td>38</td>
+<td><code>FF F8</code></td>
+<td>acc_y</td>
+<td>−8</td>
+</tr>
+<tr>
+<td>40</td>
+<td><code>04 00</code></td>
+<td>acc_z</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>42</td>
+<td><code>00 00</code></td>
+<td>frame_cnt（u16 大端）</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Decoded（帧 1 前 4B，偏移 44..47 = <code>2A 05 33 06</code>，ticks 槽已改装 AGC，<code>hr.c:1085-1089</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>字节</th>
+<th>来源（40B 帧内）</th>
+<th>字段</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>2A</code></td>
+<td><code>src[28]</code></td>
+<td>drv0 绿1</td>
+<td>0x2A</td>
+</tr>
+<tr>
+<td><code>05</code></td>
+<td><code>src[36] &amp; 0x0F</code></td>
+<td>gain 绿1</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>33</code></td>
+<td><code>src[32]</code></td>
+<td>drv1 绿1</td>
+<td>0x33</td>
+</tr>
+<tr>
+<td><code>06</code></td>
+<td><code>(src[36]&gt;&gt;4) &amp; 0x0F</code></td>
+<td>gain 绿2</td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="39">3.9 离线上行发送序列（状态机）</h3>
+<p>单文件（<code>ppghr.dat</code> 等）上行全程走 <code>BCMD_TEST</code> 封装，序列与门槛全部代码实证（§3.6.5 / §4.5）：</p>
+<pre><code>        前置门槛：svcSwFlag[0]==0x01 且 OtaFlag==0，否则 B2A_MakePkt2Send 早退
+        （ble2appEx.c:351；采集服务生效 factory_gh3x2x_ble_server.c:416）
 
-  <h4 id="s3-6-5">3.6.5 B2A_MakePkt2Send 硬约束（代码实证）</h4>
-  <ul>
-    <li><strong>payload 上限 <code>244-16=228B</code></strong>（<code>ble2appEx.c:355-359</code>），超限直接返回。⚠ <strong>SpO2 单包 228B 正好顶格</strong>（4+8×28），无余量。</li>
-    <li><strong>早退条件</strong>：<code>svcSwFlag[0]==0 || OtaFlag>0</code>（<code>:351</code>）、<code>payload>228</code>（<code>:355</code>）——采集必须先 <code>svcSwFlag[0]=0x01</code> 生效（<code>factory_gh3x2x_ble_server.c:416</code>）。</li>
-    <li>发送叶子 <code>gh3x2x_ble_send_to_zqdata</code>（<code>ble_server_main.c:576-632</code>）：<strong>单包一次 <code>AttsHandleValueNtf(GH3X2X_BLE_TX_HDL)</code></strong>（<code>:595</code>，不再切片，因 B2A payload 已 ≤228 保证单 MTU），带 <code>gh3x2xBleCheckTxReady()</code> 流控（<code>:607</code>，最多 1000×1ms，<code>:201-215</code>）。</li>
-  </ul>
-</section>
+IDLE ──文件就绪(截尾自检：fileSize 非 40 倍数按整帧下取整, hr.c:988-989)──▶ 起帧
+  ▲                                                                        │
+  │                                                        Key=0x05, 应用头[0]=0x01
+  │                                                                        ▼
+  └◀── Key=0x05 止帧(应用头[0]=0x00) ◀── 数据发完 ◀── 数据 ◀──┐
+                                                     │        │ Key=0x06 ×N
+       每包发后等 txReady（ATTS_HANDLE_VALUE_CNF，   └─续包──┘ (HR 7帧/包, 按帧号
+       zqdata 确认句柄 0x0A14）再发下一包                        seek frame_base*40)
 
-<!-- ============================= 第 4 章 ============================= -->
-<section id="ch4">
-  <h2>4. 下行与控制通道 · 广播 / 服务发现 · 约束</h2>
-
-  <h3 id="s4-1">4.1 数据通道下行（Goodix，非 B2A GET/SET）</h3>
-  <ul>
-    <li><strong>zqdata 新模块（B 树）</strong>：<code>0x0A12</code> write → <code>zqdata_ble_write_cback</code> → RX 环 → RX 线程 → <code>rx_handler</code>（应用注册；可转 <code>Gh3x2xDemoProtocolProcess</code>）。</li>
-    <li><strong>190E 现网 / 采集固件（A 树）</strong>：<code>0x0A02</code>（或 ZQDATA RX <code>0x0A12</code>）write → <code>gh3x2x_ble_write_cback</code>（<code>ble_server_main.c:355-376</code>）→ <code>Gh3x2xDemoProtocolProcess(pValue, len)</code>（<code>:371</code>，汇顶原厂协议，非 B2A）。</li>
-  </ul>
-
-  <h3 id="s4-2">4.2 采集起停 / ECG 会话下行命令（B2A <code>BCMD_TEST</code> 子键，A 树 <code>ble2appWrap.c</code>）</h3>
-  <p>采集控制主通道仍走 <strong>① B2A</strong>（<code>B2A_RecvData</code>→<code>BCMD_TEST</code> 分支）。新 ECG 采集会话命令（SKG S7 协议 6.8.16/17/18）：</p>
-  <div class="tbl"><table>
-    <tr><th>Key</th><th>名称</th><th>方向</th><th>payload（<strong>全小端</strong>）</th><th>file:line</th></tr>
-    <tr><td><code>0x10</code></td><td><code>DC_CTRL</code> 采集开关</td><td>App→Dev</td><td><code>UTC(4 LE)+onoff(1)+type(1: 仅 ECG_BIT=1&lt;&lt;4=0x10)+duration_s(2 LE)</code></td><td><code>ble2appWrap.c:11876-11924</code></td></tr>
-    <tr><td><code>0x11</code></td><td><code>DC_STATUS</code> 状态</td><td>双向</td><td>Dev→App <code>[type:1][status:1]</code>（IDLE0/COLL1/READY2/TRANS3）</td><td><code>:11933-11943</code></td></tr>
-    <tr><td><code>0x12</code></td><td><code>DC_DATA</code> 随机读</td><td>双向</td><td>req <code>[label:2][count:2][offset:4]</code>；resp <code>[label:2][got:2][offset:4][data:got]</code>（<code>got&lt;count</code>=EOF），仅 <code>DC_LABEL_ECG=0x0010</code> 实现</td><td><code>:11982-12037</code></td></tr>
-  </table></div>
-  <ul>
-    <li>ECG 会话 <code>data_collect_session.c</code>：Start（<code>:440-560</code>）写 32B 小端文件头；1Hz worker（<code>:711-730</code>）；Stop（<code>:402-438</code>）回填 ACC 段 offset。传感器侧 <code>GH3220_Start_Ecg_Collect</code>（<code>gh3x2x_eiot.c:865-878</code>）。</li>
-    <li>PPG 采集门控 <code>g_PPGCollectFlg</code>（1=HR，2=SpO2，<code>gh3x2x_eiot.c:334</code>）；ECG <code>g_ECGCollectFlg</code>（<code>:339</code>）。</li>
-  </ul>
-
-  <h3 id="s4-3">4.3 ECG 会话落盘帧（<code>ecg_raw.dat</code>，<strong>小端</strong>，与 PPG 相反）</h3>
-  <p><code>data_collect_session.c</code> 独立实现，字节序 = <strong>小端</strong>（务必与 HR/SpO2 大端区分）。</p>
-  <p><strong>32B 文件头</strong>（<code>DC_WriteFileHeader_ECG</code>，<code>:175-232</code>）：magic <code>0x31474345</code>("ECG1", 落盘 <code>45 43 47 31</code>, <code>:182-185</code>) / version=2 / header_size=32 / utc / duration_s / sample_hz_raw=500 / sample_bytes=4 / acc_section_offset(off18, Stop 回填, <code>:343-349</code>) / acc_sample_hz / reserved(8B)。</p>
-  <p><strong>ECG 原始流</strong>（off32 起）：<code>g_gh3220_fifo</code> 直接 drain，单样本 4B（24bit ADC packed u32），500Hz，不重组（<code>DC_DrainAndSave_ECG :116-150</code>）。</p>
-  <p><strong>ACC 镜像帧</strong>（ECG 段之后，8B 头 + payload，小端，<code>DC_Acc_Mirror_Push :246-303</code>）：<code>tick(4 LE)+plen(2 LE=n*6)+frame_index(2 LE)+STGsensorRawdata[n]</code>（X16/Y16/Z16 无填充，直接 memcpy）。</p>
-
-  <h3 id="s4-4">4.4 广播 / 服务发现</h3>
-  <ul>
-    <li><strong>zqdata 128 位 UUID 不进广播</strong>（AD 结构 = 18B=1+1+16，ADV 剩 1B、SCAN-RSP 剩 ~10B 都塞不下），靠<strong>连接后 GATT 发现</strong>（同 190E）。</li>
-    <li>连接前广播 <code>watchAdvDataDisc[]</code>（<code>watch_main.c:318</code>）：Flags(3B) + 16 位服务 UUID 列表 <code>0x180A</code>(DIS)+<code>0xFFE0</code>(AMDTP/B2A)+<code>FFE1/FFE2/FFEB</code> + 厂商数据(15B)；扫描响应 = 设备名 <code>SKG VitaPilot-…</code>。</li>
-    <li>连接后 GATT 发现可见：AMDTP(B2A <code>0xFFE0</code>)、gh3x2x(<code>0x190E</code>)、DIS、以及采集固件下并行注册的 zqdata <code>45121540-…</code>。</li>
-  </ul>
-
-  <h3 id="s4-5">4.5 约束汇总</h3>
-  <ul>
-    <li><strong>字节序</strong>：B2A 头/命令头全小端；PPG/HR/SpO2/gsensor 数据帧全大端；ECG 会话全小端（三种并存，勿混）。</li>
-    <li><strong>分片</strong>：B2A 支持 <code>Index</code> 分片；28B/gsensor 上行始终 <code>Index=0</code> 单包（payload 已 ≤228 保证单 MTU）。</li>
-    <li><strong>MTU</strong>：单包 ≤ 协商 MTU−3；HR 212B 包要求 MTU≥215（实际多协商 247）。传输层新模块固定 244 硬上限。</li>
-    <li><strong>流控</strong>：② 上行每包发后等 <code>ATTS_HANDLE_VALUE_CNF</code>（txReady）再发下一包；zqdata 用 <code>0x0A14</code> 确认、190E 用 <code>0x0A04</code>，独立互不干扰。</li>
-    <li><strong>28B 绕开主 B2A</strong>：<code>B2A_MakePkt2Send</code> 栈缓冲 + 显式 <code>pfSend</code> 直发数据通道，不依赖主 B2A/AMDTP 连接态。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 5 章 ============================= -->
-<section id="ch5">
-  <h2>5. 代码实证 vs 文档 差异与完整性核查</h2>
-  <div class="callout note">
-    逐条列 <strong>文档声明 / 代码实证 / 结论</strong>。字节布局一律以代码实证为准（上行=② <code>_collect</code>，传输层=③ zqdata 模块）。
-    <br>结论图例：<span class="b ok">✅一致</span> · <span class="b warn">⚠差异（以代码为准）</span> · <span class="b gray">📄文档未覆盖</span> · <span class="b warn">🔬代码未坐实需固件核对</span>。
-  </div>
-
-  <div class="tbl"><table>
-    <tr><th>#</th><th>主题</th><th>文档声明</th><th>代码实证</th><th>结论</th></tr>
-    <tr>
-      <td><strong>1</strong></td>
-      <td><strong>28B/40B 是否「全大端」</strong></td>
-      <td>①§3/§4「28B 帧全大端」「40B 落盘全大端」</td>
-      <td>主体（ticks/PPG/ACC/cnt）确为大端（<code>hr.c:778-803</code> 手工 <code>&gt;&gt;24</code>）；但 <strong>40B 尾 12B AGC 是逐字节/半字节位域，无字节序</strong>（<code>hr.c:814-820</code>）；ECG 会话是小端</td>
-      <td><span class="b warn">⚠部分修正</span>：「28B 主体+40B 前 28B 主体」全大端成立；「40B 尾 AGC」应表述为<strong>逐字节位域</strong>而非大端。采纳代码分层表述</td>
-    </tr>
-    <tr>
-      <td><strong>2</strong></td>
-      <td><strong>HR 重打包逐字节映射</strong></td>
-      <td>①§5.2：dst[0]=src[28] / dst[1]=src[36]&amp;0x0F / dst[2]=src[32] / dst[3]=(src[36]>>4)&amp;0x0F / dst[4..27]=src[4..27]</td>
-      <td>逐字节完全一致（<code>hr.c:1085-1091</code>）</td>
-      <td><span class="b ok">✅一致</span>（<code>stage③</code> 零 REFUTED 得证）</td>
-    </tr>
-    <tr>
-      <td><strong>3</strong></td>
-      <td><strong>SpO2 重打包偏移差异</strong></td>
-      <td>①§7：SpO2 用 <code>src[28]/[30]/[36]/[37]</code>（≠ HR 的 <code>[32]</code>/<code>[36]>>4</code>）</td>
-      <td><code>dst[2]=src[30]</code>(drv0 RED1)、<code>dst[3]=src[37]&amp;0x0F</code>(gain RED1)（<code>spo2.c:934-935</code>）</td>
-      <td><span class="b ok">✅一致</span>。SpO2 与 HR 的 dst[2]/dst[3] 来源确实不同</td>
-    </tr>
-    <tr>
-      <td><strong>4</strong></td>
-      <td><strong>句柄段 0x0A10-0x0A15</strong></td>
-      <td>①§2.2：Service<code>0x0A10</code>/RX<code>0x0A12</code>/TX<code>0x0A14</code>/CCC<code>0x0A15</code></td>
-      <td>一致；另坐实 <code>0x0A11</code>/<code>0x0A13</code> 为特征<strong>声明</strong>句柄（<code>zqdata_svc.h:22-27</code>）</td>
-      <td><span class="b ok">✅一致</span>（文档少列两个声明句柄，无冲突）</td>
-    </tr>
-    <tr>
-      <td><strong>5</strong></td>
-      <td><strong>B2A 封装总长 212B</strong></td>
-      <td>①§6.1：212B=8+4+4+196；图注 Len16=204、命令头 Len=200</td>
-      <td><code>B2A_MakePkt2Send(...,0x06,temp_buff,200,...)</code>：内层 Len=200(应用头4+数据196)、B2A Len16=204(命令头4+200)、总包 212=8+204（<code>hr.c:1063,1122</code> / <code>ble2appEx.c:355-377</code>）</td>
-      <td><span class="b ok">✅一致且层级归属坐实</span>（见 <a href="#s3-6-4">§3.6.4</a>）</td>
-    </tr>
-    <tr>
-      <td><strong>6</strong></td>
-      <td><strong>SpO2 完整包长</strong></td>
-      <td>文档只给 HR 212B，未给 SpO2 类比</td>
-      <td>SpO2 每包 8 帧 → 内层 payload=4+8×28=<strong>228B</strong>（顶格 <code>ble2appEx.c:355</code> 的 228 上限），B2A Len16=232，<strong>总包=240B</strong></td>
-      <td><span class="b gray">📄文档未覆盖</span> + <span class="b warn">⚠</span>：补出 SpO2 240B/包；且 228 顶格无余量</td>
-    </tr>
-    <tr>
-      <td><strong>7</strong></td>
-      <td><strong>每包帧数 HR7/SpO2 8</strong></td>
-      <td>①§7：HR=7、SpO2=8（但主叙述以 HR=7 为例，两处帧数并存）</td>
-      <td><code>HR_COV_SEND_FRAME_NUM=7</code>（<code>hr.c:70</code>）、<code>SPO2_COV_SEND_FRAME_NUM=8</code>（<code>spo2.c:53</code>）</td>
-      <td><span class="b ok">✅一致</span>（代码确认两常量不同值）</td>
-    </tr>
-    <tr>
-      <td><strong>8</strong></td>
-      <td><strong>上行 TX 句柄「zqdata 0x0A14」</strong></td>
-      <td>①把上行数据叙述为走 zqdata 新模块 <code>0x0A14</code></td>
-      <td><strong>上行实证来自 A 树 <code>_collect</code></strong>，走 <code>GH3X2X_BLE_TX_HDL</code>（旧 <code>ble_server</code>，强制 <code>svcSwFlag[0]=0x01</code> 切 ZQDATA 服务），<strong>非 B 树 zqdata 模块</strong>（<code>factory_gh3x2x_ble_server.c:416</code> / <code>ble_server_main.c:595</code>）</td>
-      <td><span class="b warn">⚠差异（重要）</span>：文档把两棵树/两套实现混叙。字节协议真相在 A 树；B 树 zqdata 模块是传输层重写，尚未接生产者。见本文前置说明</td>
-    </tr>
-    <tr>
-      <td><strong>9</strong></td>
-      <td><strong>单帧长度 <code>len&lt;=MTU-3</code></strong></td>
-      <td>①§2.4「<code>len&lt;=MTU-3</code>」（暗示随 MTU 动态）</td>
-      <td>传输层<strong>固定 244 硬上限</strong>（<code>ZQ_TX_FRAME_MAX=244</code>，pop 侧丢弃 <code>zqdata_ring.c:132-140</code>）；<code>zqring_put</code> 只拒 <code>n>4096</code></td>
-      <td><span class="b warn">⚠差异</span>：244 为编译期定值（=247−3），不随协商 MTU 放大；MTU&gt;247 时单帧仍 244 截断</td>
-    </tr>
-    <tr>
-      <td><strong>10</strong></td>
-      <td><strong>B2A payload 上限</strong></td>
-      <td>①只提「栈缓冲 pszBuff[256]」</td>
-      <td>硬上限 <code>244-16=228B</code>（<code>ble2appEx.c:355-359</code>），超限直接返回</td>
-      <td><span class="b gray">📄文档未量化</span>：补出 228B 硬约束（SpO2 顶格）</td>
-    </tr>
-    <tr>
-      <td><strong>11</strong></td>
-      <td><strong>gsensor 18B 帧</strong></td>
-      <td>①主叙述仅 PPG 28B，未给 gsensor 帧布局</td>
-      <td>完整 18B ABI（<code>user_gsensor_api.c:430-509</code>）：ticks4+acc6+gyro6(恒0)+id2，大端</td>
-      <td><span class="b gray">📄文档未覆盖</span>：本文 <a href="#s3-5">§3.5</a> 补全</td>
-    </tr>
-    <tr>
-      <td><strong>12</strong></td>
-      <td><strong>门控「3 处 + CNF 分支」</strong></td>
-      <td>①§2.5 列 <code>CMakeLists/rtos.c/watch_main.c/factory_..._main.c</code> 四处门控</td>
-      <td>zqdata 模块 7 文件内<strong>无 <code>#ifdef SYS_DATA_COLLECT_SVC</code></strong>；门控引用点在模块外的调用方固件</td>
-      <td><span class="b warn">🔬代码未坐实</span>：模块侧只证「设计=调用方门控+gc」；四处 <code>#if</code> 需在采集固件树核对</td>
-    </tr>
-    <tr>
-      <td><strong>13</strong></td>
-      <td><strong>ACC 是否带 <code>>>3</code>/取反</strong></td>
-      <td>①§11.2：组帧层无、板级 <code>lis2dh12_demo.c</code> 有（<code>>>3</code>、XY 取反）</td>
-      <td>组帧 <code>hr.c:794-799</code> 直接 int16 大端搬 <code>stRawdata.acc_*</code>，无变换；板级变换在上游 <code>lis2dh12</code></td>
-      <td><span class="b warn">🔬需固件链确认</span>：<code>pusFrameGsensordata</code> 上游是否已 <code>>>3</code>/取反，取决于板级到组帧的数据链（本次未逐行走通 lis2dh12→frame 链）</td>
-    </tr>
-    <tr>
-      <td><strong>14</strong></td>
-      <td><strong>ticks 语义（帧≥1）</strong></td>
-      <td>①§4「帧1..N 落盘 ticks 为 OS-tick delta，上行被 AGC 覆盖」</td>
-      <td>落盘帧≥1 前 4B = <code>tempticks+=deltaticks</code> 递推（<code>hr.c:726,778</code>）；上行帧≥1 该 4B 被 AGC 覆盖（<code>hr.c:1085</code>）；时间轴靠帧0 UTC+每帧 delta 重建</td>
-      <td><span class="b ok">✅一致</span></td>
-    </tr>
-    <tr>
-      <td><strong>15</strong></td>
-      <td><strong>通道数 4 = ABI 冻结</strong></td>
-      <td>①§11.3：16B PPG raw 固定，改 8 通道 → 帧变 44/56B → APP 错位</td>
-      <td>28/40 常量硬编码依赖 <code>ALGO_HR_TOTAL_CHN=HBA_TOTAL_CHN</code>（<code>hr.c:66</code>）；重打包 <code>src[28/30/32/36/37]</code> 偏移写死假设 4 通道 40B</td>
-      <td><span class="b ok">✅一致</span>（代码确认偏移写死，改通道数即失配）</td>
-    </tr>
-  </table></div>
-
-  <p><strong>未坐实项（需以采集固件编译/运行核对）：</strong></p>
-  <ul>
-    <li><strong>门控四处 <code>#if SYS_DATA_COLLECT_SVC</code></strong>（<code>rtos.c</code> / <code>watch_main.c</code> / <code>factory_..._main.c</code> 的 <code>ATTS_HANDLE_VALUE_CNF</code> 分支）——在 zqdata 模块 7 文件之外，本次实证只覆盖模块内（<a href="#ch5">§5</a> 第 12 条）。</li>
-    <li><strong>ACC <code>>>3</code>/XY 取反的层级归属</strong>——板级 <code>lis2dh12_demo.c:287-289/603-605</code> 有变换，但「组帧层拿到的 <code>pusFrameGsensordata</code> 是否已带变换」需走通 lis2dh12→frame 数据链（第 13 条）。</li>
-    <li><strong>B 树 zqdata 新模块的实际上行链路</strong>——生产者（<code>gui_app_press.c</code> 10+ 处 <code>gh3x2x_ble_send_to_zqdata</code>）改调 <code>zqdata_send</code>、<code>rx_handler</code> 应用注册均为<strong>遗留待接</strong>（文档①§2.5「遗留」），代码实证仅证模块骨架，未证端到端跑通。</li>
-    <li><strong>DevType 5B 二进制码语义</strong>（真机 <code>68 39 71 25 81</code>）——仅 hex 展示，位含义未定义。</li>
-  </ul>
-</section>
-
-<!-- ============================= 第 6 章 ============================= -->
-<section id="ch6">
-  <h2>6. 附录：关键结构体 / 常量 / file:line 索引</h2>
-
-  <h3 id="s6-1">6.1 关键常量</h3>
-  <div class="tbl"><table>
-    <tr><th>常量</th><th>值</th><th>出处</th></tr>
-    <tr><td><code>HR_COV_FRAME_AGC_LEN</code></td><td>12</td><td><code>hr.c:74</code>（A 树）</td></tr>
-    <tr><td><code>HR_COV_SEND_FRAME_NUM</code></td><td>7</td><td><code>hr.c:70</code></td></tr>
-    <tr><td><code>SPO2_COV_SEND_FRAME_NUM</code></td><td>8</td><td><code>spo2.c:53</code></td></tr>
-    <tr><td>HR/SpO2 落盘帧长</td><td>40B</td><td><code>hr.c:628</code> / <code>spo2</code> 对称</td></tr>
-    <tr><td>HR/SpO2 上行帧长</td><td>28B</td><td><code>hr.c:973</code></td></tr>
-    <tr><td>gsensor 帧长</td><td>18B</td><td><code>user_gsensor_api.c</code></td></tr>
-    <tr><td>B2A payload 上限</td><td>228B（244−16）</td><td><code>ble2appEx.c:355</code></td></tr>
-    <tr><td><code>BCMD_TEST</code></td><td>0x08</td><td><code>ble2appEx.h:87-97</code></td></tr>
-    <tr><td><code>ZQ_TX_RING_SIZE</code> / <code>ZQ_RX_RING_SIZE</code></td><td>4096 / 512</td><td><code>zqdata.c:28,31</code>（B 树）</td></tr>
-    <tr><td><code>ZQ_TX_FRAME_MAX</code> / <code>ZQ_RX_FRAME_MAX</code></td><td>244 / 244</td><td><code>zqdata.c:34,37</code></td></tr>
-    <tr><td><code>ZQ_TX_READY_TMO_MS</code></td><td>1000</td><td><code>zqdata.c:55</code></td></tr>
-    <tr><td>zqdata 句柄段</td><td>0x0A10–0x0A15</td><td><code>zqdata_svc.h:18-31</code></td></tr>
-    <tr><td>UUID Service/RX/TX part</td><td>0x1540 / 0x1541 / 0x1542</td><td><code>zqdata_svc.c:32-34</code></td></tr>
-  </table></div>
-
-  <h3 id="s6-2">6.2 关键结构体 / 符号</h3>
-  <ul>
-    <li><code>STGsensorRawdata { GS16 sXAxisVal; GS16 sYAxisVal; GS16 sZAxisVal; }</code> = 6B 无 padding（A 树 <code>eqc_data_type.h:1338-1342</code>；B 盘 clangd <code>gh_demo_inner.h:96</code>）</li>
-    <li><code>zqring_t { buf/size/head/tail/count/dropped }</code>（<code>zqdata_ring.h:23-30</code>）</li>
-    <li><code>svcZqdataGroup</code>（<code>zqdata_svc.c:121-129</code>）、<code>zqdataList</code> 属性表（<code>:68-118</code>）</li>
-    <li><code>AttsAddGroup</code>/<code>AttsHandleValueNtf</code>/<code>AppConnIsOpen</code>(<code>app_api.h:782</code>)（Cordio）</li>
-    <li><code>Gh3x2xDemoProtocolProcess</code>（<code>gh_demo_protocol.c</code>）、<code>B2A_MakePkt2Send</code>（<code>ble2appEx.c:339</code>）</li>
-  </ul>
-
-  <h3 id="s6-3">6.3 file:line 索引（两树分栏）</h3>
-  <p><strong>A 树｜采集固件 <code>_collect</code>（上行协议最高权威）</strong> <code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code>：</p>
-  <ul>
-    <li><code>gh3x2x_demo_algo_call_hr.c</code>：落盘 <code>:773-823</code>、AGC 拆位 <code>:327-331</code>、起始帧 <code>:426-491</code>、上行/重打包 <code>:973/988-989/1042-1092/1122</code>、起止 <code>:998-1002/1179</code></li>
-    <li><code>gh3x2x_demo_algo_call_spo2.c</code>：落盘 <code>:641-703</code>、AGC <code>:350-354</code>、重打包 <code>:920-938</code>、常量 <code>:50/53/61</code></li>
-    <li><code>user_gsensor_api.c</code>：18B 帧 <code>:430-509</code>、起始帧 <code>:390-428</code>、上行 <code>:590-705</code>、常量 <code>:31/32</code></li>
-    <li><code>Ble2App/ble2appEx.c</code>：B2A 头组装 <code>:57-71</code>、CRC <code>:64</code>、MakePkt2Send <code>:339-425</code>（上限 <code>:355</code>、pfSend <code>:412-414</code>）、RecvData <code>:559/599-648</code></li>
-    <li><code>Ble2App/ble2appEx.h</code>：Status 枚举 <code>:26-43</code>、BCMD_TEST <code>:87-97</code>、命令头 <code>:74-81</code>、DC key <code>:118</code></li>
-    <li><code>Ble2App/ble2appWrap.c</code>：DC_CTRL <code>:11876-11924</code>、DC_STATUS <code>:11933-11943</code>、DC_DATA <code>:11982-12037</code></li>
-    <li><code>factory_gh3x2x_ble_server.c</code>：<code>svcSwFlag[0]=0x01</code> <code>:416</code>、AddGroup <code>:371/375-377/411-430</code>；<code>.h</code>：UUID/句柄 <code>:54-58/63-87</code></li>
-    <li><code>factory_gh3x2x_ble_server_main.c</code>：write_cback <code>:355-376</code>、send_to_zqdata <code>:576-632</code>(单包 ntf <code>:595</code>)、TxReady <code>:201-215</code></li>
-    <li><code>data_collect_session.c</code>：文件头 <code>:175-232</code>、ECG drain <code>:116-150</code>、ACC 镜像 <code>:246-303</code>、Start/Stop <code>:440-560/402-438</code></li>
-    <li><code>gh3x2x_eiot.c</code>：ECG 起停 <code>:865-878/880-894</code>、门控标志 <code>:334/339</code></li>
-    <li><code>crc16_ccitt_false.c:24-42</code></li>
-  </ul>
-  <p><strong>B 树｜zqdata 新模块（GATT 传输层最高权威）</strong> <code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata</code>：</p>
-  <ul>
-    <li><code>zqdata_svc.h</code>：句柄枚举 <code>:18-31</code></li>
-    <li><code>zqdata_svc.c</code>：UUID <code>:26-38</code>、属性表 <code>:68-118</code>、声明体 <code>:50/54</code>、CCC 初值 <code>:64</code>、服务组 <code>:121-129</code>、add/remove <code>:142-152</code>、write_cback <code>:132-139</code></li>
-    <li><code>zqdata.h</code>：接口注释 <code>:8-9/36-41</code>、门控注释 <code>:12</code>、API 签名 <code>:29/33-34/41/50-51/55/58/65</code></li>
-    <li><code>zqdata.c</code>：配置宏 <code>:27-56</code>、缓冲 <code>:59-60</code>、txReady 初值 <code>:68</code>、zq_notify <code>:71-83</code>、send <code>:86-98</code>、on_att_cnf <code>:107-113</code>、wait_ready <code>:116-128</code>、ble_notify <code>:132-145</code>、TX 循环 <code>:147-159</code>、on_rx <code>:167-177</code>、rx_task <code>:184-200</code>、init <code>:203-217</code></li>
-    <li><code>zqdata_ring.h</code>：记录格式 <code>:5-8</code>、lock 注释 <code>:9-11</code>、结构 <code>:23-30</code></li>
-    <li><code>zqdata_ring.c</code>：记录 <code>:12-13</code>、lock <code>:16-32</code>、u16 memcpy <code>:35-36</code>、put 丢弃 <code>:60-74</code>、绕尾 <code>:120-130</code>、pop 跳过 <code>:132-140</code></li>
-    <li><code>CMakeLists.txt</code>：父挂载 <code>:4-5</code>、门控注释 <code>:12-13</code>、库 <code>:16-25</code></li>
-  </ul>
-</section>
-
-<footer>
-  本文档为<strong>合成稿</strong>。上行数据帧字节布局以 A 树 <code>_collect</code> 代码实证为最高权威，GATT 传输层以 B 树 zqdata 模块代码实证为准，设计意图/跨模块语义补自文档①。差异见 <a href="#ch5">第 5 章</a>。<br>
-  相关：<a href="protocol-b2a.md">protocol-b2a.md</a>（主控制通道 B2A 协议全集）· <a href="protocol-b2a.html">protocol-b2a.html</a><br>
-  BlueTrace · Docs/architecture-v2/s7/protocol-zqdata · 上行以 <code>_collect</code> 代码实证为准
-</footer>
-
-</div></body>
+抢占：OtaFlag&gt;0 → 通道让路 OTA（发送门槛不满足，序列中断回 IDLE）
+</code></pre>
+<p>ECG 会话（DC_CTRL/DC_STATUS/DC_DATA）的四态状态机（IDLE/COLLECTING/READY/TRANSFERRING）见共识稿 §5.4，此处不重复。</p>
+<h2 id="4">4. 下行与控制通道 · 广播 / 服务发现 · 约束</h2>
+<h3 id="41-goodix-b2a-getset">4.1 数据通道下行（Goodix，非 B2A GET/SET）</h3>
+<ul>
+<li><strong>zqdata 新模块（B 树）</strong>：<code>0x0A12</code> write → <code>zqdata_ble_write_cback</code> → RX 环 → RX 线程 → <code>rx_handler</code>（应用注册；可转 <code>Gh3x2xDemoProtocolProcess</code>）。</li>
+<li><strong>190E 现网 / 采集固件（A 树）</strong>：<code>0x0A02</code>（或 ZQDATA RX <code>0x0A12</code>）write → <code>gh3x2x_ble_write_cback</code>（<code>ble_server_main.c:355-376</code>）→ <code>Gh3x2xDemoProtocolProcess(pValue, len)</code>（<code>:371</code>，汇顶原厂协议，非 B2A）。</li>
+</ul>
+<h3 id="42-ecg-b2a-bcmd_test-a-ble2appwrapc">4.2 采集起停 / ECG 会话下行命令（B2A <code>BCMD_TEST</code> 子键，A 树 <code>ble2appWrap.c</code>）</h3>
+<p>采集控制主通道仍走 <strong>① B2A</strong>（<code>B2A_RecvData</code>→<code>BCMD_TEST</code> 分支）。新 ECG 采集会话命令（SKG S7 协议 6.8.16/17/18）：</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>方向</th>
+<th>payload（<strong>全小端</strong>）</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x10</code></td>
+<td><code>DC_CTRL</code> 采集开关</td>
+<td>App→Dev</td>
+<td><code>UTC(4 LE)+onoff(1)+type(1: 仅 ECG_BIT=1&lt;&lt;4=0x10)+duration_s(2 LE)</code></td>
+<td><code>ble2appWrap.c:11876-11924</code></td>
+</tr>
+<tr>
+<td><code>0x11</code></td>
+<td><code>DC_STATUS</code> 状态</td>
+<td>双向</td>
+<td>Dev→App <code>[type:1][status:1]</code>（IDLE0/COLL1/READY2/TRANS3）</td>
+<td><code>:11933-11943</code></td>
+</tr>
+<tr>
+<td><code>0x12</code></td>
+<td><code>DC_DATA</code> 随机读</td>
+<td>双向</td>
+<td>req <code>[label:2][count:2][offset:4]</code>；resp <code>[label:2][got:2][offset:4][data:got]</code>（<code>got&lt;count</code>=EOF），仅 <code>DC_LABEL_ECG=0x0010</code> 实现</td>
+<td><code>:11982-12037</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>ECG 会话 <code>data_collect_session.c</code>：Start（<code>:440-560</code>）写 32B 小端文件头；1Hz worker（<code>:711-730</code>）；Stop（<code>:402-438</code>）回填 ACC 段 offset。传感器侧 <code>GH3220_Start_Ecg_Collect</code>（<code>gh3x2x_eiot.c:865-878</code>）。</li>
+<li>PPG 采集门控 <code>g_PPGCollectFlg</code>（1=HR，2=SpO2，<code>gh3x2x_eiot.c:334</code>）；ECG <code>g_ECGCollectFlg</code>（<code>:339</code>）。</li>
+</ul>
+<h3 id="43-ecg-ecg_rawdat-ppg">4.3 ECG 会话落盘帧（<code>ecg_raw.dat</code>，<strong>小端</strong>，与 PPG 相反）</h3>
+<p><code>data_collect_session.c</code> 独立实现，字节序 = <strong>小端</strong>（务必与 HR/SpO2 大端区分）。</p>
+<p><strong>32B 文件头</strong>（<code>DC_WriteFileHeader_ECG</code>，<code>:175-232</code>）：magic <code>0x31474345</code>("ECG1", 落盘 <code>45 43 47 31</code>, <code>:182-185</code>) / version=2 / header_size=32 / utc / duration_s / sample_hz_raw=500 / sample_bytes=4 / acc_section_offset(off18, Stop 回填, <code>:343-349</code>) / acc_sample_hz / reserved(8B)。</p>
+<p><strong>ECG 原始流</strong>（off32 起）：<code>g_gh3220_fifo</code> 直接 drain，单样本 4B（24bit ADC packed u32），500Hz，不重组（<code>DC_DrainAndSave_ECG :116-150</code>）。</p>
+<p><strong>ACC 镜像帧</strong>（ECG 段之后，8B 头 + payload，小端，<code>DC_Acc_Mirror_Push :246-303</code>）：<code>tick(4 LE)+plen(2 LE=n*6)+frame_index(2 LE)+STGsensorRawdata[n]</code>（X16/Y16/Z16 无填充，直接 memcpy）。</p>
+<h3 id="44">4.4 广播 / 服务发现</h3>
+<ul>
+<li><strong>zqdata 128 位 UUID 不进广播</strong>（AD 结构 = 18B=1+1+16，ADV 剩 1B、SCAN-RSP 剩 ~10B 都塞不下），靠<strong>连接后 GATT 发现</strong>（同 190E）。</li>
+<li>连接前广播 <code>watchAdvDataDisc[]</code>（<code>watch_main.c:318</code>）：Flags(3B) + 16 位服务 UUID 列表 <code>0x180A</code>(DIS)+<code>0xFFE0</code>(AMDTP/B2A)+<code>FFE1/FFE2/FFEB</code> + 厂商数据(15B)；扫描响应 = 设备名 <code>SKG VitaPilot-…</code>。</li>
+<li>连接后 GATT 发现可见：AMDTP(B2A <code>0xFFE0</code>)、gh3x2x(<code>0x190E</code>)、DIS、以及采集固件下并行注册的 zqdata <code>45121540-…</code>。</li>
+</ul>
+<h3 id="45">4.5 约束汇总</h3>
+<ul>
+<li><strong>字节序</strong>：B2A 头/命令头全小端；PPG/HR/SpO2/gsensor 数据帧全大端；ECG 会话全小端（三种并存，勿混）。</li>
+<li><strong>分片</strong>：B2A 支持 <code>Index</code> 分片；28B/gsensor 上行始终 <code>Index=0</code> 单包（payload 已 ≤228 保证单 MTU）。</li>
+<li><strong>MTU</strong>：单包 ≤ 协商 MTU−3；HR 212B 包要求 MTU≥215（实际多协商 247）。传输层新模块固定 244 硬上限。</li>
+<li><strong>流控</strong>：② 上行每包发后等 <code>ATTS_HANDLE_VALUE_CNF</code>（txReady）再发下一包；zqdata 用 <code>0x0A14</code> 确认、190E 用 <code>0x0A04</code>，独立互不干扰。</li>
+<li><strong>28B 绕开主 B2A</strong>：<code>B2A_MakePkt2Send</code> 栈缓冲 + 显式 <code>pfSend</code> 直发数据通道，不依赖主 B2A/AMDTP 连接态。</li>
+</ul>
+<hr />
+<h2 id="5-vs">5. 代码实证 vs 文档 差异与完整性核查</h2>
+<blockquote>
+<p>逐条列 <strong>文档声明 / 代码实证 / 结论</strong>。字节布局一律以代码实证为准（上行=② <code>_collect</code>，传输层=③ zqdata 模块）。
+结论图例：✅一致 · ⚠差异（以代码为准）· 📄文档未覆盖 · 🔬代码未坐实需固件核对。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>主题</th>
+<th>文档声明</th>
+<th>代码实证</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>28B/40B 是否「全大端」</strong></td>
+<td>①§3/§4「28B 帧全大端」「40B 落盘全大端」</td>
+<td>主体（ticks/PPG/ACC/cnt）确为大端（<code>hr.c:778-803</code> 手工 <code>&gt;&gt;24</code>）；但 <strong>40B 尾 12B AGC 是逐字节/半字节位域，无字节序</strong>（<code>hr.c:814-820</code>）；ECG 会话是小端</td>
+<td><strong>⚠部分修正</strong>：「28B 主体+40B 前 28B 主体」全大端成立；「40B 尾 AGC」应表述为<strong>逐字节位域</strong>而非大端。采纳代码分层表述</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>HR 重打包逐字节映射</strong></td>
+<td>①§5.2：dst[0]=src[28] / dst[1]=src[36]&amp;0x0F / dst[2]=src[32] / dst[3]=(src[36]&gt;&gt;4)&amp;0x0F / dst[4..27]=src[4..27]</td>
+<td>逐字节完全一致（<code>hr.c:1085-1091</code>）</td>
+<td><strong>✅一致</strong>（<code>stage③</code> 零 REFUTED 得证）</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>SpO2 重打包偏移差异</strong></td>
+<td>①§7：SpO2 用 <code>src[28]/[30]/[36]/[37]</code>（≠ HR 的 <code>[32]</code>/<code>[36]&gt;&gt;4</code>）</td>
+<td><code>dst[2]=src[30]</code>(drv0 RED1)、<code>dst[3]=src[37]&amp;0x0F</code>(gain RED1)（<code>spo2.c:934-935</code>）</td>
+<td><strong>✅一致</strong>。SpO2 与 HR 的 dst[2]/dst[3] 来源确实不同</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>句柄段 0x0A10-0x0A15</strong></td>
+<td>①§2.2：Service<code>0x0A10</code>/RX<code>0x0A12</code>/TX<code>0x0A14</code>/CCC<code>0x0A15</code></td>
+<td>一致；另坐实 <code>0x0A11</code>/<code>0x0A13</code> 为特征<strong>声明</strong>句柄（<code>zqdata_svc.h:22-27</code>）</td>
+<td><strong>✅一致</strong>（文档少列两个声明句柄，无冲突）</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td><strong>B2A 封装总长 212B</strong></td>
+<td>①§6.1：212B=8+4+4+196；图注 Len16=204、命令头 Len=200</td>
+<td><code>B2A_MakePkt2Send(...,0x06,temp_buff,200,...)</code>：内层 Len=200(应用头4+数据196)、B2A Len16=204(命令头4+200)、总包 212=8+204（<code>hr.c:1063,1122</code> / <code>ble2appEx.c:355-377</code>）</td>
+<td><strong>✅一致且层级归属坐实</strong>（见 §3.6.4）</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td><strong>SpO2 完整包长</strong></td>
+<td>文档只给 HR 212B，未给 SpO2 类比</td>
+<td>SpO2 每包 8 帧 → 内层 payload=4+8×28=<strong>228B</strong>（顶格 <code>ble2appEx.c:355</code> 的 228 上限），B2A Len16=232，<strong>总包=240B</strong></td>
+<td><strong>📄文档未覆盖 + ⚠</strong>：补出 SpO2 240B/包；且 228 顶格无余量</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td><strong>每包帧数 HR7/SpO2 8</strong></td>
+<td>①§7：HR=7、SpO2=8（但主叙述以 HR=7 为例，两处帧数并存）</td>
+<td><code>HR_COV_SEND_FRAME_NUM=7</code>（<code>hr.c:70</code>）、<code>SPO2_COV_SEND_FRAME_NUM=8</code>（<code>spo2.c:53</code>）</td>
+<td><strong>✅一致</strong>（代码确认两常量不同值）</td>
+</tr>
+<tr>
+<td><strong>8</strong></td>
+<td><strong>上行 TX 句柄「zqdata 0x0A14」</strong></td>
+<td>①把上行数据叙述为走 zqdata 新模块 <code>0x0A14</code></td>
+<td><strong>上行实证来自 A 树 <code>_collect</code></strong>，走 <code>GH3X2X_BLE_TX_HDL</code>（旧 <code>ble_server</code>，强制 <code>svcSwFlag[0]=0x01</code> 切 ZQDATA 服务），<strong>非 B 树 zqdata 模块</strong>（<code>factory_gh3x2x_ble_server.c:416</code> / <code>ble_server_main.c:595</code>）</td>
+<td><strong>⚠差异（重要）</strong>：文档把两棵树/两套实现混叙。字节协议真相在 A 树；B 树 zqdata 模块是传输层重写，尚未接生产者。见本文前置说明</td>
+</tr>
+<tr>
+<td><strong>9</strong></td>
+<td><strong>单帧长度 <code>len&lt;=MTU-3</code></strong></td>
+<td>①§2.4「<code>len&lt;=MTU-3</code>」（暗示随 MTU 动态）</td>
+<td>传输层<strong>固定 244 硬上限</strong>（<code>ZQ_TX_FRAME_MAX=244</code>，pop 侧丢弃 <code>zqdata_ring.c:132-140</code>）；<code>zqring_put</code> 只拒 <code>n&gt;4096</code></td>
+<td><strong>⚠差异</strong>：244 为编译期定值（=247−3），不随协商 MTU 放大；MTU&gt;247 时单帧仍 244 截断</td>
+</tr>
+<tr>
+<td><strong>10</strong></td>
+<td><strong>B2A payload 上限</strong></td>
+<td>①只提「栈缓冲 pszBuff[256]」</td>
+<td>硬上限 <code>244-16=228B</code>（<code>ble2appEx.c:355-359</code>），超限直接返回</td>
+<td><strong>📄文档未量化</strong>：补出 228B 硬约束（SpO2 顶格）</td>
+</tr>
+<tr>
+<td><strong>11</strong></td>
+<td><strong>gsensor 18B 帧</strong></td>
+<td>①主叙述仅 PPG 28B，未给 gsensor 帧布局</td>
+<td>完整 18B ABI（<code>user_gsensor_api.c:430-509</code>）：ticks4+acc6+gyro6(恒0)+id2，大端</td>
+<td><strong>📄文档未覆盖</strong>：本文 §3.5 补全</td>
+</tr>
+<tr>
+<td><strong>12</strong></td>
+<td><strong>门控「3 处 + CNF 分支」</strong></td>
+<td>①§2.5 列 <code>CMakeLists/rtos.c/watch_main.c/factory_..._main.c</code> 四处门控</td>
+<td>zqdata 模块 7 文件内<strong>无 <code>#ifdef SYS_DATA_COLLECT_SVC</code></strong>；门控引用点在模块外的调用方固件</td>
+<td><strong>🔬代码未坐实</strong>：模块侧只证「设计=调用方门控+gc」；四处 <code>#if</code> 需在采集固件树核对</td>
+</tr>
+<tr>
+<td><strong>13</strong></td>
+<td><strong>ACC 是否带 <code>&gt;&gt;3</code>/取反</strong></td>
+<td>①§11.2：组帧层无、板级 <code>lis2dh12_demo.c</code> 有（<code>&gt;&gt;3</code>、XY 取反）</td>
+<td>组帧 <code>hr.c:794-799</code> 直接 int16 大端搬 <code>stRawdata.acc_*</code>，无变换；板级变换在上游 <code>lis2dh12</code></td>
+<td><strong>🔬需固件链确认</strong>：<code>pusFrameGsensordata</code> 上游是否已 <code>&gt;&gt;3</code>/取反，取决于板级到组帧的数据链（本次未逐行走通 lis2dh12→frame 链）</td>
+</tr>
+<tr>
+<td><strong>14</strong></td>
+<td><strong>ticks 语义（帧≥1）</strong></td>
+<td>①§4「帧1..N 落盘 ticks 为 OS-tick delta，上行被 AGC 覆盖」</td>
+<td>落盘帧≥1 前 4B = <code>tempticks+=deltaticks</code> 递推（<code>hr.c:726,778</code>）；上行帧≥1 该 4B 被 AGC 覆盖（<code>hr.c:1085</code>）；时间轴靠帧0 UTC+每帧 delta 重建</td>
+<td><strong>✅一致</strong></td>
+</tr>
+<tr>
+<td><strong>15</strong></td>
+<td><strong>通道数 4 = ABI 冻结</strong></td>
+<td>①§11.3：16B PPG raw 固定，改 8 通道 → 帧变 44/56B → APP 错位</td>
+<td>28/40 常量硬编码依赖 <code>ALGO_HR_TOTAL_CHN=HBA_TOTAL_CHN</code>（<code>hr.c:66</code>）；重打包 <code>src[28/30/32/36/37]</code> 偏移写死假设 4 通道 40B</td>
+<td><strong>✅一致</strong>（代码确认偏移写死，改通道数即失配）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>未坐实项（需以采集固件编译/运行核对）：</strong>
+- <strong>门控四处 <code>#if SYS_DATA_COLLECT_SVC</code></strong>（<code>rtos.c</code> / <code>watch_main.c</code> / <code>factory_..._main.c</code> 的 <code>ATTS_HANDLE_VALUE_CNF</code> 分支）——在 zqdata 模块 7 文件之外，本次实证只覆盖模块内（<a href="#5-代码实证-vs-文档-差异与完整性核查">§5</a> 第 12 条）。
+- <strong>ACC <code>&gt;&gt;3</code>/XY 取反的层级归属</strong>——板级 <code>lis2dh12_demo.c:287-289/603-605</code> 有变换，但「组帧层拿到的 <code>pusFrameGsensordata</code> 是否已带变换」需走通 lis2dh12→frame 数据链（第 13 条）。
+- <strong>B 树 zqdata 新模块的实际上行链路</strong>——生产者（<code>gui_app_press.c</code> 10+ 处 <code>gh3x2x_ble_send_to_zqdata</code>）改调 <code>zqdata_send</code>、<code>rx_handler</code> 应用注册均为<strong>遗留待接</strong>（文档①§2.5「遗留」），代码实证仅证模块骨架，未证端到端跑通。
+- <strong>DevType 5B 二进制码语义</strong>（真机 <code>68 39 71 25 81</code>）——仅 hex 展示，位含义未定义。</p>
+<hr />
+<h2 id="6-fileline">6. 附录：关键结构体 / 常量 / file:line 索引</h2>
+<h3 id="61">6.1 关键常量</h3>
+<table>
+<thead>
+<tr>
+<th>常量</th>
+<th>值</th>
+<th>出处</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HR_COV_FRAME_AGC_LEN</code></td>
+<td>12</td>
+<td><code>hr.c:74</code>（A 树）</td>
+</tr>
+<tr>
+<td><code>HR_COV_SEND_FRAME_NUM</code></td>
+<td>7</td>
+<td><code>hr.c:70</code></td>
+</tr>
+<tr>
+<td><code>SPO2_COV_SEND_FRAME_NUM</code></td>
+<td>8</td>
+<td><code>spo2.c:53</code></td>
+</tr>
+<tr>
+<td>HR/SpO2 落盘帧长</td>
+<td>40B</td>
+<td><code>hr.c:628</code> / <code>spo2</code> 对称</td>
+</tr>
+<tr>
+<td>HR/SpO2 上行帧长</td>
+<td>28B</td>
+<td><code>hr.c:973</code></td>
+</tr>
+<tr>
+<td>gsensor 帧长</td>
+<td>18B</td>
+<td><code>user_gsensor_api.c</code></td>
+</tr>
+<tr>
+<td>B2A payload 上限</td>
+<td>228B（244−16）</td>
+<td><code>ble2appEx.c:355</code></td>
+</tr>
+<tr>
+<td><code>BCMD_TEST</code></td>
+<td>0x08</td>
+<td><code>ble2appEx.h:87-97</code></td>
+</tr>
+<tr>
+<td><code>ZQ_TX_RING_SIZE</code> / <code>ZQ_RX_RING_SIZE</code></td>
+<td>4096 / 512</td>
+<td><code>zqdata.c:28,31</code>（B 树）</td>
+</tr>
+<tr>
+<td><code>ZQ_TX_FRAME_MAX</code> / <code>ZQ_RX_FRAME_MAX</code></td>
+<td>244 / 244</td>
+<td><code>zqdata.c:34,37</code></td>
+</tr>
+<tr>
+<td><code>ZQ_TX_READY_TMO_MS</code></td>
+<td>1000</td>
+<td><code>zqdata.c:55</code></td>
+</tr>
+<tr>
+<td>zqdata 句柄段</td>
+<td>0x0A10–0x0A15</td>
+<td><code>zqdata_svc.h:18-31</code></td>
+</tr>
+<tr>
+<td>UUID Service/RX/TX part</td>
+<td>0x1540 / 0x1541 / 0x1542</td>
+<td><code>zqdata_svc.c:32-34</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 关键结构体 / 符号</h3>
+<ul>
+<li><code>STGsensorRawdata { GS16 sXAxisVal; GS16 sYAxisVal; GS16 sZAxisVal; }</code> = 6B 无 padding（A 树 <code>eqc_data_type.h:1338-1342</code>；B 盘 clangd <code>gh_demo_inner.h:96</code>）</li>
+<li><code>zqring_t { buf/size/head/tail/count/dropped }</code>（<code>zqdata_ring.h:23-30</code>）</li>
+<li><code>svcZqdataGroup</code>（<code>zqdata_svc.c:121-129</code>）、<code>zqdataList</code> 属性表（<code>:68-118</code>）</li>
+<li><code>AttsAddGroup</code>/<code>AttsHandleValueNtf</code>/<code>AppConnIsOpen</code>(<code>app_api.h:782</code>)（Cordio）</li>
+<li><code>Gh3x2xDemoProtocolProcess</code>（<code>gh_demo_protocol.c</code>）、<code>B2A_MakePkt2Send</code>（<code>ble2appEx.c:339</code>）</li>
+</ul>
+<h3 id="63-fileline">6.3 file:line 索引（两树分栏）</h3>
+<p><strong>A 树｜采集固件 <code>_collect</code>（上行协议最高权威）</strong> <code>E:/1/apollo4_watch_s7_collect/product/apollo_eiot</code>：
+- <code>gh3x2x_demo_algo_call_hr.c</code>：落盘 <code>:773-823</code>、AGC 拆位 <code>:327-331</code>、起始帧 <code>:426-491</code>、上行/重打包 <code>:973/988-989/1042-1092/1122</code>、起止 <code>:998-1002/1179</code>
+- <code>gh3x2x_demo_algo_call_spo2.c</code>：落盘 <code>:641-703</code>、AGC <code>:350-354</code>、重打包 <code>:920-938</code>、常量 <code>:50/53/61</code>
+- <code>user_gsensor_api.c</code>：18B 帧 <code>:430-509</code>、起始帧 <code>:390-428</code>、上行 <code>:590-705</code>、常量 <code>:31/32</code>
+- <code>Ble2App/ble2appEx.c</code>：B2A 头组装 <code>:57-71</code>、CRC <code>:64</code>、MakePkt2Send <code>:339-425</code>（上限 <code>:355</code>、pfSend <code>:412-414</code>）、RecvData <code>:559/599-648</code>
+- <code>Ble2App/ble2appEx.h</code>：Status 枚举 <code>:26-43</code>、BCMD_TEST <code>:87-97</code>、命令头 <code>:74-81</code>、DC key <code>:118</code>
+- <code>Ble2App/ble2appWrap.c</code>：DC_CTRL <code>:11876-11924</code>、DC_STATUS <code>:11933-11943</code>、DC_DATA <code>:11982-12037</code>
+- <code>factory_gh3x2x_ble_server.c</code>：<code>svcSwFlag[0]=0x01</code> <code>:416</code>、AddGroup <code>:371/375-377/411-430</code>；<code>.h</code>：UUID/句柄 <code>:54-58/63-87</code>
+- <code>factory_gh3x2x_ble_server_main.c</code>：write_cback <code>:355-376</code>、send_to_zqdata <code>:576-632</code>(单包 ntf <code>:595</code>)、TxReady <code>:201-215</code>
+- <code>data_collect_session.c</code>：文件头 <code>:175-232</code>、ECG drain <code>:116-150</code>、ACC 镜像 <code>:246-303</code>、Start/Stop <code>:440-560/402-438</code>
+- <code>gh3x2x_eiot.c</code>：ECG 起停 <code>:865-878/880-894</code>、门控标志 <code>:334/339</code>
+- <code>crc16_ccitt_false.c:24-42</code></p>
+<p><strong>B 树｜zqdata 新模块（GATT 传输层最高权威）</strong> <code>E:/1/apollo4_watch_s7/product/apollo_eiot/zqdata</code>：
+- <code>zqdata_svc.h</code>：句柄枚举 <code>:18-31</code>
+- <code>zqdata_svc.c</code>：UUID <code>:26-38</code>、属性表 <code>:68-118</code>、声明体 <code>:50/54</code>、CCC 初值 <code>:64</code>、服务组 <code>:121-129</code>、add/remove <code>:142-152</code>、write_cback <code>:132-139</code>
+- <code>zqdata.h</code>：接口注释 <code>:8-9/36-41</code>、门控注释 <code>:12</code>、API 签名 <code>:29/33-34/41/50-51/55/58/65</code>
+- <code>zqdata.c</code>：配置宏 <code>:27-56</code>、缓冲 <code>:59-60</code>、txReady 初值 <code>:68</code>、zq_notify <code>:71-83</code>、send <code>:86-98</code>、on_att_cnf <code>:107-113</code>、wait_ready <code>:116-128</code>、ble_notify <code>:132-145</code>、TX 循环 <code>:147-159</code>、on_rx <code>:167-177</code>、rx_task <code>:184-200</code>、init <code>:203-217</code>
+- <code>zqdata_ring.h</code>：记录格式 <code>:5-8</code>、lock 注释 <code>:9-11</code>、结构 <code>:23-30</code>
+- <code>zqdata_ring.c</code>：记录 <code>:12-13</code>、lock <code>:16-32</code>、u16 memcpy <code>:35-36</code>、put 丢弃 <code>:60-74</code>、绕尾 <code>:120-130</code>、pop 跳过 <code>:132-140</code>
+- <code>CMakeLists.txt</code>：父挂载 <code>:4-5</code>、门控注释 <code>:12-13</code>、库 <code>:16-25</code></p>
+<hr />
+<blockquote>
+<p>本文档为合成稿。上行数据帧字节布局以 A 树 <code>_collect</code> 代码实证为最高权威，GATT 传输层以 B 树 zqdata 模块代码实证为准，设计意图/跨模块语义补自文档①。差异见 <a href="#5-代码实证-vs-文档-差异与完整性核查">第 5 章</a>。相关：<a href="protocol-b2a.md">protocol-b2a.md</a>（主控制通道 B2A 协议全集）。</p>
+</blockquote></main>
+</div>
+</body>
 </html>
