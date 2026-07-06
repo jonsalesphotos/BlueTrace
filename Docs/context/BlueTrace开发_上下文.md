@@ -48,7 +48,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
 3. ~~刷新 里程碑与进度.md~~ ✅（2026-07-06 全面刷新：M6.1–M6.4 增量线入册、两处过期口径修正、M7 收窄为"解码半边"、冻结路径=UHTP V1 评审 / 自研 .proto 二选一）。
 4. 设计缺口收尾（设计审查报告_v6.md ⏳ 项）。
-5. **架构演进线（2026-07-06 评估定调，见 [`architecture/架构评估_20260706.md`](../architecture/架构评估_20260706.md)）**：P0 线程修正（采集落盘挪出 Default 池/补 ExceptionHandler/IO 边界收敛）→ P1 结构（拆依赖环、Registry 事件驱动化+下沉、02 设计 R1–R3 落码）→ R4 真实链路首连。**待拍板**：D1 R1–R3 现在落码？D2 传输层 Nordic vs 自研补齐？D3 上 CI？
+5. **架构演进线（评估见 [`architecture/架构评估_20260706.md`](../architecture/架构评估_20260706.md)，已扩详版含 §0 机制速览；D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / CI 已上）**：~~波次A~~ ✅（`3a353ad`：A1 落盘挪 IO 池、A2 异常兜底、A3 Store 自守线程、B1 依赖环消除、CI 上线）。**接下来波次B**：B2 ConnectionRegistry 事件驱动化+下沉 shared、B3 iOS 债下沉（CollectDraft/S7Person 映射/refreshAll/zip 组包拆分）、B4 = 02 设计 R1–R3（注册式协议架构骨架）。之后 R4 真实链路首连（等心率带）。
 
 ## 相关
 

@@ -6,6 +6,18 @@
 
 ---
 
+## [v11·波次A] 架构演进：P0 线程修正 + 依赖环消除 + CI — ✅ 2026-07-06
+提交：`3a353ad`（19 文件）。来源：[`architecture/架构评估_20260706.md`](architecture/架构评估_20260706.md)（D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / 上 CI）。
+- **A1 采集落盘挪出 CPU 池**：会话事件循环注入 `Dispatchers.IO.limitedParallelism(1)`（进 IO 弹性池且保持单线程串行语义）；建目录/首写 manifest 一并挪进会话 IO 协程（消架构#4 主线程 IO），init 失败走 ERROR 收尾。
+- **A2 全局异常兜底**：应用级 scope 挂 `CoroutineExceptionHandler` → DiagnosticsLog ERROR；logWriter scope 兜底走 logcat（防自写递归）。
+- **A3 仓库层自守线程**：`SessionStore`/`DeviceLogStore` 公开方法改 suspend + 内部 `withContext(注入 io)`；删光 7 处调用点散落切换（含 3 处 Composable 内）。
+- **B1 依赖环消除**：`MockBleClient`(+Test) 迁 `ble.mock` 子包——`ble↔protocol`、`ble↔s7` 两个包级双向环消失，为 02 设计 R2 铺路。
+- **CI（D3）**：`.github/workflows/ci.yml`——push/PR 跑 jvmTest + app 单测 + assembleDebug，失败上传测试报告。
+- **文档详版**：架构评估扩写——新增 §0「机制速览」（协程派发器/异常传播/进程生命周期/Compose 状态/ViewModel/DI/KMP 源集/GATT 单飞，8 个机制各配嵌入式类比，面向非 Android 背景读者）+ P0/P1 逐条背景展开 + 拍板记录。
+- 验证：构建 + 全部单测绿。**下一波（波次B）**：B2 Registry 事件驱动化+下沉、B3 iOS 债下沉、B4 = 02 设计 R1–R3。
+
+---
+
 ## [文档] 架构评估：现状、问题与演进 — ✅ 2026-07-06
 [`architecture/架构评估_20260706.{md,html}`](architecture/架构评估_20260706.md)（2 张 SVG：现状分层问题标注图 + M7 目标数据流图）。输入 = 四路代码审查 + 本轮**结构层审计**（模块/包依赖矩阵、KMP 边界、DI、协程纪律逐项核对）。
 - **保持项**：commonMain 零泄漏/零 expect-actual、单消费者串行化、hexlog source-of-truth、版本目录、s7 逻辑下沉（1094 行+4 测试类）、实现引用收敛 DI 组装点。
