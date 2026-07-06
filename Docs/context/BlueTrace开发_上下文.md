@@ -34,7 +34,6 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 
 ## 坑与勘误
 
-- **里程碑与进度.md（最后更新 2026-06-24）两处已过期**：①"本地 main 未推送" → 2026-07-06 核实 `origin/main...main = 0/0`，早已推齐；②"BLE/DUT 仍 Mock" → 仅 main 采集链路成立，s7 分支已接真实 BLE。下次更新 MILESTONES 时一并修。
 - SQLDelight 2.1.0 的 Gradle 插件访问 AGP 9 已移除的 `BaseExtension` → codegen 失败，须 ≥2.3.2（issue #5940）。
 - 崩溃日志必须 `appendBlocking` 同步落盘（异步 add 在进程被杀前刷不到盘）。
 - `AndroidEnvironmentRepository` 字段初始化顺序 NPE：`blocked` 须声明在 `_state` 之前（0c97bd7）。
@@ -47,7 +46,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 0. ~~波次① 数据安全/崩溃~~ ✅（`0c53b25`）、~~波次③ M7 前置接口债~~ ✅（`95b409b`，2026-07-06）：BleClient/SampleDecoder 补形（接口形状已对齐 s7 分支）、背压契约（trySend+droppedPackets 计数、tick 批量刷盘）、Service/Controller 与 Mock 解耦、AppModule 标注唯一切换点。**真机回归已跑**（2026-07-06，M2101K9C：波次①②③+合并+Mock 切换 10 项全过，证据 `assets/screenshots_device/regress_20260706/`；未覆盖=真实 S7 手表链路、交互#15 多窗口）。~~波次②~~ ✅（`8480af1`，2026-07-06：勾选导出做真、导出可取消+模态、日志反馈、权限哑弹闭环、暂停语义、空选防呆）。~~波次④~~ ✅（`210da19`，2026-07-06：红→蓝/紫→主蓝、图标盒圆角方+按钮胶囊、长按结束无障碍语义、48dp 触控、LazyColumn 稳定 key，真机抽查生效）。**审查修复线四波收官**；剩余低优先/待条件项清单见 CHANGELOG v10 条目，按需另起小轮。全清单见 [`代码审查报告_20260706.md`](../代码审查报告_20260706.md)。
 1. ~~裁决 s7 分支归宿~~ ✅ 已合回 main 并推送；~~真机回归~~ ✅ 已跑（见 CHANGELOG「真机回归」条）。波次④ 新增两小项：DEBUG 演示按钮遮 pill、S7 真表链路待有手表时补测。
 2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
-3. **刷新 里程碑与进度.md**：补 6-25/26 权限轮 + s7 分支线，修正两处过期口径（见上）。
+3. ~~刷新 里程碑与进度.md~~ ✅（2026-07-06 全面刷新：M6.1–M6.4 增量线入册、两处过期口径修正、M7 收窄为"解码半边"、冻结路径=UHTP V1 评审 / 自研 .proto 二选一）。
 4. 设计缺口收尾（设计审查报告_v6.md ⏳ 项）。
 
 ## 相关
