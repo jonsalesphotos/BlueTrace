@@ -44,7 +44,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 
 ## 下一步
 
-0. ~~波次① 数据安全/崩溃~~ ✅（`0c53b25`）、~~波次③ M7 前置接口债~~ ✅（`95b409b`，2026-07-06）：BleClient/SampleDecoder 补形（接口形状已对齐 s7 分支）、背压契约（trySend+droppedPackets 计数、tick 批量刷盘）、Service/Controller 与 Mock 解耦、AppModule 标注唯一切换点。**真机回归已跑**（2026-07-06，M2101K9C：波次①②③+合并+Mock 切换 10 项全过，证据 `assets/screenshots_device/regress_20260706/`；未覆盖=真实 S7 手表链路、交互#15 多窗口）。~~波次②~~ ✅（`8480af1`，2026-07-06：勾选导出做真、导出可取消+模态、日志反馈、权限哑弹闭环、暂停语义、空选防呆）。**接下来：波次④**（UI 对齐+可达性：红→蓝/紫→主蓝跟进、图标盒/按钮形状统一、长按结束语义、触控目标）；遗留：交互#15 多窗口蓝牙死角待真机轮。全清单见 [`代码审查报告_20260706.md`](../代码审查报告_20260706.md)。
+0. ~~波次① 数据安全/崩溃~~ ✅（`0c53b25`）、~~波次③ M7 前置接口债~~ ✅（`95b409b`，2026-07-06）：BleClient/SampleDecoder 补形（接口形状已对齐 s7 分支）、背压契约（trySend+droppedPackets 计数、tick 批量刷盘）、Service/Controller 与 Mock 解耦、AppModule 标注唯一切换点。**真机回归已跑**（2026-07-06，M2101K9C：波次①②③+合并+Mock 切换 10 项全过，证据 `assets/screenshots_device/regress_20260706/`；未覆盖=真实 S7 手表链路、交互#15 多窗口）。~~波次②~~ ✅（`8480af1`，2026-07-06：勾选导出做真、导出可取消+模态、日志反馈、权限哑弹闭环、暂停语义、空选防呆）。~~波次④~~ ✅（`210da19`，2026-07-06：红→蓝/紫→主蓝、图标盒圆角方+按钮胶囊、长按结束无障碍语义、48dp 触控、LazyColumn 稳定 key，真机抽查生效）。**审查修复线四波收官**；剩余低优先/待条件项清单见 CHANGELOG v10 条目，按需另起小轮。全清单见 [`代码审查报告_20260706.md`](../代码审查报告_20260706.md)。
 1. ~~裁决 s7 分支归宿~~ ✅ 已合回 main 并推送；~~真机回归~~ ✅ 已跑（见 CHANGELOG「真机回归」条）。波次④ 新增两小项：DEBUG 演示按钮遮 pill、S7 真表链路待有手表时补测。
 2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
 3. **刷新 里程碑与进度.md**：补 6-25/26 权限轮 + s7 分支线，修正两处过期口径（见上）。
@@ -57,4 +57,4 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - 架构：[`architecture/存储与日志设计.md`](../architecture/存储与日志设计.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/BLE协议帧规格_开发者版.md`](../architecture/BLE协议帧规格_开发者版.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture-v2/`](../architecture-v2/)
 - 设计验收：[`设计审查报告_v6.md`](../设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计稿与真机对比_v2.html)
 - 测试：`shared/src/jvmTest`（12 例）、`app/src/test`（4 例）；真机 M2101K9C / Android 13
-- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture-v2/s7/S7协议共识规格.md`](../architecture-v2/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）
+- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture-v2/s7/S7协议共识规格.md`](../architecture-v2/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）；**ZQDATA 下一代重设计**（基于 UHTP V4，离线优先，设计稿待固件评审）：[`architecture-v2/s7/protocol-zqdata-uhtp-v1.md`](../architecture-v2/s7/protocol-zqdata-uhtp-v1.md) + [`zqdata_uhtp_v1_draft.proto`](../architecture-v2/s7/zqdata_uhtp_v1_draft.proto)（2026-07-06，设计基线 = `E:\UHTP_BLE_Protocol_Design_V4.md`）

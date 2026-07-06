@@ -6,6 +6,22 @@
 
 ---
 
+## [v10·波次④] 审查修复：UI 对齐 + 可达性（审查修复线收官） — ✅ 2026-07-06
+提交：`210da19`（11 代码文件）。来源：[`代码审查报告_20260706.md`](代码审查报告_20260706.md) 波次④（界面 2/3/4/5/6/7/9/10 + 8 部分）+ 真机回归新发现。
+- **原型裁决跟进**：运行屏 ♥ 心率 `error` 红 → `primaryDeep`；长按「结束」红底 → **主蓝胶囊**（红独占错误裁决）；用户选择/编辑面板/GNSS 勾选的整套紫选中态 → **主蓝**（紫只留实体图标）。
+- **形状统一**：EntryTile/ListTileRow 图标盒 圆形 → **圆角方 r10**、PrimaryButton/OutlineBtn 14dp → **胶囊 999**（对齐原型 `.ico`/`.btn`，真机抽查 `19_wave4_home` 生效）。
+- **可达性**：长按结束补 `Role.Button` + 无障碍长按动作（返回硬锁定下 TalkBack 用户的唯一出路，界面#4）；5 处顶栏文字动作补 `minimumInteractiveComponentSize` ≥48dp（数据全选/选择、详情全选、用户保存、场景完成、权限授权 pill）。
+- **其他**：长按遮罩硬编码亮色 → `BT.bg` 随亮暗（暗色不再发白）；实时流 LazyColumn 换稳定 id key（`NumberedLine`，高频包不再全表重组）；DEBUG 演示按钮下移 120dp 不再遮 pill；删 `MonoSmall`/`MonoBody` 死 token（双真源隐患）。
+- 验证：构建 + 单测全绿 + 真机抽查。
+- **审查修复线收官**：四波全部完成，52 条中高危/中危主体已清。剩余为低优先与待条件项——架构 4（start 主线程 IO）/11（会话索引入库）/12/14、界面 8（typography 全线接线）/12（场景 en 词表）/13/15 部分、交互 13（按 s7 新连接页复评）/15（多窗口，待真机分屏）、s7 增量清单中低项（写确认、重组上限、pullLog 完整性、对时时区等）——按需另起小轮。
+
+---
+
+## [文档] ZQDATA·UHTP V1 协议重设计（离线优先，设计稿） — ✅ 2026-07-06
+[`architecture-v2/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture-v2/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture-v2/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（`E:\UHTP_BLE_Protocol_Design_V4.md`，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture-v2/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture-v2/s7/CHANGELOG.md`](architecture-v2/s7/CHANGELOG.md) 第 21 轮。
+
+---
+
 ## [真机回归] 波次①②③ + s7 合并 + Mock 切换 全链路 — ✅ 2026-07-06
 设备：Xiaomi M2101K9C / Android 13，adb 驱动全程截图取证（[`assets/screenshots_device/regress_20260706/`](assets/screenshots_device/regress_20260706/)）。
 
