@@ -6,6 +6,11 @@
 
 ---
 
+## [文档] 目录整理第六轮：architecture 已实施方案归档 — ✅ 2026-07-06
+`存储与日志设计.md`（v7 已实施，真相在代码）→ `归档/`，5 处活引用改道；architecture/ 现 11 项全部为"活文档或待拍板候选"：评估（P2 在册）、02（R4/R5 蓝图）、自研协议线四件（M7 二选一未拍板，拍板前按纪律保留）、机器契约两件（路径冻结）、s7/（现网协议线）、README + assets（帧规格脚本）。
+
+---
+
 ## [文档] 目录整理第五轮：解散 Docs/assets 混桶——资源随使用者打包 — ✅ 2026-07-06
 用户口径：html 与其资源文件同文件夹打包，不留归属不明的公共资源桶。
 - `assets/screenshots_v6/`（60 张设计稿截图）+ `assets/brand/`（图标/首屏源图）→ **`设计/assets/`**（设计三件套专属资源，三件套引用改同包相对路径）。
@@ -211,7 +216,7 @@
 
 ## [v7] 存储 / 日志重构 — ✅ 2026-06-24
 提交：`f38ce01`（日志 → 滚动 .log）、`2c248a3`（用户 → SQLDelight 用户表）。**本地 main 未推送**。
-设计文档：[`architecture/存储与日志设计.md`](architecture/存储与日志设计.md)（v8 审查口径 #1–#13）。demo 阶段**直接替换、不做迁移**。Workflow 编排 + 真机 `adb pull` 取证。
+设计文档：[`归档/存储与日志设计.md`](归档/存储与日志设计.md)（v8 审查口径 #1–#13；已实施，2026-07-06 归档）。demo 阶段**直接替换、不做迁移**。Workflow 编排 + 真机 `adb pull` 取证。
 
 **应用日志 → 滚动 `.log` 文件（`f38ce01`）**
 - `FileDiagnosticsLog`（shared/commonMain）：单个长生命周期 `appendingSink` + 单线程 writerScope（`Dispatchers.IO.limitedParallelism(1)`）串行写、每行 flush、跨午夜按 `app-YYYY-MM-DD.log` 切文件、保留最新 7 天。

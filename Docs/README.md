@@ -32,7 +32,6 @@ Docs/
 │   ├── BLE协议帧规格_开发者版.{md,html} ← 自研帧规格实现视角（布局/位图/实例包/状态机）
 │   ├── 02_parser_registry_design.md ← 可注册协议架构（R1–R3 已落码，R4/R5 蓝图）
 │   ├── 03_collect_protocol_design.md + btcp1_draft.proto ← 自研采集协议候选（M7 冻结二选一之一）
-│   ├── 存储与日志设计.md         ← 存储/日志重构方案（v7 已落地）
 │   ├── scenes.json               ← 场景词表（与 app assets 同源，勿改路径）
 │   └── s7/                       ← S7 手表协议线（独立 CHANGELOG）
 │       ├── S7协议共识规格.{md,html}          ← 共识稿（B2A + 采集固件协议，以此为准）

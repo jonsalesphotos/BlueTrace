@@ -9,7 +9,6 @@
 | --- | --- | --- |
 | [架构评估_20260706.md](架构评估_20260706.md) | 全仓架构评估与演进路线（含 §0 机制速览，面向非 Android 背景） | **活**——波次A/B 已按此收官，P2 卫生项在册 |
 | [02_parser_registry_design.md](02_parser_registry_design.md) | 可注册协议架构（ProtocolProfile/Registry/ParserHost） | **R1–R3 已落码 ✅**（`shared.protocol.registry`）；R4/R5 蓝图部分仍算数 |
-| [存储与日志设计.md](存储与日志设计.md) | 存储/日志重构方案（SQLDelight + 滚动 .log） | **已实施 ✅**（v7 轮），保留为设计依据 |
 | [BLE协议帧规格_开发者版.md](BLE协议帧规格_开发者版.md) | 自研协议 v0.1 帧层实现视角（布局/位图/实例包/状态机） | 草案，自研线帧层权威；冻结二选一见下 |
 | [bluetrace_v0.proto](bluetrace_v0.proto) | 自研协议 payload 机器契约 | v0.1 草案；**路径冻结勿挪**（SPEC 引用） |
 | [03_collect_protocol_design.md](03_collect_protocol_design.md) + [btcp1_draft.proto](btcp1_draft.proto) | 自研线演进稿 BTCP/1（补离线回传/会话绑定/对时） | 设计稿 v1，评审通过才并入 v0.proto |
