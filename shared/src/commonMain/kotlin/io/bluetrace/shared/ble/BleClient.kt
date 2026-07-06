@@ -67,4 +67,11 @@ interface BleClient {
 
     /** 每设备原始 Notify 流（订阅即开始接收）。 */
     fun notifications(deviceId: String): Flow<BleNotification>
+
+    /**
+     * 下行写（App→设备，命令通道）。真实端 = 对协议写特征 Write Without Response
+     * （S7 = FFE1，自研 DUT = DUT_WRITE，UUID 由 profile 决定）；Mock 端路由到对应模拟应答器。
+     * 设备未连接时静默丢弃（与真实 GATT 行为一致，可靠性由上层命令队列超时兜底）。
+     */
+    suspend fun write(deviceId: String, bytes: ByteArray)
 }

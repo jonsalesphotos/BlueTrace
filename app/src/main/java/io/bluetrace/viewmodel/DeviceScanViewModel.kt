@@ -8,12 +8,14 @@ import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.DeviceLimits
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
+import io.bluetrace.shared.s7.B2aDetect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -24,6 +26,10 @@ data class DeviceRowUi(
     val device: ScannedDevice,
     val link: LinkState,
     val disabled: Boolean, // 达上限且未连 → 不可点
+    /** 已识别目标：有 B2A 服务(FFE0)的手表 或 参考心率带；用于排序置顶与打标。 */
+    val recognized: Boolean = false,
+    /** 有 B2A 服务(FFE0) → 可作 S7 手表控制（区别于参考带）。 */
+    val b2a: Boolean = false,
 )
 
 data class DeviceScanUiState(
@@ -70,8 +76,14 @@ class DeviceScanViewModel(
             val connectedIds = connected.map { it.id }.toSet()
             val dutCount = connected.count { it.kind == DeviceKind.DUT }
             val refCount = connected.count { it.kind == DeviceKind.REFERENCE }
-            val rows = raw.results
-                .filter { it.rssi >= raw.rssi }
+            val resultIds = raw.results.mapTo(HashSet()) { it.id }
+            // 已连接设备常在连接后**停止广播** → 从扫描结果消失；并回来，保证始终可见并置顶
+            val merged = raw.results + connected.filter { it.id !in resultIds }
+            val rows = merged
+                // 隐藏无名设备（命名设备才展示）—— 已连接设备**豁免**（始终显示）
+                .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)") }
+                // RSSI 过滤 —— 已连接设备豁免
+                .filter { it.id in connectedIds || it.rssi >= raw.rssi }
                 .filter { raw.query.isBlank() || it.name.contains(raw.query, true) || it.address.contains(raw.query, true) }
                 .map { dev ->
                     val link = when {
@@ -82,9 +94,17 @@ class DeviceScanViewModel(
                         DeviceKind.DUT -> dutCount >= DeviceLimits.MAX_DUT
                         DeviceKind.REFERENCE -> refCount >= DeviceLimits.MAX_REFERENCE
                     }
-                    DeviceRowUi(dev, link, disabled = atLimit && dev.id !in connectedIds)
+                    // 识别：有 B2A 服务(FFE0)的手表 或 参考心率带 → 已识别目标；其余（随机 BLE）沉底
+                    val b2a = B2aDetect.matchesAdvertisement(dev)
+                    val recognized = b2a || dev.kind == DeviceKind.REFERENCE
+                    DeviceRowUi(dev, link, disabled = atLimit && dev.id !in connectedIds, recognized = recognized, b2a = b2a)
                 }
-                .sortedWith(compareByDescending<DeviceRowUi> { it.link == LinkState.CONNECTED }.thenByDescending { it.device.rssi })
+                // 排序：已连接置顶 → 已识别（B2A 手表 + 参考带）在前、未识别下沉 → 信号强度（RSSI 降序）
+                .sortedWith(
+                    compareByDescending<DeviceRowUi> { it.link == LinkState.CONNECTED }
+                        .thenByDescending { it.recognized }
+                        .thenByDescending { it.device.rssi },
+                )
             DeviceScanUiState(
                 rows = rows,
                 connectedCount = connected.size,
@@ -107,7 +127,9 @@ class DeviceScanViewModel(
             stopScan()
         }
         scanJob = viewModelScope.launch {
-            bleClient.scan().collect { devices ->
+            // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
+            // 让列表 ~1 秒才按信号重排一次——防跳动、可稳定点选（与控制台页一致）。
+            bleClient.scan().sample(1000).collect { devices ->
                 _results.value = devices
                 devices.forEach { observeLink(it.id) }
             }
@@ -134,8 +156,9 @@ class DeviceScanViewModel(
             if (!registry.canConnect(device.kind)) return
             observeLink(device.id)
             viewModelScope.launch {
-                registry.add(device)
+                // 先连后入册：真实 BLE 连接可失败/超时，失败不得留下幽灵「已连接」条目
                 bleClient.connect(device)
+                if (bleClient.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
             }
         }
     }

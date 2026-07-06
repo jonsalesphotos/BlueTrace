@@ -34,6 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.Switch
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -99,6 +104,24 @@ fun SettingsHomeScreen(
             item { SectionHeader(stringResource(R.string.settings_sec_diag)) }
             item { SettingsNavRow(Icons.Filled.Article, BT.primary, BT.primaryC, stringResource(R.string.settings_log), stringResource(R.string.settings_log_sub), onLog) }
             item { SettingsNavRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_device_maint), stringResource(R.string.settings_device_maint_sub), onDeviceMaint) }
+            if (io.bluetrace.BuildConfig.DEBUG) {
+                item {
+                    // 仅 DEBUG：Mock/真实 BLE 后端切换（重启生效）。无设备演示/UI 回归用 Mock；默认真实 GATT。
+                    val ctx = LocalContext.current
+                    var useMock by remember { mutableStateOf(io.bluetrace.data.android.BleBackendSwitch.useMock(ctx)) }
+                    fun toggle(on: Boolean) {
+                        useMock = on
+                        io.bluetrace.data.android.BleBackendSwitch.setUseMock(ctx, on)
+                    }
+                    ListTileRow(
+                        Icons.Filled.Memory, BT.warning, BT.warningC,
+                        stringResource(R.string.settings_mock_ble),
+                        stringResource(R.string.settings_mock_ble_sub),
+                        onClick = { toggle(!useMock) },
+                        trailing = { Switch(checked = useMock, onCheckedChange = ::toggle) },
+                    )
+                }
+            }
             item { SectionHeader(stringResource(R.string.settings_sec_about)) }
             item { SettingsNavRow(Icons.Filled.Info, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_about), stringResource(R.string.settings_about_sub), onAbout) }
             item {
@@ -241,24 +264,7 @@ fun AppLogScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     }
 }
 
-/** 设置F · 设备维护（DUT · 后期占位）。 */
-@Composable
-fun DeviceMaintenanceScreen(onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(BT.bg)) {
-        BtTopBar(title = stringResource(R.string.maint_title), subtitle = stringResource(R.string.maint_subtitle), onBack = onBack)
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                stringResource(R.string.maint_item_time),
-                stringResource(R.string.maint_item_user),
-                stringResource(R.string.maint_item_firmware),
-                stringResource(R.string.maint_item_ota),
-            ).forEach {
-                ListTileRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, it, stringResource(R.string.maint_deferred), enabled = false)
-            }
-            Text(stringResource(R.string.maint_note), fontSize = 12.sp, color = BT.onSurfaceV)
-        }
-    }
-}
+// 设置F · 设备维护（DUT）已升级为 S7 控制台 → DeviceConsoleScreen.kt（原灰显占位删除）。
 
 /** 设置D · 关于。 */
 @Composable

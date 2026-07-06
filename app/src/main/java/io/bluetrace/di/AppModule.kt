@@ -73,9 +73,14 @@ val appModule = module {
         FileDiagnosticsLog(get(), logsDir, get(), get(), get(named("logWriter")))
     }
     // ⚠️ Mock/真实 BLE 的唯一切换点：全 App 只经 BleClient 接口消费（service/controller 均不感知具体类型）。
-    // s7 分支合并时在此改为可切换绑定（AndroidBleClient ↔ MockBleClient），并同步替换 SampleDecoder。
+    // 运行时可切换（设置 · 仅 DEBUG 行「使用 Mock BLE」，重启生效）：默认真实 GATT（2026-07-02 用户定"纯真实"），
+    // Mock 供无设备演示/UI 回归。注意：SampleDecoder 仍为 Mock——真实设备的采集解码待 M7 协议冻结，
+    // 真实模式下采集只落 raw HEX（source of truth）+ unparseable 告警，属预期。
     single { MockBleClient(get(), get()) }
-    single<BleClient> { get<MockBleClient>() }
+    single<BleClient> {
+        if (io.bluetrace.data.android.BleBackendSwitch.useMock(androidContext())) get<MockBleClient>()
+        else io.bluetrace.data.android.AndroidBleClient(androidContext(), get())
+    }
     single<SampleDecoder> { MockSampleDecoder() }
     single<SessionController> {
         DefaultSessionController(
@@ -95,6 +100,7 @@ val appModule = module {
 
     // ---- app 级状态 / 仓库 ----
     single { ConnectionRegistry() }
+    single { io.bluetrace.domain.DeviceLogStore(androidContext()) }
     single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
@@ -114,4 +120,17 @@ val appModule = module {
     viewModelOf(::ExportViewModel)
     viewModel { (folder: String) -> SessionDetailViewModel(folder, get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get()) }
+    viewModel { io.bluetrace.viewmodel.ConsoleConnectViewModel(get(), get()) }
+    // 设备维护（DUT）控制台：设备日志/操作日志经 MediaStore 导出到 Download/BlueTrace/logs/
+    viewModel {
+        io.bluetrace.viewmodel.DeviceConsoleViewModel(
+            ble = get(),
+            registry = get(),
+            clock = get(),
+            zone = get(),
+            subjects = get(),
+            exporter = get(),
+            logStore = get(),
+        )
+    }
 }

@@ -1,0 +1,104 @@
+// BTCP/1 草案 —— 03_collect_protocol_design.md 的机器可读定义（2026-07-02）
+//
+// 定位：对 Docs/architecture/bluetrace_v0.proto 的**纯增量**（只增不改）。
+// 评审通过后本文件内容并入 bluetrace_v0.proto 一起冻结为 v1；在此之前仅供讨论，勿生成代码入库。
+// 信封：BLE 12B 标准头（SPEC §4.3），本文件只定义 header.msgType 分发到的 payload。
+
+syntax = "proto3";
+
+package bluetrace.protocol.v1draft;
+
+option java_package = "io.bluetrace.protocol.v1draft";
+
+// ============ 既有消息的字段增量（并入时直接改 v0 定义，pre-freeze 允许） ============
+
+// SessionControl 增量（原 message 加字段 2/3/4）：
+//   uint32 app_session_id = 2;  // App 会话号，杜绝跨会话串包
+//   uint64 wall_clock_ms  = 3;  // START 附带手机 Unix 毫秒 → 设备持久化对时锚点
+//   bool   offline        = 4;  // true = 设备本地落盘（离线采集），不走空口数据面
+
+// Command.oneof 增量（tag 9–16）：
+//   ListSessions   list_sessions    = 9;
+//   OpenTransfer   open_transfer    = 10;
+//   TransferCredit transfer_credit  = 11;
+//   CloseTransfer  close_transfer   = 12;
+//   DeleteSession  delete_session   = 13;
+//   QueryStorage   query_storage    = 14;
+//   TimeSyncPing   time_sync_ping   = 15;
+//   FormatStorage  format_storage   = 16;
+
+message ListSessions   { uint32 page = 1; uint32 page_size = 2; }
+message OpenTransfer   { uint32 session_id = 1; uint64 resume_offset = 2; uint32 max_chunk_bytes = 3; }
+message TransferCredit { uint32 transfer_id = 1; uint32 credits = 2; }
+message CloseTransfer  { uint32 transfer_id = 1; bool abort = 2; }
+message DeleteSession  { uint32 session_id = 1; }
+message QueryStorage   {}
+message TimeSyncPing   { uint32 seq = 1; uint64 app_tx_us = 2; }
+message FormatStorage  { bool confirm = 1; }
+
+// ============ 新 msgType：设备 → App ============
+
+// header.msgType = 0x13 —— 对时应答（NTP 式，见 03 §4）
+message TimeSyncPong {
+  uint32 seq          = 1;  // 回显 TimeSyncPing.seq
+  uint64 app_tx_us    = 2;  // 回显 t0
+  uint64 dev_rx_us    = 3;  // t1：设备收到时刻（设备单调时钟 us）
+  uint64 dev_tx_us    = 4;  // t2：设备发出时刻
+}
+
+// header.msgType = 0x50 —— 已存会话目录（偶发大消息，允许标准分片）
+message SessionCatalog {
+  uint32 total = 1;
+  uint32 page  = 2;
+  repeated OfflineSessionMeta sessions = 3;
+}
+
+message OfflineSessionMeta {
+  uint32 session_id         = 1;  // 设备本地自增（Flash 持久，不回绕，O-2）
+  uint64 start_device_ts_us = 2;
+  uint64 anchor_utc_ms      = 3;  // 最近锚点换算的开始 UTC；0 = 从未对时
+  uint32 duration_s         = 4;
+  uint64 size_bytes         = 5;
+  repeated uint32 sensor_ids = 6 [packed = true];
+  uint32 app_session_id     = 7;  // App 触发的离线采集回填；设备自启 = 0
+}
+
+// header.msgType = 0x51 —— 块传输开始
+message TransferStart {
+  uint32 transfer_id   = 1;
+  uint32 session_id    = 2;
+  uint64 total_bytes   = 3;
+  uint64 resume_offset = 4;  // 设备确认的续传起点
+  uint32 chunk_bytes   = 5;  // = min(App max_chunk_bytes, 设备能力, 单包不分片上限)
+  uint32 file_crc32    = 6;  // CRC-32/IEEE，覆盖全文件字节
+}
+
+// header.msgType = 0x52 —— 数据块（高吞吐路径：单块必须装进单个 notification，禁分片）
+message TransferChunk {
+  uint32 transfer_id = 1;
+  uint64 offset      = 2;
+  bytes  data        = 3;   // len ≤ TransferStart.chunk_bytes
+}
+
+// header.msgType = 0x53 —— 传输结束
+message TransferEnd {
+  uint32 transfer_id = 1;
+  enum Reason { COMPLETE = 0; ABORTED = 1; DEVICE_ERROR = 2; }
+  Reason reason      = 2;
+  uint64 sent_bytes  = 3;
+}
+
+// header.msgType = 0x54 —— 设备存储占用
+message StorageInfo {
+  uint64 total_bytes   = 1;
+  uint64 used_bytes    = 2;
+  uint32 session_count = 3;
+}
+
+// header.msgType = 0x55 —— 离线会话文件首帧（仅存在于设备文件内，空口不发）
+message OfflineSessionHeader {
+  uint32 format_version      = 1;  // 文件格式版本（独立于协议 ver）
+  OfflineSessionMeta meta    = 2;
+  uint64 anchor_device_ts_us = 3;  // 对时锚点对：设备时刻
+  uint64 anchor_utc_ms       = 4;  //             对应 UTC；0 = 无锚点
+}

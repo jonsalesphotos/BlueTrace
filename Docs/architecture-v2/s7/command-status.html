@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S7 · B2A 指令实现状态清单</title>
+<style>
+  :root{
+    --primary:#2BAEEA; --primary-deep:#1C8EC5; --primary-c:#DCF1FB;
+    --bg:#F3F5F8; --surface:#FFFFFF; --on-surface:#1B1D22; --on-surface-v:#4C525C;
+    --outline-v:#D7DAE0; --ok:#2AAE6D; --ok-c:#D4F4E2; --warn:#E89F40; --warn-c:#FFE8C9;
+    --err:#E5484D; --err-c:#FFE3E3; --gray:#8A9099; --gray-c:#ECEEF3;
+    --font:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--on-surface);font-family:var(--font);line-height:1.6;padding:30px 18px 70px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header.hero{background:linear-gradient(135deg,var(--primary-c),#fff 70%);border:1px solid var(--outline-v);border-radius:18px;padding:26px 30px;margin-bottom:22px}
+  h1{font-size:23px;font-weight:800}
+  .hero .sub{color:var(--on-surface-v);margin-top:8px;font-size:14px;max-width:860px}
+  .hero .sub b{color:var(--primary-deep)}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  section{background:var(--surface);border:1px solid var(--outline-v);border-radius:16px;padding:22px 26px;margin-bottom:18px}
+  h2{font-size:18px;font-weight:800;color:var(--primary-deep);margin-bottom:12px}
+  h3{font-size:14px;font-weight:700;margin:16px 0 6px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+  th{background:var(--bg);text-align:left;padding:7px 9px;font-weight:700;border-bottom:2px solid var(--outline-v);white-space:nowrap}
+  td{padding:6px 9px;border-bottom:1px solid var(--outline-v);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--outline-v);border-radius:5px;padding:1px 5px}
+  .b{display:inline-block;border-radius:999px;font-size:11px;font-weight:700;padding:2px 9px;white-space:nowrap}
+  .ok{background:var(--ok-c);color:#156B42}
+  .warn{background:var(--warn-c);color:#8A5A14}
+  .err{background:var(--err-c);color:#9B2226}
+  .gray{background:var(--gray-c);color:#4C525C}
+  .callout{border-left:4px solid var(--ok);background:var(--ok-c);border-radius:0 12px 12px 0;padding:12px 16px;font-size:13.5px;margin-top:10px}
+  footer{text-align:center;color:var(--gray);font-size:12px;margin-top:26px}
+</style>
+</head>
+<body><div class="wrap">
+
+<header class="hero">
+  <h1>S7 · B2A 指令实现状态清单</h1>
+  <p class="sub">
+    设备维护（DUT）控制台 · 2026-07-02 真机联调后 · 协议全表见 <b>protocol-spec.md</b>，实现见 <b>shared/…/s7/</b>。
+    本清单只覆盖<b>维护工具</b>定位的读写与设备控制指令；B2A 的手表业务指令（推送/健康上报/闹钟表盘监测…）属配套 App 日常功能，标「业务类·不在本工具范围」。
+  </p>
+  <div class="legend">
+    <span class="b ok">✅ 已实现（真机验证）</span>
+    <span class="b warn">⬜ 未做 · 后续/二期</span>
+    <span class="b gray">◻ 业务类 · 不在本工具范围</span>
+    <span class="b err">⛔ 固件未开（#if 0）</span>
+  </div>
+</header>
+
+<section>
+  <h2>一、传输层 —— 全部实现</h2>
+  <table>
+    <tr><th>能力</th><th>状态</th><th>实现</th></tr>
+    <tr><td>BLE 扫描（广播特征识别 FFE0 · nRF 式全量展示）</td><td><span class="b ok">✅</span></td><td><code>AndroidBleClient.scan</code> + <code>B2aDetect</code></td></tr>
+    <tr><td>连接（MTU 247 → 服务发现 → 订阅 CCC）</td><td><span class="b ok">✅</span></td><td><code>AndroidBleClient.connect</code></td></tr>
+    <tr><td>B2A 帧信封（8B 头 + 4B 命令头 + CRC16-CCITT-FALSE）</td><td><span class="b ok">✅</span></td><td><code>S7Frame.kt</code></td></tr>
+    <tr><td>多包重组（index 连续性 + 声明长度校验）· 短帧特例容忍</td><td><span class="b ok">✅</span></td><td><code>S7FrameDecoder</code></td></tr>
+    <tr><td>单飞命令队列 + 3s 超时 + 迟到应答防错配 · 断链自动 reset</td><td><span class="b ok">✅</span></td><td><code>S7Console</code></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>二、维护指令实现状态</h2>
+
+  <h3>GET 读设备（0x02）</h3>
+  <table>
+    <tr><th>Key</th><th>指令</th><th>状态</th><th>控制台位置</th></tr>
+    <tr><td><code>0x01</code></td><td>设备时间</td><td><span class="b ok">✅</span></td><td>时间栏</td></tr>
+    <tr><td><code>0x04</code></td><td>用户信息</td><td><span class="b ok">✅</span></td><td>用户信息栏</td></tr>
+    <tr><td><code>0x21</code></td><td>版本信息（TLV）</td><td><span class="b ok">✅</span></td><td>FW/Modem/SecBL/BP</td></tr>
+    <tr><td><code>0x22</code></td><td>功能掩码</td><td><span class="b ok">✅</span></td><td>Func（真机回 0，逐位待固件）</td></tr>
+    <tr><td><code>0x24</code></td><td>电量</td><td><span class="b ok">✅</span></td><td>Battery</td></tr>
+    <tr><td><code>0x26</code></td><td>身份 SN/MAC/IMEI/ICCID</td><td><span class="b ok">✅</span></td><td>设备信息栏（MAC 反序修正）</td></tr>
+    <tr><td><code>0x28</code></td><td>绑定状态</td><td><span class="b ok">✅</span></td><td>Bond</td></tr>
+    <tr><td><code>0x02/03/05..15/25/27/2A</code></td><td>闹钟/目标/佩戴/单位/久坐/监测开关/提醒/表盘…</td><td><span class="b gray">◻</span></td><td>业务类</td></tr>
+  </table>
+
+  <h3>SET 写设备（0x03）</h3>
+  <table>
+    <tr><th>Key</th><th>指令</th><th>状态</th><th>控制台位置</th></tr>
+    <tr><td><code>0x01</code></td><td>时间同步（对时）</td><td><span class="b ok">✅</span></td><td>时间栏 · 同步时间</td></tr>
+    <tr><td><code>0x04</code></td><td>用户信息（可编辑写入）</td><td><span class="b ok">✅</span></td><td>用户信息栏 · 编辑并写入</td></tr>
+    <tr><td>其余 SET</td><td>目标/提醒/监测/表盘…</td><td><span class="b gray">◻</span></td><td>业务类</td></tr>
+  </table>
+
+  <h3>DEV_CTRL 设备控制（0x07）</h3>
+  <table>
+    <tr><th>Key</th><th>指令</th><th>状态</th><th>控制台位置</th></tr>
+    <tr><td><code>0x01</code></td><td>关机</td><td><span class="b ok">✅</span></td><td>危险操作（断链判据）</td></tr>
+    <tr><td><code>0x02</code></td><td>重启</td><td><span class="b ok">✅</span></td><td>危险操作</td></tr>
+    <tr><td><code>0x03</code></td><td>恢复出厂</td><td><span class="b ok">✅</span></td><td>危险操作</td></tr>
+    <tr><td><code>0x04 / 0x05</code></td><td>找手表 / 结束找表</td><td><span class="b ok">✅</span></td><td>危险操作 · toggle 可停止</td></tr>
+    <tr><td><code>0x07 / 0x09</code></td><td>拉取设备日志 / 回传块</td><td><span class="b ok">✅</span></td><td>设备日志 → Download/BlueTrace/logs/</td></tr>
+    <tr><td><code>0x08</code></td><td>实时 BLE 日志</td><td><span class="b err">⛔ 固件 #if 0</span></td><td>—</td></tr>
+    <tr><td><code>0x0A / 0x0B</code></td><td>拉取/回传算法特征文件</td><td><span class="b warn">⬜ 后续</span></td><td>诊断增强</td></tr>
+    <tr><td><code>0x06</code></td><td>找手机结束</td><td><span class="b gray">◻</span></td><td>手机侧，非维护</td></tr>
+  </table>
+
+  <h3>IND 设备→App（0x05）</h3>
+  <table>
+    <tr><th>Key</th><th>指令</th><th>状态</th></tr>
+    <tr><td><code>0x0C</code></td><td>心跳（电量/seq）</td><td><span class="b ok">✅ 被动解析</span></td></tr>
+    <tr><td>其余</td><td>来电/运动/音乐/相机/健康告警…</td><td><span class="b gray">◻ 业务类</span></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>三、除 OTA 外未实现的维护相关指令</h2>
+  <table>
+    <tr><th>指令族</th><th>说明</th><th>状态 / 为何暂缓</th></tr>
+    <tr><td><b>BOND 绑定族</b>（0x01）</td><td>业务绑定握手 + 鉴权码 KEYCODE</td><td><span class="b ok">无需</span> 真机实证维护指令免绑定直发；固件不校验 KEYCODE。仅当未来加门控才需要</td></tr>
+    <tr><td><b>FILE_TRANS / OTA</b>（0x0F 全族）</td><td>固件/资源 OTA 升级</td><td><span class="b warn">⬜ 二期</span> 端到端编排（文件清单/类型/生效触发）文档缺失，需固件组补升级包规范</td></tr>
+    <tr><td><b>FILE_ALGO</b>（0x0A/0x0B）</td><td>拉取算法特征文件</td><td><span class="b warn">⬜ 后续</span> 诊断增强，复用日志拉取通道模式即可加</td></tr>
+    <tr><td><b>GET_DIAL / 表盘管理</b></td><td>表盘信息/切换/排序/删除</td><td><span class="b gray">◻</span> 业务类，非维护工具</td></tr>
+    <tr><td><b>TEST 工厂模式</b>（0x08）</td><td>进厂模式 / 马达开关</td><td><span class="b gray">◻</span> 产测专用；MOTO_ON/OFF 固件无 handler</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>一句话结论：</b>维护控制台需要的读写与控制指令<b>已全部实现并真机验证</b>（设备信息全套 GET、时间/用户 SET、找手表/重启/关机/恢复出厂、日志拉取、心跳）。
+    <b>除 OTA（二期）外</b>，其余未实现项要么是业务类手表功能（不属维护工具），要么固件侧 <code>#if 0</code> 未开（BLE_LOG），要么可选诊断增强（算法特征文件）——均不阻塞控制台运维用途。
+  </div>
+</section>
+
+<footer>BlueTrace · Docs/architecture-v2/s7/command-status · 2026-07-02 · 真机 SKG WATCH S7-FCC4 (FW 1.0.102)</footer>
+</div></body>
+</html>
