@@ -6,6 +6,15 @@
 
 ---
 
+## [文档] 目录整理第五轮：解散 Docs/assets 混桶——资源随使用者打包 — ✅ 2026-07-06
+用户口径：html 与其资源文件同文件夹打包，不留归属不明的公共资源桶。
+- `assets/screenshots_v6/`（60 张设计稿截图）+ `assets/brand/`（图标/首屏源图）→ **`设计/assets/`**（设计三件套专属资源，三件套引用改同包相对路径）。
+- `assets/screenshots_device/` → **`Docs/真机证据/`**（regress_20260706 + waveB_20260706 两个证据集，服务对象是 CHANGELOG/context 记录线而非任何 html）；CHANGELOG/context/里程碑 引用批改。
+- `Docs/assets/` 目录消失；顺手清理 Docs 根四个与 s7 正本字节级相同的未跟踪协议文件副本。
+- 死链复扫零新增；README 树同步。
+
+---
+
 ## [文档] 目录整理第四轮：s7 调试证据归档 + assets 收纳 + 代码注释勘误 — ✅ 2026-07-06
 用户点名四目录复查（s7/architecture/assets/prototypes）：
 - **s7/**（s7/CHANGELOG 第 23 轮）：60 张联调截图 + 2 devlog → `归档/s7协议工作底稿/assets/`，s7/ 收敛为**纯协议文档目录**（assets 只留 3 个示例帧脚本）；**归属澄清**——protocol-zqdata-uhtp-v1 是 S7 设备线自己的下一代稿（非 UWTP 家族文件），留 s7/ 待改写为采集 Profile。
@@ -31,7 +40,7 @@
 - **B2 ConnectionRegistry 事件驱动化 + 下沉**：迁 `shared.ble`，构造注入 `BleClient`+scope；add 时启动 linkState 常驻监听，`DISCONNECTED` 自动清退（被动断连不再依赖调用方手动对齐），`RECONNECTING` 在册（琥珀点语义）；监听复用、CAS 防并发重复启动；调用方主动 remove 与自动清退幂等，四个 VM 调用点零改动。
 - **B3 iOS 债下沉**：`CollectDraft` 迁 `shared.domain`（零 Android 依赖）；`DeviceLogStore` 包迁 `data.android`（C4 包名归位）；`Subject.toS7Person()` 域映射下沉 `shared.s7`；控制台全量读编排下沉 `S7Console.readAll()` + `S7Snapshot`（单项失败不阻断、失败项 null→上层保留旧值，语义不变）。**zip 组包不下沉**（有意遗留）：`java.util.zip` 是 JVM 专属 API，commonMain 不可用；iOS 侧接 Apple 压缩 API 时再抽象接口。
 - 测试：commonTest 新增注册表线 12 例（HrsParser u8/u16/短包、Registry resolve/byId、RegistrySampleDecoder 路由/回退/Malformed/会话边界）+ ConnectionRegistry 迁移并新增事件清退 3 例（被动断连清退/RECONNECTING 在册/清退后重登记复用监听）；`:shared:jvmTest` + `:app:testDebugUnitTest` + `assembleDebug` 全绿；**CI 首跑绿**（D3 闭环，run 28773182921）。
-- 真机冒烟（M2101K9C，Mock 后端走新注册表链路）：连 Polar H10+BT-DUT-0427 → 在线采集 47s → 双设备 HR 出值 + ppg_g/ppg_ir/acc 活跃流 → 结束摘要 5358 行 / HEX OK / 解码 CSV 齐全；证据 [`assets/screenshots_device/waveB_20260706/`](assets/screenshots_device/waveB_20260706/)；后端已切回默认真实 GATT。
+- 真机冒烟（M2101K9C，Mock 后端走新注册表链路）：连 Polar H10+BT-DUT-0427 → 在线采集 47s → 双设备 HR 出值 + ppg_g/ppg_ir/acc 活跃流 → 结束摘要 5358 行 / HEX OK / 解码 CSV 齐全；证据 [`真机证据/waveB_20260706/`](真机证据/waveB_20260706/)；后端已切回默认真实 GATT。
 
 ---
 
@@ -116,7 +125,7 @@
 ---
 
 ## [真机回归] 波次①②③ + s7 合并 + Mock 切换 全链路 — ✅ 2026-07-06
-设备：Xiaomi M2101K9C / Android 13，adb 驱动全程截图取证（[`assets/screenshots_device/regress_20260706/`](assets/screenshots_device/regress_20260706/)）。
+设备：Xiaomi M2101K9C / Android 13，adb 驱动全程截图取证（[`真机证据/regress_20260706/`](真机证据/regress_20260706/)）。
 
 | 回归项 | 结果 |
 |---|---|
@@ -232,7 +241,7 @@
 - **定位**：原型 `.phone` 本就是固定 **330×716（ar 0.46，与真机同比例）**；逐屏实测 6 屏内容均满一屏不溢出（`scrollHeight==clientHeight`），「展开到全内容」多余且有害。
 - **修复**：从 `prototypes/v4_android.html` 逐屏按固定手机框（含外框/刘海、白底 #f7f9fc）重截，DPR3 → **990×2148（ar 0.461）**，对齐真机 0.45，内容完整不截断。
 - **验证**：对比页 6 对全部**等高 560×560**（设计 259w / 真机 253w 几近同宽）；1440 / 1280 / 680 三档视口均无变形、无横向溢出。
-- **涉及**：6 张 `assets/screenshots_v6/design_*.png` + 对比页副标/脚注 2 行文案改「定尺渲染」；页面 CSS 原样（中途误改已撤回）。
+- **涉及**：6 张 `设计/assets/screenshots_v6/design_*.png` + 对比页副标/脚注 2 行文案改「定尺渲染」；页面 CSS 原样（中途误改已撤回）。
 
 ---
 
@@ -260,7 +269,7 @@
 **编排 / 验证**
 - Workflow 编排：Phase0 地基（主循环）→ Phase1 Plan（3 agent 并行规格）→ Phase2 Apply → Phase3 Verify（5 agent 对抗，1 must-fix 已修：删用户编辑顶栏说明副标）→ Phase4 真机硬门。
 - **真机硬门**（M2101K9C / Android 13）全部关键路径通过 + 文件级证据（5 段命名、manifest scene、改场景重命名）。
-- 对比页：新增 [`设计稿与真机对比_v2.html`](设计/设计稿与真机对比_v2.html)（设计稿 ↔ 真机干净默认态整屏，6 对 + 1 新增），资产 `assets/screenshots_v6/`；原 [`归档/compare_design_vs_device.html`](归档/compare_design_vs_device.html) 保留不动。设计稿截法后于「v6·修订」改为**定尺手机框**。
+- 对比页：新增 [`设计稿与真机对比_v2.html`](设计/设计稿与真机对比_v2.html)（设计稿 ↔ 真机干净默认态整屏，6 对 + 1 新增），资产 `设计/assets/screenshots_v6/`；原 [`归档/compare_design_vs_device.html`](归档/compare_design_vs_device.html) 保留不动。设计稿截法后于「v6·修订」改为**定尺手机框**。
 - 红线：屏内零说明性副标；语言中/英；文件名/场景 token 恒英文。
 
 ---

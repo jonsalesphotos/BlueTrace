@@ -15,10 +15,11 @@ Docs/
 ├── 真机修复prompt_复用.md        ← 真机发现问题 → 让 agent 修复的复用模板
 ├── prototypes/
 │   └── v4_android.html           ← 当前 UI 真源（勿改名：全仓引用）
-├── 设计/                         ← 设计验收三件套
+├── 设计/                         ← 设计验收三件套（资源随包：assets/screenshots_v6 + brand）
 │   ├── 设计审查报告_v6.md        ← 46 屏设计审查（色彩/副标/组件一致性）
 │   ├── 设计稿画廊_v6.html        ← V4 设计稿截图集（浏览器打开）
-│   └── 设计稿与真机对比_v2.html  ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
+│   ├── 设计稿与真机对比_v2.html  ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
+│   └── assets/                   ← screenshots_v6（三件套源图）· brand（图标/首屏源图）
 ├── UWTP/                         ← UWTP 统一可穿戴传输协议（跨项目标准，独立目录）
 │   ├── README.md                 ← 家族索引与演进路线
 │   ├── UWTP_BLE_Protocol_Design_V0.99.{md,html} + uwtp_v0.99_draft.proto ← 当前基线（冻结候选）
@@ -38,7 +39,7 @@ Docs/
 │       ├── protocol-b2a / protocol-zqdata    ← 现网协议逐字节规格
 │       ├── protocol-zqdata-uhtp-v1.{md,html} + zqdata_uhtp_v1_draft.proto ← 下一代重设计（待固件评审，M7 候选之二）
 │       └── protocol-spec.md · command-status.md · completeness-audit.md · assets/（示例帧脚本×3）
-├── assets/                       ← brand/（图标/首屏源图）+ screenshots_v6（设计稿）+ screenshots_device（真机证据集 regress/waveB）
+├── 真机证据/                     ← 真机回归/冒烟证据集（regress_20260706、waveB_20260706；CHANGELOG 引用）
 ├── 归档/                         ← 唯一历史桶（冻结不维护，仅考古）
 │   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入）
 │   ├── 构建笔记/                 ← v1 实现笔记、v3 设计差异
