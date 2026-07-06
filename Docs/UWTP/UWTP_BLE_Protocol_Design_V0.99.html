@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UWTP 协议设计 V0.99</title>
+<title>UWTP 协议设计 V0.99-r2</title>
 <style>
 :root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
         --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
@@ -53,10 +53,10 @@ strong { font-weight:600; }
 <nav class="toc"><div class="toctitle">目录</div><div class="toc">
 <div class="toc">
 <ul>
-<li><a href="#uwtp-v099">UWTP 统一可穿戴传输协议 · 设计 V0.99</a><ul>
+<li><a href="#uwtp-v099-r2v10-rc">UWTP 统一可穿戴传输协议 · 设计 V0.99-r2（V1.0 RC 候选）</a><ul>
 <li><a href="#0">0. 总览</a><ul>
 <li><a href="#01">0.1 一句话</a></li>
-<li><a href="#02-2026-07-06-d-1-d-14">0.2 本版决策记录（2026-07-06 审议，D-1 ~ D-14）</a></li>
+<li><a href="#02-2026-07-06-r2">0.2 决策表（2026-07-06 审议 + r2 审查修订）</a></li>
 <li><a href="#03">0.3 六域总览</a></li>
 </ul>
 </li>
@@ -66,8 +66,8 @@ strong { font-weight:600; }
 <li><a href="#1">1. 定位与传输假设</a></li>
 <li><a href="#2-gatt">2. GATT 绑定</a></li>
 <li><a href="#3-5b-uhtp-v4">3. 帧头（5B，与 UHTP V4 二进制兼容）</a></li>
-<li><a href="#4">4. 响应模型（铁律）</a></li>
-<li><a href="#5-d-2d-3">5. 时间模型（D-2/D-3）</a></li>
+<li><a href="#4">4. 响应模型与超时（铁律）</a></li>
+<li><a href="#5-d-2d-3d-3ad-3b">5. 时间模型（D-2/D-3/D-3a/D-3b：时间戳只属于在线数据）</a></li>
 <li><a href="#6-d-4d-7">6. 会话与断连语义（D-4~D-7）</a><ul>
 <li><a href="#61">6.1 会话</a></li>
 <li><a href="#62">6.2 断连语义表（各传输域自治）</a></li>
@@ -75,50 +75,63 @@ strong { font-weight:600; }
 </li>
 <li><a href="#7-d-14">7. 并发矩阵（D-14）</a></li>
 <li><a href="#8">8. 可靠性与完整性分层（每域自带容忍度）</a></li>
-<li><a href="#9-d-13">9. 安全姿态（D-13）</a></li>
+<li><a href="#9-d-13">9. 安全姿态（D-13 + 量产边界）</a></li>
 <li><a href="#10-v4">10. 状态码（继承 V4 全表）</a></li>
 <li><a href="#11-legacy">11. 版本管理与 legacy 共存</a><ul>
 <li><a href="#111">11.1 分层版本</a></li>
-<li><a href="#112-s7-legacyb2a">11.2 与 S7 legacy（B2A）共存</a></li>
+<li><a href="#112-s7-legacyb2a">11.2 与 S7 legacy（B2A）共存 + 误判保护</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li><a href="#part-ii-domains">Part II · Domains</a><ul>
 <li><a href="#12-ctrl-main_type-0x01">12. CTRL 域（main_type 0x01，无状态、恒可用）</a><ul>
-<li><a href="#121-sessionhello">12.1 SESSION（HELLO 最小化）</a></li>
-<li><a href="#122-time-8b">12.2 TIME（固定二进制 8B，双向同布局）</a></li>
+<li><a href="#121-sessionhello-d-12">12.1 SESSION（HELLO + 同表一致性校验，D-12）</a></li>
+<li><a href="#122-time-8bd-2">12.2 TIME（固定二进制 8B，双向同布局；仅校时用，D-2）</a></li>
 <li><a href="#123-user_profile">12.3 USER_PROFILE</a></li>
 <li><a href="#124-algo_ctrl">12.4 ALGO_CTRL</a></li>
 <li><a href="#125-storage">12.5 STORAGE</a></li>
 </ul>
 </li>
-<li><a href="#13-algo-main_type-0x02">13. ALGO 域（main_type 0x02）</a></li>
+<li><a href="#13-algo-main_type-0x02">13. ALGO 域（main_type 0x02）</a><ul>
+<li><a href="#131-report_tlv-d-3brecord-u24-rel_ms">13.1 REPORT_TLV 布局（D-3b：record 用 u24 rel_ms）</a></li>
+<li><a href="#132-app">13.2 异常解析规则（App 侧强制）</a></li>
+</ul>
+</li>
 <li><a href="#14-ota-main_type-0x04-mcumgrsmp">14. OTA 域（main_type 0x04，独占，语义对齐 MCUmgr/SMP）</a><ul>
 <li><a href="#141">14.1 分层与状态机</a></li>
-<li><a href="#142-img_listprotobuf">14.2 IMG_LIST（Protobuf）</a></li>
-<li><a href="#143-upload_begin-readyprotobuf-app">14.3 UPLOAD_BEGIN / READY（Protobuf 协商，App 提议、设备定版）</a></li>
-<li><a href="#144-upload_data-ack">14.4 UPLOAD_DATA / ACK（固定二进制）</a></li>
+<li><a href="#142-img_list">14.2 IMG_LIST</a></li>
+<li><a href="#143-upload_begin-readyapp">14.3 UPLOAD_BEGIN / READY（App 提议、设备定版）</a></li>
+<li><a href="#144-upload_data-ack-writenorsp-d-16">14.4 UPLOAD_DATA / ACK 与 WriteNoRsp 节流（D-16）</a></li>
 <li><a href="#145-upload_end-img_state-reset">14.5 UPLOAD_END / IMG_STATE / RESET</a></li>
 <li><a href="#146-mcumgrsmp-img_mgmt-d-9">14.6 与 MCUmgr/SMP img_mgmt 映射（D-9）</a></li>
 </ul>
 </li>
-<li><a href="#15-file-main_type-0x05app">15. FILE 域（main_type 0x05，多文件名，表→App）</a><ul>
+<li><a href="#15-file-main_type-0x05app">15. FILE 域（main_type 0x05，纯文件搬运，表→App）</a><ul>
 <li><a href="#151-d-8">15.1 路径隐含约定（D-8）</a></li>
 <li><a href="#152-listprotobuf-seg_mode">15.2 LIST（Protobuf，大页允许 SEG_MODE）</a></li>
 <li><a href="#153-read-d-6">15.3 READ 传输（断连从头，D-6）</a></li>
 </ul>
 </li>
 <li><a href="#16-log-main_type-0x03">16. LOG 域（main_type 0x03）</a></li>
-<li><a href="#17-tunnel-main_type-0x06">17. TUNNEL 域（main_type 0x06，本版新增）</a></li>
+<li><a href="#17-tunnel-main_type-0x06">17. TUNNEL 域（main_type 0x06）</a></li>
 <li><a href="#18-vendormain_type-0xf0">18. VENDOR（main_type 0xF0）</a></li>
 </ul>
 </li>
 <li><a href="#part-iii">Part III · 附录</a><ul>
-<li><a href="#19-example-raw-packet-decode">19. Example raw packet + decode（脚本实算）</a></li>
-<li><a href="#20-d-12">20. 静态注册表汇总（D-12：文档即共识，双端硬编码）</a></li>
+<li><a href="#19-example-raw-packet-decoder2">19. Example raw packet + decode（脚本实算，r2 布局）</a></li>
+<li><a href="#20-d-12">20. 静态注册表汇总（D-12：文档即共识，双端硬编码）</a><ul>
+<li><a href="#200-hello">20.0 注册表标识（HELLO 校验源）</a></li>
+<li><a href="#201-main_type">20.1 main_type</a></li>
+<li><a href="#202-file-kind">20.2 FILE kind</a></li>
+<li><a href="#203-algo_idprofile">20.3 algo_id（Profile 填充）</a></li>
+<li><a href="#204-tunnel_id">20.4 tunnel_id</a></li>
+<li><a href="#205-file-app-profile">20.5 离线文件内容格式（FILE 对内容不透明，App 按扩展名/Profile 约定选解析器）</a></li>
+</ul>
+</li>
 <li><a href="#21-uhtp-v4">21. 相对 UHTP V4 的差异清单</a></li>
 <li><a href="#22-v10">22. V1.0 冻结前待办</a></li>
+<li><a href="#23-r2-2026-07-06-1010">23. r2 修订记录（对照 2026-07-06 完整审查意见，10/10 采纳）</a></li>
 <li><a href="#_1">引用</a></li>
 </ul>
 </li>
@@ -127,21 +140,22 @@ strong { font-weight:600; }
 
 </div>
 </nav>
-<main><h1 id="uwtp-v099">UWTP 统一可穿戴传输协议 · 设计 V0.99</h1>
+<main><h1 id="uwtp-v099-r2v10-rc">UWTP 统一可穿戴传输协议 · 设计 V0.99-r2（V1.0 RC 候选）</h1>
 <blockquote>
-<p><strong>UWTP = Unified Wearable Transport Protocol</strong>。前身 <a href="UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（UHTP V4）——骨架（5B 小头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象传输）原样继承；本版补齐 V4 缺失的 Core 章节（GATT 绑定、时间模型、断连语义、并发矩阵、安全姿态、字节序），并按 2026-07-06 审议拍板收敛全部含糊点（决策表见 §0.2）。
-<strong>改名理由</strong>：协议里真正"health"的只有 ALGO 结果一个域，OTA/LOG/FILE/CTRL 全是设备工程能力——按设备形态（Wearable）命名比按数据领域（Health）更贴合。
-<strong>状态</strong>：<strong>V0.99 = 冻结候选</strong>。双端按本文档共识开发（<strong>静态注册表制，不做动态能力解析</strong>）；联调通过后定稿为 V1.0，线上 <code>protocol_version = 1</code>。
-机器可读契约：<a href="uwtp_v0.99_draft.proto"><code>uwtp_v0.99_draft.proto</code></a>；示例帧全部脚本实算（<a href="assets/gen_uwtp_examples.py"><code>assets/gen_uwtp_examples.py</code></a>，protobuf wire + CRC32，len 自洽断言）。
+<p><strong>UWTP = Unified Wearable Transport Protocol</strong>。前身 <a href="UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（UHTP V4）——骨架（5B 小头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象传输）原样继承；V0.99 补齐 V4 缺失的 Core 章节并收敛全部含糊点（决策表 §0.2）。
+<strong>r2（2026-07-06）</strong>：按完整审查意见修订，十项修改全部采纳（修订记录 §23）——核心是<strong>时间戳收敛到只属于在线数据</strong>、FILE 域去采样时间语义、HELLO 加 registry_hash 一致性校验、REPORT record 改 u24 rel_ms、OTA 补 WriteNoRsp 节流。
+<strong>状态</strong>：<strong>V1.0 RC 候选</strong>。双端按本文档共识开发（<strong>静态注册表制，不做动态能力解析</strong>）；联调通过后定稿 V1.0，线上 <code>protocol_version = 1</code>。
+机器可读契约：<a href="uwtp_v0.99_draft.proto"><code>uwtp_v0.99_draft.proto</code></a>；示例帧全部脚本实算（<a href="assets/gen_uwtp_examples.py"><code>assets/gen_uwtp_examples.py</code></a>，protobuf wire + CRC-32/SHA-256，len 自洽断言）。
 S7 采集剖面：现有 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"><code>../architecture/s7/protocol-zqdata-uhtp-v1.md</code></a> 将按本文改写为「S7 采集 Profile」（§22）。</p>
 </blockquote>
 <hr />
 <h2 id="0">0. 总览</h2>
 <h3 id="01">0.1 一句话</h3>
 <blockquote>
-<p><strong>5B 头管分流，main_type 管事务域状态机，sub_type 管域内动作，seq 管顺序与响应回显，SEG_MODE 管小消息重组，offset 管大对象进度，Protobuf 管控制语义，TLV 容器管结果打包——控制无生命周期，传输各域自带丢包容忍度与完整性校验，OTA 独占，一切以协议文档静态注册表为共识。</strong></p>
+<p><strong>UWTP Core 只管在线数据、控制、传输、OTA、文件搬运；在线数据可以有协议层 timestamp，离线数据的 timestamp 属于文件格式，不属于 UWTP FILE 传输层。</strong>
+5B 头管分流，main_type 管事务域状态机，sub_type 管域内动作，seq 管顺序与响应回显，SEG_MODE 管小消息重组，offset 管大对象进度，Protobuf 管控制语义，TLV 容器管在线结果打包——控制无生命周期，传输各域自带丢包容忍度与完整性校验，OTA 独占。</p>
 </blockquote>
-<h3 id="02-2026-07-06-d-1-d-14">0.2 本版决策记录（2026-07-06 审议，D-1 ~ D-14）</h3>
+<h3 id="02-2026-07-06-r2">0.2 决策表（2026-07-06 审议 + r2 审查修订）</h3>
 <table>
 <thead>
 <tr>
@@ -154,79 +168,109 @@ S7 采集剖面：现有 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"
 <tr>
 <td>D-1</td>
 <td>命名</td>
-<td>UHTP → <strong>UWTP</strong>；文档版本 V0.99（冻结后 1.0），线上 <code>protocol_version=1</code></td>
+<td>UHTP → <strong>UWTP</strong>；文档 V0.99-r2（冻结后 1.0），线上 <code>protocol_version=1</code></td>
 </tr>
 <tr>
 <td>D-2</td>
-<td>时间格式</td>
-<td>完整时间戳 = <strong>u32 unix 秒 + u16 毫秒 + s16 时区分钟</strong>；时区只出现在 TIME 域</td>
+<td><strong>TIME 域时间格式</strong></td>
+<td>CTRL/TIME 使用完整时间 <code>u32 unix_sec + u16 ms + s16 tz_offset_min</code>——<strong>仅用于设备校时与回读，不进入 FILE / OTA / 普通传输帧</strong></td>
 </tr>
 <tr>
 <td>D-3</td>
-<td>数据面时间</td>
-<td>数据不重复传秒级与时区——<strong>秒级锚点只写在"头"里</strong>（文件头/bundle 头），锚点来自 App 的秒级时间戳；样本/记录只带 ms 偏移</td>
+<td><strong>在线数据时间</strong></td>
+<td><strong>协议层 timestamp 只用于在线数据</strong>：REPORT_TLV / LOG_LIVE 可在 bundle/event 头携带在线时间锚点；<strong>FILE / OTA 传输层不携带采样 timestamp</strong></td>
+</tr>
+<tr>
+<td>D-3a</td>
+<td><strong>离线文件时间</strong></td>
+<td>离线采集时间/样本时间/段落时间<strong>属于文件内容格式</strong>（如 UOF1 文件头与记录），不属于 UWTP FILE 域</td>
+</tr>
+<tr>
+<td>D-3b</td>
+<td><strong>REPORT_TLV 时间</strong></td>
+<td>bundle 头 = <code>u32 unix_sec + u16 ms</code>；record 用 <strong>u24 rel_ms（LE）</strong> 毫秒偏移（≈4.66h 量程）</td>
 </tr>
 <tr>
 <td>D-4</td>
 <td>会话生命周期</td>
-<td><strong>控制类不做生命周期管理</strong>（无状态请求/响应）；传输域各自定义断连语义（§6.2）</td>
+<td>控制类不做生命周期管理（无状态请求/响应）；传输域各自定义断连语义（§6.2）</td>
 </tr>
 <tr>
 <td>D-5</td>
 <td>OTA 断连</td>
-<td>状态随断连结束；<strong>重连重走协商、从 flash 水位断点续传</strong>；升级必经 reset + confirm</td>
+<td>状态随断连结束；重连重走协商、从 flash 水位断点续传；升级必经 reset + confirm</td>
 </tr>
 <tr>
 <td>D-6</td>
 <td>FILE 断连</td>
-<td>离线数据与日志<strong>断连即作废、重传从头</strong>，不做断点续传</td>
+<td>断连即作废、<strong>重传从头</strong>；<strong>V1.0 不支持断点续传</strong>——未来文件明显增大时可在 READ_BEGIN 增加 optional offset，V1 语义固定 offset=0</td>
 </tr>
 <tr>
 <td>D-7</td>
 <td>在线断连</td>
-<td>TUNNEL/ALGO 推流<strong>不缓存，丢了就丢</strong>；重连后 App 核对在线会话一致性，不一致即发结束</td>
+<td>TUNNEL/ALGO 推流不缓存，丢了就丢；重连后 App 核对在线会话一致性，不一致即发结束</td>
 </tr>
 <tr>
 <td>D-8</td>
 <td>文件目录</td>
-<td><strong>多文件名 + LIST 获取</strong>（S7 存储空间足够存多份文件）；<strong>路径为协议隐含约定</strong>——协议只传相对文件名，根目录/命名规则由固件与 App 基于文档共识写死</td>
+<td>多文件名 + LIST；<strong>路径为协议隐含约定</strong>（协议只传相对文件名）</td>
 </tr>
 <tr>
 <td>D-9</td>
 <td>OTA 参照</td>
-<td>固件 layout 自研锁定，但<strong>语义对齐 Zephyr MCUmgr/SMP img_mgmt</strong>（槽位/状态位/test-confirm-rollback/断点续传，§14.6 映射表）</td>
+<td>语义对齐 Zephyr MCUmgr/SMP img_mgmt（§14.6 映射表）</td>
 </tr>
 <tr>
 <td>D-10</td>
 <td>心跳</td>
-<td><strong>不做</strong>。BLE 链路层 connection supervision timeout 已负责断链检测；业务活性靠请求超时兜底。编号保留</td>
+<td>不做。BLE connection supervision timeout 负责断链；业务活性靠请求超时（参数见 D-15）。编号保留</td>
 </tr>
 <tr>
 <td>D-11</td>
 <td>字节序</td>
-<td><strong>固定二进制字段一律小端</strong>（铁律，写进 Core）</td>
+<td>固定二进制字段一律小端（铁律）</td>
 </tr>
 <tr>
 <td>D-12</td>
 <td>能力发现</td>
-<td><strong>不做动态能力协商/解析</strong>。HELLO 只交换版本与身份；main/sub/kind/algo_id/format 全部为<strong>文档静态注册表</strong>，双端硬编码</td>
+<td>静态注册表制、HELLO 最小化；<strong>但 HELLO 必须带 <code>profile_id + registry_hash</code> 做同表一致性校验</strong>（§12.1）</td>
 </tr>
 <tr>
 <td>D-13</td>
 <td>安全</td>
-<td>Just Works；不做应用层全加密；SECURITY 保留"连接起始一次性鉴权"位置（后续配对时启用，暂不做）</td>
+<td>Just Works，不做应用层全加密；SECURITY 留一次性鉴权位；<strong>量产边界见 §9</strong></td>
 </tr>
 <tr>
 <td>D-14</td>
 <td>并发</td>
-<td><strong>OTA 最高优先级、独占</strong>：进入即停止采集/离线传输/日志导出等一切文件类传输；CTRL 查询（电量等）保持可用</td>
+<td>OTA 最高优先级、独占；CTRL 恒可用</td>
+</tr>
+<tr>
+<td>D-15</td>
+<td><strong>超时参数</strong></td>
+<td>CTRL 请求超时 <strong>3s、重试 2 次</strong>；OTA / FILE 窗口 ACK 超时 <strong>5s</strong>（联调可标定，写死默认值）</td>
+</tr>
+<tr>
+<td>D-16</td>
+<td><strong>WriteNoRsp 节流</strong></td>
+<td>App→表连续写（OTA DATA）必须按 <code>max_in_flight_chunks</code> 小批发送 + 平台写回调/延迟节流（§14.4）</td>
+</tr>
+<tr>
+<td>D-17</td>
+<td><strong>transfer_id 规则</strong></td>
+<td>u8；<strong>0 保留为无效</strong>，1–255 有效回绕；设备在 READY 中生成；断连 / END / ABORT 后作废</td>
+</tr>
+<tr>
+<td>D-18</td>
+<td><strong>校验算法写死</strong></td>
+<td>文件校验 = <strong>CRC-32/IEEE 802.3</strong>（poly <code>0x04C11DB7</code>、init <code>0xFFFFFFFF</code>、refin/refout true、xorout <code>0xFFFFFFFF</code>）；OTA <code>image_hash</code> = <strong>SHA-256</strong></td>
 </tr>
 </tbody>
 </table>
 <h3 id="03">0.3 六域总览</h3>
 <div class="fig">
 <svg viewBox="0 0 840 450" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
-<title>UWTP V0.99 六域地图：每域的方向、可靠性策略与完整性校验</title>
+<title>UWTP V0.99-r2 六域地图：每域的方向、可靠性策略与完整性校验</title>
 <desc>顶部为 5B 帧头与 GATT 绑定，中部六个事务域方块（CTRL/ALGO/LOG/OTA/FILE/TUNNEL），每块标注方向、丢包容忍度与完整性校验方式，底部为并发规则一行。</desc>
 <style>
 .t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
@@ -238,7 +282,7 @@ S7 采集剖面：现有 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"
 .bxa{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
 .bxd{fill:var(--code);stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;}
 </style>
-<text x="40" y="22" class="t">UWTP V0.99（前身 UHTP V4）—— GATT: 1 Service + RX(WriteNoRsp) + TX(Notify)；S7 复用 ZQDATA 45121540/41/42</text>
+<text x="40" y="22" class="t">UWTP V0.99-r2 —— GATT: 1 Service + RX(WriteNoRsp) + TX(Notify)；S7 复用 ZQDATA 45121540/41/42</text>
 <rect x="40" y="34" width="760" height="34" class="bxa"/>
 <text x="420" y="56" text-anchor="middle" class="m a">5B 头：ver_flags | main_type | sub_type | seq | len　·　固定字段全小端　·　NEED_RSP 回显 seq　·　响应 Protobuf 首字段恒 status</text>
 <g class="m">
@@ -246,51 +290,51 @@ S7 采集剖面：现有 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"
   <text x="161" y="106" text-anchor="middle" class="a">0x01 CTRL（无状态，恒可用）</text>
   <text x="161" y="124" text-anchor="middle" class="ms">SESSION·TIME·USER_PROFILE</text>
   <text x="161" y="140" text-anchor="middle" class="ms">ALGO_CTRL·STORAGE</text>
-  <text x="161" y="158" text-anchor="middle" class="ms">请求/响应, 单飞, 无生命周期</text>
+  <text x="161" y="158" text-anchor="middle" class="ms">请求/响应, 单飞, 超时3s×2</text>
   <text x="161" y="174" text-anchor="middle" class="ms">心跳不做(BLE 链路监督兜底)</text>
   <rect x="299" y="86" width="243" height="96" class="bx"/>
   <text x="420" y="106" text-anchor="middle" class="a">0x02 ALGO（表→App 推流）</text>
   <text x="420" y="124" text-anchor="middle" class="ms">REPORT_TLV：可丢, 不 ACK</text>
-  <text x="420" y="140" text-anchor="middle" class="ms">bundle_seq 缺口只做统计</text>
-  <text x="420" y="158" text-anchor="middle" class="ms">开关=ALGO_CTRL, 断连自动全关</text>
-  <text x="420" y="174" text-anchor="middle" class="ms">RAW_STREAM 保留不启用</text>
+  <text x="420" y="140" text-anchor="middle" class="ms">在线锚点: bundle 头 sec+ms</text>
+  <text x="420" y="158" text-anchor="middle" class="ms">record 带 u24 rel_ms 偏移</text>
+  <text x="420" y="174" text-anchor="middle" class="ms">开关=ALGO_CTRL, 断连全关</text>
   <rect x="558" y="86" width="242" height="96" class="bx"/>
   <text x="679" y="106" text-anchor="middle" class="a">0x06 TUNNEL（双向透传）</text>
   <text x="679" y="124" text-anchor="middle" class="ms">厂商字节原样, 设备不解释</text>
-  <text x="679" y="140" text-anchor="middle" class="ms">可丢：不缓存, 离线即丢失</text>
-  <text x="679" y="158" text-anchor="middle" class="ms">重连后 App 核对在线会话,</text>
-  <text x="679" y="174" text-anchor="middle" class="ms">不一致即发结束</text>
+  <text x="679" y="140" text-anchor="middle" class="a" font-size="10">UWTP 不为 TUNNEL 提供可靠性</text>
+  <text x="679" y="158" text-anchor="middle" class="ms">可靠性需厂商协议自带 seq/ack</text>
+  <text x="679" y="174" text-anchor="middle" class="ms">重连后 App 核对会话一致性</text>
 </g>
 <g class="m">
   <rect x="40" y="198" width="243" height="110" class="bxa"/>
   <text x="161" y="218" text-anchor="middle" class="a">0x04 OTA（App→表，独占）</text>
-  <text x="161" y="236" text-anchor="middle" class="ms">零容忍：窗口 ACK + image_hash</text>
+  <text x="161" y="236" text-anchor="middle" class="ms">零容忍：窗口 ACK + SHA-256</text>
   <text x="161" y="252" text-anchor="middle" class="ms">+ bootloader 签名验证</text>
   <text x="161" y="268" text-anchor="middle" class="ms">断连=状态结束, 重协商续断点</text>
-  <text x="161" y="284" text-anchor="middle" class="ms">test→reset→confirm→rollback</text>
+  <text x="161" y="284" text-anchor="middle" class="ms">WriteNoRsp 按 in_flight 节流</text>
   <text x="161" y="300" text-anchor="middle" class="ms">语义对齐 MCUmgr/SMP img_mgmt</text>
   <rect x="299" y="198" width="243" height="110" class="bxa"/>
-  <text x="420" y="218" text-anchor="middle" class="a">0x05 FILE（表→App，多文件名）</text>
+  <text x="420" y="218" text-anchor="middle" class="a">0x05 FILE（表→App，纯搬运）</text>
   <text x="420" y="236" text-anchor="middle" class="ms">LIST/READ/DELETE, 路径隐含约定</text>
-  <text x="420" y="252" text-anchor="middle" class="ms">链路可靠 + 整档 CRC32</text>
+  <text x="420" y="252" text-anchor="middle" class="ms">链路可靠 + 整档 CRC-32/IEEE</text>
   <text x="420" y="268" text-anchor="middle" class="ms">断连=作废, 重传从头(不续传)</text>
-  <text x="420" y="284" text-anchor="middle" class="ms">离线数据·日志导出 都走这里</text>
-  <text x="420" y="300" text-anchor="middle" class="ms">(LOG 域导出编号保留弃用)</text>
+  <text x="420" y="284" text-anchor="middle" class="a" font-size="10">不解释文件内容·不带采样时间</text>
+  <text x="420" y="300" text-anchor="middle" class="ms">离线时间归文件格式(UOF1 等)</text>
   <rect x="558" y="198" width="242" height="110" class="bxd"/>
   <text x="679" y="218" text-anchor="middle" class="s" font-weight="700">0x03 LOG / 0xF0 VENDOR / SECURITY</text>
   <text x="679" y="236" text-anchor="middle" class="ms">LIVE_EVENT 可丢(V1 可选)</text>
   <text x="679" y="252" text-anchor="middle" class="ms">日志文件导出→FILE 域</text>
-  <text x="679" y="268" text-anchor="middle" class="ms">SECURITY: Just Works,</text>
-  <text x="679" y="284" text-anchor="middle" class="ms">连接起始一次鉴权(留位不做)</text>
-  <text x="679" y="300" text-anchor="middle" class="ms">能力发现: 文档静态注册表制</text>
+  <text x="679" y="268" text-anchor="middle" class="ms">SECURITY: Just Works, 量产开放</text>
+  <text x="679" y="284" text-anchor="middle" class="ms">OTA/FILE/DELETE 须启用鉴权</text>
+  <text x="679" y="300" text-anchor="middle" class="ms">静态注册表 + registry_hash 校验</text>
 </g>
 <rect x="40" y="326" width="760" height="34" class="bx"/>
 <text x="420" y="348" text-anchor="middle" class="m">并发铁律：CTRL 恒可用　＞　<tspan class="a">OTA 独占（停一切文件类传输与采集）</tspan>　＞　FILE 单传输　＞　TUNNEL/ALGO 让位</text>
 <g class="s">
-  <text x="40" y="384">时间模型：设备维护 UTC 系统时钟；TIME/SET = u32 unix 秒 + u16 ms + s16 时区分钟（时区只出现在 TIME 域）；</text>
-  <text x="40" y="402">数据面只带 ms 偏移——秒级锚点只写在"头"里（文件头/bundle 头），锚点来自 App 的秒级时间戳。</text>
+  <text x="40" y="384">时间三层：CTRL/TIME 负责校时（唯一出现时区处）；在线数据（REPORT/LOG_LIVE）可带在线锚点；</text>
+  <text x="40" y="402">FILE 只传文件名/大小/CRC/数据块——离线文件内部时间由文件格式（UOF1 等）自行定义，UWTP Core 不解释。</text>
   <text x="40" y="420">断连语义：控制类无状态；OTA 重协商续断点；FILE 从头重传；在线（TUNNEL/ALGO）丢了就丢。</text>
-  <text x="40" y="438">legacy 共存：0xBB(B2A) 与 0x1?(UWTP) 首字节不相交，同特征双栈分流；HELLO 探测回落。</text>
+  <text x="40" y="438">legacy 共存：0xBB(B2A) 与 0x1?(UWTP) 首字节分流；0x1? 但校验失败 = UWTP_BAD_FRAME，不回落 legacy。</text>
 </g>
 </svg>
 </div>
@@ -328,11 +372,11 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 </tr>
 <tr>
 <td>连接</td>
-<td>单连接假设；连接建立后 App/表任一方发起 MTU 协商至 247</td>
+<td>单连接假设；连接建立后协商 MTU 至 247</td>
 </tr>
 <tr>
 <td>连接参数</td>
-<td>进入传输类域（OTA / FILE 读）→ 设备切<strong>快速连接参数</strong>；READ_END/UPLOAD_END/ABORT 后恢复省电参数</td>
+<td>进入传输类域（OTA / FILE 读）→ 设备切快速连接参数；END/ABORT 后恢复省电参数</td>
 </tr>
 <tr>
 <td>订阅</td>
@@ -353,7 +397,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <tr>
 <td><strong>S7（现有项目）</strong></td>
 <td><code>45121540 / 45121541 / 45121542-51F2-406E-927A-3E1E183412E0</code></td>
-<td><strong>复用现网 ZQDATA 服务特征</strong>；与 legacy B2A 帧同特征双栈共存（§11.2）</td>
+<td>复用现网 ZQDATA 服务特征；与 legacy B2A 帧同特征双栈共存（§11.2）</td>
 </tr>
 <tr>
 <td>其他项目</td>
@@ -416,31 +460,35 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <li><strong>SEG_MODE</strong> 只管"小消息重组"（大 HELLO_RSP、大 LIST 页）；<strong>offset</strong> 管大对象；两者不混用。高吞吐路径（OTA/FILE DATA、TUNNEL）<strong>禁分段</strong>。</li>
 <li><strong>（D-11 铁律）所有固定二进制字段一律小端</strong>；Protobuf 自带编码。</li>
 </ul>
-<h2 id="4">4. 响应模型（铁律）</h2>
+<h2 id="4">4. 响应模型与超时（铁律）</h2>
 <ol>
 <li><code>NEED_RSP=1</code> 的请求 → 对端以<strong>同 main/sub + 回显 seq</strong> 响应；</li>
 <li><strong>响应 payload 若为 Protobuf，首字段恒 <code>uint32 status = 1</code></strong>（0=OK，proto3 缺省不编码 → 成功且无数据时 payload 为空）；固定二进制响应的 status 位置由各消息显式定义；</li>
-<li><strong>单飞</strong>：同方向同时最多一个未决请求；数据面帧（DATA/ACK/REPORT/TUNNEL/LIVE_EVENT）<strong>不是请求、不占单飞额度</strong>；</li>
-<li>App 侧请求超时建议 3s（联调标定）；超时后可重发（seq 递增）；</li>
+<li><strong>单飞</strong>：同方向同时最多一个未决请求；数据面帧（DATA/ACK/REPORT/TUNNEL/LIVE_EVENT）不是请求、不占单飞额度；</li>
+<li><strong>超时参数（D-15）</strong>：CTRL 请求超时 <strong>3s、重试 2 次</strong>（seq 递增）；OTA 窗口 ACK 超时 <strong>5s</strong>；FILE 窗口 ACK 超时 <strong>5s</strong>——超时即判传输失败（按 §6.2 断连语义处理）；</li>
 <li>错误响应 = <code>CommonRsp{status}</code>（§10 状态码）。</li>
 </ol>
-<h2 id="5-d-2d-3">5. 时间模型（D-2/D-3）</h2>
-<ul>
-<li>设备维护 <strong>UTC 系统时钟</strong>（unix 秒 + 毫秒）；App 连接后经 <code>CTRL/TIME SET</code> 校时。</li>
-<li><strong>完整时间戳（T-full8，仅 TIME 域）</strong>：<code>u32 unix_sec | u16 ms | s16 tz_offset_min</code>——时区只在这里出现一次，供设备本地显示，协议其余部分一律 UTC。</li>
-<li><strong>头部锚点（T-head6）</strong>：<code>u32 unix_sec | u16 ms</code>——只出现在数据容器的"头"（离线文件头、REPORT bundle 头、文件 mtime 等）。</li>
-<li><strong>数据面（T-rel）</strong>：样本/记录只带<strong>相对锚点的 ms 偏移</strong>（u32 或更窄的 delta，由各消息定义）——不重复传秒级与时区。锚点秒级时间来源于 App（校时后的设备钟即 App 时间）。</li>
-</ul>
-<pre><code>TIME SET ──&gt; 设备钟 = App 钟（UTC）
-离线文件:  [文件头: anchor = u32 sec + u16 ms] + 帧[u32 rel_ms]...
-在线上报:  [bundle 头: u32 sec + u16 ms] + record[u8 delta ×100ms]...
-绝对时间:  utc_ms = anchor + rel
+<h2 id="5-d-2d-3d-3ad-3b">5. 时间模型（D-2/D-3/D-3a/D-3b：时间戳只属于在线数据）</h2>
+<p>分成三层，<strong>UWTP Core 不负责解释离线文件内部时间</strong>：</p>
+<pre><code>CTRL/TIME:      设备校时。唯一使用完整时间(u32 unix_sec + u16 ms + s16 tz_offset_min)、
+                唯一出现时区的地方。仅用于校时与回读，不进入 FILE / OTA / 普通传输帧。
+
+ONLINE DATA:    在线 ALGO REPORT_TLV / LOG LIVE_EVENT（/ TUNNEL 若厂商协议需要）
+                可携带在线时间锚点：bundle/event 头 = u32 unix_sec + u16 ms（设备 UTC 钟），
+                记录级 = u24 rel_ms 毫秒偏移。
+
+FILE:           只传文件名、大小、kind、transfer_id、offset、data、CRC32、DELETE。
+                不定义采样时间戳。文件内容的采集时间/样本时间/段落时间
+                由文件格式自行定义（如 UOF1 文件头与记录格式）。
 </code></pre>
+<blockquote>
+<p><strong>UWTP FILE 域是文件搬运协议，不解释文件内容；离线采集时间、样本时间、段落时间由文件格式定义，不属于 UWTP Core。</strong> 若 App 需要展示"文件时间"，从文件名约定解析（如 <code>dc/ecg_0706_1600.uof</code>）或读文件头。</p>
+</blockquote>
 <h2 id="6-d-4d-7">6. 会话与断连语义（D-4~D-7）</h2>
 <h3 id="61">6.1 会话</h3>
 <ul>
-<li><strong>HELLO 最小化</strong>：交换 <code>protocol_version</code> + 固件版本 + 序列号，一轮完成；版本不匹配 → <code>NOT_SUPPORTED</code>，App 决定回落或升级提示。</li>
-<li><strong>无动态能力发现（D-12）</strong>：支持哪些域/子命令/格式/算法，<strong>以本文档注册表为共识</strong>，双端硬编码；文档改版即协议改版（<code>protocol_version</code> 递增）。</li>
+<li><strong>HELLO 最小化 + 同表校验（D-12）</strong>：交换 <code>protocol_version</code>、身份、<strong><code>profile_id</code> + <code>registry_hash</code></strong>，一轮完成（§12.1）；</li>
+<li><strong>无动态能力发现</strong>：支持哪些域/子命令/格式/算法，以本文档注册表为共识，双端硬编码；文档改版即协议改版；</li>
 <li>无 BYE 强制要求（断连即会话终）；控制类命令随连随发，无状态。</li>
 </ul>
 <h3 id="62">6.2 断连语义表（各传输域自治）</h3>
@@ -456,27 +504,27 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <tr>
 <td>CTRL</td>
 <td>未决请求作废</td>
-<td>直接重发，无需恢复</td>
+<td>直接重发</td>
 </tr>
 <tr>
 <td><strong>OTA</strong></td>
-<td>传输状态结束；<strong>已写 flash 的数据保留</strong></td>
-<td><strong>重走 UPLOAD_BEGIN 协商</strong>，设备在 READY 回 <code>next_offset</code>（flash 水位）→ 从断点续传；reset/confirm 流程不变</td>
+<td>传输状态结束；已写 flash 数据保留；transfer_id 作废</td>
+<td>重走 UPLOAD_BEGIN 协商，READY 回 <code>next_offset</code>（flash 水位，同 image_hash 才续）→ 断点续传</td>
 </tr>
 <tr>
 <td><strong>FILE</strong></td>
-<td>传输作废</td>
-<td><strong>重新 READ_BEGIN 从头传</strong>（D-6，不做断点续传；若未来文件大到疼，再以可选特性加回）</td>
+<td>传输作废；transfer_id 作废</td>
+<td>重新 READ_BEGIN <strong>从头传</strong>（D-6）</td>
 </tr>
 <tr>
 <td>ALGO 推流</td>
-<td>停止；不缓存、丢了就丢</td>
+<td>停止；不缓存</td>
 <td>App 重新 ALGO_CTRL 使能（断连自动全关）</td>
 </tr>
 <tr>
 <td>TUNNEL</td>
 <td>不缓存、丢了就丢</td>
-<td>App 核对在线会话是否与断前一致；<strong>不一致 → App 发结束命令，会话终止</strong>（D-7）</td>
+<td>App 核对在线会话一致性；不一致 → App 发结束，会话终止</td>
 </tr>
 </tbody>
 </table>
@@ -504,7 +552,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <tr>
 <td>FILE 读</td>
 <td>✅</td>
-<td>⚠ 让位（设备可丢/降频）</td>
+<td>⚠ 让位（可丢/降频）</td>
 <td>❌ BUSY（单传输）</td>
 <td>✅ 抢占（FILE 被 ABORT）</td>
 <td>⚠ 上行让位</td>
@@ -527,7 +575,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 </tr>
 </tbody>
 </table>
-<p>铁律：<strong>CTRL 恒可用 ＞ OTA 独占 ＞ FILE 单传输 ＞ TUNNEL/ALGO 让位</strong>。OTA 进入 PREPARED 即执行独占（设备停采集、停一切文件类传输），退出（END/ABORT/reset）后恢复。</p>
+<p>铁律：<strong>CTRL 恒可用 ＞ OTA 独占 ＞ FILE 单传输 ＞ TUNNEL/ALGO 让位</strong>。</p>
 <h2 id="8">8. 可靠性与完整性分层（每域自带容忍度）</h2>
 <table>
 <thead>
@@ -538,6 +586,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <th>逐帧确认</th>
 <th>完整性校验</th>
 <th>断连恢复</th>
+<th>超时</th>
 </tr>
 </thead>
 <tbody>
@@ -545,25 +594,28 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <td>CTRL 请求/响应</td>
 <td>双向</td>
 <td>不容忍</td>
-<td>NEED_RSP + 超时重发</td>
+<td>NEED_RSP + 重发</td>
 <td>Protobuf 解析 + status</td>
 <td>重发</td>
+<td>3s ×2</td>
 </tr>
 <tr>
 <td><strong>OTA 镜像</strong></td>
 <td>App→表</td>
-<td><strong>零容忍</strong></td>
-<td><strong>窗口 ACK</strong>（next_offset）</td>
-<td>window ACK 连续性 + <strong>image_hash</strong> + <strong>bootloader 签名</strong></td>
-<td>断点续传（§6.2）</td>
+<td>零容忍</td>
+<td>窗口 ACK</td>
+<td>ACK 连续性 + <strong>SHA-256</strong> + bootloader 签名</td>
+<td>断点续传</td>
+<td>ACK 5s</td>
 </tr>
 <tr>
-<td><strong>FILE（离线数据/日志导出）</strong></td>
+<td><strong>FILE</strong></td>
 <td>表→App</td>
-<td>零容忍（链路可靠保证）</td>
+<td>零容忍（链路可靠）</td>
 <td>窗口 ACK（流控+进度）</td>
-<td>offset 连续性 + <strong>整档 CRC32(IEEE)</strong></td>
+<td>offset 连续性 + <strong>CRC-32/IEEE</strong></td>
 <td>从头重传</td>
+<td>ACK 5s</td>
 </tr>
 <tr>
 <td>ALGO REPORT</td>
@@ -572,6 +624,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <td>无</td>
 <td><code>bundle_seq</code> 缺口仅统计</td>
 <td>无</td>
+<td>—</td>
 </tr>
 <tr>
 <td>LOG LIVE_EVENT</td>
@@ -580,34 +633,39 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <td>无</td>
 <td>无</td>
 <td>无</td>
+<td>—</td>
 </tr>
 <tr>
 <td>TUNNEL</td>
 <td>双向</td>
-<td><strong>可丢</strong>（按厂商协议自理）</td>
+<td><strong>可丢</strong></td>
 <td>无</td>
 <td>厂商协议自带</td>
-<td>App 核对会话一致性</td>
+<td>App 核对会话</td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
-<p>BLE 链路层对空口位错已有 CRC 且按序可靠——协议层校验解决的是<strong>端到端</strong>问题（flash 写坏、固件逻辑错、截断），不是空口丢包。</p>
+<p>BLE 链路层已保证空口按序可靠——协议层校验解决<strong>端到端</strong>问题（flash 写坏、固件逻辑错、截断），不是空口丢包。</p>
 </blockquote>
-<h2 id="9-d-13">9. 安全姿态（D-13）</h2>
+<h2 id="9-d-13">9. 安全姿态（D-13 + 量产边界）</h2>
 <ul>
-<li>配对：<strong>Just Works</strong>（内部采集/工程工具定位）；</li>
-<li><strong>不做应用层全加密</strong>（太重）；</li>
-<li>预留：<code>CTRL/SECURITY</code>（sub <code>0x08</code>）用于<strong>连接起始一次性鉴权</strong>（challenge-response 一轮），后续做正式配对时启用——<strong>V0.99 不实现</strong>；</li>
-<li>高危命令（OTA 写入、DELETE、恢复出厂类）在无鉴权期依赖"物理接近 + Just Works 配对"这一现实边界，文档明示此假设。</li>
+<li>配对：<strong>Just Works</strong>；不做应用层全加密（太重）；</li>
+<li>预留：<code>CTRL/SECURITY</code>（sub <code>0x08</code>）= 连接起始一次性鉴权（challenge-response 一轮），V0.99 不实现；</li>
+<li><strong>量产边界（必须遵守）</strong>：<strong>V1.0 内部调试版允许 SECURITY 不实现；量产版若开放 OTA / FILE READ / DELETE / USER_PROFILE，必须启用 SECURITY 或系统级绑定鉴权。</strong> 无鉴权期的现实边界 = 物理接近 + Just Works 配对，文档明示此假设。</li>
 </ul>
 <h2 id="10-v4">10. 状态码（继承 V4 全表）</h2>
 <p><code>0x00 OK · 0x01 INVALID_REQUEST · 0x02 NOT_SUPPORTED · 0x03 INVALID_STATE · 0x04 BUSY · 0x05 INVALID_PARAM · 0x06 NO_MEMORY · 0x07 NO_SPACE · 0x08 CRC_ERROR · 0x09 HASH_MISMATCH · 0x0A AUTH_FAILED · 0x0B TIMEOUT · 0x0C RETRY_LATER · 0x0D SERVICE_REJECTED · 0x0E UNSUPPORTED_SCHEMA · 0x0F UNSUPPORTED_FORMAT · 0x10 TOO_LARGE</code></p>
 <h2 id="11-legacy">11. 版本管理与 legacy 共存</h2>
 <h3 id="111">11.1 分层版本</h3>
-<p><code>header_ver</code>（每帧，只管头解析）→ <code>protocol_version</code>（HELLO，本文档整体，V1.0 冻结 = 1）→ 静态注册表版本（随文档走，无线上协商）。proto3 演进只增不改 tag。</p>
-<h3 id="112-s7-legacyb2a">11.2 与 S7 legacy（B2A）共存</h3>
-<p>legacy B2A 帧首字节恒 <code>0xBB</code>；UWTP 帧首字节高半字节恒 <code>0x1</code>——<strong>完全不相交</strong>。固件同特征双栈：RX 首字节 <code>0xBB</code> → 旧 B2A 解析器，<code>0x1?</code> → UWTP，其余丢弃计数。App 侧 HELLO 1s×2 超时 → 判定 legacy 固件回落旧协议。</p>
+<p><code>header_ver</code>（每帧，只管头解析）→ <code>protocol_version</code>（HELLO，V1.0 冻结 = 1）→ <strong>注册表标识 <code>profile_id</code> + <code>registry_hash</code></strong>（HELLO 校验，§12.1/§20）。proto3 演进只增不改 tag。</p>
+<h3 id="112-s7-legacyb2a">11.2 与 S7 legacy（B2A）共存 + 误判保护</h3>
+<ul>
+<li>legacy B2A 帧首字节恒 <code>0xBB</code>；UWTP 帧首字节高半字节恒 <code>0x1</code>——完全不相交。固件同特征双栈：首字节 <code>0xBB</code> → 旧 B2A 解析器，<code>0x1?</code> → UWTP，其余丢弃计数。</li>
+<li><strong>误判保护</strong>：<strong>首字节高半字节为 <code>0x1</code> 但 <code>len</code> 校验失败（实长 ≠ 5+len）或字段非法 → 计为 <code>UWTP_BAD_FRAME</code> 丢弃，绝不回落 legacy 解析器</strong>——防随机数据进错解析器。</li>
+<li>App 侧 HELLO 1s×2 超时 → 判定 legacy 固件回落旧协议。</li>
+</ul>
 <hr />
 <h1 id="part-ii-domains">Part II · Domains</h1>
 <h2 id="12-ctrl-main_type-0x01">12. CTRL 域（<code>main_type 0x01</code>，无状态、恒可用）</h2>
@@ -655,7 +713,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <td><code>0x06</code></td>
 <td>HEARTBEAT</td>
 <td>⏸ 保留</td>
-<td><strong>不做</strong>（D-10，BLE 链路监督兜底）</td>
+<td>不做（D-10）</td>
 </tr>
 <tr>
 <td><code>0x07</code></td>
@@ -667,7 +725,7 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 <td><code>0x08</code></td>
 <td>SECURITY</td>
 <td>⏸ 保留</td>
-<td>连接起始一次性鉴权（暂不做）</td>
+<td>一次性鉴权（量产边界 §9）</td>
 </tr>
 <tr>
 <td><code>0x09</code></td>
@@ -677,19 +735,22 @@ UWTP 帧上限 = min(协商 ATT value, 243)；Header 5B → payload ≤ 238
 </tr>
 </tbody>
 </table>
-<h3 id="121-sessionhello">12.1 SESSION（HELLO 最小化）</h3>
-<pre><code class="language-proto">message Hello    { uint32 protocol_version = 1; string app_version = 2; }        // App→表
+<h3 id="121-sessionhello-d-12">12.1 SESSION（HELLO + 同表一致性校验，D-12）</h3>
+<pre><code class="language-proto">message Hello    { uint32 protocol_version = 1; string app_version = 2;
+                   string profile_id = 3; uint32 registry_hash = 4; }           // App→表
 message HelloRsp { uint32 status = 1; uint32 protocol_version = 2;
-                   string firmware_version = 3; string device_sn = 4; }          // 表→App
+                   string firmware_version = 3; string device_sn = 4;
+                   string profile_id = 5; uint32 registry_hash = 6; }           // 表→App
 </code></pre>
-<h3 id="122-time-8b">12.2 TIME（固定二进制 8B，双向同布局）</h3>
+<p><strong>校验规则</strong>：<code>protocol_version</code> 或 <code>registry_hash</code> 不一致 → 表回 <code>status = UNSUPPORTED_SCHEMA(0x0E)</code>，双方<strong>只保留 CTRL 域可用</strong>（可查版本/电量，便于诊断），业务域（ALGO/FILE/OTA/TUNNEL）拒绝服务。这防住静态注册表制的唯一风险：<em>App 认为 algo_id=2 是 SpO2、固件认为是 Wear</em>——同表校验保证双方拿的是同一张表。<code>registry_hash</code> 定义见 §20.0。</p>
+<h3 id="122-time-8bd-2">12.2 TIME（固定二进制 8B，双向同布局；仅校时用，D-2）</h3>
 <pre><code>SET (App→表, NEED_RSP):  [u32 unix_sec][u16 ms][s16 tz_offset_min]   → CommonRsp
 GET (App→表, NEED_RSP):  空 payload                                  → 同 8B 布局回读
 </code></pre>
 <h3 id="123-user_profile">12.3 USER_PROFILE</h3>
-<p>写：带字段发送（<code>height_cm / weight_kg_x10 / sex / birth_y/m/d / wear_hand</code>，Protobuf）→ 落 NVM，回 <code>CommonRsp</code>。读：空 payload + NEED_RSP → <code>UserProfileRsp{status, profile}</code>。</p>
+<p>写：Protobuf <code>UserProfile{height_cm / weight_kg_x10 / sex / birth_y/m/d / wear_hand}</code> → 落 NVM，回 <code>CommonRsp</code>。读：空 payload + NEED_RSP → <code>UserProfileRsp{status, profile}</code>。</p>
 <h3 id="124-algo_ctrl">12.4 ALGO_CTRL</h3>
-<p><code>AlgoReportCtrl{ enable_ids[](packed), min_interval_ms }</code> → <code>AlgoReportCtrlRsp{ status, active_ids[] }</code>（实际生效集合回读对账）。空集 = 全关；断连自动全关。<code>algo_id</code> 为文档静态注册表（§20）。</p>
+<p><code>AlgoReportCtrl{ enable_ids[](packed), min_interval_ms }</code> → <code>AlgoReportCtrlRsp{ status, active_ids[] }</code>（生效集合回读对账）。空集 = 全关；断连自动全关。</p>
 <h3 id="125-storage">12.5 STORAGE</h3>
 <p><code>StorageInfoReq{}</code> → <code>StorageInfo{ status, total_bytes, used_bytes, file_count }</code>。</p>
 <h2 id="13-algo-main_type-0x02">13. ALGO 域（<code>main_type 0x02</code>）</h2>
@@ -714,13 +775,24 @@ GET (App→表, NEED_RSP):  空 payload                                  → 同
 </tr>
 </tbody>
 </table>
-<p><strong>REPORT_TLV</strong>（表→App 推流，可丢不 ACK）：</p>
-<pre><code>bundle 头 (8B):  [bundle_seq u8][unix_sec u32][ms u16][record_count u8]   ← T-head6 锚点
-record (4B+N):   [algo_id u8][time_delta u8 ×100ms][flags u8][len u8][value: 该算法 Protobuf]
+<h3 id="131-report_tlv-d-3brecord-u24-rel_ms">13.1 REPORT_TLV 布局（D-3b：record 用 u24 rel_ms）</h3>
+<pre><code>bundle 头 (8B):   [bundle_seq u8][unix_sec u32][ms u16][record_count u8]  ← 在线锚点(设备 UTC 钟)
+record (6B+N):    [algo_id u8][rel_ms u24 LE][flags u8][len u8][value: 该算法 Protobuf]
+                   rel_ms = 相对 bundle 锚点的毫秒偏移, 量程 ≈4.66h
 flags: bit0 VALID · bit1 NEW_RESULT · bit2 WARNING · bit3 ERROR · bit4 HAS_EXT
-打包判断: 8 + Σ(4+len) ≤ 238；单 record 超限 → SEG_MODE 或精简 schema
+打包判断: 8 + Σ(6 + len) ≤ 238；单 record 超限 → SEG_MODE 或精简 schema
 </code></pre>
-<p><code>algo_id → 结果 message</code> 映射 = 静态注册表（§20.3），示例 schema：<code>HrResultV1 / Spo2ResultV1 / WearResultV1</code>（见 proto 草案）。</p>
+<p>表→App 推流，可丢不 ACK；<code>algo_id → 结果 message</code> 映射 = 静态注册表（§20.3）。</p>
+<h3 id="132-app">13.2 异常解析规则（App 侧强制）</h3>
+<ol>
+<li><code>record_count</code> 与实际解出的 record 数不一致 → <strong>丢弃整个 bundle</strong>；</li>
+<li>record <code>len</code> 超出剩余 payload → <strong>丢弃整个 bundle</strong>；</li>
+<li>未知 <code>algo_id</code> → 丢弃该 record，计数；</li>
+<li>inner Protobuf 解析失败 → 丢弃该 record，计数；</li>
+<li><code>flags.ERROR</code> 置位 → 可展示错误，<strong>不得按正常结果使用</strong>；</li>
+<li><code>bundle_seq</code> 缺口 → 只统计，不重传；</li>
+<li><code>bundle_seq</code> u8 回绕按 modulo 256 处理。</li>
+</ol>
 <h2 id="14-ota-main_type-0x04-mcumgrsmp">14. OTA 域（<code>main_type 0x04</code>，独占，语义对齐 MCUmgr/SMP）</h2>
 <table>
 <thead>
@@ -767,7 +839,7 @@ flags: bit0 VALID · bit1 NEW_RESULT · bit2 WARNING · bit3 ERROR · bit4 HAS_E
 <pre><code>Object=整个镜像  Window=一次确认的 chunk 组  Chunk=一次传输块  Frame=一个 UWTP 包
 
 IDLE ──IMG_LIST──▶ LISTED ──UPLOAD_BEGIN/READY──▶ TRANSFERRING（独占开始）
-  ▲                                                   │ UPLOAD_END + hash 校验
+  ▲                                                   │ UPLOAD_END + SHA-256 校验
   │◀── 断连（状态结束, flash 保留）────────────────────┤
   │                                                   ▼
   └── RESET ◀── IMG_STATE(TEST) ◀── VERIFIED     [失败→ERROR→ABORT]
@@ -775,22 +847,29 @@ IDLE ──IMG_LIST──▶ LISTED ──UPLOAD_BEGIN/READY──▶ TRANSFERRI
         ▼
    新固件自检 → IMG_STATE(CONFIRM)；未 confirm 下次复位自动回滚
 </code></pre>
-<h3 id="142-img_listprotobuf">14.2 IMG_LIST（Protobuf）</h3>
-<p><code>OtaImgListRsp{ status, slots[] }</code>；<code>OtaSlot{ slot, version, state_flags }</code>，<code>state_flags</code>：bit0 BOOTABLE · bit1 PENDING · bit2 CONFIRMED · bit3 ACTIVE · bit4 PERMANENT（<strong>与 MCUmgr image state flags 一一对应</strong>）。</p>
-<h3 id="143-upload_begin-readyprotobuf-app">14.3 UPLOAD_BEGIN / READY（Protobuf 协商，App 提议、设备定版）</h3>
-<pre><code class="language-proto">message OtaUploadBegin { uint32 image_size = 1; bytes image_hash = 2; string version = 3;
-                         uint32 target_slot = 4; uint32 preferred_chunk = 5; uint32 preferred_window = 6; }
+<h3 id="142-img_list">14.2 IMG_LIST</h3>
+<p><code>OtaImgListRsp{ status, slots[] }</code>；<code>OtaSlot{ slot, version, state_flags }</code>——<code>state_flags</code>：bit0 BOOTABLE · bit1 PENDING · bit2 CONFIRMED · bit3 ACTIVE · bit4 PERMANENT（与 MCUmgr image state flags 一一对应）。</p>
+<h3 id="143-upload_begin-readyapp">14.3 UPLOAD_BEGIN / READY（App 提议、设备定版）</h3>
+<pre><code class="language-proto">message OtaUploadBegin { uint32 image_size = 1; bytes image_hash = 2;   // SHA-256, 32B（D-18）
+                         string version = 3; uint32 target_slot = 4;
+                         uint32 preferred_chunk = 5; uint32 preferred_window = 6; }
 message OtaUploadReady { uint32 status = 1; uint32 transfer_id = 2; uint32 chunk_bytes = 3;
-                         uint32 window_chunks = 4; uint32 next_offset = 5; }
+                         uint32 window_chunks = 4; uint32 next_offset = 5;
+                         uint32 max_in_flight_chunks = 6;               // WriteNoRsp 节流（D-16）
+                         uint32 inter_chunk_delay_us = 7; }             // 0 = 仅按平台写回调节流
 </code></pre>
-<p><code>next_offset</code>：全新传输 = 0；<strong>断连重来 = 设备已落 flash 的连续水位</strong>（同一 image_hash 才允许续，否则从 0）——即 SMP upload 响应 <code>off</code> 字段的语义。</p>
-<h3 id="144-upload_data-ack">14.4 UPLOAD_DATA / ACK（固定二进制）</h3>
+<p><code>next_offset</code>：全新 = 0；断连重来 = 设备已落 flash 的连续水位（<strong>同 image_hash 才允许续</strong>，否则从 0）。</p>
+<h3 id="144-upload_data-ack-writenorsp-d-16">14.4 UPLOAD_DATA / ACK 与 WriteNoRsp 节流（D-16）</h3>
 <pre><code>DATA (App→表):  [transfer_id u8][offset u32][data ≤232B]
 ACK  (表→App):  [transfer_id u8][next_offset u32][status u8]   ← 每 window_chunks 片一次
 </code></pre>
-<p><code>next_offset</code> 之前已连续写入 flash；status=CRC_ERROR/NO_SPACE 等时 App 回退到 next_offset 重发。<strong>transfer_id 定为 u8</strong>：并发矩阵保证同时只有一个传输在跑，u8 足够且省 3B/帧（对 V4 的 u32 收窄，记录在案）。</p>
+<ul>
+<li><strong>节流铁律</strong>：RX 是 Write Without Response——<strong>App 不得无节制连续写完整个 window</strong>。App 以 <code>max_in_flight_chunks</code> 为小批次发送；每批之间等待平台 BLE 写队列回调（Android <code>onCharacteristicWrite</code> / iOS <code>canSendWriteWithoutResponse</code>），或至少延迟 <code>inter_chunk_delay_us</code>。否则协议无错、手机 BLE 栈被写爆。</li>
+<li><code>next_offset</code> 之前已连续写入 flash；status 非 0（CRC_ERROR/NO_SPACE 等）→ App 回退到 next_offset 重发；窗口 ACK 超时 5s → 传输失败。</li>
+<li><strong>transfer_id 规则（D-17）</strong>：u8；<code>0</code> 保留为无效；<code>1–255</code> 有效回绕；由设备在 READY 生成；<strong>断连 / END / ABORT 后作废</strong>，携带已作废 id 的帧回 <code>INVALID_STATE</code>。</li>
+</ul>
 <h3 id="145-upload_end-img_state-reset">14.5 UPLOAD_END / IMG_STATE / RESET</h3>
-<p>END（App→表，NEED_RSP）→ 设备整镜像 hash 校验 → <code>CommonRsp</code>；<code>IMG_STATE{op: TEST|CONFIRM, slot}</code>；<code>RESET{}</code>。UWTP 只管<strong>协商/传输/续传/窗口 ACK/hash/状态切换请求</strong>；镜像格式解析、签名验证、slot 切换、test boot、confirm、rollback 归 <strong>bootloader</strong>（分工同 V4 §13.8）。</p>
+<p>END（NEED_RSP）→ 设备整镜像 <strong>SHA-256</strong> 校验 → <code>CommonRsp</code>；<code>OtaImgState{op: 1 TEST / 2 CONFIRM, slot}</code>；<code>OtaReset{}</code>。UWTP 只管协商/传输/续传/窗口 ACK/hash/状态切换请求；镜像格式解析、签名验证、slot 切换、test boot、confirm、rollback 归 bootloader。</p>
 <h3 id="146-mcumgrsmp-img_mgmt-d-9">14.6 与 MCUmgr/SMP img_mgmt 映射（D-9）</h3>
 <table>
 <thead>
@@ -807,14 +886,14 @@ ACK  (表→App):  [transfer_id u8][next_offset u32][status u8]   ← 每 window
 <td>槽位+版本+hash+flags</td>
 </tr>
 <tr>
-<td>UPLOAD_BEGIN(size+hash) / READY(next_offset)</td>
+<td>UPLOAD_BEGIN(size+sha256) / READY(next_offset)</td>
 <td>image upload 首请求（len+sha）/ 响应 <code>off</code></td>
-<td>语义等价；UWTP 多了 chunk/window 协商</td>
+<td>语义等价；UWTP 多 chunk/window/in_flight 协商</td>
 </tr>
 <tr>
 <td>UPLOAD_DATA{off,data} + 窗口 ACK</td>
 <td>upload 请求/响应（逐请求 ACK）</td>
-<td><strong>差异</strong>：SMP 逐 chunk 应答，UWTP 用窗口 ACK 换吞吐（WriteNoRsp 连发）</td>
+<td>差异：SMP 逐 chunk 应答，UWTP 窗口 ACK + 节流换吞吐</td>
 </tr>
 <tr>
 <td>IMG_STATE(TEST/CONFIRM)</td>
@@ -833,10 +912,7 @@ ACK  (表→App):  [transfer_id u8][next_offset u32][status u8]   ← 每 window
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p>固件 layout 虽自研锁定，按此映射实现可与 MCUboot 式双槽管理保持概念一致，后续迁移 Zephyr 生态零概念冲突。</p>
-</blockquote>
-<h2 id="15-file-main_type-0x05app">15. FILE 域（<code>main_type 0x05</code>，多文件名，表→App）</h2>
+<h2 id="15-file-main_type-0x05app">15. FILE 域（<code>main_type 0x05</code>，纯文件搬运，表→App）</h2>
 <table>
 <thead>
 <tr>
@@ -878,13 +954,17 @@ ACK  (表→App):  [transfer_id u8][next_offset u32][status u8]   ← 每 window
 </tr>
 </tbody>
 </table>
+<p><strong>FILE 域只关心：文件名、大小、kind、transfer_id、offset、data、CRC32、DELETE——不关心采样开始/结束时间、样本时间、bundle 锚点</strong>（D-3a，见 §5）。</p>
 <h3 id="151-d-8">15.1 路径隐含约定（D-8）</h3>
-<p>协议只传<strong>相对文件名</strong>（如 <code>dc/ecg_0706_1600.uof</code>、<code>log/eiotlog.log</code>）；根目录、目录结构、命名规则是<strong>固件与 App 的文档级共识</strong>（Profile 章节写死），协议本体不解释路径语义。<code>kind</code> 枚举用于 LIST 过滤与 App 分流：<code>0 不过滤 · 1 LOG · 2 CONFIG(保留) · 3 DEBUG_DUMP(保留) · 4 OFFLINE_DATA</code>。</p>
+<p>协议只传相对文件名（<code>dc/ecg_0706_1600.uof</code>、<code>log/eiotlog.log</code>）；根目录、目录结构、命名规则是固件与 App 的文档级共识（Profile 章写死）。App 需要"文件时间"时从文件名约定解析或读文件头（如 UOF1）。<code>kind</code>：<code>0 不过滤 · 1 LOG · 2 CONFIG⏸ · 3 DEBUG_DUMP⏸ · 4 OFFLINE_DATA</code>。</p>
 <h3 id="152-listprotobuf-seg_mode">15.2 LIST（Protobuf，大页允许 SEG_MODE）</h3>
 <pre><code class="language-proto">message FileListReq { uint32 kind = 1; uint32 page = 2; uint32 page_size = 3; }
 message FileListRsp { uint32 status = 1; uint32 total = 2; uint32 page = 3; repeated FileEntry entries = 4; }
-message FileEntry   { string name = 1; uint32 size = 2; uint32 mtime_sec = 3; uint32 kind = 4; }
+message FileEntry   { string name = 1; uint32 size = 2; uint32 kind = 3; uint32 flags = 4; }
 </code></pre>
+<blockquote>
+<p>r2 修订：<strong>FileEntry 删除 <code>mtime_sec</code></strong>——严格执行"时间戳只在在线数据使用"；<code>flags</code> 为保留位（bit0 只读等，V1 置 0）。</p>
+</blockquote>
 <h3 id="153-read-d-6">15.3 READ 传输（断连从头，D-6）</h3>
 <pre><code class="language-proto">message ReadBegin { string name = 1; uint32 preferred_chunk = 2; uint32 preferred_window = 3; }
 message ReadReady { uint32 status = 1; uint32 transfer_id = 2; uint32 total_bytes = 3;
@@ -895,69 +975,87 @@ ACK  (App→表):  [transfer_id u8][next_offset u32][status u8]   ← 每 window
 END  (表→App):  ReadEnd{ status, transfer_id, sent_bytes }
 </code></pre>
 <ul>
-<li>窗口 ACK 职责 = <strong>流控 + 进度</strong>（链路层已可靠；不做重传语义）；表最多领先未 ACK 一个窗口；</li>
-<li>App 收完全量 → <strong>CRC32 与 READY.file_crc32 比对</strong>；不符 → 重新 READ_BEGIN 整档重拉（文件仍在）；</li>
-<li><strong>DELETE{name}</strong>（NEED_RSP）：App 校验通过且确认后显式删除；读传输中拒删（BUSY）。传输本身<strong>永不隐式删数据</strong>。</li>
+<li>窗口 ACK 职责 = 流控 + 进度（链路层已可靠，不做重传语义）；表最多领先未 ACK 一个窗口；ACK 超时 5s → 传输失败；</li>
+<li><strong><code>file_crc32</code> = CRC-32/IEEE 802.3</strong>（poly <code>0x04C11DB7</code>、init <code>0xFFFFFFFF</code>、refin/refout true、xorout <code>0xFFFFFFFF</code>，D-18）；App 收完全量比对，不符 → 整档重拉（文件仍在）；</li>
+<li><strong>V1.0 不支持断点续传</strong>；未来文件尺寸明显增大时，可在 READ_BEGIN 增加 optional offset 字段——V1 语义固定从 0 传；</li>
+<li>transfer_id 规则同 §14.4（D-17）；</li>
+<li><strong>DELETE{name}</strong>（NEED_RSP）：App 校验通过且确认后显式删除；读传输中拒删（BUSY）。传输本身永不隐式删数据。</li>
 </ul>
 <h2 id="16-log-main_type-0x03">16. LOG 域（<code>main_type 0x03</code>）</h2>
 <ul>
-<li><code>0x01 LIVE_EVENT</code>：实时日志推流，<strong>可丢不 ACK</strong>（V0.99 可选实现）；二进制 <code>[rel_ms u32][level u8][module u8][event u16][args...]</code>，事件字典 = 文档静态注册表。</li>
-<li><code>0x02–0x09</code>（V4 的 EXPORT_<em> 组）：</em><em>编号保留、弃用</em><em>——日志文件导出统一走 </em><em>FILE 域</em>*（日志就是固定名字的文件，D-8 后无需第二套传输）。</li>
+<li><code>0x01 LIVE_EVENT</code>：实时日志推流，可丢不 ACK（V0.99 可选实现）；二进制 <code>[rel_ms u32][level u8][module u8][event u16][args...]</code>（rel_ms 相对本连接首个 LIVE_EVENT 的在线锚点，锚点帧带 <code>[unix_sec u32][ms u16]</code> 前缀，flags 位区分——实现细节 Profile 定）；事件字典 = 文档静态注册表。</li>
+<li><code>0x02–0x09</code>（V4 的 EXPORT_<em> 组）：编号保留、弃用——</em><em>日志文件导出统一走 FILE 域</em>*（V1.0 保持：LOG 域只做 LIVE_EVENT）。</li>
 </ul>
-<h2 id="17-tunnel-main_type-0x06">17. TUNNEL 域（<code>main_type 0x06</code>，本版新增）</h2>
-<p><code>sub_type = tunnel_id</code>（静态注册表：<code>0x01 GH3220_EVK</code>）。payload = 厂商协议字节<strong>原样透传</strong>，设备与 UWTP 均不解释；消息边界不保证（字节流语义，厂商协议自带帧同步）；可丢（§8）；FILE/OTA 传输期间上行让位。在线测量的启停/参数/数据全部由隧道两端厂商协议自理——<strong>UWTP 不给在线路径发明第二套语义</strong>。</p>
+<h2 id="17-tunnel-main_type-0x06">17. TUNNEL 域（<code>main_type 0x06</code>）</h2>
+<p><code>sub_type = tunnel_id</code>（注册表：<code>0x01 GH3220_EVK</code>）。payload = 厂商协议字节原样透传，设备与 UWTP 均不解释；消息边界不保证（字节流语义）。</p>
+<blockquote>
+<p><strong>强约束：UWTP 不为 TUNNEL 提供可靠性。若厂商协议需要可靠性，必须由厂商协议自身实现 seq / ack / retry；否则 TUNNEL 只适合实时观测与可丢数据。</strong> FILE/OTA 传输期间 TUNNEL 上行让位（§7）。</p>
+</blockquote>
 <h2 id="18-vendormain_type-0xf0">18. VENDOR（<code>main_type 0xF0</code>）</h2>
-<p>厂商/实验保留。启用前须在文档注册表登记，避免冲突。</p>
+<p>厂商/实验保留。启用前须在 §20 注册表登记。</p>
 <hr />
 <h1 id="part-iii">Part III · 附录</h1>
-<h2 id="19-example-raw-packet-decode">19. Example raw packet + decode（脚本实算）</h2>
+<h2 id="19-example-raw-packet-decoder2">19. Example raw packet + decode（脚本实算，r2 布局）</h2>
 <pre><code>E1  TIME SET (13B):  14 01 05 21 08 | 80 60 4B 6A | 00 00 | E0 01
-    sec=1783324800(2026-07-06 08:00Z) ms=0 tz=+480 → rsp: 10 01 05 21 00 (status=0 空)
+    sec=1783324800 ms=0 tz=+480 → rsp: 10 01 05 21 00 (status=0 空)
 
-E2  HELLO (22B):     14 01 01 22 11 | 08 01 | 12 0D &quot;bluetrace-1.0&quot;
-    RSP (30B):       10 01 01 22 19 | 10 01 | 1A 0B &quot;s7-fw-1.2.0&quot; | 22 08 &quot;S7A1B2C3&quot;
+E2  HELLO (40B):  14 01 01 22 23 | 08 01 | 12 0D &quot;bluetrace-1.0&quot;
+                  | 1A 0A &quot;s7-collect&quot; | 20 D4 B2 A2 CF 06        ← registry_hash=0x69E89954
+    RSP (48B):    10 01 01 22 2B | 10 01 | 1A 0B &quot;s7-fw-1.2.0&quot; | 22 08 &quot;S7A1B2C3&quot;
+                  | 2A 0A &quot;s7-collect&quot; | 30 D4 B2 A2 CF 06        ← 同表校验通过
 
-E3  FILE/LIST req (7B):  14 05 01 40 02 | 18 10                       page_size=16
-    rsp (74B):  10 05 01 40 45 | total=2 | entry{name=&quot;dc/ecg_0706_1600.uof&quot;,
-                size=460800, mtime, kind=4} | entry{name=&quot;log/eiotlog.log&quot;, size=131072, kind=1}
+E3  FILE/LIST req (7B): 14 05 01 40 02 | 18 10
+    rsp (62B): 10 05 01 40 39 | total=2
+               | entry{name=&quot;dc/ecg_0706_1600.uof&quot;, size=460800, kind=4}
+               | entry{name=&quot;log/eiotlog.log&quot;, size=131072, kind=1}     ← 无时间字段(r2)
 
 E4  READ_BEGIN (27B): 14 05 02 41 16 | name=&quot;log/eiotlog.log&quot; | chunk=230 | win=16
     READ_READY (22B): 10 05 03 41 11 | tid=2 total=131072 chunk=230 win=16 crc32=0xA56BF2B7
-    READ_DATA#0(240B): 10 05 04 00 EB | 02 | 00 00 00 00 | data 230B     ← tid u8 + off u32
-    READ_ACK (11B):    10 05 05 50 06 | 02 | 60 0E 00 00 | 00            ← next=3680, OK
+    READ_DATA#0(240B): 10 05 04 00 EB | 02 | 00 00 00 00 | data 230B
+    READ_ACK (11B):    10 05 05 50 06 | 02 | 60 0E 00 00 | 00
 
-E5  OTA IMG_LIST rsp (24B): 10 04 01 30 13 | slot0{v&quot;1.2.0&quot;, flags=0x0D
-        =BOOTABLE|CONFIRMED|ACTIVE} | slot1{flags=0x00 空}
-    UPLOAD_BEGIN (29B): 14 04 02 31 18 | size=262144 | hash | v&quot;1.3.0&quot; | slot=1 | chunk=224 | win=32
-    UPLOAD_READY (14B): 10 04 03 31 09 | tid=7 chunk=224 win=32 next_offset=0
+E5  OTA UPLOAD_BEGIN (57B): 14 04 02 31 34 | size=262144 | 12 20 &lt;SHA-256 32B: 6B 5C 5E E5...&gt;
+                            | v&quot;1.3.0&quot; | slot=1 | chunk=224 | win=32
+    UPLOAD_READY (16B): 10 04 03 31 0B | tid=7 chunk=224 win=32 next_offset=0
+                        | 30 08 ← max_in_flight_chunks=8（节流，D-16）
     UPLOAD_DATA#0 (234B): 10 04 04 00 E5 | 07 | 00 00 00 00 | data 224B
-    UPLOAD_ACK (11B):     10 04 05 60 06 | 07 | 00 1C 00 00 | 00          ← next=7168(32 片)
+    UPLOAD_ACK (11B):     10 04 05 60 06 | 07 | 00 1C 00 00 | 00       ← next=7168
 
-E6  REPORT_TLV (36B): 10 02 02 36 1F | 05 | A0 7C 4B 6A | FA 00 | 02 |
-        rec{algo=1(HR) dt=0 flags=03 HrResultV1{72,90,80}} |
-        rec{algo=2(SpO2) dt=10(1s) flags=03 Spo2ResultV1{98,72,85,pi1500}}
-        bundle 锚点 = sec+7200, 250ms（T-head6）
+E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
+      | rec{algo=1 rel_ms=00 00 00 flags=03 len=6 HrResultV1{72,90,80}}
+      | rec{algo=2 rel_ms=E8 03 00(=1000ms) flags=03 len=9 Spo2ResultV1{98,72,85,pi1500}}
+      bundle 锚点 = sec+7200, 250ms；record 头 6B（u24 rel_ms，D-3b）
 </code></pre>
 <h2 id="20-d-12">20. 静态注册表汇总（D-12：文档即共识，双端硬编码）</h2>
-<p><strong>20.1 main_type</strong>：<code>0x01 CTRL · 0x02 ALGO · 0x03 LOG · 0x04 OTA · 0x05 FILE · 0x06 TUNNEL · 0xF0 VENDOR</code>（sub 表见各域章节）。</p>
-<p><strong>20.2 FILE kind</strong>：<code>0 不过滤 · 1 LOG · 2 CONFIG⏸ · 3 DEBUG_DUMP⏸ · 4 OFFLINE_DATA</code>。</p>
-<p><strong>20.3 algo_id</strong>（Profile 填充）：<code>1 HR → HrResultV1 · 2 SPO2 → Spo2ResultV1 · 3 WEAR → WearResultV1 · 【S7 Profile 增补】</code>。</p>
-<p><strong>20.4 tunnel_id</strong>：<code>0x01 GH3220_EVK</code>。</p>
-<p><strong>20.5 离线文件内容格式</strong>（FILE 传输对内容不透明，App 按扩展名/Profile 约定选解析器）：<code>.uof = UOF1 统一离线格式（推荐）· 现网 ECG1_V2 / PPGHR40 / GS18 兼容期保留</code>。</p>
+<h3 id="200-hello">20.0 注册表标识（HELLO 校验源）</h3>
+<ul>
+<li><strong><code>profile_id</code></strong>：产品剖面标识字符串，注册表：<code>"s7-collect"</code>（S7 采集）；新剖面在此登记。</li>
+<li><strong><code>registry_hash</code></strong>：u32，<strong>由文档维护者在每次注册表（§20.1–20.5 任一表）变更时更新</strong>。当前值 = <code>CRC32("UWTP-REG/0.99-r2") = 0x69E89954</code>。双端硬编码此值，HELLO 不一致 → 拒绝业务域（§12.1）。</li>
+</ul>
+<h3 id="201-main_type">20.1 main_type</h3>
+<p><code>0x01 CTRL · 0x02 ALGO · 0x03 LOG · 0x04 OTA · 0x05 FILE · 0x06 TUNNEL · 0xF0 VENDOR</code>（sub 表见各域章节）。</p>
+<h3 id="202-file-kind">20.2 FILE kind</h3>
+<p><code>0 不过滤 · 1 LOG · 2 CONFIG⏸ · 3 DEBUG_DUMP⏸ · 4 OFFLINE_DATA</code>。</p>
+<h3 id="203-algo_idprofile">20.3 algo_id（Profile 填充）</h3>
+<p><code>1 HR → HrResultV1 · 2 SPO2 → Spo2ResultV1 · 3 WEAR → WearResultV1 · 【S7 Profile 增补】</code>。</p>
+<h3 id="204-tunnel_id">20.4 tunnel_id</h3>
+<p><code>0x01 GH3220_EVK</code>。</p>
+<h3 id="205-file-app-profile">20.5 离线文件内容格式（FILE 对内容不透明，App 按扩展名/Profile 约定选解析器）</h3>
+<p><code>.uof = UOF1 统一离线格式（推荐；**文件内时间/采样率/通道由 UOF1 自定义**，见 D-3a）· 现网 ECG1_V2 / PPGHR40 / GS18 兼容期保留</code>。</p>
 <h2 id="21-uhtp-v4">21. 相对 UHTP V4 的差异清单</h2>
 <table>
 <thead>
 <tr>
 <th>项</th>
 <th>V4</th>
-<th>V0.99</th>
+<th>V0.99-r2</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>名称</td>
 <td>UHTP</td>
-<td><strong>UWTP</strong>（D-1）</td>
+<td>UWTP（D-1）</td>
 </tr>
 <tr>
 <td>GATT 绑定</td>
@@ -967,7 +1065,7 @@ E6  REPORT_TLV (36B): 10 02 02 36 1F | 05 | A0 7C 4B 6A | FA 00 | 02 |
 <tr>
 <td>时间模型</td>
 <td>无</td>
-<td>§5（UTC 钟 + 两级时间制）</td>
+<td>§5 三层制：<strong>时间戳只属于在线数据</strong>；FILE/OTA 无采样时间；离线时间归文件格式（D-2/D-3/D-3a）</td>
 </tr>
 <tr>
 <td>断连语义</td>
@@ -985,14 +1083,19 @@ E6  REPORT_TLV (36B): 10 02 02 36 1F | 05 | A0 7C 4B 6A | FA 00 | 02 |
 <td>固定字段全小端（D-11）</td>
 </tr>
 <tr>
+<td>超时/节流</td>
+<td>无</td>
+<td>CTRL 3s×2、窗口 ACK 5s（D-15）；WriteNoRsp in_flight 节流（D-16）</td>
+</tr>
+<tr>
 <td>心跳</td>
 <td>CTRL/HEARTBEAT</td>
-<td><strong>不做</strong>，编号保留（D-10）</td>
+<td>不做，编号保留（D-10）</td>
 </tr>
 <tr>
 <td>能力发现</td>
 <td>HELLO 大协商 + Manifest</td>
-<td><strong>静态注册表制</strong>，HELLO 最小化（D-12）</td>
+<td>静态注册表 + <strong>profile_id/registry_hash 同表校验</strong>（D-12）</td>
 </tr>
 <tr>
 <td>LOG 导出</td>
@@ -1002,39 +1105,107 @@ E6  REPORT_TLV (36B): 10 02 02 36 1F | 05 | A0 7C 4B 6A | FA 00 | 02 |
 <tr>
 <td>FILE</td>
 <td>匿名 file read</td>
-<td><strong>多文件名 + LIST + DELETE</strong>，路径隐含约定（D-8）</td>
+<td>多文件名 + LIST + DELETE；<strong>FileEntry 无时间字段</strong>（D-3a/D-8）</td>
 </tr>
 <tr>
 <td>OTA</td>
 <td>自研描述</td>
-<td><strong>对齐 MCUmgr/SMP 语义</strong>（§14.6 映射表，D-9）</td>
+<td>对齐 MCUmgr/SMP（§14.6）；image_hash 写死 <strong>SHA-256</strong>（D-18）</td>
 </tr>
 <tr>
 <td>TUNNEL</td>
 <td>无</td>
-<td>新增域（在线透传）</td>
+<td>新增域；<strong>明示 UWTP 不保可靠</strong></td>
 </tr>
 <tr>
 <td>transfer_id</td>
 <td>u32</td>
-<td><strong>u8</strong>（单传输并发下收窄省流）</td>
+<td>u8，0 无效、断连作废（D-17）</td>
 </tr>
 <tr>
-<td>REPORT bundle 头</td>
-<td>seq+base_time_ms(4)+count = 6B</td>
-<td>seq+<strong>sec(4)+ms(2)</strong>+count = 8B（T-head6 锚点，D-3）</td>
+<td>REPORT record 头</td>
+<td>4B（time_delta u8×100ms）</td>
+<td><strong>6B（rel_ms u24 LE）</strong>（D-3b）+ 异常解析规则 §13.2</td>
+</tr>
+<tr>
+<td>文件校验</td>
+<td>"CRC32"</td>
+<td>写死 CRC-32/IEEE 802.3 全参数（D-18）</td>
 </tr>
 </tbody>
 </table>
 <h2 id="22-v10">22. V1.0 冻结前待办</h2>
 <ol>
-<li><strong>S7 采集 Profile</strong>：把 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"><code>../architecture/s7/protocol-zqdata-uhtp-v1.md</code></a> 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、文件命名约定、tunnel_id）、S7 GATT 绑定、legacy 双栈迁移；其 FILE 断点续传/会话槽等超出本版决策的内容按 D-6/D-8 删改。</li>
-<li>固件评审：OTA 窗口 ACK vs SMP 逐片应答的实现取舍确认；文件命名规则（<code>dc/</code>、<code>log/</code> 目录约定）定稿。</li>
-<li>双端金帧联调 → <code>protocol_version=1</code> 冻结 → 本文档改版 V1.0。</li>
+<li><strong>S7 采集 Profile</strong>：把 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"><code>../architecture/s7/protocol-zqdata-uhtp-v1.md</code></a> 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、<code>dc/</code>/<code>log/</code> 文件命名约定、tunnel_id、profile_id）、S7 GATT 绑定、legacy 双栈迁移；UOF1 文件格式（含时间定义）随 Profile 定稿。</li>
+<li>固件评审确认点：OTA 窗口 ACK + 节流参数默认值；文件命名规则定稿。</li>
+<li>双端金帧联调 → <code>protocol_version=1</code> + <code>registry_hash</code> 定版 → 冻结 V1.0。</li>
 </ol>
+<h2 id="23-r2-2026-07-06-1010">23. r2 修订记录（对照 2026-07-06 完整审查意见，10/10 采纳）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>审查意见</th>
+<th>落点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>时间戳只保留在在线数据路径</td>
+<td>§5 重写三层制；D-2/D-3/D-3a/D-3b</td>
+</tr>
+<tr>
+<td>2</td>
+<td>FILE 域删除采样时间语义</td>
+<td>§15.2 FileEntry 删 <code>mtime_sec</code>；§15 开头明示"不关心采样时间"</td>
+</tr>
+<tr>
+<td>3</td>
+<td>REPORT record 时间改 u24 rel_ms</td>
+<td>§13.1（6B record 头，打包公式 8+Σ(6+len)≤238）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>HELLO 增加 profile_id / registry_hash</td>
+<td>§12.1 + §20.0（校验规则：不一致只留 CTRL）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>OTA/FILE 补 WriteNoRsp 节流</td>
+<td>§14.4 节流铁律 + READY 字段 6/7（D-16）</td>
+</tr>
+<tr>
+<td>6</td>
+<td>transfer_id 明确 0 无效、断连作废</td>
+<td>§14.4 / §15.3（D-17）</td>
+</tr>
+<tr>
+<td>7</td>
+<td>REPORT_TLV 补异常解析规则</td>
+<td>§13.2（7 条）</td>
+</tr>
+<tr>
+<td>8</td>
+<td>CRC32 / SHA-256 写死算法</td>
+<td>D-18；§14.3/§15.3</td>
+</tr>
+<tr>
+<td>9</td>
+<td>TUNNEL 明确不保可靠</td>
+<td>§17 强约束句</td>
+</tr>
+<tr>
+<td>10</td>
+<td>SECURITY 加量产边界</td>
+<td>§9（量产开放 OTA/FILE/DELETE/USER_PROFILE 必须启用鉴权）</td>
+</tr>
+</tbody>
+</table>
+<p>另按意见补：超时参数（D-15）、legacy 误判保护（§11.2 <code>UWTP_BAD_FRAME</code> 不回落）、"UWTP FILE 是搬运协议不解释内容"总则句（§5/§0.1）。</p>
 <h2 id="_1">引用</h2>
 <ul>
-<li>前身：<a href="UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（骨架来源，本文 §3/§10/§13-14 大量继承）</li>
+<li>前身：<a href="UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（骨架来源）</li>
 <li>契约草案：<a href="uwtp_v0.99_draft.proto"><code>uwtp_v0.99_draft.proto</code></a></li>
 <li>示例脚本：<a href="assets/gen_uwtp_examples.py"><code>assets/gen_uwtp_examples.py</code></a></li>
 <li>现网协议（迁移对象）：<a href="../architecture/s7/S7协议共识规格.md"><code>../architecture/s7/S7协议共识规格.md</code></a>；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型</li>

@@ -17,6 +17,38 @@
 
 ---
 
+## [文档] UWTP V0.99-r2：完整审查十项修改全部采纳（V1.0 RC） — ✅ 2026-07-06
+[`UWTP/UWTP_BLE_Protocol_Design_V0.99.{md,html}`](UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + proto 同步修订。对照完整审查意见 10/10 采纳（修订记录 §23）：**① 时间戳收敛到只属于在线数据**（§5 三层制：CTRL/TIME 校时 / 在线 REPORT·LOG_LIVE 带锚点 / FILE·OTA 不带采样时间；离线时间归文件格式 UOF1，D-2/D-3/D-3a/D-3b）；② FileEntry 删 `mtime_sec`（时间从文件名/文件头取）；③ REPORT record 头 4B→6B（`u24 rel_ms` 取代 ×100ms delta，量程 4.66h）；④ HELLO 增 `profile_id + registry_hash` 同表一致性校验（当前 0x69E89954，不一致仅 CTRL 可用）；⑤ OTA 补 WriteNoRsp 节流（READY +`max_in_flight_chunks`/`inter_chunk_delay_us`，D-16）；⑥ transfer_id 规则（0 无效/断连作废，D-17）；⑦ REPORT 异常解析 7 条（§13.2）；⑧ 校验算法写死（CRC-32/IEEE 全参数 + OTA SHA-256，D-18）；⑨ TUNNEL 明示不保可靠；⑩ SECURITY 量产边界（量产开放 OTA/FILE/DELETE/USER_PROFILE 必须启用鉴权）。另补超时参数（CTRL 3s×2、窗口 ACK 5s，D-15）与 legacy 误判保护（`UWTP_BAD_FRAME` 不回落）。
+**坑（已记忆归档，根因后经用户确认）**：**C/D 盘 = 端点透明加密盘、E 盘非加密——从加密盘直接复制文件到非加密盘不解密，`%TSD-Header-###%` 密文原样落地**（python 在加密盘原地能跑 = 透明解密假象；加密异步，新文件短暂明文不可侥幸）。当天四份归档示例脚本全部中招，已用 Write 直写重建并逐一复跑验证（含金帧 CRC 自校验）。规则入全局 skill `win-py-tsd-guard`：永不 C/D→E 复制；落仓 Write 直写 + 验证；C/D 盘写 Python 不加 `.py` 后缀。
+
+---
+
+## [文档] Docs 全目录深度整理：死链清零 + 孤儿截图归档 + 状态行补全 — ✅ 2026-07-06
+提交：`12f29b7`。
+- **死链扫描（脚本化）**：活区 10 处全修（上轮 s7 底稿归档造成的引用断链 + 归档侧挪动副作用）；归档区历史文档内部死链按"冻结不维护"原则不动。
+- **孤儿截图归档**：`assets/{screenshots(v4-v5 轮), device_v5, device_v6, pic}` 全仓零活引用 → [`归档/历史截图/`](归档/)；compare 考古页目录常量随迁修复。
+- **状态行补全**：[`代码审查报告_20260706.md`](代码审查报告_20260706.md)（四波收官）、设计审查报告 v6（波次④落地 + ⏳ 活缺口）。
+- **[`里程碑与进度.md`](里程碑与进度.md) 3 处过期口径修正**：UHTP→UWTP V0.99、"WireSampleDecoder 替换"→注册式 Profile 接入 + D2 已拍板 Nordic、"解码仍 Mock"→注册式架构已落码。
+- [`README.md`](README.md) 目录树：assets 口径更新 + 归档桶补「历史截图/」。
+
+---
+
+## [文档] architecture 目录深度整理：导航 README + 全员状态标注 + 死引用修复 — ✅ 2026-07-06
+提交：`955ee7f`。
+- **新建 [`architecture/README.md`](architecture/README.md)**：文档角色/状态清单 + **三线协议关系图**（自研 v0.1+BTCP/1 与 UWTP V0.99 为 M7 冻结二选一待固件评审；S7 现网线与 M7 无关）+ 变更纪律（状态行强制 / 机器契约路径冻结 / 历史进归档）。
+- **全员状态标注对齐现实**：02（R1–R3 已落码 + 两处偏离在册）、03/btcp1、帧规格、`bluetrace_v0.proto`（补 UWTP 二选一关系）、存储与日志设计（已实施 v7）。
+- `bluetrace_v0.proto` 修 BlueTrace_Protocol.md 死引用（指向归档路径）；[`README.md`](README.md) 树修正（补评估/architecture README 条目、s7 归档口径、归档桶新增「s7协议工作底稿」）；帧规格 html 重生成。
+
+---
+
+## [文档] s7 协议分册补齐五要素 + 工作底稿归档（第 22 轮） — ✅ 2026-07-06
+提交：`fd14878`。对照协议文档标准五要素（Frame 表 / bit-level ASCII 图 / 逐字节 payload / 实例包 decode / 状态机）审计 [`architecture/s7/`](architecture/s7/)：共识稿达标，两份分册补缺——
+- **[`protocol-zqdata.md`](architecture/s7/protocol-zqdata.md)**：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据分界可视化）、§3.8 **实例包 decode**（HR 起帧 16B 全注解 + 212B 数据包帧0/帧1 逐字段；脚本实算 CRC + 金帧 0x462D 自校验；数值为构造演示值，待采集固件手表实录替换）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
+- **[`protocol-b2a.md`](architecture/s7/protocol-b2a.md)**：§2 增帧信封 bit-level 标尺图；§9.1 OTA 状态机扩为 ASCII 图（REQ→READY→START→TRANS→END + 60s 超时/STOP/ERROR 回边 + OFFSET 断点续传）。
+- **目录归档**：`plan.md` / `review-report.md` / `_raw/`（10 份工作底稿）→ `归档/s7协议工作底稿/`；保留活文档 command-status（实现追踪）与 completeness-audit（缺口清单）。两份 html 重生成。明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 22 轮。
+
+---
+
 ## [文档] UWTP 统一可穿戴传输协议 设计 V0.99（冻结候选） — ✅ 2026-07-06
 [`UWTP/UWTP_BLE_Protocol_Design_V0.99.{md,html}`](UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + 契约草案 [`UWTP/uwtp_v0.99_draft.proto`](UWTP/uwtp_v0.99_draft.proto)：UHTP V4 的补全审议定稿版（改名 UWTP，D-1~D-14 决策表全记录；**协议家族已归拢至 [`Docs/UWTP/`](UWTP/README.md) 独立目录**，含前身 UHTP V4）。**Core 补齐 V4 六大空白**：GATT 绑定（1 Service + RX WriteNoRsp + TX Notify；S7 复用 ZQDATA 特征、其他项目占位）、时间模型（UTC 系统钟 + u32 秒/u16 ms/s16 时区仅 TIME 域一次 + 数据面只带 ms 偏移的两级时间制）、分域断连语义（OTA 重协商续断点 / FILE 从头重传 / 在线丢了就丢）、并发矩阵（OTA 独占最高优先）、每域丢包容忍度与完整性分层表、安全姿态（Just Works + 预留一次性鉴权）；**统一响应模型**（NEED_RSP 回显 seq + 响应 Protobuf 首字段恒 status）+ 固定字段全小端铁律 + 静态注册表制（不做动态能力发现，文档即共识）。**Domains**：心跳砍掉（BLE 链路监督兜底）；LOG 导出并入 FILE 域（多文件名 + LIST + DELETE，路径隐含约定）；OTA 语义对齐 Zephyr MCUmgr/SMP img_mgmt（槽位/状态位/test-confirm-rollback 映射表）；新增 TUNNEL 透传域。6 组示例帧脚本实算（[`UWTP/assets/gen_uwtp_examples.py`](UWTP/assets/gen_uwtp_examples.py)）。**下一步**：S7 采集 Profile 改写（protocol-zqdata-uhtp-v1 按 D-6/D-8/D-12 删改）→ 固件评审 → 双端金帧联调 → 冻结 V1.0。
 

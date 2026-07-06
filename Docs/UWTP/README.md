@@ -1,16 +1,16 @@
 # UWTP · 统一可穿戴传输协议（Unified Wearable Transport Protocol）
 
 > 协议家族独立目录（2026-07-06 建）。UWTP 是跨项目的 BLE 设备传输协议标准；S7/BlueTrace 只是其第一个落地产品线。
-> **当前基线 = V0.99（冻结候选）**，双端按文档静态注册表共识开发，联调通过后冻结 V1.0（线上 `protocol_version = 1`）。
+> **当前基线 = V0.99-r2（V1.0 RC 候选，2026-07-06 完整审查十项修改全部采纳）**，双端按文档静态注册表共识开发（HELLO 带 `profile_id + registry_hash` 同表校验），联调通过后冻结 V1.0（线上 `protocol_version = 1`）。
 
 ## 文件索引
 
 | 文件 | 角色 | 状态 |
 | --- | --- | --- |
-| [`UWTP_BLE_Protocol_Design_V0.99.md`](UWTP_BLE_Protocol_Design_V0.99.md) / [`.html`](UWTP_BLE_Protocol_Design_V0.99.html) | **协议正文**：Core（5B 头/GATT 绑定/时间模型/断连语义/并发矩阵/安全姿态）+ 六域（CTRL/ALGO/LOG/OTA/FILE/TUNNEL）+ 示例帧/注册表；D-1~D-14 审议决策表在册 | ✅ 冻结候选 |
-| [`uwtp_v0.99_draft.proto`](uwtp_v0.99_draft.proto) | 机器可读契约（全部 Protobuf 消息） | ✅ 随正文 |
-| [`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md) | **前身**（UHTP V4）：5B 头 + 事务域骨架的原始收敛稿，V0.99 的继承来源 | 📦 历史，勿再引用为基线 |
-| [`assets/gen_uwtp_examples.py`](assets/gen_uwtp_examples.py) | 示例帧生成脚本（5B 头 + protobuf wire + CRC32 实算，len 自洽断言） | ✅ 可复跑 |
+| [`UWTP_BLE_Protocol_Design_V0.99.md`](UWTP_BLE_Protocol_Design_V0.99.md) / [`.html`](UWTP_BLE_Protocol_Design_V0.99.html) | **协议正文 r2**：Core（5B 头/GATT 绑定/三层时间模型/断连语义/并发矩阵/超时节流/安全量产边界）+ 六域 + 示例帧/注册表；决策表 D-1~D-18 + 审查修订记录 §23 在册 | ✅ V1.0 RC 候选 |
+| [`uwtp_v0.99_draft.proto`](uwtp_v0.99_draft.proto) | 机器可读契约（全部 Protobuf 消息，r2 同步） | ✅ 随正文 |
+| [`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md) | **前身**（UHTP V4）：5B 头 + 事务域骨架的原始收敛稿 | 📦 历史，勿再引用为基线 |
+| [`assets/gen_uwtp_examples.py`](assets/gen_uwtp_examples.py) | 示例帧生成脚本（5B 头 + protobuf wire + CRC-32/SHA-256 实算，len 自洽断言） | ✅ 可复跑 |
 
 ## 关联（目录外）
 
