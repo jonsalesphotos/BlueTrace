@@ -70,7 +70,7 @@ fun EntryTile(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(iconBg),
+                    Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(iconBg), // 原型 .ico=圆角方 r10（圆形为实现漂移）
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
@@ -130,7 +130,7 @@ fun ListTileRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(36.dp).clip(CircleShape).background(iconBg),
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(iconBg), // 同上：圆角方对齐原型
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
@@ -156,7 +156,7 @@ fun PrimaryButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.fillMaxWidth().height(48.dp),
-        shape = RoundedCornerShape(BT.radius),
+        shape = RoundedCornerShape(999.dp), // 原型 .btn=胶囊（999px），14dp 为实现漂移
         colors = ButtonDefaults.buttonColors(containerColor = BT.primary, contentColor = Color.White),
     ) {
         if (leadingIcon != null) {
@@ -181,7 +181,7 @@ fun OutlineBtn(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(BT.radius),
+        shape = RoundedCornerShape(999.dp), // 胶囊，同 PrimaryButton
         border = BorderStroke(1.dp, borderColor),
     ) {
         if (leadingIcon != null) {

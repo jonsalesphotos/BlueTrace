@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -78,7 +79,7 @@ fun SessionDetailScreen(
                     item {
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             SectionHeader(stringResource(R.string.detail_sec_files))
-                            Text(stringResource(R.string.action_select_all), fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.padding(top = 14.dp).clickable { vm.selectAllFiles() })
+                            Text(stringResource(R.string.action_select_all), fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.padding(top = 14.dp).minimumInteractiveComponentSize().clickable { vm.selectAllFiles() })
                         }
                     }
                     items(s.files, key = { it.relativePath }) { file ->

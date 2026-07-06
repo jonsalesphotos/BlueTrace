@@ -118,9 +118,9 @@ fun EditSubjectSceneSheet(
 @Composable
 private fun EditUserRow(subject: Subject, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        color = if (selected) BT.tertiaryC else BT.surface,
+        color = if (selected) BT.primaryC else BT.surface,
         shape = RoundedCornerShape(BT.radius),
-        border = if (selected) androidx.compose.foundation.BorderStroke(1.5.dp, BT.tertiary) else null,
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.5.dp, BT.primary) else null,
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -133,7 +133,7 @@ private fun EditUserRow(subject: Subject, selected: Boolean, onClick: () -> Unit
                 }
                 if (!subject.isDefault()) Text(subjectBioLine(subject), fontSize = 11.sp, color = BT.onSurfaceV)
             }
-            CircleCheck(checked = selected, color = BT.tertiary)
+            CircleCheck(checked = selected, color = BT.primary) // 原型裁决：选中统一主蓝，紫只留实体图标
         }
     }
 }

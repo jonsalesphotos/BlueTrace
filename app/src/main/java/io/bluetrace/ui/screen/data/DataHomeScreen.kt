@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -79,7 +80,7 @@ fun DataHomeScreen(
                 BtTopBar(
                     title = stringResource(R.string.data_selected_title, ui.selected.size),
                     onBack = { vm.exitSelection() },
-                    actions = { Text(stringResource(R.string.action_select_all), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { vm.selectAll() }) },
+                    actions = { Text(stringResource(R.string.action_select_all), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.minimumInteractiveComponentSize().clickable { vm.selectAll() }) },
                 )
             } else {
                 BtTopBar(
@@ -88,7 +89,7 @@ fun DataHomeScreen(
                     actions = {
                         if (ui.sessions.isNotEmpty()) {
                             // 进多选默认空选：不暗中预选任何会话（防两次点击误删最新数据）
-                            Text(stringResource(R.string.action_select), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { vm.enterSelection() })
+                            Text(stringResource(R.string.action_select), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.minimumInteractiveComponentSize().clickable { vm.enterSelection() })
                         }
                     },
                 )

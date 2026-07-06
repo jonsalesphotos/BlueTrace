@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -167,7 +168,7 @@ private fun PermRow(id: RequirementId, status: RequirementStatus, onRequest: () 
                 Text(
                     actionLabel,
                     fontSize = 13.sp, fontWeight = FontWeight.W700, color = BT.primary,
-                    modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(BT.primaryC).clickable(onClick = onRequest).padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(999.dp)).background(BT.primaryC).clickable(onClick = onRequest).padding(horizontal = 12.dp, vertical = 6.dp), // ≥48dp
                 )
             }
         }

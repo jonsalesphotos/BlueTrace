@@ -10,6 +10,9 @@ import io.bluetrace.shared.session.RunLogLine
 import io.bluetrace.shared.session.SessionController
 import kotlinx.coroutines.launch
 
+/** 实时流一行 + 单调 id：LazyColumn 的稳定 key——按 index 键控时每来一条新包全表位移重组。 */
+class NumberedLine(val id: Long, val line: RunLogLine)
+
 /** 采集运行（运行A/B/C/D）。包裹 [SessionController]：状态 / 实时流 / 标签 / 暂停 / 结束 / 演示注入。 */
 class RunViewModel(private val controller: SessionController) : ViewModel() {
 
@@ -18,12 +21,13 @@ class RunViewModel(private val controller: SessionController) : ViewModel() {
     val activeConfig get() = controller.activeConfig
 
     /** 实时流尾窗（有界，§5.6 锚底无滚动条）。 */
-    val logLines = mutableStateListOf<RunLogLine>()
+    val logLines = mutableStateListOf<NumberedLine>()
+    private var nextLineId = 0L
 
     init {
         viewModelScope.launch {
             controller.logLines.collect { line ->
-                logLines.add(line)
+                logLines.add(NumberedLine(nextLineId++, line))
                 if (logLines.size > MAX_LINES) {
                     logLines.removeRange(0, logLines.size - MAX_LINES)
                 }

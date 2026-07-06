@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
@@ -59,6 +60,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -205,7 +210,8 @@ fun CollectionRunScreen(
         // 演示钩子仅 DEBUG 构建可见（v2 清理项）：注入断联 / 模拟存储满。
         // 正式构建走真实异常：蓝牙关广播(§5.4) + 存储写满预检(§5.2)。
         if (io.bluetrace.BuildConfig.DEBUG) {
-            Row(Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // top=120dp：避开顶栏状态 pill（真机回归发现 60dp 时遮挡）
+            Row(Modifier.align(Alignment.TopEnd).padding(top = 120.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DemoChip(stringResource(R.string.run_demo_disconnect)) { vm.injectDisconnect() }
                 DemoChip(stringResource(R.string.run_demo_storage_full)) { vm.simulateStorageFull() }
             }
@@ -267,15 +273,15 @@ private fun DeviceCard(device: RunDeviceState) {
                 }
             }
             device.hr?.let { hr ->
-                Text("♥ $hr", fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.error, fontFamily = FontFamily.Monospace)
+                Text("♥ $hr", fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.primaryDeep, fontFamily = FontFamily.Monospace) // 原型裁决：红独占错误，♥ 用 --primary-deep
             }
         }
     }
 }
 
 @Composable
-private fun DataStreamWindow(datas: Long, elapsedMs: Long, lines: List<RunLogLine>, paused: Boolean, modifier: Modifier) {
-    val frozen = remember { mutableStateListOf<RunLogLine>() }
+private fun DataStreamWindow(datas: Long, elapsedMs: Long, lines: List<io.bluetrace.viewmodel.NumberedLine>, paused: Boolean, modifier: Modifier) {
+    val frozen = remember { mutableStateListOf<io.bluetrace.viewmodel.NumberedLine>() }
     LaunchedEffect(paused) {
         if (paused) { frozen.clear(); frozen.addAll(lines) }
     }
@@ -291,8 +297,8 @@ private fun DataStreamWindow(datas: Long, elapsedMs: Long, lines: List<RunLogLin
             // 锚底：reverseLayout=true + 倒序，最新在底，旧行自顶裁切，无滚动条
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), reverseLayout = true) {
                 val reversed = display.asReversed()
-                items(reversed.size) { idx ->
-                    val line = reversed[idx]
+                items(reversed, key = { it.id }) { numbered -> // 稳定 key：新包到达不再全表重组
+                    val line = numbered.line
                     Row {
                         Text(line.timeLabel, fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = if (line.kind == RunLogLine.Kind.LABEL) BT.success else BT.primaryDeep)
                         Spacer(Modifier.size(6.dp))
@@ -363,16 +369,26 @@ private fun LongPressEndButton(onEnd: () -> Unit, modifier: Modifier = Modifier)
         label = "longpress",
     )
 
+    val endLabel = stringResource(R.string.run_end_hint)
     Surface(
-        color = BT.error, shape = RoundedCornerShape(BT.radius),
-        modifier = modifier.height(48.dp).pointerInput(Unit) {
-            detectTapGestures(onPress = {
-                pressing = true
-                val released = withTimeoutOrNull(2000) { tryAwaitRelease() }
-                pressing = false
-                if (released == null) onEnd() // 按满 2 秒 → 结束
-            })
-        },
+        // 原型运行B 的结束是主蓝 .btn（红独占错误裁决）；胶囊同全局按钮
+        color = BT.primary, shape = RoundedCornerShape(999.dp),
+        modifier = modifier
+            .height(48.dp)
+            // 可达性：纯手势按钮对 TalkBack 不可见——补 Button 角色 + 无障碍长按动作（配合返回硬锁定，
+            // 这是无障碍用户结束采集的唯一出路）
+            .semantics {
+                role = Role.Button
+                onLongClick(label = endLabel) { onEnd(); true }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    pressing = true
+                    val released = withTimeoutOrNull(2000) { tryAwaitRelease() }
+                    pressing = false
+                    if (released == null) onEnd() // 按满 2 秒 → 结束
+                })
+            },
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(if (pressing) stringResource(R.string.run_end_releasing) else stringResource(R.string.run_end_hint), fontSize = 14.sp, fontWeight = FontWeight.W700, color = Color.White)
@@ -380,7 +396,7 @@ private fun LongPressEndButton(onEnd: () -> Unit, modifier: Modifier = Modifier)
     }
 
     if (pressing) {
-        Box(Modifier.fillMaxSize().background(Color(0x57F3F5F8)), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(BT.bg.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) { // 跟随亮暗（硬编码亮色在暗色下发白）
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(120.dp), color = BT.primary, strokeWidth = 8.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

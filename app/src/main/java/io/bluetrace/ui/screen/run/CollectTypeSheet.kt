@@ -76,7 +76,7 @@ fun CollectTypeSheet(
                     Text(stringResource(R.string.run_type_gnss), fontSize = 14.sp, fontWeight = FontWeight.W600, color = BT.onSurface)
                     Text(stringResource(R.string.run_type_gnss_sub), fontSize = 11.sp, color = BT.onSurfaceV)
                 }
-                CircleCheck(checked = workingGnss, color = BT.tertiary)
+                CircleCheck(checked = workingGnss, color = BT.primary) // 勾选统一主蓝
             }
 
             // 防呆：全部取消勾选会让所有解码 CSV 静默停写（用户可能长时间空采）→ 空选禁用确认并警示

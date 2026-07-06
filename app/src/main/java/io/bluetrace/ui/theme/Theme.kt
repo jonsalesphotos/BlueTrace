@@ -82,9 +82,7 @@ private val BtTypography = Typography().let { base ->
     )
 }
 
-/** 等宽样式（实时流 / 日志 / MAC / 时间戳），tabular。 */
-val MonoSmall = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp)
-val MonoBody = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.W600)
+// MonoSmall/MonoBody 死 token 已删（全仓零引用，属双真源隐患）；等宽样式待字号统一轮再建制。
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

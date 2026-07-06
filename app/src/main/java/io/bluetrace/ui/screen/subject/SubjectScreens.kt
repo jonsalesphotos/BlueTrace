@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -146,7 +147,7 @@ private fun DefaultRow(selected: Boolean, onClick: () -> Unit) {
             Text(DEFAULT_SUBJECT.alias, fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
             PillTag(stringResource(R.string.subject_default), BT.onSurfaceV, BT.surface2)
         }
-        CircleCheck(checked = selected, color = BT.tertiary)
+        CircleCheck(checked = selected, color = BT.primary) // 原型裁决：选中统一主蓝，紫只留实体图标
     }
 }
 
@@ -162,16 +163,16 @@ private fun SubjectRow(subject: Subject, selected: Boolean, onEdit: () -> Unit, 
         IconButton(onClick = onEdit) {
             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.subject_edit_title), tint = BT.onSurfaceV, modifier = Modifier.size(20.dp))
         }
-        CircleCheck(checked = selected, color = BT.tertiary)
+        CircleCheck(checked = selected, color = BT.primary) // 原型裁决：选中统一主蓝，紫只留实体图标
     }
 }
 
 @Composable
 private fun SelectableSurface(selected: Boolean, onClick: () -> Unit, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     Surface(
-        color = if (selected) BT.tertiaryC else BT.surface,
+        color = if (selected) BT.primaryC else BT.surface,
         shape = RoundedCornerShape(BT.radius),
-        border = if (selected) BorderStroke(1.5.dp, BT.tertiary) else null,
+        border = if (selected) BorderStroke(1.5.dp, BT.primary) else null,
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), content = content)
@@ -234,7 +235,7 @@ fun SubjectEditScreen(
             actions = {
                 Text(
                     stringResource(R.string.action_save), fontSize = 14.sp, fontWeight = FontWeight.W700, color = if (alias.isNotBlank()) BT.primary else BT.outline,
-                    modifier = Modifier.clickable(enabled = alias.isNotBlank()) { saveAndBack(vm, effectiveId, alias, sex, birth, heightCm, weightKg, onBack) },
+                    modifier = Modifier.minimumInteractiveComponentSize().clickable(enabled = alias.isNotBlank()) { saveAndBack(vm, effectiveId, alias, sex, birth, heightCm, weightKg, onBack) }, // ≥48dp
                 )
             },
         )

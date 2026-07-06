@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -72,7 +73,7 @@ fun SceneSelectScreen(onDone: () -> Unit) {
                 Text(
                     stringResource(R.string.scene_select_done),
                     fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.primary,
-                    modifier = Modifier.clickable { onDone() },
+                    modifier = Modifier.minimumInteractiveComponentSize().clickable { onDone() }, // 触控目标 ≥48dp（可达性）
                 )
             },
         )
