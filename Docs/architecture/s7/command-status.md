@@ -1,6 +1,6 @@
 # S7 · B2A 指令实现状态清单
 
-> 依据：协议全表 [protocol-spec.md](protocol-spec.md) / [_raw/header.md](_raw/header.md)（b2a_protocol.h 逐值）；
+> 依据：协议全表 [protocol-spec.md](protocol-spec.md) / [_raw/header.md](../../归档/s7协议工作底稿/_raw/header.md)（b2a_protocol.h 逐值）；
 > 实现：`shared/src/commonMain/kotlin/io/bluetrace/shared/s7/`（S7Console + S7Messages + S7Frame）。
 > 更新：2026-07-02（真机 SKG WATCH S7-FCC4 联调后）。
 >

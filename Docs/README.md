@@ -38,7 +38,7 @@ Docs/
 │       ├── protocol-b2a / protocol-zqdata    ← 现网协议逐字节规格
 │       ├── protocol-zqdata-uhtp-v1.{md,html} + zqdata_uhtp_v1_draft.proto ← 下一代重设计（待固件评审，M7 候选之二）
 │       └── protocol-spec.md · command-status.md · completeness-audit.md · assets/
-├── assets/                       ← 图标 / 截图（screenshots_v6、screenshots_device、pic 参考等）
+├── assets/                       ← 图标源 + 活截图（screenshots_v6 设计稿、screenshots_device 真机证据）
 ├── 归档/                         ← 唯一历史桶（冻结不维护，仅考古）
 │   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入）
 │   ├── 构建笔记/                 ← v1 实现笔记、v3 设计差异
@@ -46,6 +46,7 @@ Docs/
 │   ├── 历史原型/                 ← v1–v3 原型 HTML
 │   ├── 历史规格_v1-v3/           ← 原 legacy/（REQUIREMENTS/PRD/旧协议/设计系统等）
 │   ├── s7协议工作底稿/           ← s7 协议线过程件（plan/review/_raw，2026-07-06 归档）
+│   ├── 历史截图/                 ← 无活引用的旧截图（screenshots v4-v5 轮、device_v5/v6、pic 参考图）
 │   └── compare_design_vs_device.html ← 旧版对比页
 └── （s7 过程件 plan/review/_raw 已归档；completeness-audit 留 s7/ 作活缺口清单）
 ```

@@ -1,7 +1,7 @@
 # 参考 App 截图 — Creek ACQ
 
 本目录 20 张 `*_origin.jpg` 是**参考 App「Creek ACQ」**的界面截图，作为 BlueTrace 数据采集流程的**外部参照**留存。
-**仅供设计/交互参考，不是 BlueTrace 本身的界面，也不是需求真源**（真源以 [`/SPEC.md`](../../../SPEC.md) + [`prototypes/v4_android.html`](../../prototypes/v4_android.html) 为准）。
+**仅供设计/交互参考，不是 BlueTrace 本身的界面，也不是需求真源**（真源以 [`/SPEC.md`](../../../../SPEC.md) + [`prototypes/v4_android.html`](../../../prototypes/v4_android.html) 为准）。
 
 ## 来源 App 速记（Creek ACQ）
 

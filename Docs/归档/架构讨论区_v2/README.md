@@ -25,7 +25,7 @@ BlueTrace 一期（Mock 链路）已完成 M1–M6，UI 按 `Docs/prototypes/v4_
 | `assets/device_20260702/` | 本轮 ADB 实机截图 22 张 | ✅ |
 | [s7/protocol-spec.md](../../architecture/s7/protocol-spec.md) | **S7 · B2A 协议实现规格**（收敛稿，源文档 9 代理深读交叉校验） | ✅ |
 | [s7/completeness-audit.md](../../architecture/s7/completeness-audit.md) | S7 协议文档完整性审计（十项判定 + 矛盾消歧 + 待补清单） | ✅ |
-| [s7/plan.md](../../architecture/s7/plan.md) | 设备维护（DUT）控制台实施计划表（P1–P15） | ✅ 已执行 |
+| [s7/plan.md](../s7协议工作底稿/plan.md) | 设备维护（DUT）控制台实施计划表（P1–P15） | ✅ 已执行 |
 | `s7/_raw/` · `s7/assets/` | 协议提取原始材料 9 份 · 控制台实机验证截图 | ✅ |
 
 ## 阅读顺序建议
