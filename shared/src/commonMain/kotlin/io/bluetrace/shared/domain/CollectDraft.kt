@@ -1,8 +1,4 @@
-package io.bluetrace.domain
-
-import io.bluetrace.shared.domain.AppPreferences
-import io.bluetrace.shared.domain.SceneCatalog
-import io.bluetrace.shared.domain.SceneSelection
+package io.bluetrace.shared.domain
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

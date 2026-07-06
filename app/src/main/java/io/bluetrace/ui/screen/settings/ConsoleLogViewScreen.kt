@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
-import io.bluetrace.domain.DeviceLogStore
+import io.bluetrace.data.android.DeviceLogStore
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.theme.BT
 import kotlinx.coroutines.Dispatchers

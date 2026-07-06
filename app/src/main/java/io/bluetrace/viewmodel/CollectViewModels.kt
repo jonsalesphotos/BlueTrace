@@ -2,7 +2,7 @@ package io.bluetrace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.bluetrace.domain.ConnectionRegistry
+import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.domain.AssignedDevice
 import io.bluetrace.shared.domain.CollectType
 import io.bluetrace.shared.domain.DEFAULT_SUBJECT
@@ -54,7 +54,7 @@ class CollectHomeViewModel(
     private val clock: EpochClock,
     private val zone: TimeZoneProvider,
     private val catalog: SceneCatalog,
-    private val draft: io.bluetrace.domain.CollectDraft,
+    private val draft: io.bluetrace.shared.domain.CollectDraft,
 ) : ViewModel() {
 
     private data class Base(

@@ -5,13 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.data.android.ExportResult
 import io.bluetrace.data.android.MediaStoreExporter
-import io.bluetrace.domain.ConnectionRegistry
-import io.bluetrace.domain.DeviceLogStore
+import io.bluetrace.shared.ble.ConnectionRegistry
+import io.bluetrace.data.android.DeviceLogStore
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
 import io.bluetrace.shared.s7.S7
@@ -25,6 +24,7 @@ import io.bluetrace.shared.s7.S7Heartbeat
 import io.bluetrace.shared.s7.S7OpLine
 import io.bluetrace.shared.s7.S7Person
 import io.bluetrace.shared.s7.S7SnInfo
+import io.bluetrace.shared.s7.toS7Person
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.epochMsToLocalParts
@@ -234,24 +234,22 @@ class DeviceConsoleViewModel(
         is S7Failure.DeviceError -> f.name
     }
 
-    /** 逐项读全量（单项失败不阻断其余，首个错误上报）。 */
+    /** 逐项读全量（编排在 S7Console.readAll, B3 下沉）：失败项保留旧值，首个错误上报。 */
     fun refreshAll() = op("refresh") { c ->
-        var firstError: S7Failure? = null
-        suspend fun <T> step(read: suspend () -> T, apply: (T) -> Unit) {
-            try {
-                apply(read())
-            } catch (e: S7CommandException) {
-                if (firstError == null) firstError = e.failure
-            }
+        val s = c.readAll()
+        _state.update {
+            it.copy(
+                info = s.info ?: it.info,
+                sn = s.sn ?: it.sn,
+                devFunc = s.devFunc ?: it.devFunc,
+                bondState = s.bondState ?: it.bondState,
+                battery = s.battery ?: it.battery,
+                deviceTime = s.deviceTime ?: it.deviceTime,
+                driftSec = s.driftSec ?: it.driftSec,
+                person = s.person ?: it.person,
+            )
         }
-        step({ c.getDeviceInfo() }) { v -> _state.update { it.copy(info = v) } }
-        step({ c.getSnInfo() }) { v -> _state.update { it.copy(sn = v) } }
-        step({ c.getDevFunc() }) { v -> _state.update { it.copy(devFunc = v) } }
-        step({ c.getBondState() }) { v -> _state.update { it.copy(bondState = v) } }
-        step({ c.getBattery() }) { v -> _state.update { it.copy(battery = v) } }
-        step({ c.getDateTime() }) { v -> _state.update { it.copy(deviceTime = v, driftSec = c.driftSeconds(v)) } }
-        step({ c.getPerson() }) { v -> _state.update { it.copy(person = v) } }
-        val err = firstError
+        val err = s.firstError
         if (err != null) {
             _state.update { it.copy(error = failureText(err)) }
             _toasts.tryEmit(ConsoleToast.Failed(failureText(err)))
@@ -392,21 +390,4 @@ class DeviceConsoleViewModel(
     companion object {
         val POWER_KEYS = Triple(S7.CTRL_RESET, S7.CTRL_POWER_OFF, S7.CTRL_RESTORE)
     }
-}
-
-/** Subject → S7Person（性别编码 0/1/2 语义待实机核对，audit 清单）。 */
-private fun Subject.toS7Person(): S7Person {
-    val parts = birth.split("-")
-    return S7Person(
-        heightCm = heightCm ?: 170,
-        weightKg = (weightKg ?: 65.0).toInt(),
-        gender = when (sex) {
-            Sex.MALE -> 1
-            Sex.FEMALE -> 0
-            Sex.OTHER -> 2
-        },
-        birthYear = parts.getOrNull(0)?.toIntOrNull() ?: 1990,
-        birthMonth = parts.getOrNull(1)?.toIntOrNull() ?: 1,
-        birthDay = parts.getOrNull(2)?.toIntOrNull() ?: 1,
-    )
 }

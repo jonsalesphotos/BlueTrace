@@ -1,5 +1,7 @@
 package io.bluetrace.shared.s7
 
+import io.bluetrace.shared.domain.Sex
+import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.s7.S7FrameCodec.readLe16
 import io.bluetrace.shared.s7.S7FrameCodec.writeLe16
 
@@ -275,4 +277,21 @@ fun ByteArray.toHexPreview(maxBytes: Int = 24): String {
     val n = size.coerceAtMost(maxBytes)
     val head = (0 until n).joinToString(" ") { S7SnInfo.hex2(this[it]) }
     return if (size > maxBytes) "$head …(${size}B)" else head
+}
+
+/** Subject → S7Person 域映射(B3 下沉自 app; 性别编码 0/1/2 语义待实机核对, audit 清单)。 */
+fun Subject.toS7Person(): S7Person {
+    val parts = birth.split("-")
+    return S7Person(
+        heightCm = heightCm ?: 170,
+        weightKg = (weightKg ?: 65.0).toInt(),
+        gender = when (sex) {
+            Sex.MALE -> 1
+            Sex.FEMALE -> 0
+            Sex.OTHER -> 2
+        },
+        birthYear = parts.getOrNull(0)?.toIntOrNull() ?: 1990,
+        birthMonth = parts.getOrNull(1)?.toIntOrNull() ?: 1,
+        birthDay = parts.getOrNull(2)?.toIntOrNull() ?: 1,
+    )
 }

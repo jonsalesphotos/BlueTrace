@@ -2,7 +2,7 @@ package io.bluetrace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.bluetrace.domain.ConnectionRegistry
+import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.DeviceLimits

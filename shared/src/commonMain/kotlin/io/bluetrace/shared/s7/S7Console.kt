@@ -263,6 +263,38 @@ class S7Console(
         requestAck(S7.CMD_SET, S7.KEY_PERSON_DATA, person.encodeSet())
     }
 
+    /**
+     * 逐项读全量快照(B3 下沉自 app 层编排): 单项失败不阻断其余, 失败项为 null,
+     * 首个错误记入 [S7Snapshot.firstError] 供上层提示。
+     */
+    suspend fun readAll(): S7Snapshot {
+        var firstError: S7Failure? = null
+        suspend fun <T> step(read: suspend () -> T): T? = try {
+            read()
+        } catch (e: S7CommandException) {
+            if (firstError == null) firstError = e.failure
+            null
+        }
+        val info = step { getDeviceInfo() }
+        val sn = step { getSnInfo() }
+        val devFunc = step { getDevFunc() }
+        val bondState = step { getBondState() }
+        val battery = step { getBattery() }
+        val deviceTime = step { getDateTime() }
+        val person = step { getPerson() }
+        return S7Snapshot(
+            info = info,
+            sn = sn,
+            devFunc = devFunc,
+            bondState = bondState,
+            battery = battery,
+            deviceTime = deviceTime,
+            driftSec = deviceTime?.let { driftSeconds(it) },
+            person = person,
+            firstError = firstError,
+        )
+    }
+
     suspend fun findWatch(start: Boolean) {
         requestAck(S7.CMD_DEV_CTRL, if (start) S7.CTRL_FIND else S7.CTRL_FIND_END)
     }
@@ -325,3 +357,16 @@ class S7Console(
         _opLog.tryEmit(S7OpLine(clock.nowMs(), text))
     }
 }
+
+/** [S7Console.readAll] 的全量读结果: 读失败的项为 null(上层保留旧值)。 */
+data class S7Snapshot(
+    val info: S7DeviceInfo? = null,
+    val sn: S7SnInfo? = null,
+    val devFunc: Long? = null,
+    val bondState: Int? = null,
+    val battery: S7Battery? = null,
+    val deviceTime: S7DateTime? = null,
+    val driftSec: Long? = null,
+    val person: S7Person? = null,
+    val firstError: S7Failure? = null,
+)

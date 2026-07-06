@@ -1,6 +1,7 @@
 package io.bluetrace.shared.protocol
 
 import io.bluetrace.shared.ble.BleNotification
+import io.bluetrace.shared.domain.AssignedDevice
 import io.bluetrace.shared.domain.DeviceKind
 
 /**
@@ -25,6 +26,19 @@ interface SampleDecoder {
      * 该设备的重组缓冲应整体丢弃，避免与重连后的新流错拼。默认 no-op。
      */
     fun onDeviceReset(deviceId: String) {}
+
+    /**
+     * 设备装配钩子: 会话开始时逐设备调用(在 [onSessionStart] 之后、首包之前)。
+     * 注册表实现按 profileId 建该设备的解析宿主; Mock 无状态, 默认 no-op。
+     */
+    fun onDeviceAttached(device: AssignedDevice) {}
+
+    /**
+     * 统一事件出口(02 设计 R3): 样本之外还能产命令应答/设备事件/Malformed。
+     * 默认把 [decode] 包成 [ProtocolEvent.Samples], 旧实现零改动; 编排层只走本方法。
+     */
+    fun decodeEvents(kind: DeviceKind, notification: BleNotification): List<ProtocolEvent> =
+        listOf(ProtocolEvent.Samples(decode(kind, notification)))
 }
 
 /** v1 Mock 解码器（解 [MockPacketCodec] 单样本包）。 */

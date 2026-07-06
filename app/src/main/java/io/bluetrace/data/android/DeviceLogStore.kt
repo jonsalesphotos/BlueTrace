@@ -1,4 +1,4 @@
-package io.bluetrace.domain
+package io.bluetrace.data.android
 
 import android.content.ContentUris
 import android.content.ContentValues

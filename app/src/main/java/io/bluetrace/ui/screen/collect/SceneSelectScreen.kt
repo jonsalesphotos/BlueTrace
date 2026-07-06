@@ -44,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
-import io.bluetrace.domain.CollectDraft
+import io.bluetrace.shared.domain.CollectDraft
 import io.bluetrace.shared.domain.SceneCatalog
 import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.ui.components.BtTopBar

@@ -10,15 +10,18 @@ import io.bluetrace.data.android.MediaStoreExporter
 import io.bluetrace.shared.data.SqlDelightSubjectRepository
 import io.bluetrace.shared.db.BlueTraceDb
 import io.bluetrace.data.android.sessionsRoot
-import io.bluetrace.domain.ConnectionRegistry
+import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.data.SessionStore
 import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.EnvironmentRepository
 import io.bluetrace.shared.domain.SubjectRepository
-import io.bluetrace.shared.protocol.MockSampleDecoder
 import io.bluetrace.shared.protocol.SampleDecoder
+import io.bluetrace.shared.protocol.registry.HrsProfile
+import io.bluetrace.shared.protocol.registry.MockBleProfile
+import io.bluetrace.shared.protocol.registry.ProtocolRegistry
+import io.bluetrace.shared.protocol.registry.RegistrySampleDecoder
 import io.bluetrace.shared.session.DefaultSessionController
 import io.bluetrace.shared.session.DiagnosticsLog
 import io.bluetrace.shared.session.FileDiagnosticsLog
@@ -91,14 +94,23 @@ val appModule = module {
     }
     // ⚠️ Mock/真实 BLE 的唯一切换点：全 App 只经 BleClient 接口消费（service/controller 均不感知具体类型）。
     // 运行时可切换（设置 · 仅 DEBUG 行「使用 Mock BLE」，重启生效）：默认真实 GATT（2026-07-02 用户定"纯真实"），
-    // Mock 供无设备演示/UI 回归。注意：SampleDecoder 仍为 Mock——真实设备的采集解码待 M7 协议冻结，
-    // 真实模式下采集只落 raw HEX（source of truth）+ unparseable 告警，属预期。
+    // Mock 供无设备演示/UI 回归。解码走下方注册表(02 R2): 真实模式已可解 HRS 心率带,
+    // 自研 DUT 协议待 M7 冻结——冻结前真实 DUT 只落 raw HEX(source of truth) + malformed 告警, 属预期。
     single { MockBleClient(get(), get()) }
     single<BleClient> {
         if (io.bluetrace.data.android.BleBackendSwitch.useMock(androidContext())) get<MockBleClient>()
         else io.bluetrace.data.android.AndroidBleClient(androidContext(), get())
     }
-    single<SampleDecoder> { MockSampleDecoder() }
+    // 02 R2: 注册表按后端拼装——Mock 后端全员 Mock 线协议; 真实后端注册 HRS(R4 心率带先行),
+    // 自研 DUT 冻结前无 profileId → RegistrySampleDecoder 回退 Mock profile, 解不出真实字节
+    // 只产 Malformed 诊断(等价旧 unparseable 告警), raw HEX 照常落盘。
+    single {
+        val profiles =
+            if (io.bluetrace.data.android.BleBackendSwitch.useMock(androidContext())) listOf(MockBleProfile())
+            else listOf(HrsProfile())
+        ProtocolRegistry(profiles)
+    }
+    single<SampleDecoder> { RegistrySampleDecoder(get(), MockBleProfile()) }
     single<SessionController> {
         DefaultSessionController(
             bleClient = get(),
@@ -118,9 +130,10 @@ val appModule = module {
     }
 
     // ---- app 级状态 / 仓库 ----
-    single { ConnectionRegistry() }
-    single { io.bluetrace.domain.DeviceLogStore(androidContext()) }
-    single { io.bluetrace.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
+    // B2：事件驱动登记表（订阅 linkState 自动清退被动断连），下沉 shared 供 iOS 复用
+    single { ConnectionRegistry(get(), get()) }
+    single { io.bluetrace.data.android.DeviceLogStore(androidContext()) }
+    single { io.bluetrace.shared.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
     // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
     single<SqlDriver> { AndroidSqliteDriver(BlueTraceDb.Schema, androidContext(), "bluetrace.db") }

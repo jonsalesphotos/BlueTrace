@@ -19,6 +19,8 @@ import io.bluetrace.shared.domain.SessionConfig
 import io.bluetrace.shared.domain.SessionFile
 import io.bluetrace.shared.domain.SessionSummary
 import io.bluetrace.shared.domain.StopReason
+import io.bluetrace.shared.protocol.DecodedSample
+import io.bluetrace.shared.protocol.ProtocolEvent
 import io.bluetrace.shared.protocol.SampleDecoder
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
@@ -119,6 +121,7 @@ class DefaultSessionController(
         layout = lay
 
         config.devices.forEach { d ->
+            decoder.onDeviceAttached(d) // 注册表实现按 profileId 建解析宿主(02 R1); 在首包前完成
             deviceStates[d.deviceId] = RunDeviceState(d.deviceId, d.name, d.kind, LinkState.CONNECTED)
             activeSensors[d.deviceId] = LinkedHashSet()
         }
@@ -244,8 +247,16 @@ class DefaultSessionController(
         val n: BleNotification = e.notification
         val hex = rec.recordRaw(e.kind, n.receivedAtMs, n.rawBytes)
         datasCount++
-        val samples = decoder.decode(e.kind, n)
-        if (samples.isEmpty()) {
+        val events = decoder.decodeEvents(e.kind, n)
+        val samples = ArrayList<DecodedSample>()
+        for (ev in events) when (ev) {
+            is ProtocolEvent.Samples -> samples += ev.samples
+            is ProtocolEvent.Malformed ->
+                diagnostics.add(LogLevel.WARN, "decode", "malformed from ${n.deviceId}: ${ev.reason} (dropped)")
+            // 控制面事件 R4/R5 才有产者, 先记诊断日志不丢
+            else -> diagnostics.add(LogLevel.INFO, "protocol", "$ev from ${n.deviceId}")
+        }
+        if (samples.isEmpty() && events.none { it is ProtocolEvent.Malformed }) {
             diagnostics.add(LogLevel.WARN, "decode", "unparseable packet from ${n.deviceId} (dropped)")
         }
         rec.recordSamples(samples)
