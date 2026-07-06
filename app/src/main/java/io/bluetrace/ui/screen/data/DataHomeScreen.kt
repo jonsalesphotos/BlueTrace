@@ -135,7 +135,7 @@ fun DataHomeScreen(
                 }
             }
         }
-        ExportOverlay(exportState) { exportVm.reset() }
+        ExportOverlay(exportState, onDismiss = { exportVm.reset() }, onCancel = { exportVm.cancel() })
     }
 
     // 删除 = 不可逆的物理删除：先确认（列出条数与总大小），删完给反馈

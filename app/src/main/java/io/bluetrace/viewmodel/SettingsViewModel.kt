@@ -40,7 +40,10 @@ class SettingsViewModel(
     private val _toast = MutableStateFlow<String?>(null)
     val toast: StateFlow<String?> = _toast
 
-    fun clearLog() = diagnostics.clear()
+    fun clearLog() {
+        diagnostics.clear()
+        _toast.value = context.getString(R.string.log_cleared) // 清空也要有结果反馈
+    }
 
     fun exportLog() {
         viewModelScope.launch {

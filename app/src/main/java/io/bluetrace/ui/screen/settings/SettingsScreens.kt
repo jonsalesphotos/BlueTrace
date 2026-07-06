@@ -246,22 +246,48 @@ private fun Legend(label: String, color: Color, bytes: Long) {
 @Composable
 fun AppLogScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     val entries by vm.logEntries.collectAsStateWithLifecycle()
+    // 导出/清空结果反馈：VM 的 toast 流此前没有任何消费方——点了没反应
+    val toastMsg by vm.toast.collectAsStateWithLifecycle()
+    val ctx = LocalContext.current
+    LaunchedEffect(toastMsg) {
+        toastMsg?.let {
+            android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show()
+            vm.consumeToast()
+        }
+    }
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.log_title), subtitle = stringResource(R.string.log_subtitle), onBack = onBack)
-        LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
-            items(entries.asReversed()) { e ->
-                Text(
-                    "${e.epochMs} [${e.tag}] ${e.message}",
-                    fontSize = 10.sp, fontFamily = FontFamily.Monospace,
-                    color = when (e.level) { LogLevel.ERROR -> BT.error; LogLevel.WARN -> BT.warning; LogLevel.INFO -> BT.onSurfaceV },
+        if (entries.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                io.bluetrace.ui.components.EmptyState(
+                    icon = Icons.Filled.Article,
+                    title = stringResource(R.string.log_empty_title),
+                    subtitle = stringResource(R.string.log_empty_sub),
+                    modifier = Modifier.padding(top = 40.dp).align(Alignment.TopCenter),
                 )
+            }
+        } else {
+            LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
+                items(entries.asReversed()) { e ->
+                    Text(
+                        "${logClock(e.epochMs)} [${e.tag}] ${e.message}",
+                        fontSize = 10.sp, fontFamily = FontFamily.Monospace,
+                        color = when (e.level) { LogLevel.ERROR -> BT.error; LogLevel.WARN -> BT.warning; LogLevel.INFO -> BT.onSurfaceV },
+                    )
+                }
             }
         }
         Row(Modifier.navigationBarsPadding().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlineBtn(stringResource(R.string.log_clear), { vm.clearLog() }, Modifier.weight(1f))
-            PrimaryButton(stringResource(R.string.log_export), { vm.exportLog() }, Modifier.weight(1f))
+            OutlineBtn(stringResource(R.string.log_clear), { vm.clearLog() }, Modifier.weight(1f), enabled = entries.isNotEmpty())
+            PrimaryButton(stringResource(R.string.log_export), { vm.exportLog() }, Modifier.weight(1f), enabled = entries.isNotEmpty())
         }
     }
+}
+
+/** 日志行时间：裸 epochMs（13 位数字）→ 本地时刻 HH:mm:ss.SSS。 */
+private fun logClock(epochMs: Long): String {
+    val t = java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    return "%02d:%02d:%02d.%03d".format(t.hour, t.minute, t.second, epochMs % 1000)
 }
 
 // 设置F · 设备维护（DUT）已升级为 S7 控制台 → DeviceConsoleScreen.kt（原灰显占位删除）。

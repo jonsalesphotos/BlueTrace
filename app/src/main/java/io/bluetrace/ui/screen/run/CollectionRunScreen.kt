@@ -148,7 +148,13 @@ fun CollectionRunScreen(
                     val sceneLabel = config?.scene?.let { sceneLabelZh(catalog, it) } ?: "—"
                     Text("$subjectAlias · $sceneLabel · ${formatDurationHms(state.elapsedMs)}", fontSize = 11.sp, color = BT.onSurfaceV, fontFamily = FontFamily.Monospace)
                 }
-                StatusPill(stringResource(R.string.status_collecting), BT.onSuccessC, BT.successC)
+                // 运行态 pill 不再恒显"采集中"：全员重连中 → 等待重连；显示暂停 → 明示（落盘仍继续）
+                val allReconnecting = state.devices.isNotEmpty() && state.devices.all { it.link == LinkState.RECONNECTING }
+                when {
+                    allReconnecting -> StatusPill(stringResource(R.string.status_waiting_reconnect), BT.onWarningC, BT.warningC)
+                    state.displayPaused -> StatusPill(stringResource(R.string.status_display_paused), BT.onWarningC, BT.warningC)
+                    else -> StatusPill(stringResource(R.string.status_collecting), BT.onSuccessC, BT.successC)
+                }
                 IconButton(onClick = { showTypeSheet = true }) { Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.run_collect_type_title), tint = BT.onSurfaceV) }
             }
 

@@ -196,10 +196,13 @@ private fun permHint(id: RequirementId): String = stringResource(
     },
 )
 
-/** 启动E · 蓝牙已关闭（≠ 权限）。 */
+/** 启动E · 蓝牙已关闭（≠ 权限）。订阅环境态：用户去系统开了蓝牙回来 → 自动返回，不再停在死页。 */
 @Composable
-fun BluetoothOffScreen(onBack: () -> Unit) {
+fun BluetoothOffScreen(onBack: () -> Unit, envVm: EnvironmentViewModel = koinViewModel()) {
     val context = LocalContext.current
+    val env by envVm.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { envVm.refresh() } // 系统弹窗/设置页回来复检
+    LaunchedEffect(env.bluetoothOn) { if (env.bluetoothOn) onBack() }
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(title = stringResource(R.string.device_title), subtitle = stringResource(R.string.bt_off_subtitle), onBack = onBack)
         Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -267,6 +270,21 @@ private fun enableBluetooth(context: Context) {
     }
 }
 
+/**
+ * 授权结果处理（供采集主界面等门控外调用点复用）：被拒且系统不再弹（永久拒绝，系统弹窗被秒驳、
+ * 用户完全无感知）→ 逐项回调标记 BLOCKED。返回是否存在此类项——调用方应改带用户去应用设置页。
+ */
+fun markBlockedPermissions(context: Context, result: Map<String, Boolean>, onBlocked: (RequirementId) -> Unit): Boolean {
+    val activity = context.findActivity() ?: return false
+    var any = false
+    result.forEach { (perm, granted) ->
+        if (!granted && !activity.shouldShowRequestPermissionRationale(perm)) {
+            reqIdForPermission(perm)?.let { onBlocked(it); any = true }
+        }
+    }
+    return any
+}
+
 /** 请求结果里被拒且系统不再弹（!shouldShowRationale）→ 标记该权限 BLOCKED。 */
 private fun markBlockedFromResult(activity: Activity?, result: Map<String, Boolean>, vm: EnvironmentViewModel) {
     if (activity == null) return
@@ -284,11 +302,14 @@ private fun reqIdForPermission(perm: String): RequirementId? = when (perm) {
     else -> null
 }
 
-private fun openAppSettings(context: Context) {
-    context.startActivity(
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-    )
+/** 打开本应用的系统设置详情页（权限被永久拒绝时的唯一出路；供门控与采集主界面复用）。 */
+fun openAppSettings(context: Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
 }
 
 /** 启动C · 后续启动缺权限弹出（ModalSheet over 采集 Tab，§5.1）。可「去授权」/「跳过」。 */

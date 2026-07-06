@@ -97,11 +97,20 @@ fun SessionDetailScreen(
                     }
                 }
                 Column(Modifier.navigationBarsPadding().padding(16.dp)) {
-                    PrimaryButton(stringResource(R.string.detail_export_folder), { exportVm.export(folderName) })
+                    // 勾选导出做真（2026-07-06 裁决）：部分勾选 → 只打包所选（zip 名带 _partial）；
+                    // 全选/默认 → 整夹；零勾选 → 禁用。
+                    val total = s.files.size
+                    val sel = selectedFiles.size
+                    val partial = sel in 1 until total
+                    PrimaryButton(
+                        if (partial) stringResource(R.string.detail_export_selected, sel) else stringResource(R.string.detail_export_folder),
+                        { exportVm.export(folderName, if (partial) selectedFiles else null) },
+                        enabled = sel > 0,
+                    )
                 }
             }
         }
-        ExportOverlay(exportState) { exportVm.reset() }
+        ExportOverlay(exportState, onDismiss = { exportVm.reset() }, onCancel = { exportVm.cancel() })
 
         summary?.let { s ->
             if (showEdit) {

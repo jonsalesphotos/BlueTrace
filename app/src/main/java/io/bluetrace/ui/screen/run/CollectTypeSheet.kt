@@ -79,9 +79,13 @@ fun CollectTypeSheet(
                 CircleCheck(checked = workingGnss, color = BT.tertiary)
             }
 
+            // 防呆：全部取消勾选会让所有解码 CSV 静默停写（用户可能长时间空采）→ 空选禁用确认并警示
+            if (working.isEmpty()) {
+                Text(stringResource(R.string.run_type_none_hint), fontSize = 11.sp, color = BT.warning, modifier = Modifier.padding(top = 8.dp))
+            }
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlineBtn(stringResource(R.string.action_cancel), onDismiss, Modifier.weight(1f))
-                PrimaryButton(stringResource(R.string.action_confirm), { onConfirm(working, workingGnss) }, Modifier.weight(1f))
+                PrimaryButton(stringResource(R.string.action_confirm), { onConfirm(working, workingGnss) }, Modifier.weight(1f), enabled = working.isNotEmpty())
             }
         }
     }

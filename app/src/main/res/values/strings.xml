@@ -101,6 +101,7 @@
     <string name="scan_perm_body">扫描附近蓝牙设备需要「附近设备」与「定位」权限。缺失将扫不到任何设备。</string>
     <string name="scan_perm_grant">授予权限</string>
     <string name="scan_perm_settings">去设置授予</string>
+    <string name="perm_blocked_toast">权限已被系统永久拒绝，请在设置中手动开启</string>
     <string name="device_limit_banner">DUT 已连 3 台（上限）· 链路可能不稳定。DUT 最多 3 + 参考心率带 1。</string>
     <string name="device_empty_title">未发现设备</string>
     <string name="device_empty_sub">确认 DUT 已上电并在范围内，再重新扫描。</string>
@@ -143,6 +144,8 @@
     <!-- ===== 采集运行 ===== -->
     <string name="run_title">数据采集</string>
     <string name="status_collecting">采集中</string>
+    <string name="status_display_paused">显示已暂停 · 采集中</string>
+    <string name="status_waiting_reconnect">等待重连</string>
     <string name="run_device_online">在线</string>
     <string name="run_device_online_with">在线 · %1$s</string>
     <string name="run_device_reconnecting">重连中…（断联期为数据空档，计时照走）</string>
@@ -150,8 +153,8 @@
     <string name="run_label_pin">Pin</string>
     <string name="run_label_start">Start Label</string>
     <string name="run_label_stop">Stop Label</string>
-    <string name="run_pause">暂停</string>
-    <string name="run_resume">继续</string>
+    <string name="run_pause">暂停滚动</string>
+    <string name="run_resume">继续滚动</string>
     <string name="run_end_hint">结束（长按 2 秒）</string>
     <string name="run_end_releasing">松开取消…</string>
     <string name="run_end_overlay_hint">松手取消 · 按满 2 秒停止</string>
@@ -163,6 +166,7 @@
     <string name="run_type_gnss">本机定位 GNSS</string>
     <string name="run_type_gnss_sub">独立一路 · gps.csv（while-in-use，按需授权定位）</string>
     <string name="gnss_denied_toast">未授予定位权限，本次采集不含 GPS 一路</string>
+    <string name="run_type_none_hint">至少保留一路采集类型</string>
 
     <!-- ===== 结束摘要 ===== -->
     <string name="summary_title">采集已结束</string>
@@ -209,7 +213,8 @@
     <string name="detail_title">会话详情</string>
     <string name="detail_loading">加载中…</string>
     <string name="detail_sec_files">文件夹构成</string>
-    <string name="detail_export_folder">导出所选（整夹）</string>
+    <string name="detail_export_folder">导出整夹</string>
+    <string name="detail_export_selected">导出所选（%1$d 项）</string>
     <string name="detail_metric_user_mode">采集人 · 场景</string>
     <!-- 事后改采集人/场景（结束摘要 + 会话详情共用）。 -->
     <string name="edit_subject_scene_action">修改采集人 / 场景</string>
@@ -296,6 +301,9 @@
     <string name="log_export">导出日志</string>
     <string name="log_export_done">日志已导出到 %1$s</string>
     <string name="log_export_failed">日志导出失败：%1$s</string>
+    <string name="log_cleared">已清空日志</string>
+    <string name="log_empty_title">暂无日志</string>
+    <string name="log_empty_sub">运行事件与错误会记录在这里</string>
 
     <string name="maint_title">设备维护（DUT）</string>
     <string name="maint_subtitle">S7 控制台 · 对时 / 信息 / 用户 / 日志</string>

@@ -100,6 +100,9 @@ class CollectHomeViewModel(
 
     fun refreshEnv() = env.refresh()
 
+    /** 授权被永久拒绝时标记 BLOCKED（缺权限弹层的回调用，交互#9）。 */
+    fun markBlocked(id: io.bluetrace.shared.domain.RequirementId) = env.markPermanentlyDenied(id)
+
     /** 启动/进入时是否低空间（< 1GB，§5.2 一次性提示）。 */
     fun isLowSpace(): Boolean = storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.LOW_SPACE_HINT
 

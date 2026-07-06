@@ -35,13 +35,24 @@ class MediaStoreExporter(
         return File(base, "sessions")
     }
 
-    suspend fun exportSession(folderName: String, onProgress: (Float) -> Unit): ExportResult =
+    /**
+     * @param selectedRelativePaths null=整夹；非空=仅打包这些相对路径（数据C 逐项勾选导出），
+     *        zip 文件名加 `_partial` 后缀区分（token 恒英文，红线）。
+     */
+    suspend fun exportSession(
+        folderName: String,
+        selectedRelativePaths: Set<String>? = null,
+        onProgress: (Float) -> Unit,
+    ): ExportResult =
         withContext(Dispatchers.IO) {
             val srcDir = File(sessionsDir(), folderName)
             if (!srcDir.exists() || !srcDir.isDirectory) {
                 return@withContext ExportResult.Error(context.getString(R.string.export_err_no_folder))
             }
-            val files = srcDir.walkTopDown().filter { it.isFile }.toList()
+            val files = srcDir.walkTopDown().filter { it.isFile }.toList().let { all ->
+                if (selectedRelativePaths == null) all
+                else all.filter { it.relativeTo(srcDir).path.replace(File.separatorChar, '/') in selectedRelativePaths }
+            }
             if (files.isEmpty()) return@withContext ExportResult.Error(context.getString(R.string.export_err_empty))
 
             // 导出前真实存储预检（§5.8）：需 ≥ 待导出大小 × 余量系数
@@ -51,7 +62,7 @@ class MediaStoreExporter(
                 return@withContext ExportResult.InsufficientSpace(required, available)
             }
 
-            val displayName = "$folderName.zip"
+            val displayName = if (selectedRelativePaths == null) "$folderName.zip" else "${folderName}_partial.zip"
             val resolver = context.contentResolver
             val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             val values = ContentValues().apply {
@@ -88,6 +99,10 @@ class MediaStoreExporter(
                     resolver.update(uri, values, null, null)
                 }
                 ExportResult.Success("Download/BlueTrace/$displayName")
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                // 用户取消：删掉 IS_PENDING 悬挂记录（否则 Download 里留永不可见的幽灵文件），取消须继续传播
+                runCatching { resolver.delete(uri, null, null) }
+                throw ce
             } catch (e: Exception) {
                 runCatching { resolver.delete(uri, null, null) }
                 ExportResult.Error(e.message ?: context.getString(R.string.export_err_generic))
@@ -110,11 +125,18 @@ class MediaStoreExporter(
         }
         val uri = resolver.insert(collection, values) ?: return@withContext ExportResult.Error(context.getString(R.string.export_err_log_create))
         try {
-            resolver.openOutputStream(uri)?.use { it.write(content) }
+            // 输出流打开失败（返回 null）不能算成功——否则用户拿到"已导出"但文件是空的
+            resolver.openOutputStream(uri)?.use { it.write(content) } ?: run {
+                resolver.delete(uri, null, null)
+                return@withContext ExportResult.Error(context.getString(R.string.export_err_write))
+            }
             values.clear()
             values.put(MediaStore.Downloads.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
             ExportResult.Success("Download/BlueTrace/logs/$fileName")
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            runCatching { resolver.delete(uri, null, null) }
+            throw ce
         } catch (e: Exception) {
             runCatching { resolver.delete(uri, null, null) }
             ExportResult.Error(e.message ?: context.getString(R.string.export_err_generic))

@@ -120,7 +120,7 @@ fun SessionSummaryScreen(
             }
         }
 
-        ExportOverlay(exportState, onDismiss = { exportVm.reset() })
+        ExportOverlay(exportState, onDismiss = { exportVm.reset() }, onCancel = { exportVm.cancel() })
 
         if (showEdit && summary != null) {
             EditSubjectSceneSheet(
@@ -189,12 +189,16 @@ private fun FileTile(icon: androidx.compose.ui.graphics.vector.ImageVector, colo
     }
 }
 
-/** 导出态覆盖：进度 / 完成 Toast / 失败。 */
+/** 导出态覆盖：进度（模态，可取消）/ 完成 Toast / 失败。 */
 @Composable
-fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit) {
+fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit, onCancel: (() -> Unit)? = null) {
     when (state) {
         is ExportUiState.InProgress -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // 模态：scrim + 空 clickable 消费点击，导出中不允许穿透操作页面（可经"取消"退出）
+            Box(
+                Modifier.fillMaxSize().background(BT.bg.copy(alpha = 0.55f)).clickable(onClick = {}),
+                contentAlignment = Alignment.Center,
+            ) {
                 Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius)) {
                     Column(Modifier.padding(20.dp).fillMaxWidth(0.8f)) {
                         Text(stringResource(R.string.export_in_progress), fontSize = 15.sp, fontWeight = FontWeight.W700, color = BT.onSurface)
@@ -202,6 +206,10 @@ fun ExportOverlay(state: ExportUiState, onDismiss: () -> Unit) {
                         LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(6.dp))
                         Text(state.current, fontSize = 11.sp, color = BT.onSurfaceV)
+                        if (onCancel != null) {
+                            Spacer(Modifier.height(12.dp))
+                            OutlineBtn(stringResource(R.string.action_cancel), onCancel, Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }

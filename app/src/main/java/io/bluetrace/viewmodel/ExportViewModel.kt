@@ -1,9 +1,10 @@
 package io.bluetrace.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import io.bluetrace.data.android.ExportResult
 import io.bluetrace.data.android.MediaStoreExporter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -17,15 +18,25 @@ sealed interface ExportUiState {
     data class InsufficientSpace(val requiredBytes: Long, val availableBytes: Long) : ExportUiState
 }
 
-/** 单会话/批量导出（MediaStore → Download/BlueTrace/，§6.4）。 */
-class ExportViewModel(private val exporter: MediaStoreExporter) : ViewModel() {
+/**
+ * 单会话/批量导出（MediaStore → Download/BlueTrace/，§6.4）。
+ * 导出任务跑在**应用级 scope**：页面销毁不再把 zip 写一半就取消（曾留下 IS_PENDING 幽灵文件）；
+ * 取消只经 [cancel]（exporter 会清掉 pending 记录）。
+ */
+class ExportViewModel(
+    private val exporter: MediaStoreExporter,
+    private val appScope: CoroutineScope,
+) : ViewModel() {
     private val _state = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val state: StateFlow<ExportUiState> = _state
+    private var job: Job? = null
 
-    fun export(folderName: String) {
-        viewModelScope.launch {
+    /** @param selectedFiles null=整夹；非空=仅导出所选相对路径（数据C 勾选导出）。 */
+    fun export(folderName: String, selectedFiles: Set<String>? = null) {
+        if (_state.value is ExportUiState.InProgress) return // 防重入
+        job = appScope.launch {
             _state.value = ExportUiState.InProgress(folderName, 0f)
-            when (val r = exporter.exportSession(folderName) { p ->
+            when (val r = exporter.exportSession(folderName, selectedFiles) { p ->
                 _state.value = ExportUiState.InProgress(folderName, p)
             }) {
                 is ExportResult.Success -> _state.value = ExportUiState.Done(r.displayPath)
@@ -35,8 +46,16 @@ class ExportViewModel(private val exporter: MediaStoreExporter) : ViewModel() {
         }
     }
 
+    /** 取消当前导出：exporter 在取消路径上删除 IS_PENDING 记录，不留幽灵文件。 */
+    fun cancel() {
+        job?.cancel()
+        job = null
+        _state.value = ExportUiState.Idle
+    }
+
     fun exportMany(folders: List<String>) {
-        viewModelScope.launch {
+        if (_state.value is ExportUiState.InProgress) return // 防重入
+        job = appScope.launch {
             var lastPath = ""
             folders.forEachIndexed { index, folder ->
                 _state.value = ExportUiState.InProgress(folder, index.toFloat() / folders.size)

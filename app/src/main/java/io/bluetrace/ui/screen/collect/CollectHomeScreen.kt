@@ -71,9 +71,18 @@ fun CollectHomeScreen(
     val context = LocalContext.current
     val catalog = koinInject<SceneCatalog>()
     var lowSpace by remember { mutableStateOf(false) }
-    var showMissingSheet by remember { mutableStateOf(false) }
-    var missingHandled by remember { mutableStateOf(false) }
-    val scanPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refreshEnv() }
+    // rememberSaveable：转屏/重建后已处理过的弹层不再复活
+    var showMissingSheet by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var missingHandled by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    val scanPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        vm.refreshEnv()
+        // 永久拒绝：系统弹窗被秒驳、用户无感知 →「去授权」不能是哑弹，标记 BLOCKED 并带去应用设置页
+        val blocked = io.bluetrace.ui.screen.permission.markBlockedPermissions(context, result) { vm.markBlocked(it) }
+        if (blocked) {
+            android.widget.Toast.makeText(context, context.getString(R.string.perm_blocked_toast), android.widget.Toast.LENGTH_LONG).show()
+            io.bluetrace.ui.screen.permission.openAppSettings(context)
+        }
+    }
 
     // 进入时取一次低空间提示（一次性，§5.2）
     LaunchedEffect(Unit) { lowSpace = vm.isLowSpace() }
