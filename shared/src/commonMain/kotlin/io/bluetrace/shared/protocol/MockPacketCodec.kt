@@ -3,7 +3,7 @@ package io.bluetrace.shared.protocol
 import io.bluetrace.shared.domain.DecodedStream
 
 /**
- * Mock 包编解码 —— v1 的「假 wire 格式」单一事实源：[MockBleClient][io.bluetrace.shared.ble.MockBleClient]
+ * Mock 包编解码 —— v1 的「假 wire 格式」单一事实源：[MockBleClient][io.bluetrace.shared.ble.mock.MockBleClient]
  * 用 [encode] 造原始字节，[MockSampleDecoder] 用 [decode] 还原样本。
  *
  * 协议冻结后：真实 BLE 实现产真实 12B 帧头 + protobuf/定宽 payload（§4），换上真实 Decoder 即可，

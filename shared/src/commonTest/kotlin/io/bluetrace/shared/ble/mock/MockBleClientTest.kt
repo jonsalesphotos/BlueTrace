@@ -1,5 +1,6 @@
-package io.bluetrace.shared.ble
+package io.bluetrace.shared.ble.mock
 
+import io.bluetrace.shared.ble.BleNotification
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_HRS

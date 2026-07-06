@@ -12,7 +12,7 @@ import io.bluetrace.shared.db.BlueTraceDb
 import io.bluetrace.data.android.sessionsRoot
 import io.bluetrace.domain.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
-import io.bluetrace.shared.ble.MockBleClient
+import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.data.SessionStore
 import io.bluetrace.shared.domain.AppPreferences
 import io.bluetrace.shared.domain.EnvironmentRepository
@@ -34,6 +34,8 @@ import io.bluetrace.viewmodel.RunViewModel
 import io.bluetrace.viewmodel.SessionDetailViewModel
 import io.bluetrace.viewmodel.SettingsViewModel
 import io.bluetrace.viewmodel.SubjectViewModel
+import io.bluetrace.shared.session.LogLevel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,7 +52,15 @@ val appModule = module {
     // ---- 平台 / 基础设施 ----
     single<EpochClock> { AndroidEpochClock() }
     single<TimeZoneProvider> { AndroidTimeZoneProvider() }
-    single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    // 应用级 scope（架构评估 A2）：挂全局异常兜底——否则任何跑在其上的未捕获协程异常直接崩进程
+    single<CoroutineScope> {
+        val koin = getKoin()
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
+                runCatching { koin.get<DiagnosticsLog>().add(LogLevel.ERROR, "scope", "uncaught: ${e.message ?: e::class.simpleName}") }
+            },
+        )
+    }
     single<FileSystem> { FileSystem.SYSTEM }
     single<Path> { sessionsRoot(androidContext()) }
     single<io.bluetrace.shared.data.StorageMonitor> { io.bluetrace.data.android.AndroidStorageMonitor(androidContext()) }
@@ -63,9 +73,16 @@ val appModule = module {
     }
 
     // ---- 共享核心（KMP commonMain）----
-    single { SessionStore(get(), get()).also { it.ensureRoot() } }
+    single { SessionStore(get(), get(), Dispatchers.IO).also { it.ensureRoot() } } // A3：Store 自守 IO
     // 应用日志（v7）：滚动 .log 文件。writerScope 必须单线程（保序、无并发追加竞态）。
-    single(named("logWriter")) { CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1)) }
+    single(named("logWriter")) {
+        // A2：日志写线程兜底走 logcat（不能写 DiagnosticsLog 自己，会递归）
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.IO.limitedParallelism(1) + CoroutineExceptionHandler { _, e ->
+                android.util.Log.e("BlueTrace", "log writer crashed", e)
+            },
+        )
+    }
     single<DiagnosticsLog> {
         val ctx = androidContext()
         // logsDir 与 sessionsRoot 同根（getExternalFilesDir），adb pull 直接可取；不放内部 filesDir。
@@ -93,6 +110,8 @@ val appModule = module {
             zone = get(),
             diagnostics = get(),
             scope = get(),
+            // A1：会话事件循环+落盘走 IO 弹性池；limitedParallelism(1) 保持单线程串行语义
+            runContext = Dispatchers.IO.limitedParallelism(1),
             storageMonitor = get(),
             gnssSource = get(),
         )

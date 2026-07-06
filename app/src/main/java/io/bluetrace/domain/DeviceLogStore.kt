@@ -6,6 +6,8 @@ import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 设备日志存储（app 级单例）：拉取的设备固件日志经 **MediaStore** 落到**公共**
@@ -35,14 +37,14 @@ class DeviceLogStore(private val context: Context) {
     fun dirPath(): String = displayDir
 
     /** 存一条日志到公共 Download，返回展示路径。mac 用于区分设备。 */
-    fun save(bytes: ByteArray, mac: String, ts: String): String {
+    suspend fun save(bytes: ByteArray, mac: String, ts: String): String = withContext(Dispatchers.IO) {
         val macCompact = mac.filter { it.isLetterOrDigit() }.uppercase()
         val name = "s7_devlog_${macCompact}_$ts.log"
-        return writeToDownloads(name, bytes) ?: displayDir
+        writeToDownloads(name, bytes) ?: displayDir
     }
 
     /** 列举全部设备日志（新→旧）。列前先迁移遗留私有目录、并把旧的 `.log.txt` 改名回 `.log`。 */
-    fun list(): List<Entry> {
+    suspend fun list(): List<Entry> = withContext(Dispatchers.IO) {
         migrateLegacy()
         renameLegacyTxtToLog()
         val projection = arrayOf(
@@ -64,22 +66,23 @@ class DeviceLogStore(private val context: Context) {
                 out += Entry(c.getString(ni), c.getLong(si), c.getLong(mi) * 1000L)
             }
         }
-        return out
+        out
     }
 
     /** 按文件名读取内容（原始字节 → 文本，字节保真）。 */
-    fun read(name: String): String? {
+    suspend fun read(name: String): String? = withContext(Dispatchers.IO) {
         val projection = arrayOf(MediaStore.Downloads._ID)
         val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ? AND ${MediaStore.Downloads.DISPLAY_NAME}=?"
         val args = arrayOf("$displayDir%", name)
+        var result: String? = null
         context.contentResolver.query(collection, projection, selection, args, null)?.use { c ->
             if (c.moveToFirst()) {
                 val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Downloads._ID))
                 val uri = ContentUris.withAppendedId(collection, id)
-                return context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                result = context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
             }
         }
-        return null
+        result
     }
 
     /** 写字节到 Download/BlueTrace/logs/<name>，返回展示路径（失败返回 null）。 */

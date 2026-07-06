@@ -129,9 +129,7 @@ fun SessionSummaryScreen(
                 onDismiss = { showEdit = false },
                 onConfirm = { subj, scene ->
                     scope.launch {
-                        val res = withContext(Dispatchers.IO) {
-                            store.editSession(summary.folderName, subj.alias, subj.sex, subj.birth, subj.heightCm, subj.weightKg, scene)
-                        }
+                        val res = store.editSession(summary.folderName, subj.alias, subj.sex, subj.birth, subj.heightCm, subj.weightKg, scene)
                         if (res != null) {
                             editedSummary = res
                             Toast.makeText(context, context.getString(R.string.edit_done), Toast.LENGTH_SHORT).show()

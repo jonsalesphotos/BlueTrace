@@ -43,7 +43,7 @@ fun ConsoleLogListScreen(
 ) {
     // 进入时读一次列表（IO）
     val entries by produceState(initialValue = emptyList<DeviceLogStore.Entry>()) {
-        value = withContext(Dispatchers.IO) { store.list() }
+        value = store.list() // Store 自守 IO（A3）
     }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {

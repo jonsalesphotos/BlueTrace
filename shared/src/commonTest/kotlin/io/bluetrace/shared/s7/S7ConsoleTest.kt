@@ -1,7 +1,7 @@
 package io.bluetrace.shared.s7
 
 import io.bluetrace.shared.TestZone
-import io.bluetrace.shared.ble.MockBleClient
+import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_S7

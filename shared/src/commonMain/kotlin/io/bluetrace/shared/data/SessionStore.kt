@@ -9,9 +9,12 @@ import io.bluetrace.shared.domain.SessionFileCategory
 import io.bluetrace.shared.domain.SessionSummary
 import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.StopReason
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
 import okio.buffer
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * 会话文件夹仓库（数据 Tab 列表/详情/删除 + 进程恢复扫描）。读 `session_manifest.json` 还原 [SessionSummary]。
@@ -20,12 +23,14 @@ import okio.buffer
 class SessionStore(
     private val fileSystem: FileSystem,
     private val sessionsRoot: Path,
+    /** IO 派发上下文（架构评估 A3：仓库层自守线程，调用方不再各自 withContext）。Android 注入 Dispatchers.IO。 */
+    private val io: CoroutineContext = EmptyCoroutineContext,
 ) {
     fun ensureRoot() {
         fileSystem.createDirectories(sessionsRoot)
     }
 
-    fun writeManifest(layout: SessionLayout, manifest: SessionManifest) {
+    suspend fun writeManifest(layout: SessionLayout, manifest: SessionManifest): Unit = withContext(io) {
         fileSystem.createDirectories(layout.sessionDir)
         // 原子替换：先写临时文件再 atomicMove。直接 truncate 覆盖写时，结束时刻被杀会留下截断 JSON，
         // 该会话将从列表/开口扫描中静默消失（raw 在盘上但 App 里不可见）。
@@ -36,9 +41,9 @@ class SessionStore(
         fileSystem.atomicMove(tmp, layout.manifest)
     }
 
-    fun readManifest(folderName: String): SessionManifest? {
+    suspend fun readManifest(folderName: String): SessionManifest? = withContext(io) {
         val path = sessionsRoot / folderName / SessionLayout.MANIFEST_NAME
-        return readManifestAt(path)
+        readManifestAt(path)
     }
 
     private fun readManifestAt(path: Path): SessionManifest? {
@@ -50,17 +55,17 @@ class SessionStore(
     }
 
     /** 所有会话摘要，按起点时间倒序（最新在前）。 */
-    fun list(): List<SessionSummary> {
-        if (!fileSystem.exists(sessionsRoot)) return emptyList()
-        return fileSystem.list(sessionsRoot)
+    suspend fun list(): List<SessionSummary> = withContext(io) {
+        if (!fileSystem.exists(sessionsRoot)) return@withContext emptyList()
+        fileSystem.list(sessionsRoot)
             .filter { fileSystem.metadataOrNull(it)?.isDirectory == true }
             .mapNotNull { dir -> readManifestAt(dir / SessionLayout.MANIFEST_NAME)?.let(::toSummary) }
             .sortedByDescending { it.startEpochMs }
     }
 
-    fun detail(folderName: String): SessionSummary? = readManifest(folderName)?.let(::toSummary)
+    suspend fun detail(folderName: String): SessionSummary? = readManifest(folderName)?.let(::toSummary)
 
-    fun delete(folderName: String) {
+    suspend fun delete(folderName: String): Unit = withContext(io) {
         val dir = sessionsRoot / folderName
         if (fileSystem.exists(dir)) fileSystem.deleteRecursively(dir)
     }
@@ -70,7 +75,7 @@ class SessionStore(
      * 重写该会话 `manifest`（alias + 体征 + 主/子场景英文 token）**并**按新 5 段名重命名会话文件夹。
      * 原始 HEX 等内容不动；新名冲突或移动失败 → 回滚（不改任何东西）并返回 null。
      */
-    fun editSession(
+    suspend fun editSession(
         folderName: String,
         newAlias: String,
         newSex: Sex,
@@ -114,9 +119,9 @@ class SessionStore(
     }
 
     /** 没写结束标记的「开口」会话（进程被全杀后遗留，§5.10）。 */
-    fun openSessions(): List<SessionManifest> {
-        if (!fileSystem.exists(sessionsRoot)) return emptyList()
-        return fileSystem.list(sessionsRoot)
+    suspend fun openSessions(): List<SessionManifest> = withContext(io) {
+        if (!fileSystem.exists(sessionsRoot)) return@withContext emptyList()
+        fileSystem.list(sessionsRoot)
             .filter { fileSystem.metadataOrNull(it)?.isDirectory == true }
             .mapNotNull { readManifestAt(it / SessionLayout.MANIFEST_NAME) }
             .filter { it.stopReason == null }
@@ -126,7 +131,7 @@ class SessionStore(
      * 开口会话自动收尾（§5.10）：endEpochMs = 最后一条记录时间（估为最后修改时间或现在），
      * stopReason=interrupted，并补 files 清单 → 变成数据 Tab 一条正常会话。
      */
-    fun autoFinalizeOpenSession(manifest: SessionManifest, endEpochMs: Long): SessionSummary {
+    suspend fun autoFinalizeOpenSession(manifest: SessionManifest, endEpochMs: Long): SessionSummary {
         val layout = SessionLayout(sessionsRoot / manifest.folderName)
         val files = scanFiles(layout)
         val finalized = manifest.copy(

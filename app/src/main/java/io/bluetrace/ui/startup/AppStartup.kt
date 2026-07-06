@@ -46,11 +46,10 @@ object AppStartup {
         // 冷启动：进程被全杀后无活会话 → 扫开口会话自动收尾（§5.10）
         var recovered = 0
         if (!collecting) {
-            recovered = withContext(Dispatchers.IO) {
-                val opens = store.openSessions()
-                opens.forEach { store.autoFinalizeOpenSession(it, clock.nowMs()) }
-                opens.size
-            }
+            // SessionStore 自守 IO（架构评估 A3），调用方不再切线程
+            val opens = store.openSessions()
+            opens.forEach { store.autoFinalizeOpenSession(it, clock.nowMs()) }
+            recovered = opens.size
         }
         val firstLaunch = !prefs.firstLaunchCompleted.first()
         return StartDecision(firstLaunch = firstLaunch, collecting = collecting, recoveredCount = recovered)

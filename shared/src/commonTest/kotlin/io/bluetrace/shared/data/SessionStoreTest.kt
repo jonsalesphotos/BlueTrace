@@ -3,6 +3,7 @@ package io.bluetrace.shared.data
 import io.bluetrace.shared.domain.SceneSelection
 import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.StopReason
+import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import kotlin.test.Test
@@ -28,7 +29,7 @@ class SessionStoreTest {
     )
 
     @Test
-    fun writeRead_manifestRoundtrip_unixStartAndTimezone() {
+    fun writeRead_manifestRoundtrip_unixStartAndTimezone() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)
@@ -50,7 +51,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun editSession_renamesFolder_andRewritesManifest() {
+    fun editSession_renamesFolder_andRewritesManifest() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)
@@ -73,7 +74,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun editSession_conflict_returnsNull_andKeepsOriginal() {
+    fun editSession_conflict_returnsNull_andKeepsOriginal() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)
@@ -88,7 +89,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun list_sortsByStartDescending() {
+    fun list_sortsByStartDescending() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)
@@ -100,7 +101,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun openSession_autoFinalize_setsInterrupted() {
+    fun openSession_autoFinalize_setsInterrupted() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)
@@ -120,7 +121,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun writeManifest_isAtomic_failedRewriteKeepsOldManifest() {
+    fun writeManifest_isAtomic_failedRewriteKeepsOldManifest() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         // 第一次写成功；之后 .tmp 写失败 → 旧 manifest 必须保持完好可读（原子替换语义，防截断 JSON 致会话静默消失）
@@ -144,7 +145,7 @@ class SessionStoreTest {
     }
 
     @Test
-    fun delete_removesFolder() {
+    fun delete_removesFolder() = runTest {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()
         val store = SessionStore(fs, root)

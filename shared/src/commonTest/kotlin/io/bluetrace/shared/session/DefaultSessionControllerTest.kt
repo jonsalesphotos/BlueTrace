@@ -1,6 +1,6 @@
 package io.bluetrace.shared.session
 
-import io.bluetrace.shared.ble.MockBleClient
+import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.data.SessionLayout
 import io.bluetrace.shared.data.SessionStore
 import io.bluetrace.shared.domain.DeviceKind

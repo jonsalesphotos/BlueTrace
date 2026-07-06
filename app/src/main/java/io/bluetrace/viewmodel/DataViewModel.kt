@@ -57,7 +57,7 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
 
     fun refresh() {
         viewModelScope.launch {
-            val list = withContext(Dispatchers.IO) { store.list() }
+            val list = store.list() // Store 自守 IO（A3）
             _all.value = list
         }
     }
@@ -86,7 +86,7 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
     fun deleteSelected() {
         val targets = _selected.value
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { targets.forEach { store.delete(it) } }
+            targets.forEach { store.delete(it) }
             exitSelection()
             refresh()
         }

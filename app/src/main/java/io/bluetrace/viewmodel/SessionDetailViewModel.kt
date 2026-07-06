@@ -28,7 +28,7 @@ class SessionDetailViewModel(
 
     fun load() {
         viewModelScope.launch {
-            val s = withContext(Dispatchers.IO) { store.detail(folderName) }
+            val s = store.detail(folderName) // Store 自守 IO（A3）
             _summary.value = s
             _selectedFiles.value = s?.files?.map { it.relativePath }?.toSet() ?: emptySet()
         }
@@ -45,9 +45,7 @@ class SessionDetailViewModel(
     /** 事后改采集人/场景（数据C）：重写 manifest + 重命名文件夹，回调新摘要（null=冲突）。 */
     fun editTo(subject: Subject, scene: SceneSelection, onResult: (SessionSummary?) -> Unit) {
         viewModelScope.launch {
-            val res = withContext(Dispatchers.IO) {
-                store.editSession(folderName, subject.alias, subject.sex, subject.birth, subject.heightCm, subject.weightKg, scene)
-            }
+            val res = store.editSession(folderName, subject.alias, subject.sex, subject.birth, subject.heightCm, subject.weightKg, scene)
             onResult(res)
         }
     }

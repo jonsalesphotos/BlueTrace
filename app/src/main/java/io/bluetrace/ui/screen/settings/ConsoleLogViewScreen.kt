@@ -55,7 +55,7 @@ import org.koin.compose.koinInject
 fun ConsoleLogViewScreen(fileName: String, onBack: () -> Unit, store: DeviceLogStore = koinInject()) {
     // IO 读文件 → 按行切分（保留原始每一行，不改动内容）
     val content by produceState<String?>(initialValue = null, fileName) {
-        value = withContext(Dispatchers.IO) { store.read(fileName) } ?: ""
+        value = store.read(fileName) ?: "" // Store 自守 IO（A3）
     }
     val lines = remember(content) { content?.split("\n") ?: emptyList() }
     val listState = rememberLazyListState()

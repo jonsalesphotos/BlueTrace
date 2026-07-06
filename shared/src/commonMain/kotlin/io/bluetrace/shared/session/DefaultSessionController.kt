@@ -40,6 +40,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okio.FileSystem
 import okio.Path
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * 真实采集编排（v1 喂 Mock BLE，仅依赖 [BleClient] 接口）。所有 Notify / 连接事件 / 计时 tick / 标签
@@ -55,6 +57,12 @@ class DefaultSessionController(
     private val zone: TimeZoneProvider,
     private val diagnostics: DiagnosticsLog,
     private val scope: CoroutineScope,
+    /**
+     * 会话事件循环（含落盘）的派发上下文（架构评估 A1）：okio 写盘是阻塞 IO，不能占 CPU 计算池。
+     * Android 注入 `Dispatchers.IO.limitedParallelism(1)`——进 IO 弹性池且仍单线程执行，
+     * 不破坏"单消费者串行无竞态"语义；测试用默认空上下文（跟随 TestDispatcher）。
+     */
+    private val runContext: CoroutineContext = EmptyCoroutineContext,
     private val storageMonitor: io.bluetrace.shared.data.StorageMonitor = io.bluetrace.shared.data.StorageMonitor { Long.MAX_VALUE },
     private val gnssSource: io.bluetrace.shared.data.GnssSource = io.bluetrace.shared.data.GnssSource.None,
     private val appVersion: String = "1.0",
@@ -109,9 +117,6 @@ class DefaultSessionController(
 
         val lay = SessionLayout(sessionsRoot / sessionFolderName(config))
         layout = lay
-        recorder = SessionRecorder(fileSystem, lay, config.enabledTypes, config.gnssEnabled)
-        // 开始即写 manifest 关键信息（会话自描述、被杀也能解，§6.2）
-        sessionStore.writeManifest(lay, buildManifest(config, end = null, reason = null, files = emptyList(), quality = QualitySummary()))
 
         config.devices.forEach { d ->
             deviceStates[d.deviceId] = RunDeviceState(d.deviceId, d.name, d.kind, LinkState.CONNECTED)
@@ -122,10 +127,24 @@ class DefaultSessionController(
 
         val ch = Channel<RunEvent>(Channel.BUFFERED)
         events = ch
-        val rs = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+        val rs = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]) + runContext)
         runScope = rs
 
-        rs.launch { consume(ch) }
+        rs.launch {
+            // 建目录/首写 manifest 挪进会话 IO 上下文（原在调用线程=主线程，架构#4/A3）；
+            // producers 先发的事件在 buffered channel 里排队，init 完成后 consume 才开始取。
+            val init = runCatching {
+                recorder = SessionRecorder(fileSystem, lay, config.enabledTypes, config.gnssEnabled)
+                // 开始即写 manifest 关键信息（会话自描述、被杀也能解，§6.2）
+                sessionStore.writeManifest(lay, buildManifest(config, end = null, reason = null, files = emptyList(), quality = QualitySummary()))
+            }
+            if (init.isFailure) {
+                diagnostics.add(LogLevel.ERROR, "session", "init storage failed: ${init.exceptionOrNull()?.message} → auto-stop")
+                exitConsume(ch, runCatching { finishInternal(StopReason.ERROR) }.getOrNull())
+                return@launch
+            }
+            consume(ch)
+        }
         config.devices.forEach { d ->
             rs.launch {
                 bleClient.notifications(d.deviceId).collect {
@@ -282,7 +301,7 @@ class DefaultSessionController(
         pushState()
     }
 
-    private fun finishInternal(reason: StopReason): SessionSummary {
+    private suspend fun finishInternal(reason: StopReason): SessionSummary {
         status = RunStatus.STOPPED
         stopReason = reason
         endEpochMs = clock.nowMs()
