@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 手表 BLE 协议共识规格</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-ble-b2a">S7 手表 BLE 协议共识规格（B2A 主协议 + 采集固件专用协议）</a><ul>
+<li><a href="#1-purpose">1. Purpose</a></li>
+<li><a href="#2-system-contextgatt">2. System Context：GATT 服务地图</a></li>
+<li><a href="#3-b2a-frame-layout">3. B2A Frame Layout（信封，双固件通用）</a><ul>
+<li><a href="#31-frame-overview">3.1 Frame Overview</a></li>
+<li><a href="#32-bit-level-memory-map">3.2 Bit-level memory map</a></li>
+<li><a href="#33-status-ble2appexh26-43">3.3 status 位定义（ble2appEx.h:26-43）</a></li>
+<li><a href="#34-param">3.4 多包（大 param 上行）规则</a></li>
+<li><a href="#35">3.5 应答与错误码</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 命令注册表</a></li>
+<li><a href="#5-dc">5. 采集会话协议（DC，采集固件新增）</a><ul>
+<li><a href="#51-0x10-dc_ctrl-ble2appwrapc11876-11924">5.1 0x10 DC_CTRL —— 启停（ble2appWrap.c:11876-11924）</a></li>
+<li><a href="#52-0x11-dc_status-ble2appwrapc11933-11943">5.2 0x11 DC_STATUS —— 状态（ble2appWrap.c:11933-11943）</a></li>
+<li><a href="#53-0x12-dc_data-ble2appwrapc11969-12145">5.3 0x12 DC_DATA —— 会话文件随机读（ble2appWrap.c:11969-12145）</a></li>
+<li><a href="#54-state-machinedata_collect_sessionh10-35c">5.4 State machine（data_collect_session.h:10-35、.c 全文）</a></li>
+</ul>
+</li>
+<li><a href="#6-ecg_rawdat-v2">6. ecg_raw.dat 会话文件格式（v2，全小端）</a><ul>
+<li><a href="#61-32b">6.1 32B 文件头</a></li>
+<li><a href="#62-ecg-acc-8b">6.2 帧流（ECG 段与 ACC 段同款 8B 帧头）</a></li>
+</ul>
+</li>
+<li><a href="#7-zqdata-hr-spo2-gsensor">7. ZQDATA 上行协议（HR / SpO2 / gsensor 离线数据）</a><ul>
+<li><a href="#71">7.1 通道与互斥</a></li>
+<li><a href="#72-hr-spo2-ppghrdat-ppgspodat-40b">7.2 HR / SpO2 落盘帧（ppghr.dat / ppgspo.dat，每帧 40B）</a></li>
+<li><a href="#73-40b28b-hrc1063-1092">7.3 40B→28B 上行重打包（hr.c:1063-1092）</a></li>
+<li><a href="#74-gsensor-agsdat18buser_gsensor_apic430-509">7.4 gsensor 帧（AGS.dat，18B，无重打包；user_gsensor_api.c:430-509）</a></li>
+<li><a href="#75-key-4b-hrc996-10021042-1045spo2-gsensor-user_gsensor_apic618654696">7.5 Key 与 4B 应用头（hr.c:996-1002,1042-1045；SpO2 对称；gsensor user_gsensor_api.c:618,654,696）</a></li>
+<li><a href="#76">7.6 字节序总纲（解析器必背）</a></li>
+</ul>
+</li>
+<li><a href="#8-example-raw-packet-decode">8. Example raw packet + decode</a><ul>
+<li><a href="#81-e0">8.1 E0 · 产测握手金帧（真机，短帧特例）</a></li>
+<li><a href="#82-e1-ecg-0x10">8.2 E1 · 启动 ECG 采集（0x10）+ 应答</a></li>
+<li><a href="#83-e2-0x11-ready-idle">8.3 E2 · 状态上报（0x11，采集结束主动推 READY；取完推 IDLE）</a></li>
+<li><a href="#84-e3-ecg_rawdat-decode180b">8.4 E3 · ecg_raw.dat 文件头 + 帧头 decode（180B 示例文件）</a></li>
+<li><a href="#85-e4-0x12-eof">8.5 E4 · 读取会话数据（0x12，单包路径 + EOF）</a></li>
+<li><a href="#86-e5-0x12-parm-4104b-17-mtu-247">8.6 E5 · 0x12 多片路径（parm 总长 4104B → 17 全片 + 尾片，MTU 247）</a></li>
+<li><a href="#87-e6-zqdata-hr-212b">8.7 E6 · ZQDATA 服务上行：HR 起帧 + 212B 数据包</a></li>
+</ul>
+</li>
+<li><a href="#9-error-handling">9. Error handling 汇总</a></li>
+<li><a href="#10-app">10. App 侧实现共识（协议未定义、双方约定）</a></li>
+<li><a href="#11">11. 双固件差异一览</a></li>
+<li><a href="#12">12. 引用</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="s7-ble-b2a">S7 手表 BLE 协议共识规格（B2A 主协议 + 采集固件专用协议）</h1>
+<blockquote>
+<p><strong>跨项目共识文档</strong>：给固件双仓（<code>E:\1\apollo4_watch_s7</code> 开发固件、<code>E:\1\apollo4_watch_s7_collect</code> 采集固件）与 App 侧（BlueTrace 为支点之一）共同引用的协议事实源。
+<strong>所有字段均出自固件代码</strong>，逐项标注 <code>文件:行</code>；两仓路径缩写：<strong>开发仓</strong> = <code>apollo4_watch_s7/product/apollo_eiot</code>，<strong>采集仓</strong> = <code>apollo4_watch_s7_collect/product/apollo_eiot</code>。
+<strong>示例包全部按固件同款 CRC16-CCITT-FALSE 实算</strong>，并用真机产测金帧（CRC=<code>0x462D</code>）对生成脚本做过自校验；生成脚本存档 <a href="assets/gen_s7_protocol_examples.py"><code>assets/gen_s7_protocol_examples.py</code></a>。</p>
+<p><strong>与 BlueTrace v0 协议的区隔</strong>：本文是 <strong>S7 真机现行协议</strong>（0xBB 信封 + Cmd/Key）；<a href="../../architecture/bluetrace_v0_frame_spec.md"><code>architecture/bluetrace_v0_frame_spec.md</code></a> 是自研 DUT 的 12B 帧头 + protobuf <strong>草案</strong>，两者互不相关，App 侧按通道分别挂解析器。</p>
+<p>深度参考（s7 分支 <code>feat/s7-device-console</code>，未合 main）：<code>protocol-b2a.md</code>（B2A 全命令集）、<code>protocol-zqdata.md</code>（zqdata 全量审计与差异核查）。本文为两者之上的<strong>单一开发者共识稿</strong>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>信封</td>
+<td>B2A：<code>0xBB</code> 起始 + 8B 帧头 + 4B 命令头（首包），<strong>帧头/命令头小端</strong></td>
+</tr>
+<tr>
+<td>CRC</td>
+<td>CRC16-CCITT-FALSE（poly <code>0x1021</code>、init <code>0xFFFF</code>、不反转、xorout 0），覆盖 8B 帧头<strong>之后</strong>全部字节（采集仓 <code>Ble2App/crc16_ccitt_false.c:24-42</code>、<code>ble2appEx.c:64</code>）</td>
+</tr>
+<tr>
+<td>传输</td>
+<td>BLE GATT：控制走 AMDTP <code>0xFFE0</code> 服务；采集数据上行走 ZQDATA 专用服务（§2）</td>
+</tr>
+<tr>
+<td>字节序</td>
+<td><strong>三种并存</strong>：B2A 头小端 / PPG·gsensor 数据帧大端 / ECG 会话全小端（§7.6 总纲表）</td>
+</tr>
+<tr>
+<td>设备识别</td>
+<td>广播 16-bit UUID 表含 <code>0xFFE0</code>；广播名（<code>SKG WATCH S7-XXXX</code> 等）仅展示用，不作协议判据</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-purpose">1. Purpose</h2>
+<p>S7 手表与手机 App 的全部 BLE 通信事实：</p>
+<ol>
+<li><strong>B2A 主协议</strong>（Ble-to-App，双固件共有）：时间/设备信息/电量/用户信息/设备控制/日志/OTA 等控制命令面（全命令集见分支 <code>protocol-b2a.md</code>，本文给信封与注册表）。</li>
+<li><strong>采集固件新增·ECG 采集会话协议</strong>（B2A <code>TEST(0x08)</code> Key <code>0x10/0x11/0x12</code>，固件注释锚定 SKG S7 手册 §6.8.16–6.8.18）：App 启停 ECG 原始采集、查状态、按偏移随机读回会话文件。</li>
+<li><strong>采集固件新增·ZQDATA 数据服务</strong>：独立 GATT 服务承载 HR/SpO2/gsensor 离线数据上行（B2A <code>TEST</code> 打包、大端数据帧）。</li>
+</ol>
+<h2 id="2-system-contextgatt">2. System Context：GATT 服务地图</h2>
+<div class="fig">
+<svg viewBox="0 0 840 430" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>S7 手表 BLE 服务地图：B2A 主通道 + 采集数据通道（GH3X2X/ZQDATA 二选一）+ 开发仓新 zqdata 模块</title>
+<desc>左侧为手机 App，右侧三条服务通道：AMDTP FFE0 承载 B2A 协议（双固件共有）；0x0A00 句柄段在采集固件上被 svcSwFlag 切成 ZQDATA 服务承载离线数据上行；开发仓另有独立句柄段的新 zqdata 传输模块。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;}
+.ms{fill:var(--muted);font-size:9.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.bxa{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
+.bxd{fill:var(--code);stroke:var(--muted);stroke-width:1;stroke-dasharray:5 4;}
+.ln{stroke:var(--muted);stroke-width:1.3;}
+.lna{stroke:var(--accent);stroke-width:1.6;}
+</style>
+<defs>
+<marker id="am" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker>
+<marker id="aa" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"/></marker>
+</defs>
+<g class="m">
+  <rect x="20" y="150" width="120" height="120" class="bx"/>
+  <text x="80" y="200" text-anchor="middle">手机 App</text>
+  <text x="80" y="218" text-anchor="middle" class="ms">Central</text>
+</g>
+<text x="330" y="24" class="t">S7 手表（Peripheral，广播 16-bit UUID 表含 0xFFE0）</text>
+<g class="m">
+  <rect x="330" y="40" width="490" height="86" class="bxa"/>
+  <text x="344" y="62" class="a">① AMDTP 服务 0xFFE0 —— B2A 主协议（双固件共有）</text>
+  <text x="344" y="82" class="ms">RX 0xFFE1 Write / WriteNoRsp（App→表）   TX 0xFFE2 Notify（表→App）</text>
+  <text x="344" y="100" class="ms">B2A 帧: 0xBB 头 8B + 命令头 4B + param；GET/SET/PUSH/IND/RPT/TEST/FILE_TRANS</text>
+  <text x="344" y="118" class="ms">采集固件新增: TEST(0x08) Key 0x10/0x11/0x12 = ECG 采集会话控制/状态/读取</text>
+</g>
+<line x1="140" y1="180" x2="330" y2="84" class="lna" marker-end="url(#aa)"/>
+<g class="m">
+  <rect x="330" y="146" width="490" height="118" class="bxa"/>
+  <text x="344" y="168" class="a">② 数据服务（句柄 0x0A00–0x0A05，svcSwFlag[0] 二选一）</text>
+  <text x="344" y="188" class="ms">=0: GH3X2X 0x190E（16-bit）RX 0x0004 / TX 0x0003 —— 汇顶 EVK 协议</text>
+  <text x="344" y="206" class="a" font-size="10.5" font-family="Consolas,monospace">=1(采集固件写死): ZQDATA 45121540-51F2-406E-927A-3E1E183412E0</text>
+  <text x="344" y="224" class="ms">RX …1541 WriteNoRsp → Gh3x2xDemoProtocolProcess（汇顶下行）</text>
+  <text x="344" y="242" class="ms">TX …1542 Notify ← 离线数据上行（B2A TEST 打包: HR/SpO2/gsensor 帧）</text>
+  <text x="344" y="258" class="ms">128-bit UUID 不进广播，连接后 GATT 发现</text>
+</g>
+<line x1="140" y1="205" x2="330" y2="205" class="lna" marker-end="url(#aa)"/>
+<g class="m">
+  <rect x="330" y="284" width="490" height="86" class="bxd"/>
+  <text x="344" y="306" class="s" font-weight="700">③ 新 zqdata 传输模块（仅开发仓，句柄 0x0A10–0x0A15，独立段）</text>
+  <text x="344" y="326" class="ms">同 UUID base 45121540/41/42；RX/TX 双线程 + 4KB 环 + txReady 背压</text>
+  <text x="344" y="344" class="ms">纯传输层（buf,len），不定义业务帧；生产者尚未接入（遗留待接）</text>
+  <text x="344" y="360" class="ms">与 ② 并行注册、句柄不重叠</text>
+</g>
+<line x1="140" y1="240" x2="330" y2="327" class="ln" marker-end="url(#am)" stroke-dasharray="5 4"/>
+<g class="s">
+  <text x="20" y="398">双固件：apollo4_watch_s7（开发，B2A 基线 + ③）｜ apollo4_watch_s7_collect（采集，① 加 DC 命令 + ② 切 ZQDATA）</text>
+  <text x="20" y="416">采集固件上 ①②同连接并存：控制走 ①，离线数据上行走 ②；上传期间 svcSwFlag[6]=1 抑制 ① 的普通打包（互斥）</text>
+</g>
+</svg>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>服务</th>
+<th>UUID</th>
+<th>特征</th>
+<th>属性</th>
+<th>句柄</th>
+<th>固件 / 依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AMDTP（B2A 主通道）</td>
+<td><code>0xFFE0</code>（128-bit base <code>0000xxxx-3C17-D293-8E48-14FE2E4DA212</code>）</td>
+<td>RX <code>0xFFE1</code> / TX <code>0xFFE2</code></td>
+<td>Write·WriteNoRsp / Notify</td>
+<td><code>0x0800</code> 段</td>
+<td>双固件；分支 <code>protocol-b2a.md</code> §1</td>
+</tr>
+<tr>
+<td>GH3X2X（汇顶 EVK）</td>
+<td>16-bit <code>0x190E</code></td>
+<td>RX <code>0x0004</code> / TX <code>0x0003</code></td>
+<td>WriteNoRsp·Write / Notify</td>
+<td><code>0x0A00–0x0A05</code></td>
+<td>采集仓 <code>PcFactory/Gh3x2xBleServer/factory_gh3x2x_ble_server.h:54-58,91-110</code></td>
+</tr>
+<tr>
+<td><strong>ZQDATA（采集数据）</strong></td>
+<td><code>45121540-51F2-406E-927A-3E1E183412E0</code></td>
+<td>RX <code>…1541</code> / TX <code>…1542</code></td>
+<td>WriteNoRsp / Notify+CCC</td>
+<td><strong>同 <code>0x0A00–0x0A05</code>（与 GH3X2X 互斥挂载）</strong></td>
+<td>采集仓 <code>factory_gh3x2x_ble_server.h:63-88</code>、ATT 表 <code>.c:270-358</code></td>
+</tr>
+<tr>
+<td>新 zqdata 模块</td>
+<td>同 ZQDATA base/part</td>
+<td>RX <code>0x0A12</code> / TX <code>0x0A14</code> / CCC <code>0x0A15</code></td>
+<td>同上</td>
+<td><code>0x0A10–0x0A15</code> 独立段</td>
+<td>开发仓 <code>zqdata/zqdata_svc.{h:18-31,c:26-38}</code>（纯传输层，生产者未接）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>服务切换</strong>（采集仓 <code>factory_gh3x2x_ble_server.c:371-383,411-430</code>）：<code>SvcGh3x2xAddGroup()</code> 按 <code>svcSwFlag[0]</code> 挂 ZQDATA（<code>=0x01</code>）或 GH3X2X（其它）；采集固件在 <code>SYS_GS_COLLECT_SVC || SYS_PPG_COLLECT_SVC</code>（两者均 =1，<code>Eiot/Platform/Apollo/inc/SystemIf.h:366-368</code>）下<strong>写死 <code>svcSwFlag[0]=0x01</code></strong>（<code>.c:416</code>）→ 真机上数据服务恒为 ZQDATA。两套服务共用同一写回调，下行统一进汇顶协议栈 <code>Gh3x2xDemoProtocolProcess</code>（<code>factory_gh3x2x_ble_server_main.c:355-376</code>）。</p>
+<h2 id="3-b2a-frame-layout">3. B2A Frame Layout（信封，双固件通用）</h2>
+<h3 id="31-frame-overview">3.1 Frame Overview</h3>
+<pre><code>首包：  [B2A_HEAD 8B][B2A_DATA_CMD 4B][param ...]
+续包：  [B2A_HEAD 8B][param 续段 ...]              ← 无命令头，命令字由首包延续
+</code></pre>
+<p><strong>B2A_HEAD（8B，小端；<code>ble2appEx.h:74-81</code>，组包 <code>ble2appEx.c:47-79</code>）</strong></p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1B</td>
+<td><code>ucStartFlag</code></td>
+<td>SOF = <strong><code>0xBB</code></strong>（<code>MAC_B2A_HEAD_FLAG</code>，<code>ble2appEx.h:20</code>）</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1B</td>
+<td><code>ucStatus</code></td>
+<td>状态位域，见 §3.3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2B</td>
+<td><code>uiLen</code></td>
+<td><strong>帧头之后的字节数</strong>（首包 = 4 + 本包 param 长；续包 = 续段长），u16 LE</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2B</td>
+<td><code>uiCRC</code></td>
+<td>CRC16-CCITT-FALSE，<strong>覆盖偏移 8 起 <code>uiLen</code> 字节</strong>（不含帧头自身；<code>uiLen==0</code> 时 CRC=0），u16 LE</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2B</td>
+<td><code>uiIndex</code></td>
+<td>包序号：首包 0，续包递增，u16 LE</td>
+</tr>
+</tbody>
+</table>
+<p><strong>B2A_DATA_CMD（4B，仅 <code>uiIndex==0</code> 首包携带；<code>ble2appEx.h:510-515</code>）</strong></p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8</td>
+<td>1B</td>
+<td><code>ucCmd</code></td>
+<td>一级命令字（§4）</td>
+</tr>
+<tr>
+<td>9</td>
+<td>1B</td>
+<td><code>ucKey</code></td>
+<td>二级子命令</td>
+</tr>
+<tr>
+<td>10</td>
+<td>2B</td>
+<td><code>uiParamLen</code></td>
+<td>param 长度（u16 LE）。<strong>单包 = 本包 param 长（<code>B2A_MakePkt</code>，<code>ble2appEx.c:237-243</code>）；多片上行首片 = 全部 param 总长（<code>B2A_HealthPkt</code> 的 <code>paramlen</code> 参数，<code>ble2appEx.c:450-453</code>）——App 据此预知总量</strong></td>
+</tr>
+<tr>
+<td>12</td>
+<td>N</td>
+<td><code>szParam</code></td>
+<td>参数 / 数据</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>TLV 视角</strong>：T = <code>(Cmd,Key)</code> 双字节命令，L = <code>uiParamLen</code>，V = <code>szParam</code>；外层再套一层 <code>[0xBB|status|L'|CRC|Index]</code> 传输信封（L' = <code>uiLen</code>）。</p>
+</blockquote>
+<h3 id="32-bit-level-memory-map">3.2 Bit-level memory map</h3>
+<pre><code>Byte Offset:   0        1        2        3        4        5        6        7
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+B2A_HEAD      | 0xBB   | status |  uiLen u16 LE   |  uiCRC u16 LE   | uiIndex u16 LE  |
+              | SOF    | 位图↓  |  头后字节数     |  覆盖偏移8起    | 首包0, 续包++   |
+              +--------+--------+--------+--------+--------+--------+--------+--------+
+Byte Offset:   8        9        10       11       12 ...
+              +--------+--------+--------+--------+---------------------------+
+B2A_DATA_CMD  | ucCmd  | ucKey  | uiParamLen LE   | szParam ...               |  ← 仅 Index==0
+              +--------+--------+--------+--------+---------------------------+
+
+ucStatus (byte 1)，bit7 → bit0（ble2appEx.h:26-43）：
+              +----------+------+------+---------------+---------------+----------+----------+
+         bit  |    7     |  6   |  5   |       3       |       2       |    1     |    0     |
+              +----------+------+------+---------------+---------------+----------+----------+
+              | OTA_PART |    保留     | MULTI_PKT_END | IS_MULTI_PKT  |   ACK    |   FAIL   |
+              |   0x80   |             |     0x08      |     0x04      |   0x02   |   0x01   |
+              +----------+------+------+---------------+---------------+----------+----------+
+</code></pre>
+<div class="fig">
+<svg viewBox="0 0 840 330" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>B2A 帧信封：8 字节帧头 + 4 字节命令头 + param，status 逐位展开</title>
+<desc>上排 8 字节帧头（0xBB、status、uiLen、uiCRC、uiIndex），中排命令头（ucCmd、ucKey、uiParamLen）与 param，下排 status 位图。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;}
+.ms{fill:var(--muted);font-size:9.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.bxa{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
+.lna{stroke:var(--accent);stroke-width:1.2;}
+</style>
+<text x="40" y="20" class="t">B2A 帧 = 8B 帧头 + 4B 命令头（仅首包）+ param（帧头/命令头小端）</text>
+<g class="ms">
+  <text x="90" y="44" text-anchor="middle">0</text><text x="190" y="44" text-anchor="middle">1</text>
+  <text x="305" y="44" text-anchor="middle">2–3</text><text x="505" y="44" text-anchor="middle">4–5</text>
+  <text x="705" y="44" text-anchor="middle">6–7</text>
+</g>
+<g class="m">
+  <rect x="40" y="50" width="100" height="52" class="bx"/>
+  <text x="90" y="72" text-anchor="middle" class="a">0xBB</text><text x="90" y="90" text-anchor="middle" class="ms">SOF</text>
+  <rect x="140" y="50" width="100" height="52" class="bxa"/>
+  <text x="190" y="72" text-anchor="middle" class="a">status</text><text x="190" y="90" text-anchor="middle" class="ms">位图↓</text>
+  <rect x="240" y="50" width="130" height="52" class="bx"/>
+  <text x="305" y="72" text-anchor="middle">uiLen</text><text x="305" y="90" text-anchor="middle" class="ms">u16 LE 头后字节数</text>
+  <rect x="370" y="50" width="270" height="52" class="bxa"/>
+  <text x="505" y="72" text-anchor="middle" class="a">uiCRC = CRC16-CCITT-FALSE</text><text x="505" y="90" text-anchor="middle" class="ms">覆盖偏移 8 起 uiLen 字节, u16 LE</text>
+  <rect x="640" y="50" width="130" height="52" class="bx"/>
+  <text x="705" y="72" text-anchor="middle">uiIndex</text><text x="705" y="90" text-anchor="middle" class="ms">u16 LE 分包序号</text>
+</g>
+<g class="ms">
+  <text x="90" y="126" text-anchor="middle">8</text><text x="190" y="126" text-anchor="middle">9</text>
+  <text x="305" y="126" text-anchor="middle">10–11</text><text x="555" y="126" text-anchor="middle">12 …</text>
+</g>
+<g class="m">
+  <rect x="40" y="132" width="100" height="52" class="bxa"/>
+  <text x="90" y="154" text-anchor="middle" class="a">ucCmd</text><text x="90" y="172" text-anchor="middle" class="ms">= T</text>
+  <rect x="140" y="132" width="100" height="52" class="bxa"/>
+  <text x="190" y="154" text-anchor="middle" class="a">ucKey</text><text x="190" y="172" text-anchor="middle" class="ms">子命令</text>
+  <rect x="240" y="132" width="130" height="52" class="bx"/>
+  <text x="305" y="154" text-anchor="middle">uiParamLen</text><text x="305" y="172" text-anchor="middle" class="ms">u16 LE = L</text>
+  <rect x="370" y="132" width="400" height="52" class="bx"/>
+  <text x="570" y="154" text-anchor="middle">szParam（V）</text><text x="570" y="172" text-anchor="middle" class="ms">多片上行时首片 L=总长, 续包无命令头</text>
+</g>
+<line x1="190" y1="102" x2="190" y2="238" class="lna"/>
+<text x="40" y="228" class="t">status 位图（bit7 → bit0）</text>
+<g class="m">
+  <rect x="40" y="238" width="130" height="52" class="bx"/>
+  <text x="105" y="260" text-anchor="middle">OTA_PART</text><text x="105" y="278" text-anchor="middle" class="ms">bit7 0x80</text>
+  <rect x="170" y="238" width="120" height="52" class="bx"/>
+  <text x="230" y="260" text-anchor="middle">保留</text><text x="230" y="278" text-anchor="middle" class="ms">bit6–4</text>
+  <rect x="290" y="238" width="140" height="52" class="bxa"/>
+  <text x="360" y="260" text-anchor="middle" class="a">MULTI_PKT_END</text><text x="360" y="278" text-anchor="middle" class="ms">bit3 0x08</text>
+  <rect x="430" y="238" width="140" height="52" class="bxa"/>
+  <text x="500" y="260" text-anchor="middle" class="a">IS_MULTI_PKT</text><text x="500" y="278" text-anchor="middle" class="ms">bit2 0x04</text>
+  <rect x="570" y="238" width="100" height="52" class="bx"/>
+  <text x="620" y="260" text-anchor="middle">ACK</text><text x="620" y="278" text-anchor="middle" class="ms">bit1 0x02 请求方置位=要求应答</text>
+  <rect x="670" y="238" width="100" height="52" class="bx"/>
+  <text x="720" y="260" text-anchor="middle">FAIL</text><text x="720" y="278" text-anchor="middle" class="ms">bit0 0x01</text>
+</g>
+<text x="40" y="318" class="s">产测金帧特例：uiLen=3 &lt; 4（无 uiParamLen 域）也真实存在——解析器须容忍短帧（cmd=payload[0]、key=payload[1]、其余为参数）。</text>
+</svg>
+</div>
+
+<h3 id="33-status-ble2appexh26-43">3.3 status 位定义（<code>ble2appEx.h:26-43</code>）</h3>
+<table>
+<thead>
+<tr>
+<th>bit</th>
+<th>掩码</th>
+<th>名称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>0x01</code></td>
+<td><code>EHST_FAIL</code></td>
+<td>失败（CRC 错等被动 NAK）</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>0x02</code></td>
+<td><code>EHST_ACK</code></td>
+<td>请求方置位 = 要求对端应答</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>0x04</code></td>
+<td><code>EHST_IS_MULTI_PKT</code></td>
+<td>多包片</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>0x08</code></td>
+<td><code>EHST_MULTI_PKT_END</code></td>
+<td>多包末片（尾片恒发，即使尾长为 0）</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>0x80</code></td>
+<td><code>EHST_OTA_PART</code></td>
+<td>OTA 分区标志</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-param">3.4 多包（大 param 上行）规则</h3>
+<p>来自 <code>0x12</code> 读回与日志/RPT 上传共用的原语（<code>ble2appWrap.c:12041-12118</code>、<code>ble2appEx.c:427-540</code>）：</p>
+<ul>
+<li>门限：<code>iMaxParamPktLen = 可用 payload(典型 244 = MTU247−3) − 12（8 头 + 4 命令头）= 232</code>；param 总长超过即切片。</li>
+<li><strong>首片</strong> <code>B2A_HealthPkt</code>：带命令头，<code>uiParamLen = param 总长</code>（预告总量），status 置 <code>IS_MULTI_PKT</code>，<code>uiIndex=0</code>；</li>
+<li><strong>续片</strong> <code>B2A_NoCmdPkt</code>：<strong>无命令头</strong>，纯 param 续段，<code>uiIndex</code> 递增；</li>
+<li><strong>尾片</strong>：status 置 <code>IS_MULTI_PKT|MULTI_PKT_END</code>（<strong>恒发</strong>，即使余数为 0）；</li>
+<li>每片间 <code>vTaskDelay(10)</code>，每 10 片喂狗（<code>ble2appWrap.c:12088-12092</code>）；</li>
+<li>每片 CRC 独立计算（覆盖各自头后字节）。App 侧按 <code>uiIndex</code> 连续性 + 首片总长重组；<code>uiIndex</code> 断序即整片丢弃重来。</li>
+</ul>
+<h3 id="35">3.5 应答与错误码</h3>
+<ul>
+<li>通用应答 <code>B2A_CommAck</code>：回显同 Cmd/Key + <strong>1B 结果码</strong>（<code>ble2appWrap.c:431-438</code>）；失败变体带 <code>EHST_FAIL</code>（<code>:442-449</code>）。</li>
+<li>请求帧 status 置 <code>EHST_ACK</code> 才要求应答；协议<strong>无超时/重传定义</strong>（App 自建单飞队列 + 超时，§10）。</li>
+<li>错误码 <code>EBEC_*</code>（<code>ble2appEx.h:46-71</code>）：0 SUCC / 1 FAIL / 2 TIMEOUT / 3 FORMAT / 4 MEMORY / 5 NOT_SUPPORT / 6 PARAM / 7 BUSY / 8 LOW_BAT / 9 NO_DATA / 10 MD5 / 11 CRC / 12 FATAL / 13 FSUM_FAIL。</li>
+</ul>
+<h2 id="4">4. 命令注册表</h2>
+<p><strong>一级命令 <code>ucCmd</code></strong>（<code>ble2appEx.h:85-104</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>Cmd</th>
+<th>名称</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x01</code></td>
+<td>BOND</td>
+<td>绑定</td>
+</tr>
+<tr>
+<td><code>0x02</code></td>
+<td>GET</td>
+<td>读（时间/设备信息/电量/SN/用户信息…）</td>
+</tr>
+<tr>
+<td><code>0x03</code></td>
+<td>SET</td>
+<td>写（SET 类响应统一 1B CommAck）</td>
+</tr>
+<tr>
+<td><code>0x04</code></td>
+<td>PUSH</td>
+<td>手机→表推送（消息/天气/音乐…）</td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td>IND</td>
+<td>表→手机指示（来电/心跳/运动…）</td>
+</tr>
+<tr>
+<td><code>0x06</code> / <code>0x86</code></td>
+<td>RPT_DATA / RPT_DATA2</td>
+<td>同步日常健康数据</td>
+</tr>
+<tr>
+<td><code>0x07</code></td>
+<td>DEV_CTRL</td>
+<td>设备控制（关机/重启/恢复出厂/找表/日志拉取）</td>
+</tr>
+<tr>
+<td><strong><code>0x08</code></strong></td>
+<td><strong>TEST</strong></td>
+<td>产测 + <strong>采集会话（本文主体）</strong> + zqdata 上行打包</td>
+</tr>
+<tr>
+<td><code>0x0F</code></td>
+<td>FILE_TRANS</td>
+<td>文件传输（OTA 等）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>TEST(<code>0x08</code>) 的 Key</strong>（<code>ble2appEx.h:108-123</code>；显式编号保证 wire 稳定）：</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>名称</th>
+<th>方向</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x01</code></td>
+<td>ENTER_FACTORY_MODE</td>
+<td>App→表</td>
+<td>产测模式（金帧即此命令）</td>
+</tr>
+<tr>
+<td><code>0x02</code> / <code>0x03</code></td>
+<td>MOTO_ON / MOTO_OFF</td>
+<td>App→表</td>
+<td>马达</td>
+</tr>
+<tr>
+<td><strong><code>0x10</code></strong></td>
+<td><strong>DC_CTRL</strong></td>
+<td>App→表</td>
+<td>采集启停（§5.1）</td>
+</tr>
+<tr>
+<td><strong><code>0x11</code></strong></td>
+<td><strong>DC_STATUS</strong></td>
+<td>双向</td>
+<td>状态查询 / 主动上报（§5.2）</td>
+</tr>
+<tr>
+<td><strong><code>0x12</code></strong></td>
+<td><strong>DC_DATA</strong></td>
+<td>双向</td>
+<td>会话文件随机读（§5.3）</td>
+</tr>
+<tr>
+<td><code>0x05</code> / <code>0x06</code></td>
+<td>zqdata 起止帧 / 数据帧</td>
+<td>表→App</td>
+<td>HR/SpO2 离线上行（§7.5，走 ZQDATA 服务）</td>
+</tr>
+<tr>
+<td><code>0x01</code> / <code>0x02</code></td>
+<td>zqdata gsensor 起止 / 数据</td>
+<td>表→App</td>
+<td>gsensor 离线上行（§7.4，走 ZQDATA 服务）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ TEST Key 在<strong>两条通道上语义不同</strong>：<code>0x01/0x02</code> 在主 B2A 通道是产测/马达命令（App→表），在 ZQDATA 通道是 gsensor 起止/数据帧（表→App）。<strong>按 GATT 通道区分解析</strong>，不能只看 Cmd/Key。</p>
+</blockquote>
+<h2 id="5-dc">5. 采集会话协议（DC，采集固件新增）</h2>
+<blockquote>
+<p>处理入口：采集仓 <code>Ble2App/ble2appWrap.c</code> <code>BCMD_TEST</code> 分支；会话状态机 <code>SDK/devices/data_collect_session.{h,c}</code>。当前仅实现 <strong>ECG 通道</strong>（<code>type</code> 仅认 bit4），HR/SpO2 位为将来预留（<code>data_collect_session.h:55-58</code>）。</p>
+</blockquote>
+<h3 id="51-0x10-dc_ctrl-ble2appwrapc11876-11924">5.1 <code>0x10</code> DC_CTRL —— 启停（<code>ble2appWrap.c:11876-11924</code>）</h3>
+<p><strong>App→表 param（8B，小端）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4B</td>
+<td><code>utc</code></td>
+<td>u32 LE，App 提供的会话时间标签（写进文件头；UI 本地发起 = 0）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1B</td>
+<td><code>onoff</code></td>
+<td>1=启动（<code>DC_Session_Start_ECG</code>）；0=停止（<code>DC_Session_Stop_ECG</code>，幂等）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1B</td>
+<td><code>type</code></td>
+<td>位图：bit0 HR、bit1 SpO2、<strong>bit4 ECG（<code>0x10</code>，当前唯一实现）</strong>（<code>data_collect_session.h:56-58</code>）。非 ECG 位 → 回 <code>EBEC_FAIL</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>2B</td>
+<td><code>duration_s</code></td>
+<td>u16 LE 采集时长（秒）；<strong>0 = 用默认 300s</strong>（<code>ECG_COLL_DEFAULT_DUR_S</code>，<code>data_collect_session.h:65</code>）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>param 长 &lt;8 → 回 <code>EBEC_FAIL</code>；请求带 <code>EHST_ACK</code> 才回 1B CommAck。</li>
+<li>启动副作用（<code>data_collect_session.c:440-560</code>）：旧会话非 IDLE 自动 Abandon；与 PPG 采集互斥（GH3220 单功能护栏，冲突拒绝返回 -1 → <code>EBEC_FAIL</code>）；截断重写 <code>0:/skg/ecg_raw.dat</code> 并写 32B 文件头；点亮屏幕并进采集页。</li>
+</ul>
+<h3 id="52-0x11-dc_status-ble2appwrapc11933-11943">5.2 <code>0x11</code> DC_STATUS —— 状态（<code>ble2appWrap.c:11933-11943</code>）</h3>
+<ul>
+<li><strong>查询</strong>：App→表 空 param → 表回 <code>[type:1][status:1]</code>（type=<code>0x10</code>）。</li>
+<li><strong>主动上报</strong>：同格式，无请求（<code>DC_Session_Notify_Status</code>，<code>data_collect_session.c:700-709</code>）；触发点：COLL→READY（status=2）、TRANS→IDLE（status=0）、Abandon（status=0）。不缓存不重发，断连即丢。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>status</th>
+<th>名称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>IDLE</td>
+<td>未采集（数据已取完或已放弃）</td>
+</tr>
+<tr>
+<td>1</td>
+<td>COLL</td>
+<td>采集中</td>
+</tr>
+<tr>
+<td>2</td>
+<td>READY</td>
+<td>采集完成，数据待传</td>
+</tr>
+<tr>
+<td>3</td>
+<td>TRANS</td>
+<td>数据传输中</td>
+</tr>
+</tbody>
+</table>
+<p>（<code>dc_status_t</code>，<code>data_collect_session.h:48-53</code>）</p>
+<h3 id="53-0x12-dc_data-ble2appwrapc11969-12145">5.3 <code>0x12</code> DC_DATA —— 会话文件随机读（<code>ble2appWrap.c:11969-12145</code>）</h3>
+<p><strong>App→表 param（8B，小端）</strong> / <strong>表→App param（8B 头 + data）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>req</td>
+<td>0</td>
+<td>2B</td>
+<td><code>data_label</code></td>
+<td>u16 LE，<strong><code>0x0010</code> = ECG</strong>（<code>DC_LABEL_ECG</code>，<code>data_collect_session.h:61</code>）；其它 label → <code>got=0</code></td>
+</tr>
+<tr>
+<td>req</td>
+<td>2</td>
+<td>2B</td>
+<td><code>count</code></td>
+<td>u16 LE 请求字节数（表侧上限夹到 <code>0xFFFF-8</code>）</td>
+</tr>
+<tr>
+<td>req</td>
+<td>4</td>
+<td>4B</td>
+<td><code>offset</code></td>
+<td>u32 LE 文件内字节偏移（<strong>从 0 读即文件头</strong>）</td>
+</tr>
+<tr>
+<td>resp</td>
+<td>0</td>
+<td>2B</td>
+<td><code>data_label</code></td>
+<td>回显</td>
+</tr>
+<tr>
+<td>resp</td>
+<td>2</td>
+<td>2B</td>
+<td><code>got</code></td>
+<td>u16 LE 实际返回字节数；<strong><code>got &lt; count</code> = EOF</strong></td>
+</tr>
+<tr>
+<td>resp</td>
+<td>4</td>
+<td>4B</td>
+<td><code>offset</code></td>
+<td>回显</td>
+</tr>
+<tr>
+<td>resp</td>
+<td>8</td>
+<td>got</td>
+<td><code>data</code></td>
+<td>文件原始字节（首个分片即含 32B 文件头）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>表侧读文件到 PSRAM（单请求最大 ~64KB）；resp 总长 &gt;232 时按 §3.4 多包切片（首片命令头 Len = 8+got 总长）。</li>
+<li><strong>EOF 次序保证</strong>：<code>got&lt;count</code> 时，表在<strong>发完全部数据片之后</strong>才发 <code>0x11 IDLE</code> 通知（<code>DC_Session_FinishTrans_ECG</code>；顺序刻意，App 不会先见 IDLE 后见数据，<code>data_collect_session.c:675-698</code>）。</li>
+<li>合法读取态：READY / TRANS / （IDLE 且本会话曾传完过——支持重复拉取）；COLL 中或已放弃 → <code>got=0</code>（<code>data_collect_session.c:600-619</code>）。</li>
+<li>断点/乱序容忍：offset 随机访问，App 可任意顺序读；表侧进度取 <code>max(offset+got)</code> 高水位。</li>
+</ul>
+<h3 id="54-state-machinedata_collect_sessionh10-35c">5.4 State machine（<code>data_collect_session.h:10-35</code>、<code>.c</code> 全文）</h3>
+<pre><code>                     APP 0x10(onoff=1) / 表端菜单 ON / 完成页&quot;重采&quot;
+                                      │  (非 IDLE 先自动 Abandon)
+                                      ▼
+        ┌─────────────────────── [ COLL 采集中 ] ────────────────────────┐
+        │   1Hz worker: 每 4096ms 扇区对齐 drain FIFO→文件; 时长到自动停  │
+        │                                                               │
+        │ APP 0x10(onoff=0) / 时长到 ──▶ Stop: 尾段 drain + 停传感器 +   │
+        │                              ACC 镜像落盘 + 回填 acc_offset    │
+        │ UI 退出/放弃 ──▶ Abandon ──────────────────────────┐          │
+        └───────────────┬────────────────────────────────────┼──────────┘
+                        ▼                                    ▼
+                [ READY 待传 ] ── 主动通知 0x11(status=2)   [ IDLE ]── 通知 0x11(0)
+                        │ 首个 0x12 读
+                        ▼
+                [ TRANS 传输中 ] ◀─┐ 后续 0x12 读(任意 offset)
+                        │          │
+                        │ 某次读 got &lt; count (EOF) 且数据片已全部发出
+                        ▼
+                [ IDLE ] ── 通知 0x11(status=0); uploaded_once=1 → 之后仍可再拉
+</code></pre>
+<div class="fig">
+<svg viewBox="0 0 840 300" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>DC 采集会话时序：0x10 启动 → 0x11 READY → 0x12 循环读取 → EOF 后 0x11 IDLE</title>
+<desc>App 与手表两条泳道，展示一次完整 ECG 采集回传：启动、应答、采集结束主动上报 READY、按偏移循环读取、最后一读不满即 EOF、随后表发 IDLE 通知。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.lane{stroke:var(--line);stroke-width:1.2;}
+.fl{stroke:var(--accent);stroke-width:1.6;}
+.fl2{stroke:var(--muted);stroke-width:1.4;}
+</style>
+<defs>
+<marker id="sa" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"/></marker>
+<marker id="sm" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker>
+</defs>
+<g class="m">
+  <rect x="80" y="14" width="160" height="32" class="bx"/><text x="160" y="35" text-anchor="middle">App</text>
+  <rect x="600" y="14" width="160" height="32" class="bx"/><text x="680" y="35" text-anchor="middle">S7（采集固件）</text>
+</g>
+<line x1="160" y1="46" x2="160" y2="290" class="lane"/>
+<line x1="680" y1="46" x2="680" y2="290" class="lane"/>
+<line x1="160" y1="70" x2="680" y2="70" class="fl" marker-end="url(#sa)"/>
+<text x="420" y="62" text-anchor="middle" class="m a">0x08/0x10 {utc, on=1, type=0x10, dur} (EHST_ACK)</text>
+<line x1="680" y1="96" x2="160" y2="96" class="fl2" marker-end="url(#sm)"/>
+<text x="420" y="88" text-anchor="middle" class="m">CommAck=0 · 状态 COLL，落盘 ecg_raw.dat</text>
+<line x1="680" y1="130" x2="160" y2="130" class="fl" marker-end="url(#sa)"/>
+<text x="420" y="122" text-anchor="middle" class="m a">0x08/0x11 {0x10, 2=READY}（时长到 / 0x10 off 后主动上报）</text>
+<line x1="160" y1="164" x2="680" y2="164" class="fl2" marker-end="url(#sm)"/>
+<text x="420" y="156" text-anchor="middle" class="m">0x08/0x12 {label=0x0010, count, offset=0}</text>
+<line x1="680" y1="190" x2="160" y2="190" class="fl2" marker-end="url(#sm)"/>
+<text x="420" y="182" text-anchor="middle" class="m">0x12 resp {label, got=count, offset} + data（超 232B 自动多片）</text>
+<text x="420" y="212" text-anchor="middle" class="s">…… offset 递增循环，直至 ……</text>
+<line x1="680" y1="238" x2="160" y2="238" class="fl2" marker-end="url(#sm)"/>
+<text x="420" y="230" text-anchor="middle" class="m">0x12 resp {got &lt; count} = EOF（数据片先发完）</text>
+<line x1="680" y1="268" x2="160" y2="268" class="fl" marker-end="url(#sa)"/>
+<text x="420" y="260" text-anchor="middle" class="m a">0x08/0x11 {0x10, 0=IDLE}（EOF 后必达，次序有保证）</text>
+<text x="160" y="288" class="s">App 校验: 文件头 magic/长度; 断点续拉 = 从上次 offset 继续</text>
+</svg>
+</div>
+
+<h2 id="6-ecg_rawdat-v2">6. <code>ecg_raw.dat</code> 会话文件格式（v2，<strong>全小端</strong>）</h2>
+<p>文件 = <code>[32B 文件头][ECG 帧流][ACC 帧流]</code>，App 经 <code>0x12</code> 从 offset 0 原样读走。权威注释与写入代码：<code>data_collect_session.h:67-111</code>、<code>.c:175-232</code>（头）、<code>.c:246-359</code>（ACC 段）；ECG 帧由传感器钩子写入 <code>gh3220_V4300/src/gh_demo_hook.c:232-250</code>。</p>
+<h3 id="61-32b">6.1 32B 文件头</h3>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>Value / 说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td><code>magic</code></td>
+<td><code>0x31474345</code>，落盘 <code>45 43 47 31</code> = "ECG1"</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td><code>version</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2</td>
+<td><code>header_size</code></td>
+<td>32</td>
+</tr>
+<tr>
+<td>8</td>
+<td>4</td>
+<td><code>utc</code></td>
+<td><code>0x10</code> 命令带来的会话标签（UI 发起 = 0）</td>
+</tr>
+<tr>
+<td>12</td>
+<td>2</td>
+<td><code>duration_s</code></td>
+<td>生效时长（0 已被替换为默认 300）</td>
+</tr>
+<tr>
+<td>14</td>
+<td>2</td>
+<td><code>sample_hz_raw</code></td>
+<td><strong>500</strong>（ECG 原始采样率）</td>
+</tr>
+<tr>
+<td>16</td>
+<td>2</td>
+<td><code>sample_bytes</code></td>
+<td><strong>4</strong>（24-bit ADC packed 在 u32 LE）</td>
+</tr>
+<tr>
+<td>18</td>
+<td>4</td>
+<td><code>acc_section_offset</code></td>
+<td>ACC 段起始的<strong>绝对文件偏移</strong>；<strong>0 = 无 ACC 段</strong>。Start 写 0 占位，Stop 追加完 ACC 后按 <code>r+</code> 模式<strong>回填</strong>（<code>.c:331-350</code>）</td>
+</tr>
+<tr>
+<td>22</td>
+<td>2</td>
+<td><code>acc_sample_hz</code></td>
+<td>ACC ODR（如 25）；0 = 无 ACC</td>
+</tr>
+<tr>
+<td>24</td>
+<td>8</td>
+<td><code>reserved</code></td>
+<td>置 0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-ecg-acc-8b">6.2 帧流（ECG 段与 ACC 段<strong>同款 8B 帧头</strong>）</h3>
+<pre><code>       [8B frameHdr][payload]  [8B frameHdr][payload]  ...
+frameHdr:
+Byte:   0        1        2        3        4        5        6        7
+       +--------+--------+--------+--------+--------+--------+--------+--------+
+       |            tick u32 LE            | length u16 LE   | index u16 LE    |
+       |  写帧时刻 OS tick（~1ms/tick）    | payload 字节数  | 帧号, 会话内从0 |
+       +--------+--------+--------+--------+--------+--------+--------+--------+
+
+ECG payload:  N × 4B 样本（24bit ADC packed u32 LE），N = length/4，500 Hz
+ACC payload:  N × 6B 样本（int16 X | int16 Y | int16 Z，LE 无填充），N = length/6
+</code></pre>
+<ul>
+<li>ECG 帧头由 raw 钩子按 <code>hdr[0]=tick; hdr[1]=(index&lt;&lt;16)|length</code> 两个 u32 LE 写入（<code>gh_demo_hook.c:238-245</code>）——<code>length</code> 恒等于其后跟随的字节数（组帧策略保证，<code>:64-70</code>）；<code>index</code> 每会话从 0 起、u16 回绕，用于离线检测丢帧（<code>:60-62</code>）。</li>
+<li>ACC 帧同布局（刻意，离线解析器可共用帧步进代码；<code>data_collect_session.c:283-292</code>）；ACC 与 ECG 的 tick 同源，可在同一时间轴对齐（<code>data_collect_session.h:226-230</code>）。</li>
+<li>ACC 段是<strong>干净前缀</strong>：镜像缓冲（96KB，借用 HR/SpO2 PSRAM 缓存）写满即整帧丢弃、不写半帧，保证 <code>index</code> 连续（<code>.c:262-279</code>）。</li>
+<li>时长换算注意：固件秒数用 <code>tick/1024</code> 近似（<code>.c:433-435,724</code>）。</li>
+</ul>
+<div class="fig">
+<svg viewBox="0 0 840 300" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>ecg_raw.dat 文件布局：32B 文件头 + ECG 帧流 + ACC 帧流，acc_section_offset 由 Stop 回填</title>
+<desc>横向文件条带：文件头、若干 ECG 帧（8B 头 + 4B 样本流）、若干 ACC 帧（8B 头 + 6B 样本流）；标注 acc_section_offset 从文件头指向 ACC 段起点。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;}
+.ms{fill:var(--muted);font-size:9.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.bxa{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
+.lna{stroke:var(--accent);stroke-width:1.4;}
+</style>
+<defs><marker id="fa" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"/></marker></defs>
+<text x="40" y="22" class="t">ecg_raw.dat（全小端）—— 0x12 从 offset 0 原样读走</text>
+<g class="m">
+  <rect x="40" y="40" width="150" height="56" class="bxa"/>
+  <text x="115" y="62" text-anchor="middle" class="a">文件头 32B</text>
+  <text x="115" y="82" text-anchor="middle" class="ms">"ECG1" v2 utc dur…</text>
+  <rect x="190" y="40" width="330" height="56" class="bx"/>
+  <text x="355" y="62" text-anchor="middle">ECG 帧流（500Hz, 4B/样本）</text>
+  <text x="355" y="82" text-anchor="middle" class="ms">[8B hdr][N×4B] × M，index 0..M-1</text>
+  <rect x="520" y="40" width="280" height="56" class="bx"/>
+  <text x="660" y="62" text-anchor="middle">ACC 帧流（如 25Hz, 6B/样本）</text>
+  <text x="660" y="82" text-anchor="middle" class="ms">[8B hdr][N×6B] × K，index 0..K-1</text>
+</g>
+<path d="M 100 96 C 100 150, 520 130, 520 100" fill="none" class="lna" marker-end="url(#fa)"/>
+<text x="290" y="140" class="ms" >hdr.acc_section_offset（off 18, Stop 回填; 0=无 ACC 段）</text>
+<text x="40" y="180" class="t">8B 帧头（ECG/ACC 同款）</text>
+<g class="m">
+  <rect x="40" y="192" width="300" height="52" class="bx"/>
+  <text x="190" y="214" text-anchor="middle">tick u32 LE</text><text x="190" y="232" text-anchor="middle" class="ms">写帧时刻 OS tick，ECG/ACC 同源可对齐</text>
+  <rect x="340" y="192" width="220" height="52" class="bxa"/>
+  <text x="450" y="214" text-anchor="middle" class="a">length u16 LE</text><text x="450" y="232" text-anchor="middle" class="ms">payload 字节数（=N×4 或 N×6）</text>
+  <rect x="560" y="192" width="220" height="52" class="bx"/>
+  <text x="670" y="214" text-anchor="middle">index u16 LE</text><text x="670" y="232" text-anchor="middle" class="ms">会话内帧号，缺号=丢帧</text>
+</g>
+<text x="40" y="272" class="s">掉电安全：append-only，最多损失尾部一帧；ACC 镜像满则整帧丢弃保证 index 连续（干净前缀）。</text>
+<text x="40" y="290" class="s">出处：data_collect_session.{h:67-111,c:175-359}、gh_demo_hook.c:232-250</text>
+</svg>
+</div>
+
+<h2 id="7-zqdata-hr-spo2-gsensor">7. ZQDATA 上行协议（HR / SpO2 / gsensor 离线数据）</h2>
+<blockquote>
+<p>走 <strong>ZQDATA 服务 TX（<code>…1542</code> Notify）</strong>，帧仍是 <strong>B2A <code>TEST(0x08)</code> 打包</strong>，但由 <code>B2A_MakePkt2Send(…, pfSend=gh3x2x_ble_send_to_zqdata)</code> 用<strong>独立 256B 栈缓冲直发</strong>，不占用主 B2A 状态机（<code>ble2appEx.c:339-425</code>、<code>factory_gh3x2x_ble_server_main.c:576-632</code>）。
+⚠️ <strong>数据帧主体是大端</strong>（手工 <code>&gt;&gt;24</code> 拼装），与 B2A 头的小端相反——解析器必须按层切换字节序。</p>
+</blockquote>
+<h3 id="71">7.1 通道与互斥</h3>
+<ul>
+<li>上传前置：<code>svcSwFlag[0]=0x01</code>（ZQDATA 服务已挂，采集固件恒真）；上传期间 <strong><code>svcSwFlag[6]=0x01</code> 抑制主 B2A 通道的普通打包</strong>（<code>B2A_MakePkt</code>/<code>B2A_HealthPkt</code> 直接早退，<code>ble2appEx.c:221-224,434-437</code>；置位处 <code>gh3x2x_demo_algo_call_hr.c:991</code>）——上传与主通道业务互斥。</li>
+<li>单包 payload 硬上限 <strong>228B（=244−16）</strong>，超限直接拒发（<code>ble2appEx.c:355-359</code>）；发送单次 <code>AttsHandleValueNtf</code>，靠 <code>ATTS_HANDLE_VALUE_CNF</code>（txReady）流控，超时上限 1000×1ms（<code>factory_gh3x2x_ble_server_main.c:201-215,595-609</code>）。</li>
+</ul>
+<h3 id="72-hr-spo2-ppghrdat-ppgspodat-40b">7.2 HR / SpO2 落盘帧（<code>ppghr.dat</code> / <code>ppgspo.dat</code>，每帧 40B）</h3>
+<p>组装 <code>gh3220_V4300/src/gh3x2x_demo_algo_call_hr.c:773-823</code>（SpO2 同构 <code>…spo2.c:641-703</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>字节序</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td><code>ticks</code></td>
+<td><strong>大端</strong></td>
+<td>帧 0 = 真实 UTC 秒；帧 ≥1 = OS-tick 递推</td>
+</tr>
+<tr>
+<td>4</td>
+<td>16</td>
+<td><code>ppg_raw[4]</code></td>
+<td>大端</td>
+<td>int32×4。HR = 绿1..绿4；SpO2 = IR1/IR2/RED1/RED2</td>
+</tr>
+<tr>
+<td>20</td>
+<td>6</td>
+<td><code>acc_x/y/z</code></td>
+<td>大端</td>
+<td>int16×3</td>
+</tr>
+<tr>
+<td>26</td>
+<td>2</td>
+<td><code>frame_cnt</code></td>
+<td>大端</td>
+<td>u16 帧计数</td>
+</tr>
+<tr>
+<td>28</td>
+<td>12</td>
+<td><code>AGC 尾</code></td>
+<td><strong>逐字节/半字节位域</strong></td>
+<td><code>drv0[4] + drv1[4] + gain打包2B + cur_adj位图1B + 保留1B</code>（<code>hr.c:814-820</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-40b28b-hrc1063-1092">7.3 40B→28B 上行重打包（<code>hr.c:1063-1092</code>）</h3>
+<p>上行不发 AGC 尾；<strong>帧 ≥1 把 ticks 的 4B 槽位改装成 AGC</strong>，帧 0 保留 UTC 锚点：</p>
+<table>
+<thead>
+<tr>
+<th>上行帧字节</th>
+<th>帧 0（全局帧号 0）</th>
+<th>帧 ≥1（HR）</th>
+<th>帧 ≥1（SpO2，<strong>偏移不同</strong>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[0]</code></td>
+<td>UTC[31:24]</td>
+<td><code>src[28]</code> = drv0 绿1</td>
+<td><code>src[28]</code> = drv0 IR1</td>
+</tr>
+<tr>
+<td><code>[1]</code></td>
+<td>UTC[23:16]</td>
+<td><code>src[36]&amp;0x0F</code> = gain 绿1</td>
+<td><code>src[36]&amp;0x0F</code> = gain IR1</td>
+</tr>
+<tr>
+<td><code>[2]</code></td>
+<td>UTC[15:8]</td>
+<td><code>src[32]</code> = drv1 绿1</td>
+<td><strong><code>src[30]</code></strong> = drv0 RED1</td>
+</tr>
+<tr>
+<td><code>[3]</code></td>
+<td>UTC[7:0]</td>
+<td><code>(src[36]&gt;&gt;4)&amp;0x0F</code> = gain 绿2</td>
+<td><strong><code>src[37]&amp;0x0F</code></strong> = gain RED1</td>
+</tr>
+<tr>
+<td><code>[4..27]</code></td>
+<td><code>src[4..27]</code> 原样（PPG16 + ACC6 + cnt2，保持大端）</td>
+<td>同左</td>
+<td>同左</td>
+</tr>
+</tbody>
+</table>
+<p>时间轴重建：帧 0 UTC + 各帧落盘时的 tick 递推（上行帧 ≥1 的 ticks 已被 AGC 覆盖，delta 由采样率推算）。</p>
+<h3 id="74-gsensor-agsdat18buser_gsensor_apic430-509">7.4 gsensor 帧（<code>AGS.dat</code>，18B，无重打包；<code>user_gsensor_api.c:430-509</code>）</h3>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+<th>字节序</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td>ticks（起始 UTC + 累加 delta）</td>
+<td>大端</td>
+</tr>
+<tr>
+<td>4</td>
+<td>6</td>
+<td>acc_x/y/z（int16×3）</td>
+<td>大端</td>
+</tr>
+<tr>
+<td>10</td>
+<td>6</td>
+<td>gyro 占位（<strong>恒 0</strong>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>16</td>
+<td>2</td>
+<td>frame_id</td>
+<td>大端</td>
+</tr>
+</tbody>
+</table>
+<h3 id="75-key-4b-hrc996-10021042-1045spo2-gsensor-user_gsensor_apic618654696">7.5 Key 与 4B 应用头（<code>hr.c:996-1002,1042-1045</code>；SpO2 对称；gsensor <code>user_gsensor_api.c:618,654,696</code>）</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>用途</th>
+<th>应用头 4B</th>
+<th>param 总长</th>
+<th>B2A 总包长</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x05</code></td>
+<td>HR 起帧</td>
+<td><code>01 03 02 00</code></td>
+<td>4</td>
+<td><strong>16B</strong></td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td>HR 止帧</td>
+<td><code>00 03 02 00</code>（首字节 0）</td>
+<td>4</td>
+<td>16B</td>
+</tr>
+<tr>
+<td><code>0x06</code></td>
+<td>HR 数据</td>
+<td><code>01 03 00 04</code></td>
+<td>4 + 7×28 = <strong>200</strong></td>
+<td><strong>212B</strong></td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td>SpO2 起/止帧</td>
+<td><code>01 04 02 00</code> / <code>00 04 …</code></td>
+<td>4</td>
+<td>16B</td>
+</tr>
+<tr>
+<td><code>0x06</code></td>
+<td>SpO2 数据</td>
+<td><code>01 04 00 04</code></td>
+<td>4 + 8×28 = <strong>228（顶格）</strong></td>
+<td><strong>240B</strong></td>
+</tr>
+<tr>
+<td><code>0x01</code></td>
+<td>gsensor 起止</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>0x02</code></td>
+<td>gsensor 数据</td>
+<td>—</td>
+<td>18×10 = 180</td>
+<td>192B</td>
+</tr>
+</tbody>
+</table>
+<p>应用头字节含义：<code>[0]</code> 1=起/数据、0=止；<code>[1]</code> 类型 HR=0x03 / SpO2=0x04；<code>[3]</code> 通道数（数据帧）。
+包长核算（HR 数据包）：内层命令头 Len=200 → B2A <code>uiLen</code>=4+200=204 → 总包 8+204=<strong>212B</strong>，单 MTU 内单包发出（<code>uiIndex</code> 恒 0）。</p>
+<h3 id="76">7.6 字节序总纲（解析器必背）</h3>
+<table>
+<thead>
+<tr>
+<th>数据</th>
+<th>字节序</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B2A 8B 帧头 + 4B 命令头（uiLen/CRC/Index/ParamLen）</td>
+<td><strong>小端</strong></td>
+</tr>
+<tr>
+<td>DC 命令 param（0x10/0x11/0x12 的 utc/count/offset…）</td>
+<td><strong>小端</strong></td>
+</tr>
+<tr>
+<td><code>ecg_raw.dat</code> 全文件（文件头/帧头/样本）</td>
+<td><strong>小端</strong></td>
+</tr>
+<tr>
+<td>HR/SpO2 40B/28B 帧主体、gsensor 18B 帧</td>
+<td><strong>大端</strong></td>
+</tr>
+<tr>
+<td>HR/SpO2 40B 帧尾 12B AGC</td>
+<td>逐字节/半字节位域，无字节序</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-example-raw-packet-decode">8. Example raw packet + decode</h2>
+<blockquote>
+<p>E0 为真机抓包金帧；E1–E6 按本文布局 + 固件同款 CRC 实算（脚本 <a href="assets/gen_s7_protocol_examples.py"><code>assets/gen_s7_protocol_examples.py</code></a>，内置金帧 CRC 自校验）。示例 UTC = <code>1783324800</code>（2026-07-06 08:00:00Z）= LE <code>80 60 4B 6A</code>。</p>
+</blockquote>
+<h3 id="81-e0">8.1 E0 · 产测握手金帧（真机，短帧特例）</h3>
+<pre><code>BB 02 03 00 2D 46 00 00 08 01 01
+
+BB           SOF
+02           status = EHST_ACK（要求应答）
+03 00        uiLen = 3         ← 特例: &lt;4, 无 uiParamLen 域
+2D 46        CRC16-CCITT-FALSE(&quot;08 01 01&quot;) = 0x462D ✓
+00 00        uiIndex = 0
+08 01 01     Cmd=0x08 TEST, Key=0x01 ENTER_FACTORY_MODE, 选择子 0x01=BLE
+</code></pre>
+<h3 id="82-e1-ecg-0x10">8.2 E1 · 启动 ECG 采集（0x10）+ 应答</h3>
+<pre><code>App→表 (20B):  BB 02 0C 00 01 5E 00 00 | 08 10 08 00 | 80 60 4B 6A 01 10 2C 01
+   head: status=0x02(要求应答) uiLen=12 CRC=0x5E01 idx=0
+   cmd : TEST/DC_CTRL, paramLen=8
+   param: utc=1783324800 | onoff=01 启动 | type=0x10 ECG | duration=0x012C=300s
+
+表→App CommAck (13B):  BB 00 05 00 B6 3F 00 00 | 08 10 01 00 | 00
+   param: 00 = EBEC_SUCC
+</code></pre>
+<h3 id="83-e2-0x11-ready-idle">8.3 E2 · 状态上报（0x11，采集结束主动推 READY；取完推 IDLE）</h3>
+<pre><code>READY (14B): BB 00 06 00 00 63 00 00 | 08 11 02 00 | 10 02      type=ECG, status=2
+IDLE  (14B): BB 00 06 00 42 43 00 00 | 08 11 02 00 | 10 00      type=ECG, status=0
+</code></pre>
+<h3 id="84-e3-ecg_rawdat-decode180b">8.4 E3 · <code>ecg_raw.dat</code> 文件头 + 帧头 decode（180B 示例文件）</h3>
+<pre><code>文件头 (32B):
+45 43 47 31  magic &quot;ECG1&quot;          02 00  version=2        20 00  header_size=32
+80 60 4B 6A  utc=1783324800        2C 01  duration=300s    F4 01  sample_hz=500
+04 00        sample_bytes=4        70 00 00 00  acc_section_offset=112
+19 00        acc_sample_hz=25      00×8   reserved
+
+ECG frame0 头: 00 90 01 00 | 20 00 | 00 00   → tick=102400, length=32(8样本×4B), index=0
+ACC frame0 头: 00 90 01 00 | 3C 00 | 00 00   → tick=102400, length=60(10样本×6B), index=0
+</code></pre>
+<h3 id="85-e4-0x12-eof">8.5 E4 · 读取会话数据（0x12，单包路径 + EOF）</h3>
+<pre><code>App→表 req (20B):   BB 00 0C 00 30 77 00 00 | 08 12 08 00 | 10 00 40 00 00 00 00 00
+   param: label=0x0010 ECG | count=64 | offset=0
+
+表→App resp (84B):  BB 00 4C 00 5F B9 00 00 | 08 12 48 00 |
+                    10 00 40 00 00 00 00 00 | 45 43 47 31 02 00 20 00 80 60 4B 6A ...
+   resp头: label=0x0010, got=64, offset=0；data 前 32B 即 E3 的文件头 ✓
+
+EOF: req(count=4096, offset=64) → 文件只剩 116B →
+resp2 (136B): BB 00 80 00 42 A7 00 00 | 08 12 7C 00 | 10 00 74 00 40 00 00 00 | data…
+   got=0x74=116 &lt; 4096 = EOF；数据发完后表补发 E2 的 IDLE 帧（次序有保证）
+</code></pre>
+<h3 id="86-e5-0x12-parm-4104b-17-mtu-247">8.6 E5 · 0x12 多片路径（parm 总长 4104B → 17 全片 + 尾片，MTU 247）</h3>
+<pre><code>slice0 (244B) B2A_HealthPkt:
+BB 04 EC 00 F3 46 00 00 | 08 12 08 10 | 10 00 00 10 00 00 00 00 | data...
+   status=0x04 IS_MULTI_PKT   uiLen=0xEC=236(=4+232)   idx=0
+   命令头 paramLen=0x1008=4104 ← 首片预告全量总长
+   前 8B param = resp 头 {label=0x0010, got=4096, offset=0}
+
+slice1 (240B) B2A_NoCmdPkt:  BB 04 E8 00 5C 67 01 00 | 纯数据续段 232B（无命令头）
+tail  (168B):                BB 0C A0 00 8F CB 11 00 | 尾段 160B
+   status=0x0C = IS_MULTI_PKT|MULTI_PKT_END   idx=17
+</code></pre>
+<h3 id="87-e6-zqdata-hr-212b">8.7 E6 · ZQDATA 服务上行：HR 起帧 + 212B 数据包</h3>
+<pre><code>起帧 0x05 (16B):  BB 00 08 00 64 19 00 00 | 08 05 04 00 | 01 03 02 00
+
+数据 0x06 (212B):
+BB 00 CC 00 A4 91 00 00   head: uiLen=0xCC=204, 单包 idx=0
+08 06 C8 00               cmd头: TEST/0x06, 内层 Len=0xC8=200
+01 03 00 04               应用头: 数据帧, type=HR, 4 通道
+6A 4B 60 80 00×24         frame0 (28B): 前 4B=UTC 大端(0x6A4B6080=1783324800), 余 0
+32 05 28 05               frame1 起始 4B = AGC: drv0绿1=0x32 gain绿1=5 drv1绿1=0x28 gain绿2=5
+00 01 86 B0 …             PPG raw 4×4B 大端 + ACC 大端(0010 FFE0 03E8=16,-32,1000) + cnt 大端
+…（frame2..6 同构）
+</code></pre>
+<h2 id="9-error-handling">9. Error handling 汇总</h2>
+<table>
+<thead>
+<tr>
+<th>错误</th>
+<th>检测点</th>
+<th>处理</th>
+<th>出处</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CRC 校验失败</td>
+<td>B2A 帧头 <code>uiCRC</code></td>
+<td>被动 NAK（status <code>EHST_FAIL</code>）/ 丢帧</td>
+<td><code>ble2appEx.h:30</code></td>
+</tr>
+<tr>
+<td>多包 <code>uiIndex</code> 断序 / 多包 ID 不符</td>
+<td>重组器</td>
+<td><strong>整片丢弃</strong>重来</td>
+<td>分支 <code>protocol-spec.md</code> §2</td>
+</tr>
+<tr>
+<td><code>0x10</code> param &lt;8 或非 ECG type</td>
+<td>DC_CTRL</td>
+<td>回 <code>EBEC_FAIL</code>（带 ACK 时）</td>
+<td><code>ble2appWrap.c:11878-11908</code></td>
+</tr>
+<tr>
+<td>启动时传感器被 PPG 流占用</td>
+<td><code>DC_Session_Start_ECG</code></td>
+<td>拒绝（护栏），回 FAIL</td>
+<td><code>data_collect_session.c:457-469</code></td>
+</tr>
+<tr>
+<td><code>0x12</code> param &lt;8</td>
+<td>DC_DATA</td>
+<td>回 8B 全零 resp 头（count=0）</td>
+<td><code>ble2appWrap.c:11971-11979</code></td>
+</tr>
+<tr>
+<td><code>0x12</code> 非法状态读（COLL / 已放弃）</td>
+<td><code>DC_Session_Read_ECG</code></td>
+<td><code>got=0</code></td>
+<td><code>data_collect_session.c:600-619</code></td>
+</tr>
+<tr>
+<td><code>0x12</code> 文件缺失</td>
+<td>同上</td>
+<td>立即置 IDLE 并通知（唯一内联通知的 EOF 分支）</td>
+<td><code>.c:633-641</code></td>
+</tr>
+<tr>
+<td>会话文件掉电截尾</td>
+<td>append-only 设计</td>
+<td>最多损失尾部一帧；40B 帧文件按整帧向下取整</td>
+<td><code>.h:195</code>、<code>hr.c:988-989</code></td>
+</tr>
+<tr>
+<td>ACC 镜像满</td>
+<td><code>DC_Acc_Mirror_Push</code></td>
+<td>整帧丢弃（保 index 连续），记日志一次</td>
+<td><code>.c:262-279</code></td>
+</tr>
+<tr>
+<td>zqdata 单包 &gt;228B</td>
+<td><code>B2A_MakePkt2Send</code></td>
+<td>拒发返回错误</td>
+<td><code>ble2appEx.c:355-359</code></td>
+</tr>
+<tr>
+<td>Notify 无确认（txReady 超时）</td>
+<td>发送叶子</td>
+<td>等 1000×1ms 后放弃本包</td>
+<td><code>server_main.c:201-215</code></td>
+</tr>
+<tr>
+<td>上传与主通道并发</td>
+<td><code>svcSwFlag[6]</code></td>
+<td>上传期间主 B2A 普通打包被抑制</td>
+<td><code>ble2appEx.c:221-224</code></td>
+</tr>
+<tr>
+<td>不回包命令（关机/重启/恢复出厂）</td>
+<td>DEV_CTRL</td>
+<td>固件强制不应答 → App 以断链为完成判据</td>
+<td>分支 <code>protocol-spec.md</code> §4.7</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-app">10. App 侧实现共识（协议未定义、双方约定）</h2>
+<ol>
+<li><strong>单飞串行队列</strong>：协议无事务 ID，同 Cmd/Key 并发无法区分应答 → 同一时刻最多一个未决请求；默认超时 3s（数值需实测标定）。</li>
+<li><strong>通道分发</strong>：主 B2A 与 ZQDATA 各挂独立解析器；ZQDATA 上的 TEST Key 语义与主通道不同（§4 警告）。设备主动帧（心跳/日志块/<code>0x11</code> 状态推送/zqdata 数据）与应答共用 Notify——先按未决请求 Cmd/Key 拦截应答，其余进上报处理器。</li>
+<li><strong><code>0x12</code> 拉取循环</strong>：顺序 offset 递增读；断连后从已收高水位续拉；收到 <code>got&lt;count</code> 判 EOF，之后等 <code>0x11 IDLE</code>（若 IDLE 先于数据到达视为固件 bug——次序有代码保证）。</li>
+<li><strong>多包重组</strong>：首片命令头 Len = 总长，预分配缓冲；<code>uiIndex</code> 断序整片重来；每片独立 CRC 校验。</li>
+<li><strong>原始字节落盘</strong>（BlueTrace 纪律）：各通道 notify 原始 HEX 全量落 hexlog，解码可重放。</li>
+<li>短帧容忍（<code>uiLen&lt;4</code>）、大小端分层切换（§7.6）。</li>
+</ol>
+<h2 id="11">11. 双固件差异一览</h2>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>开发仓 <code>apollo4_watch_s7</code></th>
+<th>采集仓 <code>apollo4_watch_s7_collect</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B2A 主协议（FFE0）</td>
+<td>✅ 基线</td>
+<td>✅ 同款 + <strong>新增 DC Key 0x10/0x11/0x12</strong></td>
+</tr>
+<tr>
+<td>数据服务（0x0A00 段）</td>
+<td>GH3X2X <code>0x190E</code>（<code>svcSwFlag[0]</code> 默认 0）</td>
+<td><strong>恒 ZQDATA <code>45121540…</code></strong>（写死 <code>svcSwFlag[0]=1</code>）</td>
+</tr>
+<tr>
+<td>ECG 采集会话 + <code>ecg_raw.dat</code></td>
+<td>❌</td>
+<td>✅（<code>data_collect_session.*</code> 为采集仓新增文件）</td>
+</tr>
+<tr>
+<td>HR/SpO2/gsensor 离线上行</td>
+<td>❌（无 <code>SYS_*_COLLECT_SVC</code>）</td>
+<td>✅（40B 落盘→28B 重打包→TEST 0x05/0x06）</td>
+</tr>
+<tr>
+<td>新 zqdata 传输模块（0x0A10 段）</td>
+<td>✅ 骨架（生产者未接）</td>
+<td>❌（沿用旧 <code>factory_gh3x2x_ble_server</code>）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>判定依据：两仓同根（merge-base <code>c6f87d36</code>），<code>git diff</code> 显示 ZQDATA UUID/ATT 表、<code>data_collect_session.{c,h}</code>、DC 命令处理均为采集仓新增；<code>zqdata/</code> 目录仅存在于开发仓。</p>
+</blockquote>
+<h2 id="12">12. 引用</h2>
+<ul>
+<li><strong>代码真源</strong>：采集仓 <code>Ble2App/ble2appEx.{h,c}</code>、<code>Ble2App/ble2appWrap.c</code>、<code>SDK/devices/data_collect_session.{h,c}</code>、<code>SDK/devices/gh3220_V4300/src/{gh_demo_hook.c, gh3x2x_demo_algo_call_hr.c, gh3x2x_demo_algo_call_spo2.c}</code>、<code>SDK/devices/gsensor/user_gsensor_api.c</code>、<code>PcFactory/Gh3x2xBleServer/*</code>；开发仓 <code>zqdata/*</code>。</li>
+<li><strong>深度参考</strong>（s7 分支 <code>feat/s7-device-console</code>）：<code>protocol-b2a.md</code>（B2A 全命令集逐字节）、<code>protocol-zqdata.md</code>（zqdata 全量审计 + 文档差异核查）、<code>protocol-spec.md</code>（维护控制台收敛稿）、<code>command-status.md</code>。</li>
+<li><strong>固件侧原始分析</strong>：<code>apollo4_watch_s7/Docs/03_BLE与协议</code>、<code>Docs/06_zqdata服务与上行协议</code>。</li>
+<li><strong>示例生成脚本</strong>：<a href="assets/gen_s7_protocol_examples.py"><code>assets/gen_s7_protocol_examples.py</code></a>（CRC16-CCITT-FALSE 同参实算 + 金帧自校验）。</li>
+<li>BlueTrace 侧接入架构：分支 <code>02_parser_registry_design.md</code>（可注册通道解析器）；自研 DUT 草案（勿混淆）：<a href="../../architecture/bluetrace_v0_frame_spec.md"><code>architecture/bluetrace_v0_frame_spec.md</code></a>。</li>
+</ul></main>
+</div>
+</body>
+</html>
