@@ -1,0 +1,59 @@
+# BlueTrace 开发上下文（最后更新 2026-07-06）
+
+> 给零上下文的下一个会话/接手人看的活文档。真源永远是 [`/SPEC.md`](../../SPEC.md) ＞ [`prototypes/v4_android.html`](../prototypes/v4_android.html)；本文只记"走到哪了、为什么、下一步"。
+
+## 目标与背景
+
+BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采集 App**：连接 SKG S7 手表（DUT，≤3 台）+ 标准心率带（参考，≤1 台），采集 PPG/ACC/HR（可选 GNSS）→ 会话文件夹落盘（raw HEX 为 source of truth + 解码 CSV + manifest）→ MediaStore 导出，为算法侧提供采集数据。一期只做 Android；iOS（M8）与服务器（M9）二期。
+
+验收习惯（沿用至今的硬门）：`./gradlew :app:assembleDebug` + `:shared:jvmTest` 全绿 → 真机 Xiaomi M2101K9C / Android 13 关键路径跑通并留证据（截图 / adb pull）。
+
+## 当前状态
+
+**已完成（main，2026-06-26 止，已全部推送 origin）**
+- M1–M6 全部完成并真机验证：KMP 骨架 + Mock BLE 闭环 → 会话落盘/导出 → 前台服务/进程恢复 → 产品化打磨（启动屏/主题/i18n）→ 设计↔实现逐屏同步至 v6（场景 JSON 真模型、5 段命名、用户选择/编辑重设计、摘要/详情改采集人·场景）→ v7 存储/日志重构（应用日志改滚动 `.log`、用户表迁 SQLDelight 2.3.2）。明细见 [`里程碑与进度.md`](../里程碑与进度.md) 与 [`CHANGELOG.md`](../CHANGELOG.md)。
+- 2026-06-25~26 **权限/环境态修复轮**（晚于 MILESTONES 最后更新，那里没记）：门控点"去开启蓝牙"未授 CONNECT 崩溃、开启后状态不刷新、小米软关蓝牙不刷新（改 Flow-first + 回前台 ON_RESUME 兜底）、环境态区分蓝牙"已开启"；V4 原型权限屏重排 + 46 屏设计审查（[`设计审查报告_v6.md`](../设计审查报告_v6.md)）+ 截图画廊。
+- V4 原型 37 屏中除"DUT 维护控制台"占位屏外全部实现（main 上）。
+
+**进行中（分支 `feat/s7-device-console`，18 提交，2026-07-02~03，已推送、未合回 main）**
+- **真实 BLE + S7 手表控制台**：设备维护(DUT)从占位变实功能——扫描/连接页重做（共用过滤条、RSSI 滑块、支持设备置顶、扫描权限门含定位）、控制台头卡断开↔重连、自定义对时（任意时间+时区，测跨时区/过零点）、设备固件日志拉取 → `Download/BlueTrace/logs`（MediaStore）+ 应用内查看页。
+- **协议规格文档**：[`architecture-v2/s7/`](../architecture-v2/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
+
+**阻塞**
+- M7（P5 真实 DUT 采集协议解码）：[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto) 仍 v0.1 草案，待与固件端冻结。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，冻结后换实现、上层不动。
+
+## 关键决策（节选，全表见 SPEC 与各设计文档）
+
+- KMP 双模块 `:shared`(commonMain 纯 Kotlin) + `:app`(Android)——为二期 iOS 复用数据/协议/会话层。
+- Mock↔真实以接口隔离（`BleClient` / `SampleDecoder`），协议未冻结不阻塞上层开发。
+- 2026-06-24 用户表选 **SQLDelight 而非 Room**（KMP 原生、iOS 可复用）；2.1.0 与 AGP 9 不兼容 → 定版 2.3.2。偏好（主题/语言/场景/首启）留 DataStore；会话数据留文件 + manifest，不入库。
+- 2026-06-24（v6）场景 = `scenes.json` 驱动的主·子二级模型；**5 段文件命名 `主场景_子场景_用户_日期_时间_MAC后四位`，token 恒英文**；manifest 记 mainScene/subScene，事后可改采集人/场景（重写 manifest + 重命名文件夹）。
+- demo 阶段存储重构**直接替换不做迁移**（storage_logging_design.md v8 口径）。
+- 红线（v5 起）：屏内零说明性副标；语言仅中/英；文件名/token 恒英文。
+
+## 坑与勘误
+
+- **里程碑与进度.md（最后更新 2026-06-24）两处已过期**：①"本地 main 未推送" → 2026-07-06 核实 `origin/main...main = 0/0`，早已推齐；②"BLE/DUT 仍 Mock" → 仅 main 采集链路成立，s7 分支已接真实 BLE。下次更新 MILESTONES 时一并修。
+- SQLDelight 2.1.0 的 Gradle 插件访问 AGP 9 已移除的 `BaseExtension` → codegen 失败，须 ≥2.3.2（issue #5940）。
+- 崩溃日志必须 `appendBlocking` 同步落盘（异步 add 在进程被杀前刷不到盘）。
+- `AndroidEnvironmentRepository` 字段初始化顺序 NPE：`blocked` 须声明在 `_state` 之前（0c97bd7）。
+- 小米 ROM 软关蓝牙不发广播/状态不刷新 → 环境态 Flow-first + 回前台 ON_RESUME 兜底（f277f52）。
+- JVM 单测里 `JdbcSqliteDriver` 是 JVM-only 工件，测试放 `jvmTest` 而非 `commonTest`。
+- 设计遗留缺口（设计审查报告_v6.md 的 ⏳ 项）：暖色"动作 vs 状态"精细分离、主蓝统一 token、Metric/页头模板统一。
+
+## 下一步
+
+0. ~~波次① 数据安全/崩溃~~ ✅（`0c53b25`）、~~波次③ M7 前置接口债~~ ✅（`95b409b`，2026-07-06）：BleClient/SampleDecoder 补形（接口形状已对齐 s7 分支）、背压契约（trySend+droppedPackets 计数、tick 批量刷盘）、Service/Controller 与 Mock 解耦、AppModule 标注唯一切换点。**真机门未跑**（波次① 的幽灵运行页/僵尸服务需 adb 杀进程回归）。**接下来：波次②**（导出取消/勾选导出裁决/日志反馈）→ 波次④（UI 对齐+可达性）；s7 合并的技术前置已就绪（见下条）。全清单见 [`代码审查报告_20260706.md`](../代码审查报告_20260706.md)。
+1. **裁决 `feat/s7-device-console` 归宿**：继续分支推进还是合回 main（协议规格文档建议随合并进 main，成为 architecture-v2 正式部分）。⚠️ 合并前必须先把 BleClient 的 Mock/真实 DI 绑定做成可切换（审查 s7#1：现状合并即打断 Mock 采集链路）。
+2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
+3. **刷新 里程碑与进度.md**：补 6-25/26 权限轮 + s7 分支线，修正两处过期口径（见上）。
+4. 设计缺口收尾（设计审查报告_v6.md ⏳ 项）。
+
+## 相关
+
+- 真源：[`/SPEC.md`](../../SPEC.md)（规格/协议/工程口径）、[`prototypes/v4_android.html`](../prototypes/v4_android.html)（37 屏 UI）
+- 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、`architecture-v2/s7/CHANGELOG.md`（s7 线，**在 feat/s7-device-console 分支上**，main 暂无此文件）
+- 架构：[`architecture/storage_logging_design.md`](../architecture/storage_logging_design.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/bluetrace_v0_frame_spec.md`](../architecture/bluetrace_v0_frame_spec.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture-v2/`](../architecture-v2/)
+- 设计验收：[`设计审查报告_v6.md`](../设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计稿与真机对比_v2.html)
+- 测试：`shared/src/jvmTest`（12 例）、`app/src/test`（4 例）；真机 M2101K9C / Android 13
+- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture-v2/s7/protocol-consensus.md`](../architecture-v2/s7/protocol-consensus.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）

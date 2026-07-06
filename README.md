@@ -29,7 +29,7 @@ The working set is **two files** (plus one machine contract):
 
 Everything else (former REQUIREMENTS / PRD / UX_Flows / Protocol / Architecture / Design System / V4 contract & decision log) is **archived under [`Docs/legacy/`](Docs/legacy/README.md)** for history — its content is inlined into `SPEC.md`. Full map: [Docs/README.md](Docs/README.md).
 
-**Prototypes:** current **[v4 · Android](Docs/prototypes/v4_android.html)** (bottom 3-tab IA: Collect / Data / Settings); legacy reference [v3 Android](Docs/prototypes/v3_android.html) · [v3 iOS](Docs/prototypes/v3_ios.html).
+**Prototypes:** current **[v4 · Android](Docs/prototypes/v4_android.html)** (bottom 3-tab IA: Collect / Data / Settings); legacy reference [v3 Android](Docs/prototypes/legacy/v3_android.html) · [v3 iOS](Docs/prototypes/legacy/v3_ios.html).
 
 ## Assets
 
