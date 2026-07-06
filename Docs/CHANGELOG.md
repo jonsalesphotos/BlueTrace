@@ -1,8 +1,17 @@
 # BlueTrace 修改记录（CHANGELOG）
 
 > 个人仓库、直接推 main（不走 PR）。按"构建轮次"组织（对应 `agent_build_prompt_vN.md`）。
-> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE/DUT 全程 Mock。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
+> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE 默认真实 GATT（2026-07-06 起，DEBUG 可切 Mock）；采集解码仍 Mock 待 M7。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
 > 早期 M1–M3 基线细节另见 [`归档/构建笔记/v1_impl_notes.md`](归档/构建笔记/v1_impl_notes.md)、v3 差异见 [`归档/构建笔记/v3_design_diff.md`](归档/构建笔记/v3_design_diff.md)。
+
+---
+
+## [合并] feat/s7-device-console → main + Mock/真实可切换绑定 — ✅ 2026-07-06
+提交：`eb47c00`（本地合并）+ `ce6a37a`（与远端 PR #2/#3 历史汇合，零内容差异）。18 提交入主线：**真实 BLE**（AndroidBleClient v1）、**S7 手表控制台**（对时/设备信息/写用户/固件日志拉取 → Download/BlueTrace/logs + 查看页）、连接页重做（共用过滤条/RSSI 滑块/支持置顶/扫描权限门）、B2A+zqdata 协议规格随分支带入 `architecture-v2/s7/`（protocol-b2a、protocol-zqdata、子 CHANGELOG）。
+- **可切换绑定（审查 s7#1 落地）**：`BleBackendSwitch`（SharedPreferences 同步读，DI 启动时决定）默认**真实 GATT**；设置页新增 DEBUG 行「使用 Mock BLE」（重启生效）——Mock 演示/UI 回归链路不再因合并失效。
+- 冲突解决：AppModule 用可切换绑定取代两侧硬绑定；MockBleClient 保留双方（接口别名 + S7 模拟段）。
+- 口径：`SampleDecoder` 仍 Mock——真实模式下采集只落 raw HEX（source of truth）+ unparseable 告警，解码待 M7 协议冻结。
+- 验证：`:shared:jvmTest`（含分支 S7 帧层测试）+ `:app:testDebugUnitTest` + `:app:assembleDebug` 全绿；真机回归（波次① 项 + 合并后链路）待统一跑。
 
 ---
 
