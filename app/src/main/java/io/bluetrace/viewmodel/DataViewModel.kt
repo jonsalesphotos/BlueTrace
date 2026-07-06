@@ -64,9 +64,10 @@ class DataViewModel(private val store: SessionStore) : ViewModel() {
 
     fun setQuery(q: String) { _query.value = q }
 
-    fun enterSelection(folder: String) {
+    /** 进入多选：顶栏「选择」不带参 = 空选（不暗中预选任何会话）；长按某条 = 预选该条。 */
+    fun enterSelection(folder: String? = null) {
         _selectionMode.value = true
-        _selected.value = setOf(folder)
+        _selected.value = if (folder == null) emptySet() else setOf(folder)
     }
 
     fun exitSelection() {

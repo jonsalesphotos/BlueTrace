@@ -8,6 +8,7 @@ import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 private const val KEY_CURRENT = "current_subject_id"
@@ -31,7 +32,9 @@ class SqlDelightSubjectRepository(
     override val currentId: Flow<String?> =
         q.getMeta(KEY_CURRENT).asFlow().mapToOneOrNull(io)
 
-    override suspend fun upsert(subject: Subject) {
+    // 写操作统一切到注入的 io 上下文：SQLite 同步调用不能在调用线程（主线程）直接执行。
+
+    override suspend fun upsert(subject: Subject) = withContext(io) {
         // 仅"新建"才设为当前用户；编辑老用户不动 current（对齐原 DataStoreSubjectRepository 语义）。
         val isNew = q.countById(subject.id).executeAsOne() == 0L
         q.upsert(
@@ -46,12 +49,12 @@ class SqlDelightSubjectRepository(
         if (isNew) q.setMeta(KEY_CURRENT, subject.id)
     }
 
-    override suspend fun delete(id: String) {
+    override suspend fun delete(id: String) = withContext(io) {
         q.deleteById(id)
         if (q.getMeta(KEY_CURRENT).executeAsOneOrNull() == id) q.deleteMeta(KEY_CURRENT)
     }
 
-    override suspend fun setCurrent(id: String?) {
+    override suspend fun setCurrent(id: String?): Unit = withContext(io) {
         if (id == null) q.deleteMeta(KEY_CURRENT) else q.setMeta(KEY_CURRENT, id)
     }
 }

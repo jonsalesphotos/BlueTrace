@@ -128,6 +128,8 @@
     <string name="subject_privacy_note">档案仅本地存储，不上传、不出设备。</string>
     <string name="subject_save">保存用户</string>
     <string name="subject_delete">删除用户</string>
+    <string name="subject_delete_confirm_title">删除用户？</string>
+    <string name="subject_delete_confirm_msg">将删除用户 %1$s。已采集的会话数据不受影响。</string>
     <string name="sex_male">男</string>
     <string name="sex_female">女</string>
     <string name="sex_other">其他</string>
@@ -174,6 +176,7 @@
     <string name="summary_view_detail">查看详情</string>
     <string name="summary_stop_storage_full">存储满，已停止并保存</string>
     <string name="summary_stop_interrupted">上次采集异常中断，已保存</string>
+    <string name="summary_stop_error">写入异常，已停止；数据已尽量保存</string>
 
     <!-- ===== 导出 ===== -->
     <string name="export_in_progress">导出中…</string>
@@ -192,6 +195,9 @@
     <string name="data_search_empty_sub">换个关键词试试</string>
     <string name="data_meta">%1$s MB · %2$s</string>
     <string name="data_selected_title">已选 %1$d</string>
+    <string name="data_delete_confirm_title">删除所选会话？</string>
+    <string name="data_delete_confirm_msg">将永久删除 %1$d 个会话（共 %2$s MB），不可恢复。</string>
+    <string name="data_deleted_toast">已删除 %1$d 个会话</string>
 
     <!-- ===== 会话详情 ===== -->
     <string name="detail_title">会话详情</string>

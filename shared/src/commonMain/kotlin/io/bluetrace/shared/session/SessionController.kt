@@ -38,8 +38,11 @@ interface SessionController {
     /** 采集中开关本机 GNSS 一路（运行C 勾选 GNSS，§6.5）：开→起订阅续写 gps.csv，关→停订阅。 */
     fun setGnss(enabled: Boolean)
 
-    /** 长按 2 秒结束 → 收尾落盘 → 结束摘要（§5.8）。 */
-    suspend fun stop(reason: StopReason = StopReason.NORMAL): SessionSummary
+    /**
+     * 长按 2 秒结束 → 收尾落盘 → 结束摘要（§5.8）。
+     * 无活动会话（如进程恢复后 controller 已回 READY）时返回最近一次摘要或 null，**不抛错**。
+     */
+    suspend fun stop(reason: StopReason = StopReason.NORMAL): SessionSummary?
 
     /** 演示：模拟存储满 → 自动结束并保存（§5.4）。 */
     fun simulateStorageFull()

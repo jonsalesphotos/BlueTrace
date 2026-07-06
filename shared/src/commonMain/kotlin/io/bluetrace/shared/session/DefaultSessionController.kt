@@ -26,7 +26,9 @@ import io.bluetrace.shared.util.TimeZoneProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -123,8 +125,8 @@ class DefaultSessionController(
 
         rs.launch { consume(ch) }
         config.devices.forEach { d ->
-            rs.launch { bleClient.notifications(d.deviceId).collect { ch.send(RunEvent.Notif(d.kind, it)) } }
-            rs.launch { bleClient.linkState(d.deviceId).collect { ch.send(RunEvent.Link(d.deviceId, d.kind, it)) } }
+            rs.launch { bleClient.notifications(d.deviceId).collect { sendOrDrop(ch, RunEvent.Notif(d.kind, it)) } }
+            rs.launch { bleClient.linkState(d.deviceId).collect { sendOrDrop(ch, RunEvent.Link(d.deviceId, d.kind, it)) } }
         }
         rs.launch { while (isActive) { delay(TICK_MS); ch.trySend(RunEvent.Tick) } }
         // 本机 GNSS 一路（F-GPS-1）：勾选 GNSS 时订阅真实 GnssSource（运行中可经 setGnss 起/停），样本 → gps.csv
@@ -137,44 +139,75 @@ class DefaultSessionController(
         val ch = events ?: return null
         return rs.launch {
             gnssSource.samples().collect { s ->
-                ch.send(RunEvent.Gps(clock.nowMs(), s.lat, s.lon, s.altM, s.speedMps, s.accuracyM))
+                sendOrDrop(ch, RunEvent.Gps(clock.nowMs(), s.lat, s.lon, s.altM, s.speedMps, s.accuracyM))
             }
         }
     }
 
     private suspend fun consume(ch: Channel<RunEvent>) {
-        for (e in ch) {
-            when (e) {
-                is RunEvent.Notif -> handleNotif(e)
-                is RunEvent.Link -> handleLink(e)
-                RunEvent.Tick -> {
-                    // 采集中存储写满 → 自动结束并安全落盘（§5.4 / v2-C③）
-                    if (storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.MIN_FREE_DURING) {
-                        diagnostics.add(LogLevel.WARN, "storage", "usable space low → auto-stop")
-                        finishInternal(StopReason.STORAGE_FULL); runScope?.cancel(); return
+        try {
+            for (e in ch) {
+                when (e) {
+                    is RunEvent.Notif -> handleNotif(e)
+                    is RunEvent.Link -> handleLink(e)
+                    RunEvent.Tick -> {
+                        // 采集中存储写满 → 自动结束并安全落盘（§5.4 / v2-C③）
+                        if (storageMonitor.usableBytes() < io.bluetrace.shared.data.StoragePolicy.MIN_FREE_DURING) {
+                            diagnostics.add(LogLevel.WARN, "storage", "usable space low → auto-stop")
+                            exitConsume(ch, finishInternal(StopReason.STORAGE_FULL)); return
+                        }
+                        pushState()
                     }
-                    pushState()
+                    is RunEvent.Pin -> handlePin(e.text)
+                    is RunEvent.Interval -> handleInterval(e.text)
+                    is RunEvent.Pause -> { displayPaused = e.paused; pushState() }
+                    is RunEvent.SetEnabled -> {
+                        recorder?.setEnabledTypes(e.types)
+                        enabledStreamNames = e.types.map { io.bluetrace.shared.domain.DecodedStream.ofCollectType(it).csvName }.toSet()
+                        activeConfig = activeConfig?.copy(enabledTypes = e.types)
+                        pushState()
+                    }
+                    is RunEvent.SetGnss -> {
+                        recorder?.setGnssEnabled(e.enabled)
+                        if (e.enabled) { if (gnssJob == null) gnssJob = launchGnss() } else { gnssJob?.cancel(); gnssJob = null }
+                        activeConfig = activeConfig?.copy(gnssEnabled = e.enabled)
+                        pushState()
+                    }
+                    is RunEvent.Gps -> recorder?.recordGps(e.epochMs, e.lat, e.lon, e.alt, e.speed, e.accuracy)
+                    RunEvent.StorageFull -> { exitConsume(ch, finishInternal(StopReason.STORAGE_FULL)); return }
+                    is RunEvent.Stop -> { val s = finishInternal(e.reason); e.ack.complete(s); exitConsume(ch, s); return }
                 }
-                is RunEvent.Pin -> handlePin(e.text)
-                is RunEvent.Interval -> handleInterval(e.text)
-                is RunEvent.Pause -> { displayPaused = e.paused; pushState() }
-                is RunEvent.SetEnabled -> {
-                    recorder?.setEnabledTypes(e.types)
-                    enabledStreamNames = e.types.map { io.bluetrace.shared.domain.DecodedStream.ofCollectType(it).csvName }.toSet()
-                    activeConfig = activeConfig?.copy(enabledTypes = e.types)
-                    pushState()
-                }
-                is RunEvent.SetGnss -> {
-                    recorder?.setGnssEnabled(e.enabled)
-                    if (e.enabled) { if (gnssJob == null) gnssJob = launchGnss() } else { gnssJob?.cancel(); gnssJob = null }
-                    activeConfig = activeConfig?.copy(gnssEnabled = e.enabled)
-                    pushState()
-                }
-                is RunEvent.Gps -> recorder?.recordGps(e.epochMs, e.lat, e.lon, e.alt, e.speed, e.accuracy)
-                RunEvent.StorageFull -> { finishInternal(StopReason.STORAGE_FULL); runScope?.cancel(); return }
-                is RunEvent.Stop -> { val s = finishInternal(e.reason); e.ack.complete(s); runScope?.cancel(); return }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            // 落盘/解码等运行期异常（磁盘满最典型）：安全收尾而不是让消费协程死亡——
+            // 否则未捕获异常直接崩进程，且 producers 填满 channel 后 stop() 的 ack 永远等不到。
+            diagnostics.add(LogLevel.ERROR, "session", "consume failed: ${t.message ?: t::class.simpleName} → auto-stop")
+            val s = runCatching { finishInternal(StopReason.ERROR) }.getOrNull()
+            exitConsume(ch, s)
+        }
+    }
+
+    /**
+     * 消费循环退出前收尾：关渠道并清空残留事件，给排队中的 Stop 补 ack —— 否则
+     * "存储满自动结束 / IO 异常收尾"与"长按结束"竞态时 stop() 会永久挂起。最后取消 runScope。
+     */
+    private fun exitConsume(ch: Channel<RunEvent>, summary: SessionSummary?) {
+        ch.close()
+        while (true) {
+            val e = ch.tryReceive().getOrNull() ?: break
+            if (e is RunEvent.Stop) {
+                val s = summary ?: _finished.value
+                if (s != null) e.ack.complete(s) else e.ack.completeExceptionally(IllegalStateException("session ended without summary"))
             }
         }
+        runScope?.cancel()
+    }
+
+    /** 生产者侧安全投递：消费循环收尾后渠道已关闭，晚到的事件静默丢弃（会话已结束）。 */
+    private suspend fun sendOrDrop(ch: Channel<RunEvent>, e: RunEvent) {
+        try { ch.send(e) } catch (_: ClosedSendChannelException) { }
     }
 
     private fun handleNotif(e: RunEvent.Notif) {
@@ -248,9 +281,13 @@ class DefaultSessionController(
 
         val cfg = activeConfig!!
         val lay = layout!!
-        val files = recorder?.finalizeFiles() ?: emptyList()
+        // 收尾路径尽量不抛：finalize / manifest 写失败（磁盘满）也要产出摘要让 UI 能退出；
+        // manifest 没写上 → 会话保持"开口"，下次启动 autoFinalizeOpenSession 兜底修复。
+        val files = runCatching { recorder?.finalizeFiles() ?: emptyList() }
+            .getOrElse { diagnostics.add(LogLevel.ERROR, "session", "finalize files failed: ${it.message}"); emptyList() }
         val quality = QualitySummary(reconnectCount, disconnectTotalMs, 0)
-        sessionStore.writeManifest(lay, buildManifest(cfg, endEpochMs, reason, files, quality))
+        runCatching { sessionStore.writeManifest(lay, buildManifest(cfg, endEpochMs, reason, files, quality)) }
+            .onFailure { diagnostics.add(LogLevel.ERROR, "session", "manifest write failed (auto-finalize next launch): ${it.message}") }
         val summary = buildSummary(cfg, lay, files, quality, reason)
         _finished.value = summary
         diagnostics.add(LogLevel.INFO, "session", "stopped reason=${reason.id} lines=$datasCount")
@@ -273,14 +310,24 @@ class DefaultSessionController(
         (bleClient as? MockBleClient)?.injectDisconnect(target.deviceId)
     }
 
-    override suspend fun stop(reason: StopReason): SessionSummary {
-        if (status != RunStatus.COLLECTING) {
-            return _finished.value ?: error("stop() called with no active session")
-        }
+    override suspend fun stop(reason: StopReason): SessionSummary? {
+        // 无活动会话（进程恢复后的幽灵调用等）→ 返回最近摘要或 null，绝不抛错（否则 UI 侧 launch 直接崩）。
+        if (status != RunStatus.COLLECTING) return _finished.value
+        val ch = events ?: return _finished.value
         val ack = CompletableDeferred<SessionSummary>()
-        val ch = events ?: return _finished.value ?: error("no event channel")
-        ch.send(RunEvent.Stop(reason, ack))
-        return ack.await()
+        try {
+            ch.send(RunEvent.Stop(reason, ack))
+        } catch (_: ClosedSendChannelException) {
+            // 消费侧已收尾（存储满/IO 异常与手动结束竞态）→ 直接取当前结果
+            return _finished.value
+        }
+        return try {
+            ack.await()
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: Throwable) {
+            _finished.value
+        }
     }
 
     override fun reset() {

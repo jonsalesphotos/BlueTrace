@@ -124,6 +124,8 @@
     <string name="subject_privacy_note">Profiles are stored locally only; not uploaded or shared.</string>
     <string name="subject_save">Save user</string>
     <string name="subject_delete">Delete user</string>
+    <string name="subject_delete_confirm_title">Delete user?</string>
+    <string name="subject_delete_confirm_msg">Delete user %1$s? Collected session data is not affected.</string>
     <string name="sex_male">Male</string>
     <string name="sex_female">Female</string>
     <string name="sex_other">Other</string>
@@ -170,6 +172,7 @@
     <string name="summary_view_detail">View detail</string>
     <string name="summary_stop_storage_full">Storage full, stopped and saved</string>
     <string name="summary_stop_interrupted">Last session interrupted, saved</string>
+    <string name="summary_stop_error">Stopped due to a write error; data saved where possible</string>
 
     <!-- ===== Export ===== -->
     <string name="export_in_progress">Exporting…</string>
@@ -188,6 +191,9 @@
     <string name="data_search_empty_sub">Try another keyword</string>
     <string name="data_meta">%1$s MB · %2$s</string>
     <string name="data_selected_title">%1$d selected</string>
+    <string name="data_delete_confirm_title">Delete selected sessions?</string>
+    <string name="data_delete_confirm_msg">Permanently delete %1$d session(s) (%2$s MB total)? This cannot be undone.</string>
+    <string name="data_deleted_toast">Deleted %1$d session(s)</string>
 
     <!-- ===== Detail ===== -->
     <string name="detail_title">Session detail</string>

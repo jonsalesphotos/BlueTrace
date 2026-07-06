@@ -5,6 +5,8 @@ enum class StopReason(val id: String) {
     NORMAL("normal"),
     STORAGE_FULL("storage_full"),
     INTERRUPTED("interrupted"),
+    /** 落盘/解码等运行期异常导致的自动收尾（消费循环兜底，数据已尽量保存）。 */
+    ERROR("error"),
 }
 
 /** 开始采集时冻结的设备快照（DeviceAssignmentDraft → DeviceAssignment，§7.3）。 */

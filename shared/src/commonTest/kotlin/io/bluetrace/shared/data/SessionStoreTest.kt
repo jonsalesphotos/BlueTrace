@@ -120,6 +120,30 @@ class SessionStoreTest {
     }
 
     @Test
+    fun writeManifest_isAtomic_failedRewriteKeepsOldManifest() {
+        val fs = FakeFileSystem()
+        val root = "/sessions".toPath()
+        // 第一次写成功；之后 .tmp 写失败 → 旧 manifest 必须保持完好可读（原子替换语义，防截断 JSON 致会话静默消失）
+        var failTmpWrites = false
+        val flaky = object : okio.ForwardingFileSystem(fs) {
+            override fun sink(file: okio.Path, mustCreate: Boolean): okio.Sink {
+                if (failTmpWrites && file.name.endsWith(".tmp")) throw okio.IOException("disk full (injected)")
+                return super.sink(file, mustCreate)
+            }
+        }
+        val store = SessionStore(flaky, root)
+        val layout = SessionLayout(root / "atomic1")
+        store.writeManifest(layout, manifest("atomic1", end = null, reason = null))
+
+        failTmpWrites = true
+        runCatching { store.writeManifest(layout, manifest("atomic1", end = 42L, reason = "normal")) }
+
+        val read = store.readManifest("atomic1")
+        assertNotNull(read)
+        assertNull(read.endEpochMs) // 仍是完整的旧版内容，而非截断/半新
+    }
+
+    @Test
     fun delete_removesFolder() {
         val fs = FakeFileSystem()
         val root = "/sessions".toPath()

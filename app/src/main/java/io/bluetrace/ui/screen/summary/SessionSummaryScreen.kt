@@ -105,6 +105,7 @@ fun SessionSummaryScreen(
                         val reasonText = when (summary.stopReason) {
                             StopReason.STORAGE_FULL -> stringResource(R.string.summary_stop_storage_full)
                             StopReason.INTERRUPTED -> stringResource(R.string.summary_stop_interrupted)
+                            StopReason.ERROR -> stringResource(R.string.summary_stop_error)
                             else -> ""
                         }
                         Surface(color = BT.warningC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {

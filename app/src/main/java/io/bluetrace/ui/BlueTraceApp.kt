@@ -158,8 +158,9 @@ private fun MainScaffold(initialToRun: Boolean) {
     }
 
     // 进程恢复（服务活、会话仍采集中）→ 直落运行页（§5.10 / v2-B）。
+    // launchSingleTop：转屏/重建后本 effect 会再次执行，防止在已恢复的栈上重复压运行页。
     LaunchedEffect(Unit) {
-        if (initialToRun) nav.navigate(Route.CollectionRun)
+        if (initialToRun) nav.navigate(Route.CollectionRun) { launchSingleTop = true }
     }
 }
 
@@ -175,7 +176,7 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                     onOpenDevice = { nav.navigate(Route.DeviceConnect) },
                     onOpenSubject = { nav.navigate(Route.SubjectSelect) },
                     onOpenScene = { nav.navigate(Route.SceneSelect) },
-                    onStart = { nav.navigate(Route.CollectionRun) },
+                    onStart = { nav.navigate(Route.CollectionRun) { launchSingleTop = true } }, // 双击/重入去重
                     onBluetoothOff = { nav.navigate(Route.BluetoothOff) },
                 )
             }
@@ -203,6 +204,8 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                 CollectionRunScreen(
                     onFinished = { nav.navigate(Route.SessionSummary) { popUpTo(Route.CollectionRun) { inclusive = true } } },
                     onHardLockHint = { Toast.makeText(context, context.getString(R.string.run_hardlock_hint), Toast.LENGTH_SHORT).show() },
+                    // 幽灵运行页（进程被杀后导航栈被恢复、controller 已回 READY）→ 弹回采集主界面
+                    onExitGhost = { if (!nav.popBackStack(Route.CollectHome, inclusive = false)) nav.navigate(Route.CollectHome) },
                 )
             }
             composable<Route.SessionSummary> {

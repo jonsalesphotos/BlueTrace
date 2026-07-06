@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +71,7 @@ import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.session.RunLogLine
 import io.bluetrace.shared.session.RunDeviceState
+import io.bluetrace.shared.session.RunStatus
 import io.bluetrace.shared.util.formatDurationHms
 import io.bluetrace.ui.components.OutlineBtn
 import io.bluetrace.ui.components.StatusPill
@@ -90,10 +92,18 @@ import org.koin.androidx.compose.koinViewModel
 fun CollectionRunScreen(
     onFinished: () -> Unit,
     onHardLockHint: () -> Unit,
+    onExitGhost: () -> Unit = {},
     vm: RunViewModel = koinViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val finished by vm.finished.collectAsStateWithLifecycle()
+
+    // 幽灵运行页防护：进程被杀后导航栈被 rememberSaveable 原样恢复到运行页，但 controller 是全新 READY
+    // （AppStartup 只收尾数据、不清导航栈）。此时返回被硬锁、长按结束也无会话可停 → 用户被困。
+    // 正常进入时 start() 已同步置 COLLECTING，不会误判。
+    val ghost = state.status == RunStatus.READY && finished == null
+    LaunchedEffect(ghost) { if (ghost) onExitGhost() }
+    if (ghost) return
 
     // 硬锁定 + 预测返回（§5.4 / D-V4-17）：拦截返回手势，跟随预测进度但绝不退出，
     // 手势提交时仅提示"长按结束退出"；取消则无操作。
@@ -111,9 +121,10 @@ fun CollectionRunScreen(
 
     val config = vm.activeConfig
     val scope = rememberCoroutineScope()
-    var showTypeSheet by remember { mutableStateOf(true) } // 进入自动弹（D-V4-12）
+    // rememberSaveable：转屏/进程重建后不再重复自动弹类型抽屉、不丢未提交的标签文本
+    var showTypeSheet by rememberSaveable { mutableStateOf(true) } // 进入自动弹（D-V4-12）
     var selectedTypes by remember { mutableStateOf(config?.enabledTypes ?: CollectType.defaults) }
-    var labelText by remember { mutableStateOf("") }
+    var labelText by rememberSaveable { mutableStateOf("") }
     var gnssOn by remember { mutableStateOf(config?.gnssEnabled ?: false) }
     val context = LocalContext.current
     // 运行C 勾选 GNSS 但缺定位权限 → 按需请求；授予则起 GNSS 一路，拒绝则本次不含 GPS（不阻断，§5.2）

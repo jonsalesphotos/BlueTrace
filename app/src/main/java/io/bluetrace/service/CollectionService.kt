@@ -39,6 +39,7 @@ class CollectionService : Service() {
     private val controller: SessionController by inject()
     private val bleClient: MockBleClient by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var observing = false
 
     /** 采集中蓝牙关 → 设备转"重连中"（§5.4 横切A）；开 → 恢复。 */
     private val btReceiver = object : BroadcastReceiver() {
@@ -61,14 +62,24 @@ class CollectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // sticky 重启（进程被杀后）注入的是全新 READY controller：没有会话可托管，立即自杀——
+        // 否则会留一条冻结在 00:00:00、不可滑除的僵尸"正在采集"通知（数据侧由 AppStartup 自动收尾）。
+        if (controller.state.value.status != RunStatus.COLLECTING) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         runCatching { startAsForeground(controller.state.value.elapsedMs, controller.state.value.datasCount) }
-        scope.launch {
-            controller.state.collectLatest { st ->
-                if (st.status == RunStatus.STOPPED) {
-                    stopForegroundCompat()
-                    stopSelf()
-                } else {
-                    notify(st.elapsedMs, st.datasCount)
+        // 收集协程只起一次：重复 onStartCommand（如再次点开始）不再叠加收集器
+        if (!observing) {
+            observing = true
+            scope.launch {
+                controller.state.collectLatest { st ->
+                    if (st.status == RunStatus.STOPPED) {
+                        stopForegroundCompat()
+                        stopSelf()
+                    } else {
+                        notify(st.elapsedMs, st.datasCount)
+                    }
                 }
             }
         }

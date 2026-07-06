@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Monitor
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -223,6 +224,7 @@ fun SubjectEditScreen(
         }
     }
     val effectiveId = remember(loadedId) { loadedId ?: vm.newId() }
+    var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
@@ -298,11 +300,26 @@ fun SubjectEditScreen(
         }
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             PrimaryButton(stringResource(R.string.subject_save), onClick = { saveAndBack(vm, effectiveId, alias, sex, birth, heightCm, weightKg, onBack) }, enabled = alias.isNotBlank())
-            // 编辑已有用户时可删除（新建态无此项）
+            // 编辑已有用户时可删除（新建态无此项）；删除前确认——若删的是当前采集对象，
+            // 采集主界面会回到"未选择"并拦截开始（不静默换人）
             if (subjectId != null) {
-                OutlineBtn(stringResource(R.string.subject_delete), onClick = { vm.delete(subjectId); onBack() }, modifier = Modifier.fillMaxWidth(), color = BT.error)
+                OutlineBtn(stringResource(R.string.subject_delete), onClick = { showDeleteConfirm = true }, modifier = Modifier.fillMaxWidth(), color = BT.error)
             }
         }
+    }
+
+    if (showDeleteConfirm && subjectId != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.subject_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.subject_delete_confirm_msg, alias)) },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; vm.delete(subjectId); onBack() }) {
+                    Text(stringResource(R.string.action_delete), color = BT.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
 
     if (showDatePicker) {

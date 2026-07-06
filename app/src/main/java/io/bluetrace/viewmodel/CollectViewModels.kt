@@ -66,9 +66,10 @@ class CollectHomeViewModel(
     val uiState: StateFlow<CollectHomeUiState> =
         combine(
             combine(subjectRepo.subjects, subjectRepo.currentId) { subjects, currentId ->
-                // 手动选 Default 伪用户（id 不在 subjects 列表里）→ 直接给 DEFAULT_SUBJECT，勿回退到第一个真人
+                // 手动选 Default 伪用户（id 不在 subjects 列表里）→ 直接给 DEFAULT_SUBJECT，勿回退到第一个真人；
+                // current 无效（如刚删掉当前用户）→ 显示"未选择"并拦截开始，不静默换成列表第一个真人（防 manifest 写错采集人）
                 if (currentId == DEFAULT_SUBJECT_ID) DEFAULT_SUBJECT
-                else subjects.firstOrNull { it.id == currentId } ?: subjects.firstOrNull()
+                else subjects.firstOrNull { it.id == currentId }
             },
             registry.connected,
             draft.scene,
@@ -100,6 +101,8 @@ class CollectHomeViewModel(
 
     /** 构建 SessionConfig 并开始采集（§7.3 + 存储预检 §5.2）。 */
     fun startSession(): StartOutcome {
+        // 已在采集（双击/重入）→ 不重复 start，调用方直接导航（配合 launchSingleTop 去重）
+        if (controller.state.value.status == io.bluetrace.shared.session.RunStatus.COLLECTING) return StartOutcome.STARTED
         val s = uiState.value
         val subject = s.currentSubject ?: return StartOutcome.NOT_READY
         if (s.connectedDevices.isEmpty()) return StartOutcome.NOT_READY

@@ -13,6 +13,7 @@ import io.bluetrace.shared.refAssigned
 import io.bluetrace.shared.sessionConfig
 import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.virtualClock
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -23,6 +24,7 @@ import okio.fakefilesystem.FakeFileSystem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -86,7 +88,7 @@ class DefaultSessionControllerTest {
         advanceTimeBy(300); runCurrent()
         assertTrue(f.controller.state.value.labelIntervalOpen)
 
-        val summary = f.controller.stop(StopReason.NORMAL)
+        val summary = f.controller.stop(StopReason.NORMAL)!!
         assertEquals(StopReason.NORMAL, summary.stopReason)
         assertTrue(summary.totalLines > 0)
         assertEquals(RunStatus.STOPPED, f.controller.state.value.status)
@@ -140,7 +142,7 @@ class DefaultSessionControllerTest {
         assertEquals(1, f.controller.state.value.reconnectCount)
         assertTrue(f.controller.state.value.devices.all { it.link == LinkState.CONNECTED })
 
-        val summary = f.controller.stop()
+        val summary = f.controller.stop()!!
         assertTrue(summary.quality.reconnectCount >= 1)
         assertTrue(summary.quality.disconnectTotalMs > 0)
     }
@@ -152,7 +154,7 @@ class DefaultSessionControllerTest {
         advanceTimeBy(700); runCurrent()
         f.controller.start(sessionConfig(listOf(dutAssigned()), gnss = true, start = f.clock.nowMs()))
         advanceTimeBy(2500); runCurrent()
-        val summary = f.controller.stop()
+        val summary = f.controller.stop()!!
         val layout = SessionLayout(f.root / summary.folderName)
         assertTrue(f.fs.exists(layout.gpsCsv), "gps.csv should exist when GNSS enabled")
     }
@@ -182,5 +184,63 @@ class DefaultSessionControllerTest {
         assertNotNull(fin)
         assertEquals(StopReason.STORAGE_FULL, fin.stopReason)
         assertEquals(RunStatus.STOPPED, lowStorageController.state.value.status)
+    }
+
+    @Test
+    fun stop_withoutActiveSession_returnsNullInsteadOfThrowing() = runTest {
+        val f = Fixture(this)
+        // 进程恢复后的幽灵调用（controller 全新 READY）：必须返回 null 而不是抛错（旧实现 error() 会崩 UI 协程）
+        assertNull(f.controller.stop())
+    }
+
+    @Test
+    fun ioFailureDuringCollect_autoStopsWithErrorReason_andStopStillWorks() = runTest {
+        val f = Fixture(this)
+        // raw 落盘一律失败：模拟磁盘满/IO 错误。消费循环必须兜底收尾，而不是协程死亡 + stop() 永久挂起。
+        val failingFs = object : okio.ForwardingFileSystem(f.fs) {
+            override fun appendingSink(file: okio.Path, mustExist: Boolean): okio.Sink {
+                if ("raw" in file.toString()) throw okio.IOException("disk full (injected)")
+                return super.appendingSink(file, mustExist)
+            }
+        }
+        val controller = DefaultSessionController(
+            bleClient = f.mock,
+            decoder = MockSampleDecoder(),
+            fileSystem = failingFs,
+            sessionsRoot = f.root,
+            sessionStore = SessionStore(failingFs, f.root),
+            clock = f.clock,
+            zone = TestZone(),
+            diagnostics = f.diag,
+            scope = backgroundScope,
+        )
+        backgroundScope.launch { f.mock.connect(f.dut) }
+        advanceTimeBy(700); runCurrent()
+        controller.start(sessionConfig(listOf(dutAssigned()), start = f.clock.nowMs()))
+        advanceTimeBy(500); runCurrent() // 首条 Notify → recordRaw 抛 → 兜底收尾
+
+        assertEquals(RunStatus.STOPPED, controller.state.value.status)
+        val fin = controller.finished.value
+        assertNotNull(fin)
+        assertEquals(StopReason.ERROR, fin.stopReason)
+        // 收尾后 stop() 既不挂起也不抛错
+        assertEquals(fin, controller.stop())
+    }
+
+    @Test
+    fun storageFull_racingManualStop_stopStillReturns() = runTest {
+        val f = Fixture(this)
+        backgroundScope.launch { f.mock.connect(f.dut) }
+        advanceTimeBy(700); runCurrent()
+        f.controller.start(sessionConfig(listOf(dutAssigned()), start = f.clock.nowMs()))
+        advanceTimeBy(500); runCurrent()
+
+        // StorageFull 与手动 Stop 竞态：消费循环先自动收尾退出，排队/晚到的 Stop 必须仍能返回而不是挂起
+        f.controller.simulateStorageFull()
+        val stopResult = async { f.controller.stop() }
+        advanceTimeBy(300); runCurrent()
+
+        assertEquals(StopReason.STORAGE_FULL, f.controller.finished.value?.stopReason)
+        assertEquals(f.controller.finished.value, stopResult.await())
     }
 }

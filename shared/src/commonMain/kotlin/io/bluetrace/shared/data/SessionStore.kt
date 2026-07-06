@@ -27,9 +27,13 @@ class SessionStore(
 
     fun writeManifest(layout: SessionLayout, manifest: SessionManifest) {
         fileSystem.createDirectories(layout.sessionDir)
-        fileSystem.sink(layout.manifest).buffer().use {
+        // 原子替换：先写临时文件再 atomicMove。直接 truncate 覆盖写时，结束时刻被杀会留下截断 JSON，
+        // 该会话将从列表/开口扫描中静默消失（raw 在盘上但 App 里不可见）。
+        val tmp = layout.sessionDir / (SessionLayout.MANIFEST_NAME + ".tmp")
+        fileSystem.sink(tmp).buffer().use {
             it.writeUtf8(BlueTraceJson.encodeToString(manifest))
         }
+        fileSystem.atomicMove(tmp, layout.manifest)
     }
 
     fun readManifest(folderName: String): SessionManifest? {
@@ -100,7 +104,8 @@ class SessionStore(
             }
             toSummary(updated)
         }.getOrElse {
-            // 移动失败：尽量回滚（若已移走则移回），不抛
+            // 移动/写 manifest 失败：尽量回滚（若已移走则移回），不抛。
+            // writeManifest 是原子替换 → 半途失败时目录里仍是完好的旧 manifest，移回后状态一致。
             if (renaming && fileSystem.exists(newDir) && !fileSystem.exists(oldDir)) {
                 runCatching { fileSystem.atomicMove(newDir, oldDir) }
             }

@@ -17,14 +17,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -62,6 +68,8 @@ fun DataHomeScreen(
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val exportState by exportVm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.refresh() }
 
@@ -79,7 +87,8 @@ fun DataHomeScreen(
                     subtitle = pluralStringResource(R.plurals.session_count, ui.totalCount, ui.totalCount) + " · ${"%.1f".format(ui.totalBytes / 1024.0 / 1024.0)} MB",
                     actions = {
                         if (ui.sessions.isNotEmpty()) {
-                            Text(stringResource(R.string.action_select), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { ui.sessions.firstOrNull()?.let { vm.enterSelection(it.folderName) } })
+                            // 进多选默认空选：不暗中预选任何会话（防两次点击误删最新数据）
+                            Text(stringResource(R.string.action_select), fontSize = 13.sp, fontWeight = FontWeight.W600, color = BT.primary, modifier = Modifier.clickable { vm.enterSelection() })
                         }
                     },
                 )
@@ -120,13 +129,32 @@ fun DataHomeScreen(
                 }
                 if (ui.selectionMode) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlineBtn(stringResource(R.string.action_delete), { vm.deleteSelected() }, Modifier.weight(1f), color = BT.error)
+                        OutlineBtn(stringResource(R.string.action_delete), { if (ui.selected.isNotEmpty()) showDeleteConfirm = true }, Modifier.weight(1f), color = BT.error)
                         PrimaryButton(pluralStringResource(R.plurals.export_selected, ui.selected.size, ui.selected.size), { exportVm.exportMany(ui.selected.toList()) }, Modifier.weight(1f))
                     }
                 }
             }
         }
         ExportOverlay(exportState) { exportVm.reset() }
+    }
+
+    // 删除 = 不可逆的物理删除：先确认（列出条数与总大小），删完给反馈
+    if (showDeleteConfirm) {
+        val count = ui.selected.size
+        val mb = ui.sessions.filter { it.folderName in ui.selected }.sumOf { it.totalBytes } / 1024.0 / 1024.0
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.data_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.data_delete_confirm_msg, count, "%.1f".format(mb))) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    vm.deleteSelected()
+                    android.widget.Toast.makeText(context, context.getString(R.string.data_deleted_toast, count), android.widget.Toast.LENGTH_SHORT).show()
+                }) { Text(stringResource(R.string.action_delete), color = BT.error) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
 }
 

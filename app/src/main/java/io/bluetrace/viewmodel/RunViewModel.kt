@@ -41,7 +41,7 @@ class RunViewModel(private val controller: SessionController) : ViewModel() {
     fun injectDisconnect() = controller.injectDisconnect()
     fun simulateStorageFull() = controller.simulateStorageFull()
 
-    suspend fun stop(): SessionSummary = controller.stop(StopReason.NORMAL)
+    suspend fun stop(): SessionSummary? = controller.stop(StopReason.NORMAL)
 
     fun reset() = controller.reset()
 
