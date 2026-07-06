@@ -28,7 +28,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - Mock↔真实以接口隔离（`BleClient` / `SampleDecoder`），协议未冻结不阻塞上层开发。
 - 2026-06-24 用户表选 **SQLDelight 而非 Room**（KMP 原生、iOS 可复用）；2.1.0 与 AGP 9 不兼容 → 定版 2.3.2。偏好（主题/语言/场景/首启）留 DataStore；会话数据留文件 + manifest，不入库。
 - 2026-06-24（v6）场景 = `scenes.json` 驱动的主·子二级模型；**5 段文件命名 `主场景_子场景_用户_日期_时间_MAC后四位`，token 恒英文**；manifest 记 mainScene/subScene，事后可改采集人/场景（重写 manifest + 重命名文件夹）。
-- demo 阶段存储重构**直接替换不做迁移**（storage_logging_design.md v8 口径）。
+- demo 阶段存储重构**直接替换不做迁移**（存储与日志设计.md v8 口径）。
 - 红线（v5 起）：屏内零说明性副标；语言仅中/英；文件名/token 恒英文。
 
 ## 坑与勘误
@@ -53,7 +53,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 
 - 真源：[`/SPEC.md`](../../SPEC.md)（规格/协议/工程口径）、[`prototypes/v4_android.html`](../prototypes/v4_android.html)（37 屏 UI）
 - 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、`architecture-v2/s7/CHANGELOG.md`（s7 线，**在 feat/s7-device-console 分支上**，main 暂无此文件）
-- 架构：[`architecture/storage_logging_design.md`](../architecture/storage_logging_design.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/bluetrace_v0_frame_spec.md`](../architecture/bluetrace_v0_frame_spec.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture-v2/`](../architecture-v2/)
+- 架构：[`architecture/存储与日志设计.md`](../architecture/存储与日志设计.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/BLE协议帧规格_开发者版.md`](../architecture/BLE协议帧规格_开发者版.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture-v2/`](../architecture-v2/)
 - 设计验收：[`设计审查报告_v6.md`](../设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计稿与真机对比_v2.html)
 - 测试：`shared/src/jvmTest`（12 例）、`app/src/test`（4 例）；真机 M2101K9C / Android 13
-- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture-v2/s7/protocol-consensus.md`](../architecture-v2/s7/protocol-consensus.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）
+- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture-v2/s7/S7协议共识规格.md`](../architecture-v2/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）

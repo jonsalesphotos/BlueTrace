@@ -21,8 +21,8 @@ Docs/
 │   └── legacy/                   ← v1–v3 历史原型
 ├── architecture/                 ← 自研 DUT 协议与架构（协议文档线活动区）
 │   ├── bluetrace_v0.proto        ← protobuf 机器契约（待冻结）
-│   ├── bluetrace_v0_frame_spec.{md,html} ← 帧规格开发者版（布局/位图/实例包）
-│   ├── storage_logging_design.md ← 存储/日志重构方案（v7 已落地）
+│   ├── BLE协议帧规格_开发者版.{md,html} ← 帧规格开发者版（布局/位图/实例包）
+│   ├── 存储与日志设计.md ← 存储/日志重构方案（v7 已落地）
 │   └── scenes.json               ← 场景词表（与 app assets 同源）
 ├── architecture-v2/
 │   └── s7/                       ← S7 手表协议规格（B2A/zqdata/共识稿，独立 CHANGELOG）
@@ -45,8 +45,8 @@ Docs/
 | 界面长什么样 + 逐屏交互 | [`prototypes/v4_android.html`](prototypes/v4_android.html)（浏览器直接打开） |
 | 设计稿 vs 真机对比 | [`设计稿与真机对比_v2.html`](设计稿与真机对比_v2.html) |
 | 代码还有哪些问题要修 | [`代码审查报告_20260706.md`](代码审查报告_20260706.md)（按波次①–④推进） |
-| 自研 DUT 协议（App↔固件） | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) + [`architecture/bluetrace_v0_frame_spec.md`](architecture/bluetrace_v0_frame_spec.md) |
-| S7 手表协议（B2A / zqdata） | [`architecture-v2/s7/`](architecture-v2/s7/)（共识稿 protocol-consensus 为准） |
+| 自研 DUT 协议（App↔固件） | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) + [`architecture/BLE协议帧规格_开发者版.md`](architecture/BLE协议帧规格_开发者版.md) |
+| S7 手表协议（B2A / zqdata） | [`architecture-v2/s7/`](architecture-v2/s7/)（共识稿 S7协议共识规格 为准） |
 | 真机用出问题了要修 | [`真机修复prompt_复用.md`](真机修复prompt_复用.md)（填【问题】模板） |
 | 历史决策来龙去脉 | [`legacy/`](legacy/README.md) 与 [`归档/`](归档/)（仅参考，口径以 SPEC 为准） |
 
