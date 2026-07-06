@@ -2,9 +2,11 @@
 //
 // 适用范围：DUT 自研协议的 protobuf payload 部分。
 // 注意：BLE 包的"标准头部"（msgType / 长度 / 分片 / CRC）是 12 字节二进制，**不在本文件**，
-//       定义见 BlueTrace_Protocol.md §3。本文件只定义 header.msgType 分发到的各 message。
+//       定义见本目录 BLE协议帧规格_开发者版.md（历史原文 BlueTrace_Protocol.md 已归档至 Docs/归档/历史规格_v1-v3/）。
+//       本文件只定义 header.msgType 分发到的各 message。
 //
-// 状态：v0.1 草案（已过一轮多视角评审），待与固件端冻结（见 BlueTrace_Protocol.md §15）。
+// 状态：v0.1 草案（已过一轮多视角评审），待与固件端冻结。M7 冻结二选一：
+//       本自研线（+btcp1_draft.proto 增量）vs Docs/UWTP/ 的 UWTP V0.99（当前候选基线）。
 //       冻结前可自由改 tag/字段；冻结后只增不改 tag、删除字段用 reserved。
 // 生成：app 侧用 Wire 生成 Kotlin（commonMain）；固件端同源生成/手写对齐。
 

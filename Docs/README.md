@@ -25,9 +25,11 @@ Docs/
 │   ├── UHTP_BLE_Protocol_Design_V4.md ← 前身（历史，勿作基线）
 │   └── assets/gen_uwtp_examples.py    ← 示例帧生成脚本
 ├── architecture/                 ← 唯一架构目录（v2 已并入）
+│   ├── README.md                 ← 架构目录导航：文档角色 + 三线协议关系（先读）
+│   ├── 架构评估_20260706.{md,html} ← 架构评估与演进路线（波次A/B 依据，P2 项在册）
 │   ├── bluetrace_v0.proto        ← 自研 protobuf 机器契约（v0.1 草案，SPEC §4 引用，勿改路径）
 │   ├── BLE协议帧规格_开发者版.{md,html} ← 自研帧规格实现视角（布局/位图/实例包/状态机）
-│   ├── 02_parser_registry_design.md ← 可注册协议架构设计（M7 蓝图）
+│   ├── 02_parser_registry_design.md ← 可注册协议架构（R1–R3 已落码，R4/R5 蓝图）
 │   ├── 03_collect_protocol_design.md + btcp1_draft.proto ← 自研采集协议候选（M7 冻结二选一之一）
 │   ├── 存储与日志设计.md         ← 存储/日志重构方案（v7 已落地）
 │   ├── scenes.json               ← 场景词表（与 app assets 同源，勿改路径）
@@ -35,7 +37,7 @@ Docs/
 │       ├── S7协议共识规格.{md,html}          ← 共识稿（B2A + 采集固件协议，以此为准）
 │       ├── protocol-b2a / protocol-zqdata    ← 现网协议逐字节规格
 │       ├── protocol-zqdata-uhtp-v1.{md,html} + zqdata_uhtp_v1_draft.proto ← 下一代重设计（待固件评审，M7 候选之二）
-│       └── protocol-spec.md · command-status.md · _raw/ · assets/
+│       └── protocol-spec.md · command-status.md · completeness-audit.md · assets/
 ├── assets/                       ← 图标 / 截图（screenshots_v6、screenshots_device、pic 参考等）
 ├── 归档/                         ← 唯一历史桶（冻结不维护，仅考古）
 │   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入）
@@ -43,8 +45,9 @@ Docs/
 │   ├── 架构讨论区_v2/            ← 原 architecture-v2 讨论区壳（00/01/04 盘点与已实施规划）
 │   ├── 历史原型/                 ← v1–v3 原型 HTML
 │   ├── 历史规格_v1-v3/           ← 原 legacy/（REQUIREMENTS/PRD/旧协议/设计系统等）
+│   ├── s7协议工作底稿/           ← s7 协议线过程件（plan/review/_raw，2026-07-06 归档）
 │   └── compare_design_vs_device.html ← 旧版对比页
-└── （s7 实施过程件 plan/audit/review 留在 architecture/s7/ 随其 CHANGELOG，不拆散）
+└── （s7 过程件 plan/review/_raw 已归档；completeness-audit 留 s7/ 作活缺口清单）
 ```
 
 ## 怎么读

@@ -2,6 +2,7 @@
 //
 // 定位：对 Docs/architecture/bluetrace_v0.proto 的**纯增量**（只增不改）。
 // 评审通过后本文件内容并入 bluetrace_v0.proto 一起冻结为 v1；在此之前仅供讨论，勿生成代码入库。
+// 2026-07-06：M7 冻结二选一——本自研线 vs Docs/UWTP/ 的 UWTP V0.99（当前候选基线），评审拍板前保留不动。
 // 信封：BLE 12B 标准头（SPEC §4.3），本文件只定义 header.msgType 分发到的 payload。
 
 syntax = "proto3";

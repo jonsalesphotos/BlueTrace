@@ -1,6 +1,8 @@
 # 02 · 可注册通道解析器架构（ProtocolProfile / ChannelParser / Registry）
 
-> 状态：设计稿 v1（2026-07-02）。评审通过后按 §8 迁移路线落码。
+> 状态：设计稿 v1（2026-07-02）→ **R1–R3 已落码 ✅**（2026-07-06，v11 波次B，commit `74223ae`：`shared.protocol.registry` + ProtocolEvent + Mock/HRS Profile + RegistrySampleDecoder，DI 按后端拼注册表）。
+> 落码偏离两处（务实裁剪，详见 [`../CHANGELOG.md`](../CHANGELOG.md) v11·波次B）：① 通知不加 ChannelId 字段，host 按特征 uuid 小写匹配 + 单通道兜底路由；② CommandEncoder 与控制面事件消费缓行至 R4/R5。
+> 余下节拍：R4（HRS 真实链路首连）待心率带硬件；R5（自研/UWTP 解析器）待 M7 协议冻结。
 > 前置阅读：[00_prior_discussions.md](../归档/架构讨论区_v2/00_prior_discussions.md) §4（现状与空白）。
 
 ## 1. 问题
@@ -247,6 +249,8 @@ single {
 解析层 100% commonTest 可测：**golden hexlog 回放**——把真实抓包 hexlog 放进 `commonTest/resources`，逐行喂 parser 断言事件序列（现有 `MockPacketCodecTest` 的升级版）。
 
 ## 8. 迁移路线（不打断现有 Mock 流程）
+
+> **进度**：R1–R3 ✅ 已完成（2026-07-06）；R4/R5 待条件（硬件 / 协议冻结）。
 
 | 步骤 | 改动 | 上层影响 |
 |------|------|----------|

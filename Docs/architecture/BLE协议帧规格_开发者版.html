@@ -106,6 +106,7 @@ strong { font-weight:600; }
 <blockquote>
 <p><strong>本文是 <a href="../../SPEC.md">SPEC.md §4</a> + <a href="bluetrace_v0.proto"><code>bluetrace_v0.proto</code></a> 的开发者重排版</strong>：同一套事实，重排成"帧布局表 + bit 级内存图 + 实例包逐字节 decode + 状态机"的实现视角。<strong>规格冲突时以 SPEC §4 与 <code>.proto</code> 为准</strong>；帧头常量与 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/protocol/FrameHeader.kt"><code>FrameHeader.kt</code></a> 对齐。</p>
 <p><strong>状态</strong>：v0.1 草案，<strong>待与固件端共同冻结</strong>（待冻结项见 SPEC §10.4 / <a href="../归档/历史规格_v1-v3/BlueTrace_Protocol.md">归档协议文档 §15</a>）。文中示例包为按本规格<strong>实算生成并自解码回验</strong>的合规字节（CRC-8 按 poly <code>0x07</code>/init <code>0x00</code>、MSB-first 无反射计算，反射约定属待冻结项），非真机抓包——真实 DUT 链路尚未上线（见 §11 代码现状）。</p>
+<p><strong>2026-07-06 更新</strong>：M7 冻结路径二选一——本规格所属<strong>自研线</strong>（v0.1 + <a href="03_collect_protocol_design.md">BTCP/1 演进稿</a>）vs <a href="../UWTP/UWTP_BLE_Protocol_Design_V0.99.md">UWTP V0.99</a>（当前冻结候选基线）；评审拍板前本稿为自研线帧层权威。</p>
 <p><strong>适用范围</strong>：仅 <strong>DUT（自研设备）↔ App</strong> 私有协议。REFERENCE（标准心率带）走 SIG HRS <code>0x180D</code>，不用本协议。</p>
 </blockquote>
 <table>
