@@ -127,6 +127,15 @@ class SessionRecorder(
         writer.writeRow(listOf<Any>(epochMs, lat, lon, altM, speedMps, accuracyM))
     }
 
+    /** 周期刷盘（编排层每 tick 调一次）：把批量缓冲落盘，崩溃损失窗口 = tick 间隔。 */
+    fun flushWriters() {
+        rawWriters.values.forEach { it.flush() }
+        csvWriters.values.forEach { it.flush() }
+        comboWriter?.flush()
+        labelWriter?.flush()
+        gpsWriter?.flush()
+    }
+
     /** 关闭所有写入器并枚举产物文件（含大小/行数）—— 供 manifest.files 与结束摘要。 */
     fun finalizeFiles(): List<SessionFile> {
         rawWriters.values.forEach { it.close() }

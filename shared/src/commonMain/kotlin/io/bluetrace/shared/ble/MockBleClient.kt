@@ -97,6 +97,9 @@ class MockBleClient(
         }
     }
 
+    /** [BleClient.debugInjectDisconnect] 的 Mock 实现（编排层经接口调用，不再对 Mock 具体类型强转）。 */
+    override fun debugInjectDisconnect(deviceId: String) = injectDisconnect(deviceId)
+
     private val btOffDevices = HashSet<String>()
 
     /**
@@ -118,6 +121,9 @@ class MockBleClient(
             btOffDevices.clear()
         }
     }
+
+    /** [BleClient.onAdapterStateChanged]：service 侧只依赖接口，不再注入 Mock 具体类型。 */
+    override fun onAdapterStateChanged(off: Boolean) = setBluetoothOff(off)
 
     override fun notifications(deviceId: String): Flow<BleNotification> = flow {
         val device = byId[deviceId] ?: return@flow

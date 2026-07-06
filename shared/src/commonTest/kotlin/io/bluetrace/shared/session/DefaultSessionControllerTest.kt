@@ -243,4 +243,54 @@ class DefaultSessionControllerTest {
         assertEquals(StopReason.STORAGE_FULL, f.controller.finished.value?.stopReason)
         assertEquals(f.controller.finished.value, stopResult.await())
     }
+
+    @Test
+    fun decoderLifecycleHooks_calledOnStartAndReconnect() = runTest {
+        val f = Fixture(this)
+        val recordingDecoder = object : io.bluetrace.shared.protocol.SampleDecoder {
+            var sessionStarts = 0
+            val resets = mutableListOf<String>()
+            override fun decode(kind: DeviceKind, notification: io.bluetrace.shared.ble.BleNotification) =
+                emptyList<io.bluetrace.shared.protocol.DecodedSample>()
+            override fun onSessionStart() { sessionStarts++ }
+            override fun onDeviceReset(deviceId: String) { resets += deviceId }
+        }
+        val controller = DefaultSessionController(
+            bleClient = f.mock,
+            decoder = recordingDecoder,
+            fileSystem = f.fs,
+            sessionsRoot = f.root,
+            sessionStore = f.store,
+            clock = f.clock,
+            zone = TestZone(),
+            diagnostics = f.diag,
+            scope = backgroundScope,
+        )
+        backgroundScope.launch { f.mock.connect(f.dut) }
+        advanceTimeBy(700); runCurrent()
+        controller.start(sessionConfig(listOf(dutAssigned()), start = f.clock.nowMs()))
+        advanceTimeBy(300); runCurrent()
+        assertEquals(1, recordingDecoder.sessionStarts) // 会话边界钩子：start 时清跨会话解码状态
+
+        controller.injectDisconnect() // 经 BleClient.debugInjectDisconnect 接口（不再对 Mock 强转）
+        advanceTimeBy(100); runCurrent()
+        assertTrue(recordingDecoder.resets.isNotEmpty(), "断连进入重连时应触发 onDeviceReset")
+        controller.stop()
+    }
+
+    @Test
+    fun rawWrites_flushedPeriodicallyByTick() = runTest {
+        val f = Fixture(this)
+        backgroundScope.launch { f.mock.connect(f.dut) }
+        advanceTimeBy(700); runCurrent()
+        val config = sessionConfig(listOf(dutAssigned()), start = f.clock.nowMs())
+        f.controller.start(config)
+        advanceTimeBy(1000); runCurrent() // 若干条 Notify + ≥1 个 200ms tick（flushWriters）
+
+        // 逐行 flush 已移除：会话进行中（结束前）raw 文件内容应已由 tick 刷盘落地
+        val layout = SessionLayout(f.root / io.bluetrace.shared.data.sessionFolderName(config))
+        val size = f.fs.metadataOrNull(layout.rawHex(DeviceKind.DUT))?.size ?: 0L
+        assertTrue(size > 0, "raw hexlog should be flushed by tick during the run (size=$size)")
+        f.controller.stop()
+    }
 }

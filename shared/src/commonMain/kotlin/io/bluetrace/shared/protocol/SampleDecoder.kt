@@ -12,6 +12,19 @@ import io.bluetrace.shared.domain.DeviceKind
  */
 interface SampleDecoder {
     fun decode(kind: DeviceKind, notification: BleNotification): List<DecodedSample>
+
+    /**
+     * 会话边界钩子：每次会话开始由编排层调用。decoder 是跨会话的全局单例——
+     * 持有跨包状态（分片重组缓冲、pktSeq 等）的实现必须在此清空，否则上一会话的半包会带进新会话。
+     * v1 Mock 无状态，默认 no-op。
+     */
+    fun onSessionStart() {}
+
+    /**
+     * 设备链路重置钩子：某设备断连进入重连时由编排层调用。真实协议断连后 pktSeq/分片必然中断，
+     * 该设备的重组缓冲应整体丢弃，避免与重连后的新流错拼。默认 no-op。
+     */
+    fun onDeviceReset(deviceId: String) {}
 }
 
 /** v1 Mock 解码器（解 [MockPacketCodec] 单样本包）。 */

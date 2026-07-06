@@ -72,6 +72,8 @@ val appModule = module {
         val logsDir = (ctx.getExternalFilesDir(null) ?: ctx.filesDir).resolve("logs").path.toPath()
         FileDiagnosticsLog(get(), logsDir, get(), get(), get(named("logWriter")))
     }
+    // ⚠️ Mock/真实 BLE 的唯一切换点：全 App 只经 BleClient 接口消费（service/controller 均不感知具体类型）。
+    // s7 分支合并时在此改为可切换绑定（AndroidBleClient ↔ MockBleClient），并同步替换 SampleDecoder。
     single { MockBleClient(get(), get()) }
     single<BleClient> { get<MockBleClient>() }
     single<SampleDecoder> { MockSampleDecoder() }

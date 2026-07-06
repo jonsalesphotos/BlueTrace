@@ -2,7 +2,6 @@ package io.bluetrace.shared.session
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
-import io.bluetrace.shared.ble.MockBleClient
 import io.bluetrace.shared.data.ManifestDevice
 import io.bluetrace.shared.data.ManifestQuality
 import io.bluetrace.shared.data.ManifestSampling
@@ -43,8 +42,8 @@ import okio.FileSystem
 import okio.Path
 
 /**
- * 真实采集编排（v1 喂 [MockBleClient]）。所有 Notify / 连接事件 / 计时 tick / 标签 经单一 [events] channel
- * 由一个消费协程串行处理 → 落盘与状态变更天然无竞态、文件无并发写。
+ * 真实采集编排（v1 喂 Mock BLE，仅依赖 [BleClient] 接口）。所有 Notify / 连接事件 / 计时 tick / 标签
+ * 经单一 [events] channel 由一个消费协程串行处理 → 落盘与状态变更天然无竞态、文件无并发写。
  */
 class DefaultSessionController(
     private val bleClient: BleClient,
@@ -85,6 +84,8 @@ class DefaultSessionController(
     private var labelIntervalOpen = false
     private var displayPaused = false
     private var stopReason: StopReason? = null
+    // 高频数据路溢出计数（→ quality.droppedPackets）。生产者协程与消费协程同派发器（注入的 scope），无并发写。
+    private var droppedNotifs = 0L
     private val deviceStates = LinkedHashMap<String, RunDeviceState>()
     private val disconnectStartMs = HashMap<String, Long>()
     private val activeSensors = HashMap<String, LinkedHashSet<String>>()
@@ -104,6 +105,7 @@ class DefaultSessionController(
         startEpochMs = config.startEpochMs
         _finished.value = null
         enabledStreamNames = config.enabledTypes.map { DecodedStream.ofCollectType(it).csvName }.toSet()
+        decoder.onSessionStart() // 会话边界：清跨会话解码状态（分片重组缓冲等；decoder 是全局单例）
 
         val lay = SessionLayout(sessionsRoot / sessionFolderName(config))
         layout = lay
@@ -125,7 +127,14 @@ class DefaultSessionController(
 
         rs.launch { consume(ch) }
         config.devices.forEach { d ->
-            rs.launch { bleClient.notifications(d.deviceId).collect { sendOrDrop(ch, RunEvent.Notif(d.kind, it)) } }
+            rs.launch {
+                bleClient.notifications(d.deviceId).collect {
+                    // 高频数据路不反压来源：满则丢弃并计数（→ quality.droppedPackets）。
+                    // 真实 BLE 的 GATT 回调线程不可挂起，挂起式 send 在真机上不可行；Mock 同语义对齐。
+                    if (ch.trySend(RunEvent.Notif(d.kind, it)).isFailure) droppedNotifs++
+                }
+            }
+            // 链路/控制事件必须可靠投递（丢一次状态转换会错计断联时长），仍走挂起式 send
             rs.launch { bleClient.linkState(d.deviceId).collect { sendOrDrop(ch, RunEvent.Link(d.deviceId, d.kind, it)) } }
         }
         rs.launch { while (isActive) { delay(TICK_MS); ch.trySend(RunEvent.Tick) } }
@@ -156,6 +165,7 @@ class DefaultSessionController(
                             diagnostics.add(LogLevel.WARN, "storage", "usable space low → auto-stop")
                             exitConsume(ch, finishInternal(StopReason.STORAGE_FULL)); return
                         }
+                        recorder?.flushWriters() // 批量刷盘：崩溃损失窗口 = TICK_MS（换掉逐行 flush 的 syscall 开销）
                         pushState()
                     }
                     is RunEvent.Pin -> handlePin(e.text)
@@ -238,6 +248,7 @@ class DefaultSessionController(
         if (prev == LinkState.CONNECTED && now == LinkState.RECONNECTING) {
             reconnectCount++
             disconnectStartMs[e.deviceId] = clock.nowMs()
+            decoder.onDeviceReset(e.deviceId) // 断连即弃该设备重组缓冲：防与重连后的新流错拼
             diagnostics.add(LogLevel.WARN, "ble", "${e.deviceId} disconnected → reconnecting")
         }
         if (prev == LinkState.RECONNECTING && now == LinkState.CONNECTED) {
@@ -285,7 +296,7 @@ class DefaultSessionController(
         // manifest 没写上 → 会话保持"开口"，下次启动 autoFinalizeOpenSession 兜底修复。
         val files = runCatching { recorder?.finalizeFiles() ?: emptyList() }
             .getOrElse { diagnostics.add(LogLevel.ERROR, "session", "finalize files failed: ${it.message}"); emptyList() }
-        val quality = QualitySummary(reconnectCount, disconnectTotalMs, 0)
+        val quality = QualitySummary(reconnectCount, disconnectTotalMs, droppedNotifs)
         runCatching { sessionStore.writeManifest(lay, buildManifest(cfg, endEpochMs, reason, files, quality)) }
             .onFailure { diagnostics.add(LogLevel.ERROR, "session", "manifest write failed (auto-finalize next launch): ${it.message}") }
         val summary = buildSummary(cfg, lay, files, quality, reason)
@@ -307,7 +318,7 @@ class DefaultSessionController(
     override fun injectDisconnect() {
         val target = activeConfig?.devices?.firstOrNull { it.kind == DeviceKind.DUT }
             ?: activeConfig?.devices?.firstOrNull() ?: return
-        (bleClient as? MockBleClient)?.injectDisconnect(target.deviceId)
+        bleClient.debugInjectDisconnect(target.deviceId) // 经接口演示钩子，真实实现为 no-op
     }
 
     override suspend fun stop(reason: StopReason): SessionSummary? {
@@ -342,7 +353,7 @@ class DefaultSessionController(
         status = RunStatus.READY
         startEpochMs = 0; endEpochMs = 0; datasCount = 0
         reconnectCount = 0; disconnectTotalMs = 0
-        labelIntervalOpen = false; displayPaused = false; stopReason = null
+        labelIntervalOpen = false; displayPaused = false; stopReason = null; droppedNotifs = 0
         deviceStates.clear(); disconnectStartMs.clear(); activeSensors.clear()
         gnssJob = null
     }

@@ -17,7 +17,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.bluetrace.MainActivity
 import io.bluetrace.R
-import io.bluetrace.shared.ble.MockBleClient
+import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.session.RunStatus
 import io.bluetrace.shared.session.SessionController
 import io.bluetrace.shared.util.formatDurationHms
@@ -37,7 +37,7 @@ import org.koin.android.ext.android.inject
 class CollectionService : Service() {
 
     private val controller: SessionController by inject()
-    private val bleClient: MockBleClient by inject()
+    private val bleClient: BleClient by inject() // 只依赖接口："蓝牙关→重连中"是产品行为，换真实实现不丢
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var observing = false
 
@@ -46,8 +46,8 @@ class CollectionService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
             when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_TURNING_OFF -> bleClient.setBluetoothOff(true)
-                BluetoothAdapter.STATE_ON -> bleClient.setBluetoothOff(false)
+                BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_TURNING_OFF -> bleClient.onAdapterStateChanged(off = true)
+                BluetoothAdapter.STATE_ON -> bleClient.onAdapterStateChanged(off = false)
             }
         }
     }

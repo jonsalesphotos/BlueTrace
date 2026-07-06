@@ -13,19 +13,23 @@ data class BleNotification(
     val deviceId: String,
     val receivedAtMs: Long,
     val rawBytes: ByteArray,
+    /** 来源特征 UUID（可空）：多特征设备（如 S7 的 FFE2 与自研 DUT 数据特征并存）按此分流解码；Mock/单特征可不填。 */
+    val characteristicId: String? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BleNotification) return false
         return deviceId == other.deviceId &&
             receivedAtMs == other.receivedAtMs &&
-            rawBytes.contentEquals(other.rawBytes)
+            rawBytes.contentEquals(other.rawBytes) &&
+            characteristicId == other.characteristicId
     }
 
     override fun hashCode(): Int {
         var result = deviceId.hashCode()
         result = 31 * result + receivedAtMs.hashCode()
         result = 31 * result + rawBytes.contentHashCode()
+        result = 31 * result + (characteristicId?.hashCode() ?: 0)
         return result
     }
 }
@@ -39,7 +43,10 @@ interface BleClient {
     /** 扫描窗口：持续 emit「当前可见设备」累积列表（去重）；上游取消即停扫描。 */
     fun scan(): Flow<List<ScannedDevice>>
 
-    /** 连接（挂起到连上或失败）。 */
+    /**
+     * 连接（挂起到连上或失败）。失败契约：**不抛业务异常**，以 `linkState(deviceId)` 收敛到
+     * DISCONNECTED 为准（调用方以观测状态 + 超时兜底）；协程被取消时实现方必须释放底层链路资源。
+     */
     suspend fun connect(device: ScannedDevice)
 
     /** 断开（再点断开 / 退出不调用——连接后台保持，§5.3）。 */
@@ -47,6 +54,16 @@ interface BleClient {
 
     /** 每设备连接状态流（扫描行徽章 + 运行设备卡"重连中"）。 */
     fun linkState(deviceId: String): StateFlow<LinkState>
+
+    /**
+     * 系统蓝牙适配器开关变化（app 监听 ACTION_STATE_CHANGED 广播驱动，§5.4 横切A）。
+     * "蓝牙关 → 已连设备转重连中"是**产品行为**而非 Mock 演示钩子，故进接口；
+     * 真实实现可保持默认 no-op（适配器关闭时 GATT 会收到真实断连回调，无需模拟）。
+     */
+    fun onAdapterStateChanged(off: Boolean) {}
+
+    /** 演示钩子（DEBUG 构建）：注入一次断联→自动重连。真实实现保持默认 no-op。 */
+    fun debugInjectDisconnect(deviceId: String) {}
 
     /** 每设备原始 Notify 流（订阅即开始接收）。 */
     fun notifications(deviceId: String): Flow<BleNotification>
