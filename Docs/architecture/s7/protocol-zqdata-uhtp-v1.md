@@ -1,6 +1,6 @@
 # ZQDATA·UHTP V1 —— S7 采集数据 BLE 协议设计（离线优先）
 
-> **本文是 ZQDATA 服务协议的重设计稿**：以 `E:\UHTP_BLE_Protocol_Design_V4.md`（UHTP V4，5B 小头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象传输）为最佳实践基线，**收敛成采集业务的一个剖面（Profile）**并把离线回传深化到可实现级。
+> **本文是 ZQDATA 服务协议的重设计稿**：以 [`UHTP_BLE_Protocol_Design_V4.md`](../../UWTP/UHTP_BLE_Protocol_Design_V4.md)（UHTP V4，5B 小头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象传输；**已被 [UWTP V0.99](../../UWTP/UWTP_BLE_Protocol_Design_V0.99.md) 取代，本文待按其改写为 S7 采集 Profile**）为最佳实践基线，**收敛成采集业务的一个剖面（Profile）**并把离线回传深化到可实现级。
 > **范围钉死**（用户口径 2026-07-06）：① **离线数据回传为主体**；② **在线数据控制一律透传**（不重新设计在线流）；③ **可开关的算法结果上传**；④ **可写个人信息**。其余（LOG/OTA/SENSOR_CTRL/SECURITY）保留编号、V1 不实现。
 > **状态**：设计稿 V1（2026-07-06），待与固件端评审冻结。机器可读契约：[`zqdata_uhtp_v1_draft.proto`](zqdata_uhtp_v1_draft.proto)。示例包全部由脚本实算（[`assets/gen_zqdata_uhtp_examples.py`](assets/gen_zqdata_uhtp_examples.py)），protobuf wire 与 CRC32 可复验。
 > 现网协议（被替代对象）见 [`S7协议共识规格.md`](S7协议共识规格.md)：B2A TEST 0x10-0x12 + 40B→28B 重打包那套；迁移与共存见 §11。深度参考：同目录 [`protocol-b2a.md`](protocol-b2a.md)（B2A 全命令集）、[`protocol-zqdata.md`](protocol-zqdata.md)（现网 zqdata 全量审计）。
@@ -658,7 +658,7 @@ HEARTBEAT (13B): 10 01 06 70 08 | 08 90 1C 10 8C 1F 18 01   uptime=3600s, batt=3
 
 ## 14. 引用
 
-- 设计基线：`E:\UHTP_BLE_Protocol_Design_V4.md`（UHTP V4：5B 头 / 事务域 / Report TLV / offset 传输 / 分层版本，本文 §2/§5/§10/§11 大量原样收编）
+- 设计基线：[`Docs/UWTP/UHTP_BLE_Protocol_Design_V4.md`](../../UWTP/UHTP_BLE_Protocol_Design_V4.md)（UHTP V4：5B 头 / 事务域 / Report TLV / offset 传输 / 分层版本，本文 §2/§5/§10/§11 大量原样收编）；**后继定稿 = [`Docs/UWTP/UWTP_BLE_Protocol_Design_V0.99.md`](../../UWTP/UWTP_BLE_Protocol_Design_V0.99.md)**
 - 被替代的现网协议：[`S7协议共识规格.md`](S7协议共识规格.md)（B2A + DC 0x10-0x12 + 40B→28B 重打包）；全量审计：[`protocol-b2a.md`](protocol-b2a.md)、[`protocol-zqdata.md`](protocol-zqdata.md)
 - 机器可读契约：[`zqdata_uhtp_v1_draft.proto`](zqdata_uhtp_v1_draft.proto)（本文所有 Protobuf 消息的权威定义）
 - 示例生成脚本：[`assets/gen_zqdata_uhtp_examples.py`](assets/gen_zqdata_uhtp_examples.py)

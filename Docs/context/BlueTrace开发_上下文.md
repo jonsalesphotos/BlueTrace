@@ -21,7 +21,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - **协议规格文档**：[`architecture/s7/`](../architecture/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
 
 **阻塞**
-- M7（P5 真实 DUT 采集协议解码）：[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto) 仍 v0.1 草案，待与固件端冻结。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，冻结后换实现、上层不动。
+- M7（P5 真实 DUT 采集协议解码）：[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto) 仍 v0.1 草案，待与固件端冻结。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
 
 ## 关键决策（节选，全表见 SPEC 与各设计文档）
 
@@ -48,7 +48,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
 3. ~~刷新 里程碑与进度.md~~ ✅（2026-07-06 全面刷新：M6.1–M6.4 增量线入册、两处过期口径修正、M7 收窄为"解码半边"、冻结路径=UHTP V1 评审 / 自研 .proto 二选一）。
 4. 设计缺口收尾（设计审查报告_v6.md ⏳ 项）。
-5. **架构演进线（评估见 [`architecture/架构评估_20260706.md`](../architecture/架构评估_20260706.md)，已扩详版含 §0 机制速览；D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / CI 已上）**：~~波次A~~ ✅（`3a353ad`：A1 落盘挪 IO 池、A2 异常兜底、A3 Store 自守线程、B1 依赖环消除、CI 上线）。**接下来波次B**：B2 ConnectionRegistry 事件驱动化+下沉 shared、B3 iOS 债下沉（CollectDraft/S7Person 映射/refreshAll/zip 组包拆分）、B4 = 02 设计 R1–R3（注册式协议架构骨架）。之后 R4 真实链路首连（等心率带）。
+5. **架构演进线（评估见 [`architecture/架构评估_20260706.md`](../architecture/架构评估_20260706.md)，已扩详版含 §0 机制速览；D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / CI 已上）**：~~波次A~~ ✅（`3a353ad`：A1 落盘挪 IO 池、A2 异常兜底、A3 Store 自守线程、B1 依赖环消除、CI 上线，首跑绿）。~~波次B~~ ✅（2026-07-06：B2 ConnectionRegistry 事件驱动化+下沉 shared.ble（linkState 断连自动清退）、B3 iOS 债下沉（CollectDraft→shared.domain、toS7Person+readAll→shared.s7、DeviceLogStore 包迁 data.android；**zip 组包有意不下沉**——java.util.zip 是 JVM 专属 API，commonMain 不可用，iOS 接 Apple 压缩 API 时再抽象）、B4 = 02 设计 R1–R3 落码（`shared.protocol.registry` + ProtocolEvent 事件模型 + Mock/HRS Profile + RegistrySampleDecoder，DI 按后端拼注册表；偏离 02 两处见 CHANGELOG）；真机冒烟过（Mock 后端新链路双设备采集 47s 全通）。**接下来 R4**：HRS 真实链路首连——HrsProfile/HrsParser 已就绪，等心率带硬件即可接。
 
 ## 相关
 
@@ -56,5 +56,5 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、[`architecture/s7/CHANGELOG.md`](../architecture/s7/CHANGELOG.md)（s7 协议线，随合并已入 main）
 - 架构：[`architecture/存储与日志设计.md`](../architecture/存储与日志设计.md)、[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/BLE协议帧规格_开发者版.md`](../architecture/BLE协议帧规格_开发者版.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture/02_parser_registry_design.md`](../architecture/02_parser_registry_design.md)（协议注册架构）、[`architecture/03_collect_protocol_design.md`](../architecture/03_collect_protocol_design.md) + `btcp1_draft.proto`（自研采集协议候选；2026-07-06 起 architecture-v2 已并入 architecture/，讨论区壳在 `归档/架构讨论区_v2/`）
 - 设计验收：[`设计审查报告_v6.md`](../设计/设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计/设计稿与真机对比_v2.html)
-- 测试：`shared/src/jvmTest`（12 例）、`app/src/test`（4 例）；真机 M2101K9C / Android 13
-- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture/s7/S7协议共识规格.md`](../architecture/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）；**ZQDATA 下一代重设计**（基于 UHTP V4，离线优先，设计稿待固件评审）：[`architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md) + [`zqdata_uhtp_v1_draft.proto`](../architecture/s7/zqdata_uhtp_v1_draft.proto)（2026-07-06，设计基线 = [`Docs/UHTP_BLE_Protocol_Design_V4.md`](../UHTP_BLE_Protocol_Design_V4.md)，已归档入仓）
+- 测试：`shared`（commonTest/jvmTest 共 108 例，含注册表/连接登记线）、`app/src/test`；真机 M2101K9C / Android 13
+- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture/s7/S7协议共识规格.md`](../architecture/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）；**协议新基线 = UWTP V0.99**（UHTP V4 补全审议定稿，冻结候选；**家族独立目录 [`Docs/UWTP/`](../UWTP/README.md)**）：[`UWTP/UWTP_BLE_Protocol_Design_V0.99.md`](../UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + [`UWTP/uwtp_v0.99_draft.proto`](../UWTP/uwtp_v0.99_draft.proto)（2026-07-06，D-1~D-14 决策在册；心跳不做、静态注册表制、OTA 对齐 MCUmgr/SMP、FILE 多文件名断连从头）；旧稿 [`architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md)（基于 UHTP V4）**待改写为「S7 采集 Profile」**（UWTP §22 待办 1）

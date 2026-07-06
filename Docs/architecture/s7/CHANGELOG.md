@@ -5,7 +5,7 @@
 
 ## 2026-07-06 · ZQDATA·UHTP V1 协议重设计（离线优先）（第 21 轮）
 
-- **需求**：以 `E:\UHTP_BLE_Protocol_Design_V4.md`（5B 头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象）为最佳实践基线，重设计 ZQDATA 协议。范围钉死：**离线数据回传为主体**、在线数据控制透传、可开关的算法结果上传、可写个人信息；其余（LOG/OTA/SENSOR/SECURITY）保留编号不实现。
+- **需求**：以 [`../../UWTP/UHTP_BLE_Protocol_Design_V4.md`](../../UWTP/UHTP_BLE_Protocol_Design_V4.md)（5B 头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象；2026-07-06 归档入仓，后收敛为 `Docs/UWTP/` 下的 UWTP V0.99）为最佳实践基线，重设计 ZQDATA 协议。范围钉死：**离线数据回传为主体**、在线数据控制透传、可开关的算法结果上传、可写个人信息；其余（LOG/OTA/SENSOR/SECURITY）保留编号不实现。
 - **产出**：[protocol-zqdata-uhtp-v1.md](protocol-zqdata-uhtp-v1.md) + [.html](protocol-zqdata-uhtp-v1.html)（3 张 SVG + ASCII 位图）+ 机器可读契约 [zqdata_uhtp_v1_draft.proto](zqdata_uhtp_v1_draft.proto) + 示例脚本 [assets/gen_zqdata_uhtp_examples.py](assets/gen_zqdata_uhtp_examples.py)（protobuf wire + CRC32 实算，全帧 len 自洽断言）。
 - **要点**：复用 ZQDATA GATT 服务与开发仓新 zqdata 传输模块；FILE 域深化为 CATALOG/READ(BEGIN/READY/DATA/ACK/END)/ABORT/DELETE——窗口 ACK 授信 + resume_offset 断点续传 + 整档 CRC32 + 显式删除；新增 TUNNEL 域透传汇顶 EVK；CTRL 域含 HELLO 协商（AlgorithmManifest/content_format 注册表）、NTP 式四时戳对时（离线 UTC 锚点）、USER_PROFILE、ALGO_CTRL（结果上传开关，active_ids 对账）；REPORT_TLV 收编 UHTP §10（time_delta 冻结为 ×100ms）。
 - **迁移**：legacy B2A 帧首字节 0xBB 与 UHTP 0x1? 完全不相交 → 固件可双栈分流；App HELLO 超时回落 legacy。文件格式经 content_format 解耦（先原样回传现网 ECG1_V2/PPGHR40/GS18，推荐迁移目标 UOF1 统一格式：32B 头 + 流描述表 + 8B 帧头多流交错）。

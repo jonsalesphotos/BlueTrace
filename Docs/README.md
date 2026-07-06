@@ -19,6 +19,11 @@ Docs/
 │   ├── 设计审查报告_v6.md        ← 46 屏设计审查（色彩/副标/组件一致性）
 │   ├── 设计稿画廊_v6.html        ← V4 设计稿截图集（浏览器打开）
 │   └── 设计稿与真机对比_v2.html  ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
+├── UWTP/                         ← UWTP 统一可穿戴传输协议（跨项目标准，独立目录）
+│   ├── README.md                 ← 家族索引与演进路线
+│   ├── UWTP_BLE_Protocol_Design_V0.99.{md,html} + uwtp_v0.99_draft.proto ← 当前基线（冻结候选）
+│   ├── UHTP_BLE_Protocol_Design_V4.md ← 前身（历史，勿作基线）
+│   └── assets/gen_uwtp_examples.py    ← 示例帧生成脚本
 ├── architecture/                 ← 唯一架构目录（v2 已并入）
 │   ├── bluetrace_v0.proto        ← 自研 protobuf 机器契约（v0.1 草案，SPEC §4 引用，勿改路径）
 │   ├── BLE协议帧规格_开发者版.{md,html} ← 自研帧规格实现视角（布局/位图/实例包/状态机）
@@ -54,7 +59,8 @@ Docs/
 | 设计稿 vs 真机对比 | [`设计/设计稿与真机对比_v2.html`](设计/设计稿与真机对比_v2.html) |
 | 代码还有哪些问题要修 | [`代码审查报告_20260706.md`](代码审查报告_20260706.md)（波次①–④已收官，看遗留清单） |
 | 自研 DUT 协议（App↔固件） | [`architecture/bluetrace_v0.proto`](architecture/bluetrace_v0.proto) + [`architecture/BLE协议帧规格_开发者版.md`](architecture/BLE协议帧规格_开发者版.md) + [`architecture/03_collect_protocol_design.md`](architecture/03_collect_protocol_design.md) |
-| S7 手表协议（B2A / zqdata / UHTP） | [`architecture/s7/`](architecture/s7/)（共识稿为准；UHTP V1 = 下一代设计稿待评审） |
+| **UWTP 传输协议（跨项目标准）** | [`UWTP/`](UWTP/README.md)（V0.99 冻结候选为准；前身 UHTP V4 同目录） |
+| S7 手表协议（B2A / zqdata 现网 + Profile） | [`architecture/s7/`](architecture/s7/)（共识稿为准；protocol-zqdata-uhtp-v1 待按 UWTP V0.99 改写为 S7 采集 Profile） |
 | M7 协议接入怎么做 | [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md)（可注册协议架构） |
 | 真机用出问题了要修 | [`真机修复prompt_复用.md`](真机修复prompt_复用.md)（填【问题】模板） |
 | 历史决策来龙去脉 | [`归档/`](归档/)（唯一历史桶，口径以 SPEC 为准） |

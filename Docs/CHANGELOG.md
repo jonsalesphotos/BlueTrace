@@ -1,8 +1,24 @@
 # BlueTrace 修改记录（CHANGELOG）
 
 > 个人仓库、直接推 main（不走 PR）。按"构建轮次"组织（对应 `agent_build_prompt_vN.md`）。
-> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE 默认真实 GATT（2026-07-06 起，DEBUG 可切 Mock）；采集解码仍 Mock 待 M7。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
+> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE 默认真实 GATT（2026-07-06 起，DEBUG 可切 Mock）；采集解码走注册式协议架构（02 设计，HRS 已可解；自研 DUT 协议待 M7 冻结）。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
 > 早期 M1–M3 基线细节另见 [`归档/构建笔记/v1_impl_notes.md`](归档/构建笔记/v1_impl_notes.md)、v3 差异见 [`归档/构建笔记/v3_design_diff.md`](归档/构建笔记/v3_design_diff.md)。
+
+---
+
+## [v11·波次B] 架构演进：注册式协议架构 R1–R3 + Registry 事件驱动 + iOS 债下沉 — ✅ 2026-07-06
+来源：[`architecture/架构评估_20260706.md`](architecture/架构评估_20260706.md) 波次B（B2/B3/B4）+ [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md) 迁移节拍 R1–R3。
+- **B4 = 02 设计 R1–R3 落码**：新增 `shared.protocol.registry` 包——`ChannelId`/`ChannelParser`/`ProtocolProfile`/`ProtocolRegistry`/`DeviceParserHost`（R1 骨架）+ `ProtocolEvent` 事件模型（Samples/CommandAck/DeviceEvent/Malformed，R3；Capability/State/AlgoResult/FileChunk 四类 payload 依赖 M7 冻结，R5 再补）+ `MockBleProfile`（R2：MockPacketCodec 装进 Profile 形状）+ `HrsProfile`/`HrsParser`（SIG 0x180D/0x2A37，u8/u16 bpm——R4 心率带真实链路的先行协议，不依赖冻结）+ `RegistrySampleDecoder` 适配器。`SampleDecoder` 增 `onDeviceAttached`/`decodeEvents` 默认方法（旧实现零改动）；会话控制器改消费事件流（Malformed→WARN 诊断，raw HEX 照常落盘）+ start 逐设备 attach；DI 注册表按后端拼装（Mock 后端全员 Mock 线协议 / 真实后端注册 HRS；无 profileId 的自研 DUT 回退 Mock→malformed 告警，等价旧 unparseable 行为）。
+- **偏离 02 记录**（务实裁剪）：① `BleNotification` 不加 ChannelId 字段——host 按 characteristicUuid 小写匹配 + 单通道 profile 兜底路由（Mock 通知不带特征 id）；② `CommandEncoder` 与控制面事件消费缓行至 R4/R5（采集面现阶段只吃 Notify）。
+- **B2 ConnectionRegistry 事件驱动化 + 下沉**：迁 `shared.ble`，构造注入 `BleClient`+scope；add 时启动 linkState 常驻监听，`DISCONNECTED` 自动清退（被动断连不再依赖调用方手动对齐），`RECONNECTING` 在册（琥珀点语义）；监听复用、CAS 防并发重复启动；调用方主动 remove 与自动清退幂等，四个 VM 调用点零改动。
+- **B3 iOS 债下沉**：`CollectDraft` 迁 `shared.domain`（零 Android 依赖）；`DeviceLogStore` 包迁 `data.android`（C4 包名归位）；`Subject.toS7Person()` 域映射下沉 `shared.s7`；控制台全量读编排下沉 `S7Console.readAll()` + `S7Snapshot`（单项失败不阻断、失败项 null→上层保留旧值，语义不变）。**zip 组包不下沉**（有意遗留）：`java.util.zip` 是 JVM 专属 API，commonMain 不可用；iOS 侧接 Apple 压缩 API 时再抽象接口。
+- 测试：commonTest 新增注册表线 12 例（HrsParser u8/u16/短包、Registry resolve/byId、RegistrySampleDecoder 路由/回退/Malformed/会话边界）+ ConnectionRegistry 迁移并新增事件清退 3 例（被动断连清退/RECONNECTING 在册/清退后重登记复用监听）；`:shared:jvmTest` + `:app:testDebugUnitTest` + `assembleDebug` 全绿；**CI 首跑绿**（D3 闭环，run 28773182921）。
+- 真机冒烟（M2101K9C，Mock 后端走新注册表链路）：连 Polar H10+BT-DUT-0427 → 在线采集 47s → 双设备 HR 出值 + ppg_g/ppg_ir/acc 活跃流 → 结束摘要 5358 行 / HEX OK / 解码 CSV 齐全；证据 [`assets/screenshots_device/waveB_20260706/`](assets/screenshots_device/waveB_20260706/)；后端已切回默认真实 GATT。
+
+---
+
+## [文档] UWTP 统一可穿戴传输协议 设计 V0.99（冻结候选） — ✅ 2026-07-06
+[`UWTP/UWTP_BLE_Protocol_Design_V0.99.{md,html}`](UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + 契约草案 [`UWTP/uwtp_v0.99_draft.proto`](UWTP/uwtp_v0.99_draft.proto)：UHTP V4 的补全审议定稿版（改名 UWTP，D-1~D-14 决策表全记录；**协议家族已归拢至 [`Docs/UWTP/`](UWTP/README.md) 独立目录**，含前身 UHTP V4）。**Core 补齐 V4 六大空白**：GATT 绑定（1 Service + RX WriteNoRsp + TX Notify；S7 复用 ZQDATA 特征、其他项目占位）、时间模型（UTC 系统钟 + u32 秒/u16 ms/s16 时区仅 TIME 域一次 + 数据面只带 ms 偏移的两级时间制）、分域断连语义（OTA 重协商续断点 / FILE 从头重传 / 在线丢了就丢）、并发矩阵（OTA 独占最高优先）、每域丢包容忍度与完整性分层表、安全姿态（Just Works + 预留一次性鉴权）；**统一响应模型**（NEED_RSP 回显 seq + 响应 Protobuf 首字段恒 status）+ 固定字段全小端铁律 + 静态注册表制（不做动态能力发现，文档即共识）。**Domains**：心跳砍掉（BLE 链路监督兜底）；LOG 导出并入 FILE 域（多文件名 + LIST + DELETE，路径隐含约定）；OTA 语义对齐 Zephyr MCUmgr/SMP img_mgmt（槽位/状态位/test-confirm-rollback 映射表）；新增 TUNNEL 透传域。6 组示例帧脚本实算（[`UWTP/assets/gen_uwtp_examples.py`](UWTP/assets/gen_uwtp_examples.py)）。**下一步**：S7 采集 Profile 改写（protocol-zqdata-uhtp-v1 按 D-6/D-8/D-12 删改）→ 固件评审 → 双端金帧联调 → 冻结 V1.0。
 
 ---
 
@@ -45,7 +61,7 @@
 ---
 
 ## [文档] ZQDATA·UHTP V1 协议重设计（离线优先，设计稿） — ✅ 2026-07-06
-[`architecture/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（[`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md)，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输；原在 E:\ 根、已归档入仓）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 21 轮。
+[`architecture/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（[`UWTP/UHTP_BLE_Protocol_Design_V4.md`](UWTP/UHTP_BLE_Protocol_Design_V4.md)，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输；已归拢至 `Docs/UWTP/`）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 21 轮。
 
 ---
 

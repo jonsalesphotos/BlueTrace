@@ -1,0 +1,178 @@
+// UWTP V0.99 —— 控制/协商 payload schema 草案(与 UWTP_BLE_Protocol_Design_V0.99.md 配套)
+//
+// 范围: 使用 Protobuf 的 payload。固定二进制不在本文件:
+//   TIME SET/GET(8B: u32 sec + u16 ms + s16 tz_min)
+//   FILE/OTA 的 DATA([tid u8][offset u32][data]) 与 ACK([tid u8][next_offset u32][status u8])
+//   REPORT_TLV 外层容器(8B bundle 头 + 4B record 头)
+//   LOG LIVE_EVENT / TUNNEL(不透明)
+// 约定: 响应消息首字段恒 uint32 status = 1 (0=OK, 缺省不编码; 见设计稿 §4/§10)。
+// 静态注册表制(D-12): main/sub/kind/algo_id/tunnel_id 硬编码于设计稿 §20, 不做动态协商。
+// 状态: V0.99 冻结候选; 冻结后只增不改 tag, 删字段用 reserved。
+
+syntax = "proto3";
+
+package uwtp.v1;
+
+option java_package = "io.bluetrace.protocol.uwtp.v1";
+
+// ============ 通用 ============
+
+message CommonRsp { uint32 status = 1; }
+
+// ============ CTRL / SESSION (0x01/0x01) ============
+
+message Hello {                      // App -> 表, NEED_RSP=1
+  uint32 protocol_version = 1;      // 本文档冻结 = 1
+  string app_version      = 2;
+}
+
+message HelloRsp {
+  uint32 status           = 1;
+  uint32 protocol_version = 2;
+  string firmware_version = 3;
+  string device_sn        = 4;
+}
+
+message Bye {}                       // 可选
+
+// ============ CTRL / USER_PROFILE (0x01/0x09) ============
+// 写: 带字段发送; 读: 空 payload + NEED_RSP -> UserProfileRsp
+
+message UserProfile {
+  uint32 height_cm     = 1;
+  uint32 weight_kg_x10 = 2;          // 70.5kg = 705
+  uint32 sex           = 3;          // 0 未知 1 男 2 女
+  uint32 birth_year    = 4;
+  uint32 birth_month   = 5;
+  uint32 birth_day     = 6;
+  uint32 wear_hand     = 7;          // 0 未知 1 左 2 右
+}
+
+message UserProfileRsp { uint32 status = 1; UserProfile profile = 2; }
+
+// ============ CTRL / ALGO_CTRL (0x01/0x04) ============
+
+message AlgoReportCtrl {             // 只控制"结果上传", 断连自动全关
+  repeated uint32 enable_ids = 1 [packed = true];  // algo_id 静态注册表(设计稿 §20.3); 空=全关
+  uint32 min_interval_ms     = 2;                  // 0 = 按算法原生速率
+}
+
+message AlgoReportCtrlRsp { uint32 status = 1; repeated uint32 active_ids = 2 [packed = true]; }
+
+// ============ CTRL / STORAGE (0x01/0x07) ============
+
+message StorageInfoReq {}
+
+message StorageInfo {
+  uint32 status      = 1;
+  uint64 total_bytes = 2;
+  uint64 used_bytes  = 3;
+  uint32 file_count  = 4;
+}
+
+// ============ ALGO / REPORT_TLV 内层 value 示例 schema (0x02/0x02) ============
+
+message HrResultV1   { uint32 hr_bpm = 1; uint32 confidence = 2; uint32 quality = 3; }
+
+message Spo2ResultV1 {
+  uint32 spo2        = 1;
+  uint32 hr_bpm      = 2;
+  uint32 quality     = 3;
+  uint32 state_flags = 4;
+  uint32 pi_x1000    = 5;
+}
+
+message WearResultV1 { uint32 wear_state = 1; uint32 confidence = 2; uint32 reason_flags = 3; }
+
+// ============ OTA 域 (0x04) —— 语义对齐 MCUmgr/SMP img_mgmt ============
+
+message OtaImgListReq {}             // 0x01, NEED_RSP=1
+
+message OtaImgListRsp {
+  uint32 status = 1;
+  repeated OtaSlot slots = 2;
+}
+
+message OtaSlot {
+  uint32 slot        = 1;
+  string version     = 2;
+  uint32 state_flags = 3;            // bit0 BOOTABLE bit1 PENDING bit2 CONFIRMED bit3 ACTIVE bit4 PERMANENT
+}
+
+message OtaUploadBegin {             // 0x02, NEED_RSP=1; App 提议, 设备定版
+  uint32 image_size       = 1;
+  bytes  image_hash       = 2;
+  string version          = 3;
+  uint32 target_slot      = 4;
+  uint32 preferred_chunk  = 5;
+  uint32 preferred_window = 6;
+}
+
+message OtaUploadReady {             // 0x03
+  uint32 status        = 1;
+  uint32 transfer_id   = 2;          // 帧内定长字段用 u8 (并发矩阵保证单传输)
+  uint32 chunk_bytes   = 3;
+  uint32 window_chunks = 4;
+  uint32 next_offset   = 5;          // 全新=0; 断连重来=flash 连续水位(同 image_hash 才续)
+}
+
+// UPLOAD_DATA(0x04)/UPLOAD_ACK(0x05) 固定二进制, 见设计稿 §14.4
+
+message OtaUploadEnd { uint32 transfer_id = 1; }   // 0x06, NEED_RSP=1 -> 设备整镜像 hash 校验 -> CommonRsp
+
+message OtaImgState {                // 0x07, NEED_RSP=1
+  uint32 op   = 1;                   // 1 TEST / 2 CONFIRM
+  uint32 slot = 2;
+}
+
+message OtaReset {}                  // 0x08
+message OtaAbort { uint32 transfer_id = 1; }   // 0x09
+
+// ============ FILE 域 (0x05) —— 多文件名, 路径隐含约定(D-8) ============
+
+message FileListReq {                // 0x01, NEED_RSP=1
+  uint32 kind      = 1;              // 0 不过滤 / 1 LOG / 4 OFFLINE_DATA (设计稿 §20.2)
+  uint32 page      = 2;
+  uint32 page_size = 3;
+}
+
+message FileListRsp {
+  uint32 status = 1;
+  uint32 total  = 2;
+  uint32 page   = 3;
+  repeated FileEntry entries = 4;
+}
+
+message FileEntry {
+  string name      = 1;              // 相对文件名, 根目录为文档级共识
+  uint32 size      = 2;
+  uint32 mtime_sec = 3;              // unix 秒(UTC)
+  uint32 kind      = 4;
+}
+
+message ReadBegin {                  // 0x02, NEED_RSP=1; 断连即作废, 重传从头(D-6, 无 resume 字段)
+  string name             = 1;
+  uint32 preferred_chunk  = 2;
+  uint32 preferred_window = 3;
+}
+
+message ReadReady {                  // 0x03
+  uint32 status        = 1;
+  uint32 transfer_id   = 2;
+  uint32 total_bytes   = 3;
+  uint32 chunk_bytes   = 4;
+  uint32 window_chunks = 5;
+  uint32 file_crc32    = 6;          // 整档 CRC32(IEEE), App 收完全量比对
+}
+
+// READ_DATA(0x04)/READ_ACK(0x05) 固定二进制, 见设计稿 §15.3
+
+message ReadEnd {                    // 0x06
+  uint32 status      = 1;
+  uint32 transfer_id = 2;
+  uint32 sent_bytes  = 3;
+}
+
+message FileAbort { uint32 transfer_id = 1; }   // 0x07, 双向; 文件保留
+
+message DeleteReq { string name = 1; }          // 0x08, NEED_RSP=1; 读传输中拒删(BUSY)
