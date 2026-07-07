@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 采集固件 OTA · 设计与实现计划</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-ota">S7 采集固件 OTA · 设计与实现计划</a><ul>
+<li><a href="#0">0. 定位与边界</a></li>
+<li><a href="#1">1. 关键事实（真实包 + 固件坐实）</a><ul>
+<li><a href="#11">1.1 升级包 = 已知（不再"文档缺失"）</a></li>
+<li><a href="#12">1.2 承载通道与可观测性（重要）</a></li>
+<li><a href="#13">1.3 安全边界（砖化风险已量化收窄）</a></li>
+</ul>
+</li>
+<li><a href="#2-file_transcmd-0x0f">2. 协议：FILE_TRANS（Cmd 0x0F）逐字节</a></li>
+<li><a href="#3-data-model">3. 数据模型（Data Model）</a></li>
+<li><a href="#4-interfaces">4. 接口（Interfaces）</a></li>
+<li><a href="#5-app-ack">5. 状态机（App 侧，由 Ack 驱动）</a></li>
+<li><a href="#6">6. 用户可见行为</a></li>
+<li><a href="#7">7. 风险点（真实包坐实后更新）</a></li>
+<li><a href="#8-phase-0">8. 分阶段（Phase 0 已由两轮固件侦察基本完成）</a></li>
+<li><a href="#9-open-questions">9. Open Questions</a></li>
+<li><a href="#_1">附：溯源</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="s7-ota">S7 采集固件 OTA · 设计与实现计划</h1>
+<blockquote>
+<p><strong>状态</strong>：重新构思期新增（2026-07-07）。定位 = <strong>方向 B：实验室 attended 配置少量表</strong>。真机可联调。
+<strong>真源</strong>：现网 B2A 协议 = <a href="../归档/s7/S7协议共识规格.md"><code>../归档/s7/S7协议共识规格.md</code></a>；本文 FILE_TRANS 字段由固件 <code>apollo4_watch_s7</code> 反推（file:line 在册），<strong>字节级偏移/字节序待真机抓包最终验证</strong>（全仓唯一 golden 帧是产测握手，OTA 各帧无真机报文）。
+<strong>一句话目标</strong>：在 BlueTrace 里做一个受控的"把常规 S7 表刷成采集表"的 attended 流程——常规表没有采集能力（采集是编译期宏 <code>SYS_DATA_COLLECT_SVC</code>，常规固件里根本没这段代码），只能整包换成采集固件。</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 定位与边界</h2>
+<ul>
+<li><strong>为什么</strong>：常规 S7 手表 BLE 栈能连、能控、能拉日志，但<strong>不能采集</strong>（采集固件是另一条构建分支）。要采集必须先 OTA 刷入采集固件。</li>
+<li><strong>方向 B（用户 2026-07-07 拍板）</strong>：受控 attended——你/技术人员盯着，充电+贴手机+亮屏，一次性把手头少量表刷成采集表。砖了有 J-Link 有线兜底。</li>
+<li><strong>不做</strong>：消费级后台无人值守、跨进程杀死的健壮续传、非对称签名、全 ModuleId 通用刷写。</li>
+<li><strong>砖化姿态（已大幅下降）</strong>：BLE OTA <strong>永不碰 SecBL/boot</strong>（见 §1.3），砖必落在应用/资源区，<code>flash_fw.ps1</code>（J-Link SWD）<strong>无条件可救</strong>。风险从"高+不可恢复"降到"中+可有线恢复"。</li>
+</ul>
+<hr />
+<h2 id="1">1. 关键事实（真实包 + 固件坐实）</h2>
+<h3 id="11">1.1 升级包 = 已知（不再"文档缺失"）</h3>
+<p>真实 OTA 包 <code>E:\1\apollo4_watch_s7\out\product\apollo_eiot_watch\</code> 已坐实，采集包<strong>已预构建</strong>（<code>apollo4_watch_s7_collect/out/.../</code>）——<strong>不用自己 build</strong>。</p>
+<p>构建产三种 zip（<code>CMakeLists.txt:1559-1561</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>zip</th>
+<th>文件</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整包 <code>*_ota.zip</code></td>
+<td>19 项（含 <code>boot.bin</code>/<code>SecBL.dat</code>/<code>ble_fw.dat</code>/<code>apollo_eiot_watch.bin</code>/<code>FileList.dat</code>/<code>FormatExtFlash</code>）</td>
+<td><strong>有线/工厂刷写器</strong>（J-Link 引导路径），<strong>不走 BLE</strong></td>
+</tr>
+<tr>
+<td><code>*_ota_all.zip</code></td>
+<td>14 文件（字库 + Res 三件套 + <code>fw.dat</code>）</td>
+<td>BLE OTA · 全量</td>
+</tr>
+<tr>
+<td><code>*_ota_part.zip</code></td>
+<td>4 文件（<code>ResData</code> + <code>ResFat</code> + <code>ResCheck</code> + <code>fw.dat</code>）</td>
+<td>BLE OTA · 差分（省掉字库）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最小必推集 = <code>ota_part</code> 四文件</strong>（固件 <code>OTA_DoRecvAfter</code> 只对 Res 三件套做存在性校验、缺失即失败无补拷，<code>OTA_Main.c:640-676</code>；字库 <code>fCheck.dat</code>+9 个 <code>fCN*/fNum*</code> 缺失时能从旧 A/B 区补拷，<code>:682-772</code>）。</p>
+<p><strong>采集包各文件大小</strong>（stock vs 采集逐文件对比，几乎全不同——只有 <code>fNum*</code> 数字字库相同）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>采集大小</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ResData.dat</code></td>
+<td>18,136,416</td>
+<td>资源大 blob（占大头）</td>
+</tr>
+<tr>
+<td><code>fw.dat</code></td>
+<td>1,613,656</td>
+<td>采集主 MCU 镜像（裸 ARM 向量表，无自定义头）</td>
+</tr>
+<tr>
+<td><code>ResFat.dat</code> / <code>ResCheck.dat</code></td>
+<td>2,944 / 4,440</td>
+<td>资源 FAT + per-file 校验表</td>
+</tr>
+<tr>
+<td><strong>ota_part 合计</strong></td>
+<td><strong>≈ 19.76 MB</strong></td>
+<td><strong>最小必推（字库走补拷=旧表字库）</strong></td>
+</tr>
+<tr>
+<td>+ 字库(<code>fCN26/34/40</code>,<code>fCheck</code>)</td>
+<td>+≈ 5.4 MB</td>
+<td>ota_all（装采集自己的字库，视觉正确）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>传输时长估</strong>：~19.7MB，按写向 5–28 KB/s → <strong>约 15–45 分钟 attended</strong>。这不是"快闪 fw.dat"，是长传输。⚠️ <strong>能否只推 <code>fw.dat</code>（复用旧 Res）把它降到 ~1.6MB/2min，是首个真机实验</strong>（见 §9 O-1）。</p>
+<p><strong>App 完全忽略 <code>FileList.dat</code> 与 <code>FormatExtFlash</code></strong>：前者是有线刷写器的清单（设备<strong>从不经 BLE 读它</strong>，<code>CMakeLists.txt:1526-1548</code> 构建时生成）；后者是 0 字节哨兵（叫刷写器"先格式化外部 Flash"，固件里<strong>没有任何处理分支</strong>，两个 BLE zip 都不含它）。App 直接把 <code>ota_all</code>/<code>ota_part</code> 里的文件逐个推即可。</p>
+<h3 id="12">1.2 承载通道与可观测性（重要）</h3>
+<ul>
+<li><strong>承载 = AMDTP GATT</strong>（Ambiq Data Transfer Protocol Server，<code>amdtps_main.c:377</code>）——就是现网 B2A 那条 <code>0xFFE0</code> 通道，OTA 双向都跑在它上面，<strong>不是独立 amota 服务</strong>。</li>
+<li><strong>App 只能观测到 B2A Ack 包</strong>：REQ/START/DATA/STOP/OFFSET 的结果码（<code>EBEC_SUCC</code> 等）+ OFFSET 返回的断点 offset。</li>
+<li><strong><code>OTAR_*</code> 是手表内部枚举，不发给 App</strong>（只驱动表盘进度弧，<code>gui_ota_req.c</code>）。所以 <strong>"整包成功/已生效" App 看不到</strong>——判据只能是：末个 STOP 收 <code>EBEC_SUCC</code> → 设备自动切区+重启 → App 重连 → <strong>读版本号/采集能力确认</strong>。</li>
+<li><strong>没有现成 BLE 上位机参考代码</strong>（两仓都只有设备接收端；<code>amota_main.c</code> 是设备端 server，<code>master_ota_spi.c</code> 是手表刷板内 modem）。<strong>App 推包序列 = 从 <code>B2A_FileTrans*Ack</code> 接收端反推 + 真机抓包验证。</strong></li>
+</ul>
+<h3 id="13">1.3 安全边界（砖化风险已量化收窄）</h3>
+<ul>
+<li><strong>BLE OTA 收流派发只认 <code>OTA(1)</code> / <code>WATCH_BG(3)</code> / <code>BP_FW(6)</code> 三种 ModuleId</strong>；<code>SECBL_FW(5)</code>/<code>BOOTLOADER</code> 只是枚举、<strong>无 handler</strong>（<code>ble2appWrap.c</code> 全部落盘分支 <code>:3804/4772/5448</code>）。SecBL 只在<strong>开机</strong>由本地 <code>OTA_CheckSecBL→OTA_UpdateSecBL</code> 更新（<code>ui.c:1128</code> 开机自检），与 BLE 收流解耦。</li>
+<li><strong>BLE 包物理上不含</strong> <code>SecBL.dat</code>/<code>boot.bin</code>/<code>ble_fw.dat</code>/<code>.bin</code>（只进整包 zip）。</li>
+<li><strong>有线兜底</strong>：<code>flash_fw.ps1</code> J-Link SWD 把 <code>apollo_eiot_watch.bin</code> 烧到 <code>0x18000</code>（走 SBL flash-helper <code>0x08000061</code>），独立于运行中的 app，<strong>可覆盖任意 ≥0x18000 应用/资源区变砖表</strong>。BLE 造成的砖必在此区间 → <strong>无条件可救</strong>（除非 SBL/SWD 口本身坏，而这不可能由 BLE OTA 造成）。</li>
+<li><strong>固件无签名、无低电门控</strong>（<code>EBEC_LOW_BAT</code> 定义了从不返回）→ <strong>安全/防掉电 100% 由 App 兜底</strong>：发起前强制充电+电量阈值。</li>
+</ul>
+<hr />
+<h2 id="2-file_transcmd-0x0f">2. 协议：FILE_TRANS（Cmd <code>0x0F</code>）逐字节</h2>
+<p>信封 = B2A 8B 帧头 + 4B 命令头（<code>Cmd=0x0F</code>），全小端。子命令（<code>ble2appEx.h:453-458</code>）：<code>START=0x01 / TRANS=0x02 / STOP=0x03 / REQ=0x04 / OFFSET=0x06</code>。</p>
+<p><strong>会话时序（App 驱动，设备不校验顺序、无内置清单）：</strong></p>
+<pre><code>REQ(0x04) 报会话总量 ──(设备查磁盘/BUSY → 等设备端 MMI 授权 → 异步回 12B)──▶ READY
+  每文件按 App 决定的顺序:
+    START(0x01, 带文件名) ─▶ [切片循环: TRANS(0x02) 背靠背发 ≤17 个无响应写
+                              → 等 9B DATA ack(含累加和) → App 核对 → 推进 offset]
+                            ─▶ STOP(0x03, 无 payload) → 设备 idx++
+  末文件 STOP 且 idx==fileCount ─▶ 整场完成 → 设备自动切资源区 + 重启生效
+</code></pre>
+<p><strong>逐字节 payload（<code>ble2appWrap.c</code> 反推）：</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>方向</th>
+<th>payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQ 0x04</code></td>
+<td>App→表</td>
+<td><code>[0]moduleId=1 [1]ucIsOffset [2]fileCount [3]rsv [4-7]totalSize(LE)</code>；<strong>fileCount/totalSize = 整场合计</strong>（<code>:3685-3695</code>）。设备查磁盘(<code>totalSize/1024</code> vs 剩余 KB)，<strong>OK 路等 MMI 授权后异步回 12B</strong>：<code>status/moduleId/fileCount/currFileIdx/sliceMaxSize(LE)/offset(LE)</code>；<code>sliceMaxSize=(协商MTU−12)×17</code>。</td>
+</tr>
+<tr>
+<td><code>START 0x01</code></td>
+<td>App→表</td>
+<td><code>[0-3]fileSize [4-7]offset [8-11]sliceSize [12]ucType(BFTT) [13]zipFlag [14-15]nameLen [16..]name</code>（<code>:4169-4193</code>）。<strong>文件去向由文件名字符串决定</strong>（设备 <code>sprintf(MAC_EXT_ROOT+name)</code> 裸写），<code>ucType</code> 只驱动进度 UI、<code>zipFlag</code> 未消费。名字 ≤12 字符（<code>szFile[13]</code>）。</td>
+</tr>
+<tr>
+<td><code>TRANS 0x02</code></td>
+<td>App→表</td>
+<td>裸文件数据，切片内多包走 <code>IS_MULTI_PKT</code>；<strong>每切片回 9B DATA ack</strong> <code>[0-3]recvLen [4-7]累加和(U32) [8]EHST_SUCC</code>（<code>:4753-5010</code>）。</td>
+</tr>
+<tr>
+<td><code>STOP 0x03</code></td>
+<td>App→表</td>
+<td>无 payload。设备 <code>idx++</code>，按 <code>ulCurrFileSize</code> 做落盘尺寸兜底（<code>:5467</code>），按文件名特判 <code>fCheck.dat</code>/<code>ResCheck.dat</code>。</td>
+</tr>
+<tr>
+<td><code>OFFSET 0x06</code></td>
+<td>App→表</td>
+<td>应答 4B <code>offset</code>（断点续传点，<code>:5644</code>）。</td>
+</tr>
+</tbody>
+</table>
+<p><strong>校验归属（三套独立，别混）：</strong>
+1. <strong>传输层 9B 累加和</strong>：设备逐字节累加刚收的切片、回给 App（<code>:4753-4756</code>）。<strong>App 自己也算期望值、比对，不符则重发该切片</strong>。App 唯一"要算"的校验。
+2. <strong><code>ResCheck.dat</code>/<code>fCheck.dat</code></strong>：构建工具预生成、随包下发的<strong>普通文件</strong>，App 只<strong>原样透传落盘</strong>、不构造。设备升级后自己拿它们做 per-file 自检（<code>OTA_DoRecvAfter</code>）。
+3. <strong>整场成功门</strong>：设备侧 <code>OTA_DoRecvAfter()==EECT_OK</code>（新区 Res 三件套存在 + 字库齐）→ gate <code>OTA_SetFlag(MAC_OTA_FLAG)</code>+重启。<strong>App 观测不到这一步。</strong></p>
+<p><strong>两套复位定时器（真机构建已核）：</strong>
+- <strong>UI 看门狗 ≈ 15.36s</strong>（<code>MAX_OTA_TIMTOUT=1024ms × 15</code>，<code>gui_ota_req.c:88-122</code>）——<strong>这是 App 的硬约束</strong>：每 &lt;15s 必须有一个切片完成（触发进度上报清零看门狗），否则设备自复位。
+- 后端 B2ATimer ≈ 61.44s（<code>ble2appWrap.c:3605</code>，<code>60*1024 ms</code>）。
+- 结论：<strong>按 ~15s 无进度红线设计</strong>，前台亮屏+稳定包速。</p>
+<hr />
+<h2 id="3-data-model">3. 数据模型（Data Model）</h2>
+<pre><code>OtaPackage
+  moduleId = OTA(1)
+  files: List&lt;OtaFile&gt;        // 顺序由 App 定; 末文件 STOP 才算整包完成
+OtaFile
+  name: String               // ≤12 字符, 决定设备落地位置(如 &quot;fw.dat&quot;/&quot;ResData.dat&quot;)
+  fileType: Int              // BFTT: fw→2 / Res→3 / 字库→7 (仅驱动进度 UI)
+  bytes: ByteArray
+  sliceSize: Int             // App 自报, 固件校验 ≤ sliceMaxSize
+OtaReqReply                  // REQ 的 12B 异步应答(等设备端授权)
+  status, moduleId, fileCount, currFileIdx, sliceMaxSize, offset
+OtaProgress { fileIdx, fileCount, sentBytes, totalBytes, rateBps }
+OtaResult   { DONE_DOWNLOAD | VERIFIED(version) | Failed(reason) }
+</code></pre>
+<p>采集包来源：直接嵌入/SAF 选 <code>采集 ota_all.zip</code>，App 解压后按 §2 顺序逐文件推（zip 只是分发容器，设备收的是逐个 <code>.dat</code>）。</p>
+<h2 id="4-interfaces">4. 接口（Interfaces）</h2>
+<ul>
+<li><strong><code>OtaTransport</code>（shared/commonMain）</strong>：<code>suspend fun provision(pkg, onProgress): OtaResult</code>——独占长事务，<strong>仿 <code>pullLog</code> 自建 Channel + 空闲超时，绝不进 3s 单飞 <code>request()</code></strong>（TRANS 只写不回）。</li>
+<li><strong><code>BleClient</code> 扩展</strong>：① 暴露 <code>negotiatedMtu</code>（现协商完丢弃）；② 写路径加背压（查 <code>writeCharacteristic</code> 返回值 + <code>onCharacteristicWrite</code> 完成，现在无响应写即发即返、上千片静默丢）。</li>
+<li><strong>S7 编解码（新）</strong>：FILE_TRANS 五子命令 encode + <strong>下行多包分片器</strong>（首片带命令头/续片 index 递增/末片 <code>MULTI_PKT_END</code>/多包 ID bit[5:4]/<code>OTA_PART</code> 位）——全新"App→表"发送方向。</li>
+<li><strong><code>S7MockWatch</code> 扩展</strong>：fileTrans 状态机 + 逐字节累加和 + <strong>异步 MMI 授权模拟</strong> + 断点续传 + 校验失败注入 + 参数化时延（现在对 <code>0x0F</code> 回 NOT_SUPPORT）。</li>
+</ul>
+<h2 id="5-app-ack">5. 状态机（App 侧，由 Ack 驱动）</h2>
+<pre><code>IDLE ─REQ─▶ REQ_SENT ─(等异步授权 12B, 无固定超时; 仅 disk_full/busy 即时错)─▶ READY
+READY ─每文件(App 定序)─▶ START ─▶ SENDING[切片: 发≤17 无响应写 → 等 9B ack → 核累加和 → 推 offset]
+                                    ─切片完─▶ 下一切片 ─全完─▶ STOP ─idx++─▶ (下一文件 / 末文件)
+末文件 STOP(SUCC) ─▶ DONE_DOWNLOAD ─(设备自复位→重连)─▶ 读版本 ─▶ VERIFIED / FAILED
+</code></pre>
+<p>纪律：每切片 <strong>&lt; ~15s</strong>（UI 看门狗）；REQ 前电量/充电门控；断连走 OFFSET 查 + <code>ucIsOffset</code> 续传（attended 下 best-effort，续传起点<strong>只信设备返回 offset</strong>，别从 0 重发→会被 <code>ab+</code> 追加成超长文件强制整包重传）；<strong>STOP 丢 ack 别裸重发</strong>（会二次推进文件索引→缺文件）。</p>
+<h2 id="6">6. 用户可见行为</h2>
+<ul>
+<li>设备控制台加 <strong>DEBUG/工具屏「刷入采集固件」</strong>（不进普通用户路径）。</li>
+<li><strong>发起前门控</strong>：必须充电 + 电量≥阈值 + 亮屏；弹「全程盯着、别锁屏切后台，约 N 分钟」。</li>
+<li><strong>过程</strong>：文件 x/N、%、速率；到 REQ 授权那步提示「<strong>请在手表上确认升级</strong>」。</li>
+<li><strong>完成</strong>：「等待手表重启…」→ 自动重连 → 读版本号 → 成功/失败（失败=整包重来，attended 可接受）。</li>
+</ul>
+<h2 id="7">7. 风险点（真实包坐实后更新）</h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>现状/缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>变砖</td>
+<td><strong>已大幅收窄</strong>：BLE 永不碰 SecBL/boot；<code>flash_fw.ps1</code> 有线无条件恢复。仍<strong>强制充电门控</strong>防生效阶段掉电。</td>
+</tr>
+<tr>
+<td>~15.36s 看门狗</td>
+<td>前台亮屏 + 稳定包速，每切片 &lt;15s；无 WAKE_LOCK 先靠 attended 亮屏兜。</td>
+</tr>
+<tr>
+<td>累加和非 CRC、无签名</td>
+<td>App 逐字节复刻累加和；来源可信靠受控环境（实验室）。</td>
+</tr>
+<tr>
+<td>真机字节序未验</td>
+<td>首台表<strong>抓包核对</strong> FILE_TRANS 各帧再批量（全仓仅 1 条 golden，预留返工窗口）。</td>
+</tr>
+<tr>
+<td>大传输/耗时</td>
+<td>~19.7MB / 15–45min attended；先验 O-1（能否只推 fw.dat）。</td>
+</tr>
+<tr>
+<td>成功不可观测</td>
+<td>靠"末 STOP SUCC → 重连读版本"判成功，不靠内部事件。</td>
+</tr>
+<tr>
+<td>字库补拷=旧表字库</td>
+<td>推 ota_part 时采集跑旧表字库（视觉可能有差，功能无碍）；要视觉正确推 ota_all。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-phase-0">8. 分阶段（Phase 0 已由两轮固件侦察基本完成）</h2>
+<ul>
+<li><strong>Phase 0 · 逆向坐实</strong>——✅ <strong>基本完成</strong>（本文即产出）。剩：MTU 权威链、AMDTP 特征 UUID 上下行划分、B2A 帧头逐字段偏移（真机抓包时一并核）。</li>
+<li><strong>Phase 1 · 传输地基（Mock 可验）</strong>：下行多包分片器 + FILE_TRANS 编解码 + <code>BleClient</code> MTU 暴露/写背压 + <code>OtaTransport</code> 独占事务骨架 + <code>S7MockWatch</code> fileTrans 状态机 + commonTest（累加和/分片/断点/授权时序/校验失败/看门狗节奏）。</li>
+<li><strong>Phase 2 · 端到端（首台真机）</strong>：嵌入采集 <code>ota_all.zip</code> + attended 工具屏 + 电量门控 + <strong>首台表抓包核对字节序</strong> + 走完整刷入→重启→读版本；<strong>先做 O-1 实验</strong>（只推 fw.dat？）。</li>
+<li><strong>Phase 3 · 收尾</strong>：批量配置 SOP + explainer / handoff / quiz。</li>
+</ul>
+<h2 id="9-open-questions">9. Open Questions</h2>
+<ul>
+<li><strong>O-1（高价值实验）</strong>：能否<strong>只推 <code>fw.dat</code>（复用旧表 Res 三件套）</strong>让采集固件跑起来？若行，OTA 从 ~19.7MB/30min 降到 ~1.6MB/2min。采集 Res 与 stock 不同（<code>ResData</code> 17.8→18.1MB），但采集 fw 可能兼容旧 Res（视觉差异可接受）。<strong>首台真机第一个试。</strong></li>
+<li><strong>O-2</strong>：<code>ucZipFlag</code> 固件未消费（疑预留）——确认压缩传输不支持，App 一律推明文整文件。</li>
+<li><strong>O-3</strong>：REQ 的 MMI 授权在真机上是弹窗还是自动？授权耗时窗口？用户拒绝分支？</li>
+<li><strong>O-4</strong>：AMDTP 特征 UUID 与 notify/write 划分（真机抓包区分上下行需要）。</li>
+<li><strong>O-5</strong>：采集 <code>fw.dat</code> 交付分支（<code>dev-en-collect</code> 宏 vs <code>collect_alg</code>）与其 BLE/OTA 回归——需在采集表上验"能 OTA 回常规固件"（虽有 J-Link 兜底，反向 BLE 通道健康度仍值得确认）。</li>
+</ul>
+<hr />
+<h2 id="_1">附：溯源</h2>
+<ul>
+<li>固件真源：<code>E:\1\apollo4_watch_s7</code>（现网）/ <code>E:\1\apollo4_watch_s7_collect</code>（采集）。关键 file:line 见正文。</li>
+<li>现网 B2A 协议：<a href="../归档/s7/S7协议共识规格.md"><code>../归档/s7/S7协议共识规格.md</code></a>、<a href="../归档/s7/protocol-b2a.md"><code>../归档/s7/protocol-b2a.md</code></a> §9。</li>
+<li>侦察过程与逐条实证：见 <a href="implementation-notes.md"><code>implementation-notes.md</code></a>。</li>
+</ul></main>
+</div>
+</body>
+</html>
