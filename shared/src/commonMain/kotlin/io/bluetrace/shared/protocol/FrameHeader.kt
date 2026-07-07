@@ -30,7 +30,7 @@ data class FrameHeader(
     }
 }
 
-/** 消息类型注册表（header.msgType，§4.6）—— 与 `bluetrace_v0.proto` 对齐，v1 仅占位。 */
+/** 消息类型注册表（header.msgType，§4.6）—— 与 `bluetrace_v0.proto`(已归档 Docs/归档/自研协议线_v0/, M7 改走 B2A 扩展路线)对齐, v1 仅占位。 */
 object MsgType {
     const val HIGH_FREQ_BATCH = 0x01
     const val LOW_FREQ_FRAME = 0x02

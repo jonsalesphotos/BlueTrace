@@ -9,30 +9,22 @@
 | --- | --- | --- |
 | [架构评估_20260706.md](架构评估_20260706.md) | 全仓架构评估与演进路线（含 §0 机制速览，面向非 Android 背景） | **活**——波次A/B 已按此收官，P2 卫生项在册 |
 | [02_parser_registry_design.md](02_parser_registry_design.md) | 可注册协议架构（ProtocolProfile/Registry/ParserHost） | **R1–R3 已落码 ✅**（`shared.protocol.registry`）；R4/R5 蓝图部分仍算数 |
-| [BLE协议帧规格_开发者版.md](BLE协议帧规格_开发者版.md) | 自研协议 v0.1 帧层实现视角（布局/位图/实例包/状态机） | 草案，自研线帧层权威；冻结二选一见下 |
-| [bluetrace_v0.proto](bluetrace_v0.proto) | 自研协议 payload 机器契约 | v0.1 草案；**路径冻结勿挪**（SPEC 引用） |
-| [03_collect_protocol_design.md](03_collect_protocol_design.md) + [btcp1_draft.proto](btcp1_draft.proto) | 自研线演进稿 BTCP/1（补离线回传/会话绑定/对时） | 设计稿 v1，评审通过才并入 v0.proto |
 | [scenes.json](scenes.json) | 场景词表机器契约（与 app assets 同源） | **路径冻结勿挪勿改** |
-| [s7/](s7/) | S7 手表协议线：现网（B2A + zqdata）+ 本设备线下一代稿（protocol-zqdata-uhtp-v1，待按 UWTP 改写为采集 Profile），独立 CHANGELOG | 活——共识稿为准，分册五要素齐；调试截图/日志已归档，assets 只留示例帧脚本 |
-| assets/ | 帧规格示例脚本等 | 随所属文档 |
+| [../归档/s7/](../归档/s7/) | S7 手表协议资料库（B2A + zqdata 共识稿/分册/下一代稿，独立 CHANGELOG）——项目重新构思，随 2026-07-06 大归档整体入库 | 冻结备查；**仍是 B2A 扩展路线的协议参考真源** |
 
-## 2. 三条协议线的关系（M7 冻结怎么选）
+## 2. 协议路线（2026-07-06 口径修正）
+
+**M7 = 在现网 B2A 协议主体上添加/扩展采集能力**（不是"自研 vs UWTP 二选一"）：
 
 ```
-                      M7 = 自研 DUT 采集协议解码（唯一硬阻塞）
-                                冻结二选一（待固件评审）
-                               ┌──────────┴──────────┐
-  ① 自研线（本目录）            │                      │   ② UWTP 线（../UWTP/，跨项目标准）
-  SPEC §4 + bluetrace_v0.proto ─┘                      └─ UWTP_BLE_Protocol_Design_V0.99
-   └ 帧层实现视角：BLE协议帧规格_开发者版                  └ S7 采集 Profile 待办（§22）
-   └ 演进稿：03 BTCP/1 + btcp1_draft.proto                └ 前身 UHTP V4（历史勿用）
-
-  ③ S7 现网线（s7/，与 M7 无关、已在跑）：B2A 维护控制台 + zqdata 离线上行
-   └ 已落码：S7Console/S7Frame 等（shared.s7）；下一代重设计并入 UWTP 待办
+  主体：现网 B2A / zqdata（资料库 ../归档/s7/，S7协议共识规格 为真源）
+    └─ M7 采集扩展 = 在 B2A 命令族/数据通道上加采集会话与回传（方案待重新构思）
+  参考：UWTP V0.99（../UWTP/，跨项目思考方向——可能借用 ACK 窗口/断点续传/统一响应等设计）
+  已归档：自研 v0.1 线 → ../归档/自研协议线_v0/；s7 协议文档 → ../归档/s7/（重新构思期资料库）
 ```
 
-- **拍板前纪律**：①② 都不生成代码入库；App 侧解码接入点已就绪（02 架构 R1–R3），冻结后写一个 ProtocolProfile 注册即接入。
-- ③ 与冻结无关：现网 S7 手表控制台走 B2A（已实现 15 命令），OTA 传输层可先行（缺口=固件组升级包规范，见 [s7/completeness-audit.md](s7/completeness-audit.md) #8）。
+- App 侧接入点已就绪（02 架构 R1–R3）：新协议成稿后写一个 ProtocolProfile 注册即接入，编排层零改动。
+- SPEC §4 的 v0.1 内联事实已加"待重构思"注记，新方案成稿前仅作帧层设计素材。
 
 ## 3. 变更纪律
 

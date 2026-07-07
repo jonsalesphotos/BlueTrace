@@ -1,8 +1,19 @@
 # BlueTrace 修改记录（CHANGELOG）
 
 > 个人仓库、直接推 main（不走 PR）。按"构建轮次"组织（对应 `agent_build_prompt_vN.md`）。
-> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE 默认真实 GATT（2026-07-06 起，DEBUG 可切 Mock）；采集解码走注册式协议架构（02 设计，HRS 已可解；自研 DUT 协议待 M7 冻结）。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
+> 真源：`/SPEC.md` ＞ `prototypes/v4_android.html`。BLE 默认真实 GATT（2026-07-06 起，DEBUG 可切 Mock）；采集解码走注册式协议架构（02 设计，HRS 已可解；DUT 采集协议 = B2A 主体扩展，方案重新构思中）。高层阶段见 [`里程碑与进度.md`](里程碑与进度.md)。
 > 早期 M1–M3 基线细节另见 [`归档/构建笔记/v1_impl_notes.md`](归档/构建笔记/v1_impl_notes.md)、v3 差异见 [`归档/构建笔记/v3_design_diff.md`](归档/构建笔记/v3_design_diff.md)。
+
+---
+
+## [重构思] 协议路线口径修正 + 大归档：M7 = B2A 主体扩展 — ✅ 2026-07-07
+**用户口径修正（推翻"二选一"）**：M7 采集协议**不是**"自研 v0.1 vs UWTP 二选一"——正确路线是**在现网 B2A 协议主体上添加/扩展**采集能力；UWTP 仅思考方向（可能借用 ACK 窗口/断点续传/统一响应等部分设计）。**项目进入重新构思期**。
+- **自研 v0.1 线整体归档** → [`归档/自研协议线_v0/`](归档/自研协议线_v0/)（bluetrace_v0.proto + 12B 帧规格 md/html + BTCP/1 + btcp1_draft.proto + 示例脚本，附归档 README 说明口径）。
+- **s7 协议文档随用户大归档动作入库** → [`归档/s7/`](归档/s7/)（共识稿/分册/下一代稿/CHANGELOG 全套；**仍是 B2A 扩展路线的协议参考真源**，重新构思期作资料库；文档有需要会继续生成）。
+- **SPEC §4 加口径注记**（v0.1 方案待重构思，proto 引用改归档路径 ×3）；代码注释 5 处随迁改道（4 处 s7 路径 + FrameHeader）；编译绿。
+- CHANGELOG/context/里程碑/两级 README/UWTP 两文档 全线引用改道；UWTP V0.99 html 重生成；死链复扫活区清零。
+- **architecture/ 现仅 4 项**：README（导航+新路线图）、架构评估（活）、02 注册式架构（R4/R5 蓝图，协议无关故保留）、scenes.json（机器契约）。
+- **下一步 = 重新构思**：以 `归档/s7/S7协议共识规格.md` 为基线设计「B2A 采集扩展」方案（新文档按需生成）。
 
 ---
 
@@ -83,10 +94,10 @@
 ---
 
 ## [文档] s7 协议分册补齐五要素 + 工作底稿归档（第 22 轮） — ✅ 2026-07-06
-提交：`fd14878`。对照协议文档标准五要素（Frame 表 / bit-level ASCII 图 / 逐字节 payload / 实例包 decode / 状态机）审计 [`architecture/s7/`](architecture/s7/)：共识稿达标，两份分册补缺——
-- **[`protocol-zqdata.md`](architecture/s7/protocol-zqdata.md)**：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据分界可视化）、§3.8 **实例包 decode**（HR 起帧 16B 全注解 + 212B 数据包帧0/帧1 逐字段；脚本实算 CRC + 金帧 0x462D 自校验；数值为构造演示值，待采集固件手表实录替换）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
-- **[`protocol-b2a.md`](architecture/s7/protocol-b2a.md)**：§2 增帧信封 bit-level 标尺图；§9.1 OTA 状态机扩为 ASCII 图（REQ→READY→START→TRANS→END + 60s 超时/STOP/ERROR 回边 + OFFSET 断点续传）。
-- **目录归档**：`plan.md` / `review-report.md` / `_raw/`（10 份工作底稿）→ `归档/s7协议工作底稿/`；保留活文档 command-status（实现追踪）与 completeness-audit（缺口清单）。两份 html 重生成。明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 22 轮。
+提交：`fd14878`。对照协议文档标准五要素（Frame 表 / bit-level ASCII 图 / 逐字节 payload / 实例包 decode / 状态机）审计 [`归档/s7/`](归档/s7/)：共识稿达标，两份分册补缺——
+- **[`protocol-zqdata.md`](归档/s7/protocol-zqdata.md)**：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据分界可视化）、§3.8 **实例包 decode**（HR 起帧 16B 全注解 + 212B 数据包帧0/帧1 逐字段；脚本实算 CRC + 金帧 0x462D 自校验；数值为构造演示值，待采集固件手表实录替换）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
+- **[`protocol-b2a.md`](归档/s7/protocol-b2a.md)**：§2 增帧信封 bit-level 标尺图；§9.1 OTA 状态机扩为 ASCII 图（REQ→READY→START→TRANS→END + 60s 超时/STOP/ERROR 回边 + OFFSET 断点续传）。
+- **目录归档**：`plan.md` / `review-report.md` / `_raw/`（10 份工作底稿）→ `归档/s7协议工作底稿/`；保留活文档 command-status（实现追踪）与 completeness-audit（缺口清单）。两份 html 重生成。明细见 [`归档/s7/CHANGELOG.md`](归档/s7/CHANGELOG.md) 第 22 轮。
 
 ---
 
@@ -134,7 +145,7 @@
 ---
 
 ## [文档] ZQDATA·UHTP V1 协议重设计（离线优先，设计稿） — ✅ 2026-07-06
-[`architecture/s7/protocol-zqdata-uhtp-v1.{md,html}`](architecture/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](architecture/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（[`UWTP/UHTP_BLE_Protocol_Design_V4.md`](UWTP/UHTP_BLE_Protocol_Design_V4.md)，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输；已归拢至 `Docs/UWTP/`）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](architecture/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`architecture/s7/CHANGELOG.md`](architecture/s7/CHANGELOG.md) 第 21 轮。
+[`归档/s7/protocol-zqdata-uhtp-v1.{md,html}`](归档/s7/protocol-zqdata-uhtp-v1.md) + 契约草案 [`zqdata_uhtp_v1_draft.proto`](归档/s7/zqdata_uhtp_v1_draft.proto)：以 UHTP V4（[`UWTP/UHTP_BLE_Protocol_Design_V4.md`](UWTP/UHTP_BLE_Protocol_Design_V4.md)，5B 头/事务域状态机/Protobuf 协商/Report TLV/offset 传输；已归拢至 `Docs/UWTP/`）为基线的 ZQDATA 重设计。**范围**：离线数据回传（主体，FILE 域深化：目录分页 + 窗口 ACK 授信 + 断点续传 + 整档 CRC32 + 显式删除）、在线数据控制透传（新增 TUNNEL 域，汇顶字节原样进出）、算法结果上传开关（ALGO_CTRL + REPORT_TLV）、个人信息写读（USER_PROFILE）；HELLO 能力协商 + NTP 式对时 + content_format 注册表（现网格式原样回传，推荐迁移 UOF1 统一离线格式）。legacy 共存：0xBB/0x1? 首字节分流 + HELLO 探测回落。示例包 protobuf wire+CRC32 实算（[`assets/gen_zqdata_uhtp_examples.py`](归档/s7/assets/gen_zqdata_uhtp_examples.py)）。状态：设计稿待固件评审冻结（开放问题 §13）。s7 线明细见 [`归档/s7/CHANGELOG.md`](归档/s7/CHANGELOG.md) 第 21 轮。
 
 ---
 
@@ -175,7 +186,7 @@
 ---
 
 ## [合并] feat/s7-device-console → main + Mock/真实可切换绑定 — ✅ 2026-07-06
-提交：`eb47c00`（本地合并）+ `ce6a37a`（与远端 PR #2/#3 历史汇合，零内容差异）。18 提交入主线：**真实 BLE**（AndroidBleClient v1）、**S7 手表控制台**（对时/设备信息/写用户/固件日志拉取 → Download/BlueTrace/logs + 查看页）、连接页重做（共用过滤条/RSSI 滑块/支持置顶/扫描权限门）、B2A+zqdata 协议规格随分支带入 `architecture/s7/`（protocol-b2a、protocol-zqdata、子 CHANGELOG）。
+提交：`eb47c00`（本地合并）+ `ce6a37a`（与远端 PR #2/#3 历史汇合，零内容差异）。18 提交入主线：**真实 BLE**（AndroidBleClient v1）、**S7 手表控制台**（对时/设备信息/写用户/固件日志拉取 → Download/BlueTrace/logs + 查看页）、连接页重做（共用过滤条/RSSI 滑块/支持置顶/扫描权限门）、B2A+zqdata 协议规格随分支带入 `归档/s7/`（protocol-b2a、protocol-zqdata、子 CHANGELOG）。
 - **可切换绑定（审查 s7#1 落地）**：`BleBackendSwitch`（SharedPreferences 同步读，DI 启动时决定）默认**真实 GATT**；设置页新增 DEBUG 行「使用 Mock BLE」（重启生效）——Mock 演示/UI 回归链路不再因合并失效。
 - 冲突解决：AppModule 用可切换绑定取代两侧硬绑定；MockBleClient 保留双方（接口别名 + S7 模拟段）。
 - 口径：`SampleDecoder` 仍 Mock——真实模式下采集只落 raw HEX（source of truth）+ unparseable 告警，解码待 M7 协议冻结。
@@ -214,12 +225,12 @@
 ---
 
 ## [文档] S7 手表协议共识规格（B2A + 采集固件专用协议） — ✅ 2026-07-06
-[`architecture/s7/S7协议共识规格.{md,html}`](architecture/s7/S7协议共识规格.md)：跨项目共识稿（固件双仓 ↔ BlueTrace），**全部字段出自固件代码**并标注 file:line——`E:\1\apollo4_watch_s7`（开发仓，B2A 基线）+ `E:\1\apollo4_watch_s7_collect`（采集仓）。覆盖：GATT 服务地图（AMDTP FFE0 / GH3X2X 190E ↔ ZQDATA 45121540 互斥切换 `svcSwFlag[0]`、开发仓新 zqdata 模块 0x0A10 段）；B2A 信封逐字节/逐位（0xBB 头 + 命令头 + CRC16-CCITT-FALSE + 多包）；**采集仓新增协议**：DC 采集会话（TEST 0x10/0x11/0x12，IDLE/COLL/READY/TRANS 状态机 + EOF 次序保证）、`ecg_raw.dat` v2 文件格式（32B 头 + 8B 帧头流 + ACC 段回填）、ZQDATA 上行（40B→28B 重打包、HR/SpO2 偏移差异、18B gsensor、212/240B 包核算、228B 上限、svcSwFlag[6] 互斥）；7 组示例包 decode（含真机产测金帧 0x462D + 实算帧，脚本 [`architecture/s7/assets/gen_s7_protocol_examples.py`](architecture/s7/assets/gen_s7_protocol_examples.py) 带金帧自校验）；错误处理汇总 + App 侧实现共识 + 双固件差异表（依据两仓 merge-base `c6f87d36` 的 git diff 实证）。4 张 SVG + ASCII 位图。深度参考指向 s7 分支 protocol-b2a/zqdata（未合 main）。
+[`归档/s7/S7协议共识规格.{md,html}`](归档/s7/S7协议共识规格.md)：跨项目共识稿（固件双仓 ↔ BlueTrace），**全部字段出自固件代码**并标注 file:line——`E:\1\apollo4_watch_s7`（开发仓，B2A 基线）+ `E:\1\apollo4_watch_s7_collect`（采集仓）。覆盖：GATT 服务地图（AMDTP FFE0 / GH3X2X 190E ↔ ZQDATA 45121540 互斥切换 `svcSwFlag[0]`、开发仓新 zqdata 模块 0x0A10 段）；B2A 信封逐字节/逐位（0xBB 头 + 命令头 + CRC16-CCITT-FALSE + 多包）；**采集仓新增协议**：DC 采集会话（TEST 0x10/0x11/0x12，IDLE/COLL/READY/TRANS 状态机 + EOF 次序保证）、`ecg_raw.dat` v2 文件格式（32B 头 + 8B 帧头流 + ACC 段回填）、ZQDATA 上行（40B→28B 重打包、HR/SpO2 偏移差异、18B gsensor、212/240B 包核算、228B 上限、svcSwFlag[6] 互斥）；7 组示例包 decode（含真机产测金帧 0x462D + 实算帧，脚本 [`归档/s7/assets/gen_s7_protocol_examples.py`](归档/s7/assets/gen_s7_protocol_examples.py) 带金帧自校验）；错误处理汇总 + App 侧实现共识 + 双固件差异表（依据两仓 merge-base `c6f87d36` 的 git diff 实证）。4 张 SVG + ASCII 位图。深度参考指向 s7 分支 protocol-b2a/zqdata（未合 main）。
 
 ---
 
 ## [文档] BLE 协议规格开发者版（帧布局/位图/实例包） — ✅ 2026-07-06
-[`architecture/BLE协议帧规格_开发者版.{md,html}`](architecture/BLE协议帧规格_开发者版.md)：把 SPEC §4 + `bluetrace_v0.proto` 重排成实现视角——12B 帧头逐字节/逐位布局（表 + ASCII + 5 张 SVG）、TLV（T=msgType/L=payloadLen/V=protobuf）注册表、4 个**实算并自回验**的示例包 decode（HighFreqBatch 逐字节、Command→一包双帧 Ack+DeviceState、DeviceCapability 分片×3 重组、Mock 格式）、解帧/重组/控制闭环/pktSeq resync 状态机、错误处理汇总。生成脚本存档 [`architecture/assets/gen_frame_examples.py`](architecture/assets/gen_frame_examples.py)（protobuf wire 编码 + CRC-8 poly 0x07/init 0x00 MSB-first 实算，反射约定标注为待冻结项）。**内容零新增规格**，冲突时以 SPEC §4 / `.proto` 为准。
+[`归档/自研协议线_v0/BLE协议帧规格_开发者版.{md,html}`](归档/自研协议线_v0/BLE协议帧规格_开发者版.md)：把 SPEC §4 + `bluetrace_v0.proto` 重排成实现视角——12B 帧头逐字节/逐位布局（表 + ASCII + 5 张 SVG）、TLV（T=msgType/L=payloadLen/V=protobuf）注册表、4 个**实算并自回验**的示例包 decode（HighFreqBatch 逐字节、Command→一包双帧 Ack+DeviceState、DeviceCapability 分片×3 重组、Mock 格式）、解帧/重组/控制闭环/pktSeq resync 状态机、错误处理汇总。生成脚本存档 [`归档/自研协议线_v0/gen_frame_examples.py`](归档/自研协议线_v0/gen_frame_examples.py)（protobuf wire 编码 + CRC-8 poly 0x07/init 0x00 MSB-first 实算，反射约定标注为待冻结项）。**内容零新增规格**，冲突时以 SPEC §4 / `.proto` 为准。
 
 ---
 

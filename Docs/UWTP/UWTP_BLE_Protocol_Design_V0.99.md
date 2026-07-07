@@ -4,7 +4,7 @@
 > **r2（2026-07-06）**：按完整审查意见修订，十项修改全部采纳（修订记录 §23）——核心是**时间戳收敛到只属于在线数据**、FILE 域去采样时间语义、HELLO 加 registry_hash 一致性校验、REPORT record 改 u24 rel_ms、OTA 补 WriteNoRsp 节流。
 > **状态**：**V1.0 RC 候选**。双端按本文档共识开发（**静态注册表制，不做动态能力解析**）；联调通过后定稿 V1.0，线上 `protocol_version = 1`。
 > 机器可读契约：[`uwtp_v0.99_draft.proto`](uwtp_v0.99_draft.proto)；示例帧全部脚本实算（[`assets/gen_uwtp_examples.py`](assets/gen_uwtp_examples.py)，protobuf wire + CRC-32/SHA-256，len 自洽断言）。
-> S7 采集剖面：现有 [`../architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md) 将按本文改写为「S7 采集 Profile」（§22）。
+> S7 采集剖面：现有 [`../归档/s7/protocol-zqdata-uhtp-v1.md`](../归档/s7/protocol-zqdata-uhtp-v1.md) 将按本文改写为「S7 采集 Profile」（§22）。
 
 ---
 
@@ -556,7 +556,7 @@ E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
 
 ## 22. V1.0 冻结前待办
 
-1. **S7 采集 Profile**：把 [`../architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md) 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、`dc/`/`log/` 文件命名约定、tunnel_id、profile_id）、S7 GATT 绑定、legacy 双栈迁移；UOF1 文件格式（含时间定义）随 Profile 定稿。
+1. **S7 采集 Profile**：把 [`../归档/s7/protocol-zqdata-uhtp-v1.md`](../归档/s7/protocol-zqdata-uhtp-v1.md) 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、`dc/`/`log/` 文件命名约定、tunnel_id、profile_id）、S7 GATT 绑定、legacy 双栈迁移；UOF1 文件格式（含时间定义）随 Profile 定稿。
 2. 固件评审确认点：OTA 窗口 ACK + 节流参数默认值；文件命名规则定稿。
 3. 双端金帧联调 → `protocol_version=1` + `registry_hash` 定版 → 冻结 V1.0。
 
@@ -582,4 +582,4 @@ E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
 - 前身：[`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md)（骨架来源）
 - 契约草案：[`uwtp_v0.99_draft.proto`](uwtp_v0.99_draft.proto)
 - 示例脚本：[`assets/gen_uwtp_examples.py`](assets/gen_uwtp_examples.py)
-- 现网协议（迁移对象）：[`../architecture/s7/S7协议共识规格.md`](../architecture/s7/S7协议共识规格.md)；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型
+- 现网协议（迁移对象）：[`../归档/s7/S7协议共识规格.md`](../归档/s7/S7协议共识规格.md)；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型

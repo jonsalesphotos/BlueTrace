@@ -663,4 +663,4 @@ HEARTBEAT (13B): 10 01 06 70 08 | 08 90 1C 10 8C 1F 18 01   uptime=3600s, batt=3
 - 机器可读契约：[`zqdata_uhtp_v1_draft.proto`](zqdata_uhtp_v1_draft.proto)（本文所有 Protobuf 消息的权威定义）
 - 示例生成脚本：[`assets/gen_zqdata_uhtp_examples.py`](assets/gen_zqdata_uhtp_examples.py)
 - 传输层落点：开发仓 `product/apollo_eiot/zqdata/`（新 zqdata 模块：环 + 双线程 + txReady，正好是本协议的收发骨架）
-- BlueTrace 侧接入：[`../02_parser_registry_design.md`](../02_parser_registry_design.md)（Profile/解析器注册架构）；相关草案 [`../03_collect_protocol_design.md`](../03_collect_protocol_design.md)（BTCP/1，其对时/credit/离线镜像思想已并入本文 §4.3/§6）
+- BlueTrace 侧接入：[`../02_parser_registry_design.md`](../../architecture/02_parser_registry_design.md)（Profile/解析器注册架构）；相关草案 [`../03_collect_protocol_design.md`](../自研协议线_v0/03_collect_protocol_design.md)（BTCP/1，其对时/credit/离线镜像思想已并入本文 §4.3/§6）

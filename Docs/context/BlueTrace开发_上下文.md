@@ -18,10 +18,10 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 **已合并（2026-07-06，`eb47c00` + 远端 PR #2/#3 汇合 `ce6a37a`）：原分支 `feat/s7-device-console`，18 提交**
 - 合并时按审查 s7#1 落地 **Mock/真实可切换绑定**：`BleBackendSwitch` 默认真实 GATT，设置页 DEBUG 行「使用 Mock BLE」切换（重启生效）。
 - **真实 BLE + S7 手表控制台**：设备维护(DUT)从占位变实功能——扫描/连接页重做（共用过滤条、RSSI 滑块、支持设备置顶、扫描权限门含定位）、控制台头卡断开↔重连、自定义对时（任意时间+时区，测跨时区/过零点）、设备固件日志拉取 → `Download/BlueTrace/logs`（MediaStore）+ 应用内查看页。
-- **协议规格文档**：[`architecture/s7/`](../architecture/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
+- **协议规格文档**：[`归档/s7/`](../归档/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
 
 **阻塞**
-- M7（P5 真实 DUT 采集协议解码）：[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto) 仍 v0.1 草案，待与固件端冻结。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
+- M7（P5 真实 DUT 采集协议解码）：**2026-07-06 口径修正——不是"自研 vs UWTP 二选一"，而是在现网 B2A 主体上添加/扩展采集能力**（UWTP 仅思考方向、可能借用部分设计）；自研 v0.1 线整体归档 [`归档/自研协议线_v0/`](../归档/自研协议线_v0/)，**扩展方案待重新构思**。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
 
 ## 关键决策（节选，全表见 SPEC 与各设计文档）
 
@@ -54,8 +54,8 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 ## 相关
 
 - 真源：[`/SPEC.md`](../../SPEC.md)（规格/协议/工程口径）、[`prototypes/v4_android.html`](../prototypes/v4_android.html)（37 屏 UI）
-- 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、[`architecture/s7/CHANGELOG.md`](../architecture/s7/CHANGELOG.md)（s7 协议线，随合并已入 main）。Docs 已三轮深度整理（2026-07-06：s7 五要素/architecture 导航 README/全库死链清零+孤儿截图归档），目录地图见 [`../README.md`](../README.md) 与 [`../architecture/README.md`](../architecture/README.md)
-- 架构：[`architecture/bluetrace_v0.proto`](../architecture/bluetrace_v0.proto)、[`architecture/BLE协议帧规格_开发者版.md`](../architecture/BLE协议帧规格_开发者版.md)（协议开发者版：帧布局/位图/实例包 decode/状态机，2026-07-06）、[`architecture/02_parser_registry_design.md`](../architecture/02_parser_registry_design.md)（协议注册架构）、[`architecture/03_collect_protocol_design.md`](../architecture/03_collect_protocol_design.md) + `btcp1_draft.proto`（自研采集协议候选；2026-07-06 起 architecture-v2 已并入 architecture/，讨论区壳在 `归档/架构讨论区_v2/`）
+- 进度/变更：[`里程碑与进度.md`](../里程碑与进度.md)、[`CHANGELOG.md`](../CHANGELOG.md)、[`归档/s7/CHANGELOG.md`](../归档/s7/CHANGELOG.md)（s7 协议线，随合并已入 main）。Docs 已三轮深度整理（2026-07-06：s7 五要素/architecture 导航 README/全库死链清零+孤儿截图归档），目录地图见 [`../README.md`](../README.md) 与 [`../architecture/README.md`](../architecture/README.md)
+- 架构：[`architecture/README.md`](../architecture/README.md)（目录导航+协议路线）、[`architecture/02_parser_registry_design.md`](../architecture/02_parser_registry_design.md)（协议注册架构）；自研 v0.1 线已归档 `归档/自研协议线_v0/`
 - 设计验收：[`设计审查报告_v6.md`](../设计/设计审查报告_v6.md)、[`设计稿与真机对比_v2.html`](../设计/设计稿与真机对比_v2.html)
 - 测试：`shared`（commonTest/jvmTest 共 108 例，含注册表/连接登记线）、`app/src/test`；真机 M2101K9C / Android 13
-- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`architecture/s7/S7协议共识规格.md`](../architecture/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）；**协议新基线 = UWTP V0.99-r2**（V1.0 RC 候选，完整审查 10/10 采纳；**家族独立目录 [`Docs/UWTP/`](../UWTP/README.md)**）：[`UWTP/UWTP_BLE_Protocol_Design_V0.99.md`](../UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + [`UWTP/uwtp_v0.99_draft.proto`](../UWTP/uwtp_v0.99_draft.proto)（2026-07-06，决策 D-1~D-18 + 修订记录 §23 在册；时间戳只属于在线数据、HELLO 带 profile_id/registry_hash 同表校验、OTA 对齐 MCUmgr/SMP + WriteNoRsp 节流）；旧稿 [`architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md)（基于 UHTP V4）**待改写为「S7 采集 Profile」**（UWTP §22 待办 1）
+- 协议上游：固件侧分析在 `E:\1\apollo4_watch_s7\Docs\06_zqdata服务与上行协议\`；**跨项目共识稿**（B2A + 采集固件 DC/ZQDATA 协议，全字段 file:line 溯源固件代码）：[`归档/s7/S7协议共识规格.md`](../归档/s7/S7协议共识规格.md)（main 上，2026-07-06；采集固件真源 = `E:\1\apollo4_watch_s7_collect`）；**协议新基线 = UWTP V0.99-r2**（V1.0 RC 候选，完整审查 10/10 采纳；**家族独立目录 [`Docs/UWTP/`](../UWTP/README.md)**）：[`UWTP/UWTP_BLE_Protocol_Design_V0.99.md`](../UWTP/UWTP_BLE_Protocol_Design_V0.99.md) + [`UWTP/uwtp_v0.99_draft.proto`](../UWTP/uwtp_v0.99_draft.proto)（2026-07-06，决策 D-1~D-18 + 修订记录 §23 在册；时间戳只属于在线数据、HELLO 带 profile_id/registry_hash 同表校验、OTA 对齐 MCUmgr/SMP + WriteNoRsp 节流）；旧稿 [`归档/s7/protocol-zqdata-uhtp-v1.md`](../归档/s7/protocol-zqdata-uhtp-v1.md)（基于 UHTP V4）**待改写为「S7 采集 Profile」**（UWTP §22 待办 1）

@@ -14,8 +14,8 @@
 
 ## 关联（目录外）
 
-- **S7 采集 Profile**（待改写）：[`../architecture/s7/protocol-zqdata-uhtp-v1.md`](../architecture/s7/protocol-zqdata-uhtp-v1.md)——基于前身 UHTP V4 的旧稿，将按 V0.99 §22 待办 1 收敛为一页 Profile（选域 + 填注册表 + S7 GATT 绑定 + legacy 双栈迁移）。
-- **现网协议（迁移对象）**：[`../architecture/s7/S7协议共识规格.md`](../architecture/s7/S7协议共识规格.md)（B2A + 采集固件 DC/ZQDATA，全字段溯源固件代码）。
+- **S7 采集 Profile**（待改写）：[`../归档/s7/protocol-zqdata-uhtp-v1.md`](../归档/s7/protocol-zqdata-uhtp-v1.md)——基于前身 UHTP V4 的旧稿，将按 V0.99 §22 待办 1 收敛为一页 Profile（选域 + 填注册表 + S7 GATT 绑定 + legacy 双栈迁移）。
+- **现网协议（迁移对象）**：[`../归档/s7/S7协议共识规格.md`](../归档/s7/S7协议共识规格.md)（B2A + 采集固件 DC/ZQDATA，全字段溯源固件代码）。
 - 参照系：Zephyr MCUmgr/SMP img_mgmt（OTA 语义对齐，见正文 §14.6 映射表）。
 
 ## 演进路线

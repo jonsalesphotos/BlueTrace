@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UWTP 协议设计 V0.99-r2</title>
+<title>UWTP 统一可穿戴传输协议 · 设计 V0.99-r2（V1.0 RC 候选）</title>
 <style>
 :root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
         --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
@@ -146,7 +146,7 @@ strong { font-weight:600; }
 <strong>r2（2026-07-06）</strong>：按完整审查意见修订，十项修改全部采纳（修订记录 §23）——核心是<strong>时间戳收敛到只属于在线数据</strong>、FILE 域去采样时间语义、HELLO 加 registry_hash 一致性校验、REPORT record 改 u24 rel_ms、OTA 补 WriteNoRsp 节流。
 <strong>状态</strong>：<strong>V1.0 RC 候选</strong>。双端按本文档共识开发（<strong>静态注册表制，不做动态能力解析</strong>）；联调通过后定稿 V1.0，线上 <code>protocol_version = 1</code>。
 机器可读契约：<a href="uwtp_v0.99_draft.proto"><code>uwtp_v0.99_draft.proto</code></a>；示例帧全部脚本实算（<a href="assets/gen_uwtp_examples.py"><code>assets/gen_uwtp_examples.py</code></a>，protobuf wire + CRC-32/SHA-256，len 自洽断言）。
-S7 采集剖面：现有 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"><code>../architecture/s7/protocol-zqdata-uhtp-v1.md</code></a> 将按本文改写为「S7 采集 Profile」（§22）。</p>
+S7 采集剖面：现有 <a href="../归档/s7/protocol-zqdata-uhtp-v1.md"><code>../归档/s7/protocol-zqdata-uhtp-v1.md</code></a> 将按本文改写为「S7 采集 Profile」（§22）。</p>
 </blockquote>
 <hr />
 <h2 id="0">0. 总览</h2>
@@ -1136,7 +1136,7 @@ E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
 </table>
 <h2 id="22-v10">22. V1.0 冻结前待办</h2>
 <ol>
-<li><strong>S7 采集 Profile</strong>：把 <a href="../architecture/s7/protocol-zqdata-uhtp-v1.md"><code>../architecture/s7/protocol-zqdata-uhtp-v1.md</code></a> 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、<code>dc/</code>/<code>log/</code> 文件命名约定、tunnel_id、profile_id）、S7 GATT 绑定、legacy 双栈迁移；UOF1 文件格式（含时间定义）随 Profile 定稿。</li>
+<li><strong>S7 采集 Profile</strong>：把 <a href="../归档/s7/protocol-zqdata-uhtp-v1.md"><code>../归档/s7/protocol-zqdata-uhtp-v1.md</code></a> 改写为一页 Profile——选域（CTRL/ALGO/FILE/TUNNEL）、填注册表（algo_id、<code>dc/</code>/<code>log/</code> 文件命名约定、tunnel_id、profile_id）、S7 GATT 绑定、legacy 双栈迁移；UOF1 文件格式（含时间定义）随 Profile 定稿。</li>
 <li>固件评审确认点：OTA 窗口 ACK + 节流参数默认值；文件命名规则定稿。</li>
 <li>双端金帧联调 → <code>protocol_version=1</code> + <code>registry_hash</code> 定版 → 冻结 V1.0。</li>
 </ol>
@@ -1208,7 +1208,7 @@ E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
 <li>前身：<a href="UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（骨架来源）</li>
 <li>契约草案：<a href="uwtp_v0.99_draft.proto"><code>uwtp_v0.99_draft.proto</code></a></li>
 <li>示例脚本：<a href="assets/gen_uwtp_examples.py"><code>assets/gen_uwtp_examples.py</code></a></li>
-<li>现网协议（迁移对象）：<a href="../architecture/s7/S7协议共识规格.md"><code>../architecture/s7/S7协议共识规格.md</code></a>；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型</li>
+<li>现网协议（迁移对象）：<a href="../归档/s7/S7协议共识规格.md"><code>../归档/s7/S7协议共识规格.md</code></a>；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型</li>
 </ul></main>
 </div>
 </body>
