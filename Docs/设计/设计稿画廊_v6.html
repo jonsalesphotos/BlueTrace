@@ -49,11 +49,11 @@
     <span class="chip"><b>46</b> 屏</span>
     <span class="chip">已排除「不实现」<b>5</b> 屏</span>
     <span class="chip"><span style="color:var(--tertiary)">●</span> 紫标 = 内容超框已向下加长</span>
-    <span class="chip">源 <b>screenshots_v6/</b></span>
+    <span class="chip">源 <b>设计稿画廊_v6_files/</b></span>
   </div>
 </header>
 <main id="app"></main>
-<footer>映射详见 <code>assets/screenshots_v6/design_index.md</code>。</footer>
+<footer>映射详见 <code>设计稿画廊_v6_files/design_index.md</code>。</footer>
 <script>
 const DATA = [
   {g:"主框架 · 三 Tab",  items:[
@@ -133,7 +133,7 @@ for (const sec of DATA){
   s.appendChild(h);
   const grid = document.createElement('div'); grid.className='grid';
   for (const it of sec.items){
-    const src = 'assets/screenshots_v6/design_' + it.n + '.png';
+    const src = '设计稿画廊_v6_files/design_' + it.n + '.png';
     const card = document.createElement('div'); card.className = 'card' + (it.tall?' tall':'');
     card.innerHTML =
       '<a class="shot" href="'+src+'" target="_blank"><img loading="lazy" src="'+src+'" alt="'+it.l+'"></a>'+

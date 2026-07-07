@@ -15,11 +15,11 @@ Docs/
 ├── 真机修复prompt_复用.md        ← 真机发现问题 → 让 agent 修复的复用模板
 ├── prototypes/
 │   └── v4_android.html           ← 当前 UI 真源（勿改名：全仓引用）
-├── 设计/                         ← 设计验收三件套（资源随包：assets/screenshots_v6 + brand）
+├── 设计/                         ← 设计验收三件套（每个 html 配独立 _files 资源夹）
 │   ├── 设计审查报告_v6.md        ← 46 屏设计审查（色彩/副标/组件一致性）
-│   ├── 设计稿画廊_v6.html        ← V4 设计稿截图集（浏览器打开）
-│   ├── 设计稿与真机对比_v2.html  ← 设计稿 ↔ 真机 A/B 并排对比（浏览器打开）
-│   └── assets/                   ← screenshots_v6（三件套源图）· brand（图标/首屏源图）
+│   ├── 设计稿画廊_v6.html + _files/       ← V4 设计稿截图集（46 屏 + 映射索引）
+│   ├── 设计稿与真机对比_v2.html + _files/ ← 设计稿 ↔ 真机 A/B 并排对比（design×6 + device×7）
+│   └── brand/                    ← 图标/首屏源图（品牌资产，不属于单个 html）
 ├── UWTP/                         ← UWTP 统一可穿戴传输协议（跨项目标准，独立目录）
 │   ├── README.md                 ← 家族索引与演进路线
 │   ├── UWTP_BLE_Protocol_Design_V0.99.{md,html} + uwtp_v0.99_draft.proto ← 当前基线（冻结候选）
