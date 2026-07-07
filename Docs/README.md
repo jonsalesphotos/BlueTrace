@@ -25,11 +25,6 @@ Docs/
 │   ├── UWTP_BLE_Protocol_Design_V0.99.{md,html} + uwtp_v0.99_draft.proto ← 当前基线（冻结候选）
 │   ├── UHTP_BLE_Protocol_Design_V4.md ← 前身（历史，勿作基线）
 │   └── assets/gen_uwtp_examples.py    ← 示例帧生成脚本
-├── architecture/                 ← 唯一架构目录（v2 已并入）
-│   ├── README.md                 ← 架构目录导航：文档角色 + 三线协议关系（先读）
-│   ├── 架构评估_20260706.{md,html} ← 架构评估与演进路线（波次A/B 依据，P2 项在册）
-│   ├── 02_parser_registry_design.md ← 可注册协议架构（R1–R3 已落码，R4/R5 蓝图）
-│   ├── scenes.json               ← 场景词表（与 app assets 同源，勿改路径）
 ├── 真机证据/                     ← 真机回归/冒烟证据集（regress_20260706、waveB_20260706；CHANGELOG 引用）
 ├── 归档/                         ← 唯一历史桶（冻结不维护，仅考古）
 │   ├── 构建prompt/               ← agent_build_prompt_v1–v7（各轮构建输入）
@@ -38,6 +33,7 @@ Docs/
 │   ├── 历史原型/                 ← v1–v3 原型 HTML
 │   ├── 历史规格_v1-v3/           ← 原 legacy/（REQUIREMENTS/PRD/旧协议/设计系统等）
 │   ├── s7协议工作底稿/           ← s7 协议线过程件（plan/review/_raw，2026-07-06 归档）
+│   ├── 架构评估_20260706.{md,html} · 02_parser_registry_design.md · scenes.json（旧镜像）← 2026-07-07 architecture 目录消灭时入库
 │   ├── 自研协议线_v0/            ← 12B 信封自研方案整线（口径修正后归档：M7 改走 B2A 扩展）
 │   ├── s7/                       ← S7 协议资料库（B2A/zqdata 共识稿+分册+下一代稿；重新构思期整体入库，仍是协议参考真源）
 │   ├── 历史截图/                 ← 无活引用的旧截图（screenshots v4-v5 轮、device_v5/v6/v7、pic 参考图）
@@ -59,7 +55,7 @@ Docs/
 | 自研 DUT 协议（App↔固件） | [`归档/自研协议线_v0/bluetrace_v0.proto`](归档/自研协议线_v0/bluetrace_v0.proto) + [`归档/自研协议线_v0/BLE协议帧规格_开发者版.md`](归档/自研协议线_v0/BLE协议帧规格_开发者版.md) + [`归档/自研协议线_v0/03_collect_protocol_design.md`](归档/自研协议线_v0/03_collect_protocol_design.md) |
 | **UWTP 传输协议（跨项目标准）** | [`UWTP/`](UWTP/README.md)（V0.99 冻结候选为准；前身 UHTP V4 同目录） |
 | S7 手表协议（B2A / zqdata 现网 + Profile） | [`归档/s7/`](归档/s7/)（共识稿为准；protocol-zqdata-uhtp-v1 待按 UWTP V0.99 改写为 S7 采集 Profile） |
-| M7 协议接入怎么做 | [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md)（可注册协议架构） |
+| M7 协议接入怎么做 | 代码 `shared.protocol.registry`（已落码）+ 设计稿 [`归档/02_parser_registry_design.md`](归档/02_parser_registry_design.md) |
 | 真机用出问题了要修 | [`真机修复prompt_复用.md`](真机修复prompt_复用.md)（填【问题】模板） |
 | 历史决策来龙去脉 | [`归档/`](归档/)（唯一历史桶，口径以 SPEC 为准） |
 
@@ -67,6 +63,6 @@ Docs/
 
 - 改 UI/交互 → 只动 `prototypes/v4_android.html`；改需求/协议/工程口径 → 只动 `/SPEC.md`。
 - 每轮实质性改动收尾 → 记 `CHANGELOG.md`；任务线推进 → 更新 `context/` 上下文文档（见全局 skill docs-convention）。
-- 机器契约与代码同源文件（`bluetrace_v0.proto`、`scenes.json`、`v4_android.html`）**路径冻结勿动**；`CHANGELOG.md`/`README.md` 保留英文名（惯例）；其余新文档一律中文命名。
+- 机器契约：场景词表运行真源 = `app/src/main/assets/scenes.json`（Docs 旧镜像已归档）；`prototypes/v4_android.html` **路径冻结勿动**；`CHANGELOG.md`/`README.md` 保留英文名（惯例）；其余新文档一律中文命名。
 - 历史文档只进 `归档/`（唯一历史桶，冻结不维护）；不再新建 legacy/_build_notes 类平行历史目录。
 - 原型是静态网页，浏览器直接打开；需要图片时对手机框截图——**原型是图片来源，不要把静态截图当主版本**。

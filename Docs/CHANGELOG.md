@@ -6,6 +6,15 @@
 
 ---
 
+## [重构思] architecture 目录消灭：全部入归档 — ✅ 2026-07-07
+重新构思期收尾动作，`Docs/architecture/` 目录不复存在：
+- `架构评估_20260706.{md,html}`（波次A/B 已收官，P2 残项清单在其正文与 v10 条目）、`02_parser_registry_design.md`（R1–R3 已落码，真相在 `shared.protocol.registry`；R4/R5 要点在 context）→ `归档/`。
+- `scenes.json`：**核实发现 Docs 份与 `app/src/main/assets/scenes.json` 已漂移（app 版为准）**——Docs 旧镜像归档，README 冻结句改述"运行真源 = app assets"。
+- `architecture/README.md` 随目录消灭（协议路线口径已并入 context 与归档 README）。
+- Docs 顶层现仅 6 文件 + 6 目录（context/prototypes/设计/真机证据/UWTP/归档）；全线引用改道，死链复扫活区清零。
+
+---
+
 ## [重构思] 协议路线口径修正 + 大归档：M7 = B2A 主体扩展 — ✅ 2026-07-07
 **用户口径修正（推翻"二选一"）**：M7 采集协议**不是**"自研 v0.1 vs UWTP 二选一"——正确路线是**在现网 B2A 协议主体上添加/扩展**采集能力；UWTP 仅思考方向（可能借用 ACK 窗口/断点续传/统一响应等部分设计）。**项目进入重新构思期**。
 - **自研 v0.1 线整体归档** → [`归档/自研协议线_v0/`](归档/自研协议线_v0/)（bluetrace_v0.proto + 12B 帧规格 md/html + BTCP/1 + btcp1_draft.proto + 示例脚本，附归档 README 说明口径）。
@@ -53,13 +62,13 @@
 ## [文档] Docs 三轮深度整理：s7 分册五要素 → architecture 导航 → 全库死链清零 — ✅ 2026-07-06
 提交 `fd14878` / `955ee7f` / `12f29b7`，同一条整理线的三级递进：
 - **s7 子目录**（`fd14878`，s7/CHANGELOG 第 22 轮）：对照协议文档五要素审计——共识稿本达标；补 protocol-zqdata（40B 帧 bit 图 + B2A 封装标尺 + 实例包 decode 脚本实算 + 离线上行状态机）与 protocol-b2a（帧信封 ASCII 标尺 + OTA 状态机图）；plan/review/_raw 十份工作底稿 → `归档/s7协议工作底稿/`。
-- **architecture 目录**（`955ee7f`）：新建 [`architecture/README.md`](architecture/README.md)（文档角色/状态清单 + **三线协议关系图**：自研 v0.1+BTCP/1 vs UWTP 二选一待固件评审、S7 现网线与 M7 无关 + 变更纪律）；6 份文档状态行对齐现实（02 已落码/存储已实施/自研线补 UWTP 关系）；v0.proto 死引用修复。**不物理合并**：机器契约路径冻结 + 各文档角色不同，缺的是关系说明不是文件合并。
+- **architecture 目录**（`955ee7f`）：新建 `architecture/README.md`(已随目录消灭)（文档角色/状态清单 + **三线协议关系图**：自研 v0.1+BTCP/1 vs UWTP 二选一待固件评审、S7 现网线与 M7 无关 + 变更纪律）；6 份文档状态行对齐现实（02 已落码/存储已实施/自研线补 UWTP 关系）；v0.proto 死引用修复。**不物理合并**：机器契约路径冻结 + 各文档角色不同，缺的是关系说明不是文件合并。
 - **Docs 全库**（`12f29b7`）：脚本全库死链扫描——活区 10 处全修（s7 底稿归档的引用断链），归档历史文档内部死链按冻结原则不动，复扫活区清零；md/html 8 对全同步；`assets/{screenshots,device_v5,device_v6,pic}` 92 文件零活引用 → `归档/历史截图/`（compare 考古页目录常量随迁修复）；代码审查报告/设计审查报告补收官状态行；里程碑 3 处过期口径修正（UHTP→UWTP、解码器口径→注册式架构、D2 Nordic 已拍板）。
 
 ---
 
 ## [v11·波次B] 架构演进：注册式协议架构 R1–R3 + Registry 事件驱动 + iOS 债下沉 — ✅ 2026-07-06
-来源：[`architecture/架构评估_20260706.md`](architecture/架构评估_20260706.md) 波次B（B2/B3/B4）+ [`architecture/02_parser_registry_design.md`](architecture/02_parser_registry_design.md) 迁移节拍 R1–R3。
+来源：[`归档/架构评估_20260706.md`](归档/架构评估_20260706.md) 波次B（B2/B3/B4）+ [`归档/02_parser_registry_design.md`](归档/02_parser_registry_design.md) 迁移节拍 R1–R3。
 - **B4 = 02 设计 R1–R3 落码**：新增 `shared.protocol.registry` 包——`ChannelId`/`ChannelParser`/`ProtocolProfile`/`ProtocolRegistry`/`DeviceParserHost`（R1 骨架）+ `ProtocolEvent` 事件模型（Samples/CommandAck/DeviceEvent/Malformed，R3；Capability/State/AlgoResult/FileChunk 四类 payload 依赖 M7 冻结，R5 再补）+ `MockBleProfile`（R2：MockPacketCodec 装进 Profile 形状）+ `HrsProfile`/`HrsParser`（SIG 0x180D/0x2A37，u8/u16 bpm——R4 心率带真实链路的先行协议，不依赖冻结）+ `RegistrySampleDecoder` 适配器。`SampleDecoder` 增 `onDeviceAttached`/`decodeEvents` 默认方法（旧实现零改动）；会话控制器改消费事件流（Malformed→WARN 诊断，raw HEX 照常落盘）+ start 逐设备 attach；DI 注册表按后端拼装（Mock 后端全员 Mock 线协议 / 真实后端注册 HRS；无 profileId 的自研 DUT 回退 Mock→malformed 告警，等价旧 unparseable 行为）。
 - **偏离 02 记录**（务实裁剪）：① `BleNotification` 不加 ChannelId 字段——host 按 characteristicUuid 小写匹配 + 单通道 profile 兜底路由（Mock 通知不带特征 id）；② `CommandEncoder` 与控制面事件消费缓行至 R4/R5（采集面现阶段只吃 Notify）。
 - **B2 ConnectionRegistry 事件驱动化 + 下沉**：迁 `shared.ble`，构造注入 `BleClient`+scope；add 时启动 linkState 常驻监听，`DISCONNECTED` 自动清退（被动断连不再依赖调用方手动对齐），`RECONNECTING` 在册（琥珀点语义）；监听复用、CAS 防并发重复启动；调用方主动 remove 与自动清退幂等，四个 VM 调用点零改动。
@@ -87,7 +96,7 @@
 
 ## [文档] architecture 目录深度整理：导航 README + 全员状态标注 + 死引用修复 — ✅ 2026-07-06
 提交：`955ee7f`。
-- **新建 [`architecture/README.md`](architecture/README.md)**：文档角色/状态清单 + **三线协议关系图**（自研 v0.1+BTCP/1 与 UWTP V0.99 为 M7 冻结二选一待固件评审；S7 现网线与 M7 无关）+ 变更纪律（状态行强制 / 机器契约路径冻结 / 历史进归档）。
+- **新建 `architecture/README.md`(已随目录消灭)**：文档角色/状态清单 + **三线协议关系图**（自研 v0.1+BTCP/1 与 UWTP V0.99 为 M7 冻结二选一待固件评审；S7 现网线与 M7 无关）+ 变更纪律（状态行强制 / 机器契约路径冻结 / 历史进归档）。
 - **全员状态标注对齐现实**：02（R1–R3 已落码 + 两处偏离在册）、03/btcp1、帧规格、`bluetrace_v0.proto`（补 UWTP 二选一关系）、存储与日志设计（已实施 v7）。
 - `bluetrace_v0.proto` 修 BlueTrace_Protocol.md 死引用（指向归档路径）；[`README.md`](README.md) 树修正（补评估/architecture README 条目、s7 归档口径、归档桶新增「s7协议工作底稿」）；帧规格 html 重生成。
 
@@ -107,7 +116,7 @@
 ---
 
 ## [v11·波次A] 架构演进：P0 线程修正 + 依赖环消除 + CI — ✅ 2026-07-06
-提交：`3a353ad`（19 文件）。来源：[`architecture/架构评估_20260706.md`](architecture/架构评估_20260706.md)（D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / 上 CI）。
+提交：`3a353ad`（19 文件）。来源：[`归档/架构评估_20260706.md`](归档/架构评估_20260706.md)（D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / 上 CI）。
 - **A1 采集落盘挪出 CPU 池**：会话事件循环注入 `Dispatchers.IO.limitedParallelism(1)`（进 IO 弹性池且保持单线程串行语义）；建目录/首写 manifest 一并挪进会话 IO 协程（消架构#4 主线程 IO），init 失败走 ERROR 收尾。
 - **A2 全局异常兜底**：应用级 scope 挂 `CoroutineExceptionHandler` → DiagnosticsLog ERROR；logWriter scope 兜底走 logcat（防自写递归）。
 - **A3 仓库层自守线程**：`SessionStore`/`DeviceLogStore` 公开方法改 suspend + 内部 `withContext(注入 io)`；删光 7 处调用点散落切换（含 3 处 Composable 内）。
@@ -119,7 +128,7 @@
 ---
 
 ## [文档] 架构评估：现状、问题与演进 — ✅ 2026-07-06
-[`architecture/架构评估_20260706.{md,html}`](architecture/架构评估_20260706.md)（2 张 SVG：现状分层问题标注图 + M7 目标数据流图）。输入 = 四路代码审查 + 本轮**结构层审计**（模块/包依赖矩阵、KMP 边界、DI、协程纪律逐项核对）。
+[`归档/架构评估_20260706.{md,html}`](归档/架构评估_20260706.md)（2 张 SVG：现状分层问题标注图 + M7 目标数据流图）。输入 = 四路代码审查 + 本轮**结构层审计**（模块/包依赖矩阵、KMP 边界、DI、协程纪律逐项核对）。
 - **保持项**：commonMain 零泄漏/零 expect-actual、单消费者串行化、hexlog source-of-truth、版本目录、s7 逻辑下沉（1094 行+4 测试类）、实现引用收敛 DI 组装点。
 - **新发现 P0**：采集落盘跑在 `Dispatchers.Default` CPU 池（AppModule:53 + 会话 runScope 继承）；全仓零 `CoroutineExceptionHandler`；IO 切换散落 7 调用点（3 处在 Composable）。
 - **P1 结构**：包级双向环 ×2（ble↔protocol、ble↔s7，Mock 混放接口包所致）；ConnectionRegistry vs linkState 状态双真相；iOS 债（ConnectionRegistry/CollectDraft/S7Person 映射等纯 Kotlin 写在 app）；协议接入仍全局单解码器 → **落地 02 注册式设计 R1–R3（不等冻结）**。
