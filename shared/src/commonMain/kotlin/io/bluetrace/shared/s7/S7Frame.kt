@@ -96,6 +96,49 @@ object S7FrameCodec {
             },
         )
 
+    /**
+     * 下行多包分片（App→表；首个"App→表 多包"场景 = OTA 文件传输切片）。
+     * 把一条逻辑消息 (cmd,key,param) 切成 1..N 帧，[S7FrameDecoder] 可无损重组回同一 [S7Message]：
+     * - 首帧 index=0，payload = `[cmd][key][paramLen LE16] + param 首段`，status 置 IS_MULTI_PKT(+多包ID)；
+     * - 续帧 index 递增，payload = param 续段；
+     * - 末帧另置 MULTI_PKT_END。
+     * 每帧 param 段 ≤ [maxParamPerFrame]（真实端 = 协商MTU−12，使首帧总长恰 ≤ MTU）。param 为空 → 单帧空消息。
+     * 分片总数由调用方经切片尺寸控制在设备 sliceMaxSize/17 上限内（此函数不设 17 帧硬限，由上层保证）。
+     */
+    fun encodeMultiPacket(
+        cmd: Int,
+        key: Int,
+        param: ByteArray,
+        maxParamPerFrame: Int,
+        multiPktId: Int = 0,
+    ): List<ByteArray> {
+        require(maxParamPerFrame >= 1) { "maxParamPerFrame must be >= 1" }
+        val idBits = (multiPktId and 0x03) shl 4
+        val frames = ArrayList<ByteArray>()
+        var off = 0
+        var index = 0
+        while (true) {
+            val take = (param.size - off).coerceAtMost(maxParamPerFrame)
+            val isLast = off + take >= param.size
+            val status = S7Status.IS_MULTI_PKT or idBits or (if (isLast) S7Status.MULTI_PKT_END else 0)
+            val payload = if (index == 0) {
+                ByteArray(CMD_HEAD_LEN + take).also {
+                    it[0] = cmd.toByte()
+                    it[1] = key.toByte()
+                    writeLe16(it, 2, param.size)
+                    param.copyInto(it, CMD_HEAD_LEN, off, off + take)
+                }
+            } else {
+                param.copyOfRange(off, off + take)
+            }
+            frames.add(encodeFrame(status, index, payload))
+            off += take
+            index++
+            if (isLast) break
+        }
+        return frames
+    }
+
     /** 组任意帧（含续包裸 payload）。 */
     fun encodeFrame(status: Int, index: Int, payload: ByteArray): ByteArray {
         val out = ByteArray(HEAD_LEN + payload.size)

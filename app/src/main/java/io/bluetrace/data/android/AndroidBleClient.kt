@@ -57,6 +57,8 @@ class AndroidBleClient(
         val gatt: BluetoothGatt,
         var writeChar: BluetoothGattCharacteristic? = null,
         val ready: CompletableDeferred<Boolean> = CompletableDeferred(),
+        /** 协商 MTU（onMtuChanged 存下；OTA 分片尺寸推算用，观测非配置）。默认 BLE ATT 23。 */
+        @Volatile var mtu: Int = 23,
     )
 
     private val conns = ConcurrentHashMap<String, Conn>()
@@ -169,6 +171,7 @@ class AndroidBleClient(
             }
 
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                if (status == BluetoothGatt.GATT_SUCCESS) conns[device.id]?.mtu = mtu
                 safe { gatt.discoverServices() }
             }
 
@@ -284,6 +287,8 @@ class AndroidBleClient(
     override fun linkState(deviceId: String): StateFlow<LinkState> = link(deviceId)
 
     override fun notifications(deviceId: String): Flow<BleNotification> = notifyFlow(deviceId)
+
+    override fun negotiatedMtu(deviceId: String): Int = conns[deviceId]?.mtu ?: 23
 
     @SuppressLint("MissingPermission")
     override suspend fun write(deviceId: String, bytes: ByteArray) {

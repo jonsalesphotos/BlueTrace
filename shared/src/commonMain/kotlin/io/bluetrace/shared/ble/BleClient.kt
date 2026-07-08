@@ -65,6 +65,12 @@ interface BleClient {
     /** 演示钩子（DEBUG 构建）：注入一次断联→自动重连。真实实现保持默认 no-op。 */
     fun debugInjectDisconnect(deviceId: String) {}
 
+    /**
+     * 已协商 MTU（观测，非配置——App 不主动配，D-5）。OTA 分片尺寸推算需要（sliceMaxSize=(MTU−12)×17）。
+     * 未连接/未协商时返回 BLE 默认 ATT MTU 23（保守）。真实端在 onMtuChanged 回调里存下协商值。
+     */
+    fun negotiatedMtu(deviceId: String): Int = 23
+
     /** 每设备原始 Notify 流（订阅即开始接收）。 */
     fun notifications(deviceId: String): Flow<BleNotification>
 

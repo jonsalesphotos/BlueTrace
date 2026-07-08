@@ -31,6 +31,36 @@ class S7MockWatch(
     var heartbeatSeq = 0
         private set
 
+    // ---- FILE_TRANS / OTA 模拟态 ----
+    private var otaFileCount = 0
+    private var otaCurrFileIdx = 0
+    private var otaCurName: String? = null
+    private var otaCurBuf = ArrayList<Byte>()
+    private val otaFiles = LinkedHashMap<String, ByteArray>()
+
+    /** 整包收讫（末文件 STOP 后置位；测试断言用）。 */
+    var otaComplete = false
+        private set
+
+    /** 已完整收到的文件（name→bytes；测试比对推包正确性）。 */
+    val otaReceivedFiles: Map<String, ByteArray> get() = otaFiles
+
+    /** 设备回报的 sliceMaxSize（默认 = MTU 247 口径 (247−12)×17 = 3995；REQ 应答带回）。 */
+    var otaSliceMax: Int = S7FileTrans.defaultSliceMaxSize(247)
+
+    /** 注入：REQ 拒绝状态（null=OK；测 disk_full/busy 分支）。 */
+    var otaRejectReq: Int? = null
+
+    /** 注入：接下来 N 个切片回坏校验和且不落盘（模拟 NAK，测重传）。 */
+    var otaCorruptSlices: Int = 0
+
+    /** 注入：当前文件在此累计偏移的切片恒回坏校验和（永不通过，测切片重传耗尽 → SliceFailed）。null=不注入。 */
+    var otaFailAtOffset: Long? = null
+
+    /** 记录每个成功落盘切片的字节长（测 EC-7：会话是否按设备回的 sliceMaxSize 分片）。REQ 时清空。 */
+    private val otaSliceSizes = ArrayList<Int>()
+    val otaSliceLog: List<Int> get() = otaSliceSizes
+
     private val deviceInfo = S7DeviceInfo(swVer = "1.2.7.0", modemVer = "1.0", secBlVer = "1.0", bpVer = "23")
     private val snBytes: ByteArray = ByteArray(59).also {
         // DevType[5] = 二进制型号码（真机口径：68 39 71 25 81 = overseas device_type）
@@ -83,7 +113,67 @@ class S7MockWatch(
         S7.CMD_GET -> S7MockReply(listOf(get(msg.key)))
         S7.CMD_SET -> set(msg)
         S7.CMD_DEV_CTRL -> devCtrl(msg)
+        S7.CMD_FILE_TRANS -> fileTrans(msg)
         else -> S7MockReply(listOf(commAck(msg.cmd, msg.key, 0x05))) // NOT_SUPPORT
+    }
+
+    /**
+     * FILE_TRANS/OTA 会话（reassemble 后逐子命令处理；TRANS 的 param 已是整切片）。
+     * 应答 cmd/key 回显 0x0F/子键（Mock 约定，真机 ack 帧口径待抓包核，见 implementation-notes）。
+     */
+    private fun fileTrans(msg: S7Message): S7MockReply = when (msg.key) {
+        S7FileTrans.KEY_REQ -> {
+            val p = msg.param
+            otaFileCount = if (p.size > 2) p[2].toInt() and 0xFF else 0
+            otaCurrFileIdx = 0
+            otaComplete = false
+            otaFiles.clear()
+            otaCurName = null
+            otaCurBuf = ArrayList()
+            otaSliceSizes.clear()
+            val status = otaRejectReq ?: S7FileTrans.REQ_OK
+            val reply = OtaReqReply(
+                status = status,
+                moduleId = if (p.isNotEmpty()) p[0].toInt() and 0xFF else S7FileTrans.MODULE_OTA,
+                fileCount = otaFileCount,
+                currFileIdx = 0,
+                sliceMaxSize = otaSliceMax,
+                offset = 0,
+            )
+            S7MockReply(listOf(S7FileTrans.encodeReqReply(reply)))
+        }
+        S7FileTrans.KEY_START -> {
+            val p = msg.param
+            val name = if (p.size >= 16) {
+                val nameLen = S7FrameCodec.readLe16(p, 14)
+                if (nameLen in 1..(p.size - 16)) p.decodeToString(16, 16 + nameLen) else "?"
+            } else "?"
+            otaCurName = name
+            otaCurBuf = ArrayList()
+            S7MockReply(listOf(S7FileTrans.encodeCommAck(S7FileTrans.KEY_START, 0x00)))
+        }
+        S7FileTrans.KEY_TRANS -> {
+            val slice = msg.param
+            val nak = otaCorruptSlices > 0 || otaFailAtOffset == otaCurBuf.size.toLong()
+            if (nak) {
+                if (otaCorruptSlices > 0) otaCorruptSlices-- // 模拟 NAK：坏校验和 + 不落盘（offset 不进），逼 App 重传
+                val bad = OtaDataAck(recvLen = slice.size.toLong(), checkSum = S7FileTrans.additiveChecksum(slice) xor 0xFFFF, status = S7Status.SUCC)
+                S7MockReply(listOf(S7FileTrans.encodeDataAck(bad)))
+            } else {
+                for (b in slice) otaCurBuf.add(b)
+                otaSliceSizes.add(slice.size)
+                val ack = OtaDataAck(recvLen = slice.size.toLong(), checkSum = S7FileTrans.additiveChecksum(slice), status = S7Status.SUCC)
+                S7MockReply(listOf(S7FileTrans.encodeDataAck(ack)))
+            }
+        }
+        S7FileTrans.KEY_STOP -> {
+            otaCurName?.let { otaFiles[it] = otaCurBuf.toByteArray() }
+            otaCurrFileIdx++
+            if (otaCurrFileIdx >= otaFileCount) otaComplete = true
+            S7MockReply(listOf(S7FileTrans.encodeCommAck(S7FileTrans.KEY_STOP, 0x00)))
+        }
+        S7FileTrans.KEY_OFFSET -> S7MockReply(listOf(S7FileTrans.encodeOffsetReply(otaCurBuf.size.toLong())))
+        else -> S7MockReply(listOf(commAck(S7.CMD_FILE_TRANS, msg.key, 0x05)))
     }
 
     /** 被 SET 后记住的设备时间（冻结回读，便于测试自定义对时/跨时区）；null=用内部时钟。 */

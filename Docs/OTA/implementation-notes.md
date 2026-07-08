@@ -3,6 +3,21 @@
 > 执行期维护。设计与计划见 [`S7采集OTA_设计.md`](S7采集OTA_设计.md)。
 > 记 Decisions / Deviations / Edge Cases / Open Questions；固件事实带 file:line。
 
+## Phase 1 交付（2026-07-07，Mock 全绿）
+
+传输地基落码（shared 121 单测全绿，含 OTA 13 例；app 单测+assembleDebug 绿）：
+- `S7Frame.kt` `encodeMultiPacket` 下行多包分片器（不变量：分片→`S7FrameDecoder` 无损重组回同一 `S7Message`）。
+- `S7FileTrans.kt` FILE_TRANS 五子命令编解码 + 9B/12B/OFFSET 解析 + U32 累加和。
+- `OtaPackage.kt` 数据模型（Package/File/Progress/Result/Failure）。
+- `S7OtaSession.kt` 独占长事务（REQ→逐文件 START/切片/STOP→末 STOP 即 DoneDownload；切片 ack 背压+累加和核对+重传）。
+- `BleClient.negotiatedMtu`（接口+Mock+真机 `AndroidBleClient.onMtuChanged` 存值）。
+- `S7MockWatch` fileTrans 状态机 + 注入旋钮（REQ 拒绝/坏校验和/按 offset 恒 NAK/切片长记录）。
+
+**三视角对抗审查（workflow `wu7jk1vvl`，24 agent）→ 2 真 bug 已修 + 3 测试缺口已补**：
+- 修①`sliceMax` 夹到本地 MTU 分帧容量 `(MTU−12)×17`（防本地低报 MTU 时一切片超固件 17 包硬限）。
+- 修②切片重传 drain 提到每次发送前（含首发），清跨切片陈旧 TRANS ack。
+- 补测：EC-7 设备 sliceMax 被采纳（非本地猜值）/ SliceFailed 重传耗尽 / EC-1 REQ 授权时延分层（10s>cmdAck 仍成功、超授权窗超时）。
+
 ## Decisions（已定）
 
 - **D-1 定位方向 B**（用户 2026-07-07）：实验室 attended 配置少量表，非消费级 OTA。砍掉健壮后台/续传/签名/全 ModuleId。
@@ -19,6 +34,8 @@
 - **DV-2 推翻"stock→采集 = fw.dat 快闪"**：逐文件对比采集与 stock 包，Res 三件套/CN 字库/fw 全不同（仅 fNum* 相同）→ 必推采集 Res+fw，~19.7MB / 15–45min 大传输。
 - **DV-3 校验归属澄清**：App 只算/比**传输层 9B 累加和**；`ResCheck.dat`/`fCheck.dat` 是随包透传的普通文件，设备自检用，App 不构造。
 - **DV-4 无现成 BLE 上位机参考**：两仓只有设备接收端，推包序列全靠反推 + 真机抓包。`amota_main.c`=设备端 server，非主机端。
+- **DV-5 Mock ack 帧口径为约定**（Phase 1）：Mock/session 双方约定应答 = `encodeResponse(0x0F, 子键, param)`（cmd/key 回显）；9B ack 的 `recvLen` 取"本切片长"（非累计）。真机 ack 的 cmd/key 与 recvLen 语义待抓包核（Phase 2）——若真机 recvLen 为累计，则 EC-3/跨切片 ack 错配自然消解。
+- **DV-6 sliceMax 夹本地容量**：会话取 `min(设备回值, (MTU−12)×17)`，而非纯信设备值——本地 MTU 低报时纯信设备值会超固件 17 包/切片硬限（审查 medium 修复）。
 
 ## Edge Cases（正确性陷阱，实现必须处理）
 
@@ -37,6 +54,7 @@
 - O-3 REQ MMI 授权真机形态/耗时/拒绝分支？⏳
 - O-4 AMDTP 特征 UUID 上下行划分（抓包需要）？⏳
 - O-5 采集 fw 分支 + 反向 BLE 回刷通道健康度？⏳
+- O-6（Phase 2 硬化）真机 9B ack 的 `recvLen` 是否累计？切片重传遇"真·迟到 ack 落在下一等长等和切片 await 窗口"的残余竞态需据此根治（累计 recvLen 或 ack 带 offset/seq 即可强匹配）；Mock 恒即时回不触发。⏳
 
 ## 侦察溯源（两轮固件工作流）
 

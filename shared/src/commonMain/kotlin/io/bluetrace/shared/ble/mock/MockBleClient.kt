@@ -104,6 +104,10 @@ class MockBleClient(
 
     override fun linkState(deviceId: String): StateFlow<LinkState> = link(deviceId)
 
+    /** Mock 协商 MTU（可调，联调 OTA 分片尺寸用；默认 247 = 真机常见协商值）。 */
+    var mockMtu: Int = 247
+    override fun negotiatedMtu(deviceId: String): Int = mockMtu
+
     /** 演示「断联 → 内联重连中 → 自动续」：标 RECONNECTING，[reconnectDelayMs] 后自动回 CONNECTED。 */
     fun injectDisconnect(deviceId: String) {
         val l = link(deviceId)
