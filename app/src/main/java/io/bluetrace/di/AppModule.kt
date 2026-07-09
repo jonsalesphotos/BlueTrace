@@ -176,4 +176,14 @@ val appModule = module {
             zipLoader = get(),
         )
     }
+    // DEBUG：多设备 OTA（顶栏开关打开；工作队列串行逐台刷入，一个包全队列共用）
+    viewModel {
+        io.bluetrace.viewmodel.MultiOtaViewModel(
+            ble = get(),
+            registry = get(),
+            clock = get(),
+            zone = get(),
+            zipLoader = get(),
+        )
+    }
 }

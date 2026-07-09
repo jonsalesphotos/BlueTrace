@@ -33,6 +33,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +64,7 @@ import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
+import io.bluetrace.viewmodel.MultiOtaViewModel
 import io.bluetrace.viewmodel.OtaIterationResult
 import io.bluetrace.viewmodel.OtaPkgItem
 import io.bluetrace.viewmodel.OtaTestUiState
@@ -69,41 +72,64 @@ import io.bluetrace.viewmodel.OtaTestViewModel
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * DEBUG「OTA 固件」屏：连接 S7 → 「+」添加 1~2 个烧录包 → 刷入。1 包=单次；2 包=A→B 循环(手动中断)。
- * 连上自动读版本、断联可重连(仿 DUT)。选包/校验/连接/版本等信息统一进「执行日志」。见 [OtaTestViewModel]。
+ * DEBUG「OTA 固件」屏。顶栏右侧「多设备」开关(默认关)切两态:
+ * - **关(单设备)**: 连接 S7 → 「+」添加 1~2 个烧录包 → 刷入(1 包=单次; 2 包=A→B 循环)。见 [OtaTestViewModel]。
+ * - **开(多设备)**: 工作队列串行逐台刷, 一个包全队列共用 → [MultiOtaBody] / [MultiOtaViewModel]。
+ *   设计见 Docs/OTA/S7多设备OTA_设计.md。
  */
 @Composable
-fun OtaTestScreen(onBack: () -> Unit, onOpenConnect: () -> Unit, vm: OtaTestViewModel = koinViewModel()) {
+fun OtaTestScreen(
+    onBack: () -> Unit,
+    onOpenConnect: () -> Unit,
+    vm: OtaTestViewModel = koinViewModel(),
+    multiVm: MultiOtaViewModel = koinViewModel(),
+) {
+    var multiMode by rememberSaveable { mutableStateOf(false) }
     val ui by vm.state.collectAsState()
+    val mui by multiVm.state.collectAsState()
+    val running = if (multiMode) mui.running else ui.running
     var confirmExit by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.addPackage(it) }
     }
-    // OTA 运行中: 系统返回键 -> 弹确认框(不静默拦截), 确认后才中止并离开
-    BackHandler(enabled = ui.running) { confirmExit = true }
+    // 运行中(单/多任一): 系统返回键 -> 弹确认框(不静默拦截), 确认后才中止并离开
+    BackHandler(enabled = running) { confirmExit = true }
 
     Column(Modifier.fillMaxSize().background(BT.bg)) {
         BtTopBar(
             title = "OTA 固件",
-            subtitle = if (ui.running) "刷写中 · 请勿退出" else "刷入烧录包 · DEBUG",
-            onBack = { if (ui.running) confirmExit = true else onBack() }, // 运行中点返回 -> 弹确认框(箭头保留, 不跳动)
+            subtitle = if (multiMode) {
+                if (mui.running) "多设备批量 · 刷写中" else "多设备批量 · 队列 ${mui.queue.size} 台"
+            } else {
+                if (ui.running) "刷写中 · 请勿退出" else "刷入烧录包 · DEBUG"
+            },
+            onBack = { if (running) confirmExit = true else onBack() }, // 运行中点返回 -> 弹确认框
+            actions = {
+                Text("多设备", fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.onSurfaceV)
+                Spacer(Modifier.width(6.dp))
+                Switch(checked = multiMode, enabled = !running, onCheckedChange = { multiMode = it })
+            },
         )
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Spacer(Modifier.height(4.dp))
-            InfoCard(ui, onConnect = onOpenConnect, onRefreshVersion = { vm.refreshVersion() })
-            PackageSection(ui, enabled = !ui.running, onAdd = { picker.launch(arrayOf("*/*")) }, onRemove = { vm.removePackage(it) })
-            RunButton(ui, onStart = { vm.start() }, onStop = { vm.stop() })
-            if (ui.running || ui.currentIteration > 0) ProgressCard(ui)
-            if (ui.results.isNotEmpty()) ResultsCard(ui.results)
-            LogTerminal(vm, ui)
-            Spacer(Modifier.navigationBarsPadding().height(8.dp))
+        if (multiMode) {
+            MultiOtaBody(Modifier.weight(1f), multiVm, mui)
+        } else {
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Spacer(Modifier.height(4.dp))
+                InfoCard(ui, onConnect = onOpenConnect, onRefreshVersion = { vm.refreshVersion() })
+                PackageSection(ui, enabled = !ui.running, onAdd = { picker.launch(arrayOf("*/*")) }, onRemove = { vm.removePackage(it) })
+                RunButton(ui, onStart = { vm.start() }, onStop = { vm.stop() })
+                if (ui.running || ui.currentIteration > 0) ProgressCard(ui)
+                if (ui.results.isNotEmpty()) ResultsCard(ui.results)
+                LogTerminal(vm, ui)
+                Spacer(Modifier.navigationBarsPadding().height(8.dp))
+            }
         }
     }
 
-    // OTA 运行中尝试离开 -> 确认框: 继续刷写(留下) / 中止并离开(停止 OTA 后返回)
+    // 运行中尝试离开 -> 确认框: 继续刷写(留下) / 中止并离开(停止后返回)
     if (confirmExit) {
         AlertDialog(
             onDismissRequest = { confirmExit = false },
@@ -117,7 +143,7 @@ fun OtaTestScreen(onBack: () -> Unit, onOpenConnect: () -> Unit, vm: OtaTestView
             confirmButton = {
                 TextButton(onClick = {
                     confirmExit = false
-                    vm.stop()
+                    if (multiMode) multiVm.stopBatch() else vm.stop()
                     onBack()
                 }) { Text("中止并离开", color = BT.error, fontWeight = FontWeight.W700) }
             },

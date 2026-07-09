@@ -6,6 +6,23 @@
 
 ---
 
+## [OTA·多设备] 多设备 OTA：顶栏开关 + 工作队列串行批量 + 电量门槛 + 失败重试 — ✅ 2026-07-09
+按讨论先出设计文档 [`OTA/S7多设备OTA_设计.{md,html}`](OTA/S7多设备OTA_设计.html)（4 图：每台状态机/界面线框/状态词汇/串行时序）后开工。`app:compileDebugKotlin` 绿、`shared:jvmTest` s7 全绿。**协议/连接/OTA 会话层零改动**，只加编排 VM + 多设备 UI。
+- **顶栏「多设备」开关（默认关）**同屏切两态：关=单设备现状（1/2 包 A→B 循环）不变；开=工作队列批量。开关运行中锁定；放进 [`BtTopBar`](../app/src/main/java/io/bluetrace/ui/components/Common.kt) 现成 `actions` 槽。
+- **串行（一次一台，非并发）**：设备端 REQ 需人工授权 + 切片看门狗贴 ~15s + 刷完重连风暴 → 串行是唯一安全解；UI 呈现为批量。新增 [`viewmodel/MultiOtaViewModel.kt`](../app/src/main/java/io/bluetrace/viewmodel/MultiOtaViewModel.kt)（队列 + 串行遍历 + 扫描入队 + per-device 状态聚合）。
+- **每台流程复用现成件**：`ble.connect`+入册 → `S7Console.getDeviceInfo().swVer`/`getBattery().percent` → `OtaProvisioner.provisionAndReconnect`（刷写+等复位+重连+读版本）→ 复读电量 → `ble.disconnect`+退册。
+- **扫描添加＝只入队、不连接**；仅 B2A/S7（`B2aDetect.matchesAdvertisement`）可加，其余灰掉标「不支持 OTA」；底部 `ModalBottomSheet`。
+- **电量门槛 30%**：刷前 <30% 跳过（固件无低电门控，掉电变砖由 App 兜底）。
+- **失败即跳过 + 手动重试**：任一步失败标 `FAILED`/低电 `SKIPPED`、继续下一台；失败/跳过行显重试图标，可单台/「重试全部失败」。
+- **增删规则**：开始后禁新增；「待升级」及已完成/失败/跳过行可删，**通信中的当前台锁定**；停止批量/返回走退出确认弹窗（单/多两态通用）。
+- 新增 [`ui/screen/settings/MultiOtaScreen.kt`](../app/src/main/java/io/bluetrace/ui/screen/settings/MultiOtaScreen.kt)（`MultiOtaBody` + 队列行 5 态 + 扫描表）；`OtaTestScreen` 顶栏加开关并按 `multiMode` 分支；DI 注册 `MultiOtaViewModel`。
+- **编排核下沉 shared + 自动化覆盖**（同会话追加，approach 2）：串行编排核从 app VM 抽到 shared [`MultiOtaController`](../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/MultiOtaController.kt)（commonMain 无 Android 依赖、iOS 可复用，`DeviceOtaStatus`/`DeviceOtaItem` 一并下沉），`MultiOtaViewModel` 改**薄壳**（包加载/扫描/日志镜像/UI 状态组合）——与仓库惯例一致（重活在 shared、VM 薄）。新增 jvmTest [`MultiOtaControllerTest`](../shared/src/commonTest/kotlin/io/bluetrace/shared/s7/MultiOtaControllerTest.kt)：N 个 `S7MockWatch` 造多设备假 `BleClient`，覆盖 串行全完成 / 失败即跳过继续 / 电量门槛跳过 / 单台重试，**4 用例绿**。
+- **验证**：`:app:compileDebugKotlin` 绿；`:shared:jvmTest` s7 全套（含新 4 例 + 既有 provisioner/console/mock 回归）绿。
+- **Mock 多台 + 真机装机验证**：[`MockBleClient`](../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/mock/MockBleClient.kt) 从 1 台 S7 扩到 3 台（每设备独立 `S7MockWatch` + inbound，roster 加 S7-A31B/S7-2D90）；多设备屏加 DEBUG 示例包入口（长按「添加烧录包」载入内存合成包，**仅 Mock 模式可用**——真实 GATT 下 no-op，防误刷垃圾包）。真机 M2101K9C 走通端到端：开 Mock BLE → 多设备 → 扫描（S7「可加」/ 非 B2A「不支持 OTA」）→ 选 2 台入队 → 载入示例包 → 开始批量 → **串行逐台**（设备1 刷写时设备2「待升级」）→ 两台各 连接·读版本电量·刷写·重连·复读 → 汇总「完成 2」，日志 REQ/START/STOP/DONE 全链印证。
+- **两处 UI 修复（真机反馈）**：(1) 扫描添加底部弹窗默认半展开导致「加入队列」按钮要上拉才可见 → `rememberModalBottomSheetState(skipPartiallyExpanded = true)` 直接全展开；(2) 队列行「版本 X→Y · 电量 A%→B%」原塞在 `weight(1f)` 列被右侧药丸/删除键挤占截断 → 移到名字下方整行铺满（左缩进 34dp 对齐）。另：Mock 的 S7 表默认 `otaRebootAfterComplete=true`（刷后模拟自复位断链→重连闭环，演示更真、无 90s 空等）；DEBUG 示例包入口加「仅 Mock 模式可用」安全门（真实 GATT no-op，防误刷垃圾包）。真机复验两处修复 OK。
+
+---
+
 ## [OTA·UI] OTA 固件屏交互收尾：整卡可点进扫描 + 固定不跳 + 运行护栏 + 扫描 RSSI 统一 -48 — ✅ 2026-07-09
 本次会话多轮打磨，`app:installDebug` 绿、真机 M2101K9C 装机验证。
 - **信息卡整卡可点 → 进扫描/连接页**（`ConsoleConnect`），唯一例外=「当前版本」值 chip（嵌套点击=刷新版本）；去掉「重连」chip（重连改在扫描页做）。

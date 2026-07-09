@@ -63,6 +63,15 @@ class MockBleClient(
             "s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
         ),
+        // 追加两台 S7（多设备 OTA 演示/联调）：各自独立 S7MockWatch（见下 s7Watch(id)），MAC 末 4 位 = 名称后缀。
+        ScannedDevice(
+            "s7-a31b", "SKG WATCH S7-A31B", "71:61:48:19:A3:1B", -60, DeviceKind.DUT, PROFILE_S7,
+            advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
+        ),
+        ScannedDevice(
+            "s7-2d90", "SKG WATCH S7-2D90", "71:61:48:19:2D:90", -67, DeviceKind.DUT, PROFILE_S7,
+            advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
+        ),
     )
     private val byId: Map<String, ScannedDevice> = roster.associateBy { it.id }
 
@@ -147,9 +156,13 @@ class MockBleClient(
     /** [BleClient.onAdapterStateChanged]：service 侧只依赖接口，不再注入 Mock 具体类型。 */
     override fun onAdapterStateChanged(off: Boolean) = setBluetoothOff(off)
 
-    // ---- S7 手表模拟（B2A 协议）----
-    private val s7Watch = S7MockWatch(clock)
-    private val s7Inbound = MutableSharedFlow<BleNotification>(extraBufferCapacity = 128, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    // ---- S7 手表模拟（B2A 协议；每设备一个 S7MockWatch + inbound，支持多台联调 / 多设备 OTA 演示）----
+    private val s7Watches = HashMap<String, S7MockWatch>()
+    private val s7Inbounds = HashMap<String, MutableSharedFlow<BleNotification>>()
+    // 刷后复位=真: OTA 末 STOP 后模拟设备自复位断链 → 上层等复位→重连闭环走通(演示更真、无 90s 空等)
+    private fun s7Watch(id: String): S7MockWatch = s7Watches.getOrPut(id) { S7MockWatch(clock).apply { otaRebootAfterComplete = true } }
+    private fun s7Inbound(id: String): MutableSharedFlow<BleNotification> =
+        s7Inbounds.getOrPut(id) { MutableSharedFlow(extraBufferCapacity = 128, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
 
     /**
      * 下行写：S7 设备路由到 [S7MockWatch] 生成应答帧（模拟链路时延 40ms/帧）；
@@ -159,12 +172,12 @@ class MockBleClient(
         val device = byId[deviceId] ?: return
         if (!io.bluetrace.shared.s7.B2aDetect.matchesAdvertisement(device)) return
         if (link(deviceId).value != LinkState.CONNECTED) return
-        val reply = s7Watch.handle(bytes)
+        val reply = s7Watch(deviceId).handle(bytes)
         scope.launch {
             for (frame in reply.frames) {
                 delay(40)
                 if (link(deviceId).value != LinkState.CONNECTED) break
-                s7Inbound.emit(BleNotification(deviceId, clock.nowMs(), frame))
+                s7Inbound(deviceId).emit(BleNotification(deviceId, clock.nowMs(), frame))
             }
             if (reply.disconnectAfter) {
                 delay(400) // 模拟设备执行关机/重启后 GATT 断开
@@ -177,12 +190,12 @@ class MockBleClient(
     private fun s7Notifications(deviceId: String): Flow<BleNotification> = channelFlow {
         val l = link(deviceId)
         launch {
-            s7Inbound.collect { if (it.deviceId == deviceId) send(it) }
+            s7Inbound(deviceId).collect { send(it) } // 已按设备分流
         }
         while (coroutineContext.isActive) {
             delay(30_000)
             if (l.value == LinkState.CONNECTED) {
-                send(BleNotification(deviceId, clock.nowMs(), s7Watch.heartbeatFrame()))
+                send(BleNotification(deviceId, clock.nowMs(), s7Watch(deviceId).heartbeatFrame()))
             }
         }
     }

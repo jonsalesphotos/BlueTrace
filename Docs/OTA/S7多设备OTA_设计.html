@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 多设备 OTA · 界面与编排设计</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-ota">S7 多设备 OTA · 界面与编排设计</a><ul>
+<li><a href="#0">0. 目标与边界</a></li>
+<li><a href="#1-2026-07-09">1. 关键决策（2026-07-09 讨论拍板）</a></li>
+<li><a href="#2-90">2. 复用账：90% 是现成的</a></li>
+<li><a href="#3">3. 为什么串行（不并行）</a></li>
+<li><a href="#4">4. 每台设备状态机（流程）</a></li>
+<li><a href="#5">5. 界面设计</a><ul>
+<li><a href="#51">5.1 顶栏「多设备」开关（默认关）</a></li>
+<li><a href="#52">5.2 界面布局总览（多设备模式）</a></li>
+<li><a href="#53-5">5.3 队列行状态词汇（5 态）</a></li>
+<li><a href="#54-b2a">5.4 扫描添加选择表（入队不连接，仅 B2A）</a></li>
+<li><a href="#55">5.5 增删规则（开始前 / 开始后）</a></li>
+</ul>
+</li>
+<li><a href="#6">6. 数据模型</a></li>
+<li><a href="#7">7. 串行编排时序</a></li>
+<li><a href="#8">8. 失败与边界处理</a></li>
+<li><a href="#9">9. 落地（已完成）</a></li>
+<li><a href="#10-open-questions">10. Open Questions（落地后回填）</a></li>
+<li><a href="#11-mock">11. 演示与真机验证（Mock 多台）</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="s7-ota">S7 多设备 OTA · 界面与编排设计</h1>
+<blockquote>
+<p><strong>状态</strong>：<strong>已落地并真机（M2101K9C）验证通过</strong>（2026-07-09）。落码明细见 CHANGELOG [OTA·多设备]；本文已就地对齐实现。
+<strong>定位</strong>：在<strong>单设备 OTA 端到端原语</strong>之上，只加一层「串行批量编排 + 多设备 UI」——协议层 / 连接层 / OTA 会话层<strong>一行不改</strong>。
+<strong>真源</strong>：协议真值见 <a href="S7采集OTA_指令交互与流程.md">S7采集OTA_指令交互与流程.md</a>（真机 golden 坐实）；单设备现状见 <a href="../../app/src/main/java/io/bluetrace/ui/screen/settings/OtaTestScreen.kt"><code>OtaTestScreen.kt</code></a> + <a href="../../app/src/main/java/io/bluetrace/viewmodel/OtaTestViewModel.kt"><code>OtaTestViewModel.kt</code></a>。
+<strong>一句话目标</strong>：一个 OTA 包，一次刷多台 S7 表——从工作队列里<strong>逐台</strong>连接 → 读版本+电量 → 刷写 → 复读电量 → 断开，失败/低电跳过并可手动重试。</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 目标与边界</h2>
+<ul>
+<li><strong>要做</strong>：在现有「OTA 固件」DEBUG 屏顶栏加一个「多设备」开关；打开后从<strong>工作队列</strong>批量升级多台 S7 表，<strong>一个包全队列共用</strong>，<strong>串行</strong>逐台跑完整流程。</li>
+<li><strong>不做</strong>：并发多台同刷（见 <a href="#3-为什么串行不并行">§3</a>）、跨包混刷、后台无人值守、机器版本比对判成败（OTA 包不带版本，成败靠人看版本，沿用单设备 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt"><code>OtaProvisioner</code></a> 的口径）。</li>
+<li><strong>复用姿态</strong>：多设备 = 单设备流程的「外层循环 + 状态聚合」。真正新增只有一个 <code>MultiOtaViewModel</code> 和多设备 UI；下行分片、<code>FILE_TRANS</code> 编解码、独占事务、重连读版本、读电量<strong>全部现成</strong>（<a href="#2-复用账90-是现成的">§2</a>）。</li>
+</ul>
+<hr />
+<h2 id="1-2026-07-09">1. 关键决策（2026-07-09 讨论拍板）</h2>
+<table>
+<thead>
+<tr>
+<th>决策点</th>
+<th>结论</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一次一台 vs 一次多台</td>
+<td><strong>串行（一次一台）</strong></td>
+<td>设备端人工授权 + 切片看门狗 + 重连风暴，见 <a href="#3-为什么串行不并行">§3</a></td>
+</tr>
+<tr>
+<td>界面形态</td>
+<td><strong>顶栏开关同屏切换</strong>单/多设备，开关<strong>默认关</strong></td>
+<td>用户指定「开关在顶端栏最右侧」；<a href="../../app/src/main/java/io/bluetrace/ui/components/Common.kt"><code>BtTopBar</code></a> 已有 <code>actions</code> 槽</td>
+</tr>
+<tr>
+<td>扫描添加语义</td>
+<td><strong>只入队、不连接</strong>；<strong>仅 B2A/S7 可加</strong>，不支持的设备不可加</td>
+<td>实际连接在批量执行时逐台发生</td>
+</tr>
+<tr>
+<td>OTA 包</td>
+<td>多设备模式<strong>锁 1 个</strong>，全队列共用</td>
+<td>用户指定「多设备只涉及一个 OTA 包」</td>
+</tr>
+<tr>
+<td>电量门槛</td>
+<td>刷前 <strong>&lt; 30% 跳过</strong>（标「电量不足」，可充电后重试）</td>
+<td>固件无低电门控，掉电变砖风险 100% 由 App 兜底</td>
+</tr>
+<tr>
+<td>失败处理</td>
+<td><strong>一台失败即跳过</strong>，继续下一台；批尾汇总；失败/跳过行显示<strong>重试</strong>图标，可单台重试</td>
+<td>用户拍板</td>
+</tr>
+<tr>
+<td>刷后是否断开</td>
+<td><strong>断开</strong>（<code>ble.disconnect</code> + <code>registry.remove</code>），释放射频给下一台</td>
+<td>用户拍板</td>
+</tr>
+<tr>
+<td>开始后能否改队列</td>
+<td><strong>禁新增</strong>；<strong>未开始的「待升级」行可删</strong>、<strong>已完成/失败/跳过行可删</strong>；<strong>正在刷写的当前台锁定</strong>（要停用顶栏「停止批量」）</td>
+<td>用户拍板（新增禁），删除语义本设计建议</td>
+</tr>
+<tr>
+<td>单设备现状</td>
+<td>开关<strong>关</strong> = 现在的单设备 DEBUG 屏（1 包单次 / 2 包 A→B 循环）<strong>原样保留</strong></td>
+<td>用户拍板</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-90">2. 复用账：90% 是现成的</h2>
+<p>多设备把「刷哪台」从单个黏性目标换成一条队列，其余每一步都落到现成件上：</p>
+<table>
+<thead>
+<tr>
+<th>流程步骤</th>
+<th>落到哪个现成件</th>
+<th>位置</th>
+<th>新写量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>连接 + 入册</td>
+<td><code>ble.connect(device)</code> + <code>registry.add(device)</code></td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleClient.kt"><code>BleClient.kt</code></a> / <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/ConnectionRegistry.kt"><code>ConnectionRegistry.kt</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>查版本</td>
+<td><code>S7Console.getDeviceInfo().swVer</code>（<code>GET</code> <code>KEY_DEV_INFO=0x21</code>）</td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7Console.kt#L232"><code>S7Console.kt:232</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>查电量</td>
+<td><code>S7Console.getBattery().percent</code>（<code>GET</code> <code>KEY_DEV_VOL=0x24</code>）</td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7Console.kt#L240"><code>S7Console.kt:240</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>OTA + 等复位 + 重连 + 读版本</td>
+<td><code>OtaProvisioner.provisionAndReconnect(pkg, onPhase, onProgress)</code></td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt#L52"><code>OtaProvisioner.kt:52</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>下行分片 / 独占事务</td>
+<td><code>S7OtaSession.provision()</code>（per-device，per-instance mutex）</td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7OtaSession.kt#L48"><code>S7OtaSession.kt:48</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>断开</td>
+<td><code>ble.disconnect(id)</code> + <code>registry.remove(id)</code></td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleClient.kt"><code>BleClient.kt</code></a></td>
+<td>0</td>
+</tr>
+<tr>
+<td>顶栏开关</td>
+<td><code>BtTopBar(actions = { Switch(...) })</code></td>
+<td><a href="../../app/src/main/java/io/bluetrace/ui/components/Common.kt#L40"><code>Common.kt:40</code></a></td>
+<td>塞 1 个 <code>Switch</code></td>
+</tr>
+<tr>
+<td><strong>批量编排 + 队列状态</strong></td>
+<td><strong>新写</strong> <code>MultiOtaViewModel</code>（仿 <a href="../../app/src/main/java/io/bluetrace/viewmodel/OtaTestViewModel.kt"><code>OtaTestViewModel</code></a>），per-device 状态用 <code>List&lt;DeviceOtaItem&gt;</code></td>
+<td>—</td>
+<td><strong>主要工作量</strong></td>
+</tr>
+<tr>
+<td><strong>多设备 UI</strong></td>
+<td><strong>新写</strong> 多设备布局 + 扫描添加选择表</td>
+<td>—</td>
+<td><strong>主要工作量</strong></td>
+</tr>
+</tbody>
+</table>
+<p>关键点：<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleClient.kt"><code>BleClient</code></a> 全接口按 <code>deviceId</code> 寻址，<a href="../../app/src/main/java/io/bluetrace/data/android/AndroidBleClient.kt"><code>AndroidBleClient</code></a> 用 <code>ConcurrentHashMap&lt;String, Conn&gt;</code> 每设备一条独立 GATT；<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt"><code>OtaProvisioner</code></a> 是纯 suspend、不持有 scope。所以「对队列逐台调 <code>provisionAndReconnect</code>」在结构上零摩擦。</p>
+<hr />
+<h2 id="3">3. 为什么串行（不并行）</h2>
+<p>抽象层<strong>支持</strong>并发（每设备独立 GATT / 独立 <code>S7OtaSession</code> / registry 上限 3 台 DUT），但 OTA 有三条硬约束把并发否掉：</p>
+<ol>
+<li><strong>设备端人工授权</strong>：<code>REQ</code> 后要等设备端 MMI 手动授权（<code>authorizeTimeoutMs = 60s</code>，见 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7OtaSession.kt#L32"><code>S7OtaSession.kt:32</code></a>）。操作员一次只能盯一块表按授权。</li>
+<li><strong>切片看门狗贴身</strong>：单切片 9B ack 超时 <code>sliceAckTimeoutMs = 10s</code> 已贴着设备 ~15.36s UI 看门狗；写通道已是<strong>逐帧串行等 <code>onCharacteristicWrite</code></strong>（<code>ota3.log</code> 实证 17 帧背靠背会溢出 GATT 缓冲丢包，见 <a href="../../app/src/main/java/io/bluetrace/data/android/AndroidBleClient.kt#L306"><code>AndroidBleClient.kt:306</code></a>）。并发会把射频/CPU 摊薄到 N 条链路 → 切片超时 → 批量 abort。</li>
+<li><strong>重连风暴</strong>：刷完每台自复位重启，要重连（<code>reconnectTimeoutMs = 30s × 5</code>，见 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt#L35"><code>OtaProvisioner.kt:35</code></a>）。N 台并发复位 = N 路重连风暴 + 扫描竞争。</li>
+</ol>
+<blockquote>
+<p><strong>结论</strong>：执行层<strong>串行</strong>，UI 呈现为<strong>批量</strong>——一条队列自动从上往下跑，每台实时状态，但同一时刻只刷一台。</p>
+</blockquote>
+<hr />
+<h2 id="4">4. 每台设备状态机（流程）</h2>
+<p>一台设备从「待升级」到「完成/失败/跳过」的完整生命周期。琥珀色的「刷写 OTA」是重步（内含 4 个子阶段，由 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt"><code>OtaProvisioner</code></a> 的 <code>OtaPhase</code> 驱动）；虚线是失败/低电分支，都记录后跳下一台并可手动重试。</p>
+<div class="fig">
+<svg viewBox="0 0 840 240" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>多设备 OTA 每台设备的串行处理状态机</title>
+<desc>横向五步：连接、读版本和电量、刷写 OTA、复读电量、断开；断开后回到队首处理下一台；读版本电量时电量低于 30% 或刷写失败，都进入失败低电框，记录后跳下一台并可手动重试。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.hot{fill:var(--code);stroke:var(--accent);stroke-width:1.5;}
+.err{fill:var(--code);stroke:var(--danger);stroke-width:1.2;}
+.ar{stroke:var(--muted);stroke-width:1.4;fill:none;}
+.dl{stroke:var(--danger);stroke-width:1.3;fill:none;stroke-dasharray:5 4;}
+</style>
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+
+<rect x="24" y="50" width="144" height="54" rx="8" class="bx"/>
+<text x="96" y="73" text-anchor="middle" class="t">连接设备</text>
+<text x="96" y="90" text-anchor="middle" class="s">ble.connect + 入册</text>
+
+<rect x="188" y="50" width="150" height="54" rx="8" class="bx"/>
+<text x="263" y="73" text-anchor="middle" class="t">读版本 + 电量</text>
+<text x="263" y="90" text-anchor="middle" class="s">记刷前值 · 电量门槛</text>
+
+<rect x="358" y="50" width="140" height="54" rx="8" class="hot"/>
+<text x="428" y="73" text-anchor="middle" class="t">刷写 OTA</text>
+<text x="428" y="90" text-anchor="middle" class="s">下载·复位·重连·读版本</text>
+
+<rect x="518" y="50" width="130" height="54" rx="8" class="bx"/>
+<text x="583" y="73" text-anchor="middle" class="t">复读电量</text>
+<text x="583" y="90" text-anchor="middle" class="s">记刷后值</text>
+
+<rect x="668" y="50" width="130" height="54" rx="8" class="bx"/>
+<text x="733" y="73" text-anchor="middle" class="t">断开</text>
+<text x="733" y="90" text-anchor="middle" class="s">释放射频</text>
+
+<line x1="168" y1="77" x2="188" y2="77" class="ar" marker-end="url(#ah)"/>
+<line x1="338" y1="77" x2="358" y2="77" class="ar" marker-end="url(#ah)"/>
+<line x1="498" y1="77" x2="518" y2="77" class="ar" marker-end="url(#ah)"/>
+<line x1="648" y1="77" x2="668" y2="77" class="ar" marker-end="url(#ah)"/>
+
+<rect x="330" y="150" width="200" height="48" rx="8" class="err"/>
+<text x="430" y="170" text-anchor="middle" class="t">失败 / 低电</text>
+<text x="430" y="186" text-anchor="middle" class="s">记录 · 跳下一台 · 可重试</text>
+
+<path d="M263 104 L263 138 L360 138 L360 150" class="dl" marker-end="url(#ah)"/>
+<path d="M428 104 L428 150" class="dl" marker-end="url(#ah)"/>
+
+<path d="M733 104 L733 220 L96 220 L96 104" class="ar" marker-end="url(#ah)"/>
+<text x="405" y="215" text-anchor="middle" class="s">↻ 断开后处理下一台（失败/跳过同样回此循环）</text>
+</svg>
+</div>
+
+<p><strong>映射到代码</strong>：<code>连接</code> = <code>ble.connect</code> + 校验 <code>linkState==CONNECTED</code> 后 <code>registry.add</code>；<code>读版本+电量</code> = 短命 <code>S7Console</code> 上 <code>getDeviceInfo().swVer</code> + <code>getBattery().percent</code>；<code>刷写 OTA</code> = <code>OtaProvisioner.provisionAndReconnect</code>（返回 <code>OtaResult.Reconnected(version)</code> 或 <code>Failed(reason)</code>）；<code>复读电量</code> = 重连后再 <code>getBattery()</code>；<code>断开</code> = <code>ble.disconnect</code> + <code>registry.remove</code>。</p>
+<hr />
+<h2 id="5">5. 界面设计</h2>
+<h3 id="51">5.1 顶栏「多设备」开关（默认关）</h3>
+<p>顶栏用现成 <a href="../../app/src/main/java/io/bluetrace/ui/components/Common.kt"><code>BtTopBar</code></a>，它已暴露右侧 <code>actions: @Composable (() -&gt; Unit)?</code> 槽（<a href="../../app/src/main/java/io/bluetrace/ui/components/Common.kt#L40"><code>Common.kt:40</code></a>，渲染在 <a href="../../app/src/main/java/io/bluetrace/ui/components/Common.kt#L63"><code>:63</code></a>），现在 OTA 屏没传。改为：</p>
+<pre><code class="language-kotlin">BtTopBar(
+    title = &quot;OTA 固件&quot;,
+    subtitle = if (ui.multiMode) &quot;多设备批量 · 队列 ${ui.queue.size} 台&quot; else &quot;刷入烧录包 · DEBUG&quot;,
+    onBack = { if (!ui.running) onBack() },
+    actions = {
+        Text(&quot;多设备&quot;, ...)
+        Switch(checked = ui.multiMode, enabled = !ui.running,
+               onCheckedChange = { vm.setMultiMode(it) })
+    },
+)
+</code></pre>
+<ul>
+<li>默认 <code>multiMode = false</code>（单设备）；运行中 <code>enabled = false</code>（不可中途切模式）。</li>
+</ul>
+<h3 id="52">5.2 界面布局总览（多设备模式）</h3>
+<p>顺序：<strong>顶栏（开关）→ 烧录包（1 个，共用）→ 设备队列（可增删）→ 批量控制</strong>。</p>
+<div class="fig">
+<svg viewBox="0 0 840 470" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>多设备 OTA 屏布局线框图</title>
+<desc>手机屏从上到下：带多设备开关的顶栏、单个共用 OTA 包卡、设备队列（含扫描添加入口和多行队列项）、批量控制按钮和汇总；右侧为各区块的说明标注。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:11px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.fr{fill:none;stroke:var(--line);stroke-width:1.4;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.acc{fill:var(--accent);}
+.led{stroke:var(--line);stroke-width:1;fill:none;stroke-dasharray:4 3;}
+</style>
+
+<rect x="40" y="30" width="300" height="410" rx="18" class="fr"/>
+<line x1="40" y1="76" x2="340" y2="76" stroke="var(--line)" stroke-width="1"/>
+<text x="60" y="58" class="t">OTA 固件</text>
+<rect x="278" y="46" width="30" height="16" rx="8" class="acc"/>
+<circle cx="301" cy="54" r="6" fill="var(--bg)"/>
+<text x="272" y="58" text-anchor="end" class="s">多设备</text>
+
+<rect x="52" y="90" width="276" height="42" rx="8" class="bx"/>
+<text x="64" y="108" class="m">S7_fw_v1.2.8.zip</text>
+<text x="64" y="123" class="s">12 文件 · 3.4 MB · 全队列共用</text>
+
+<text x="60" y="156" class="t">设备队列 · N 台</text>
+<text x="316" y="156" text-anchor="end" class="a">＋ 扫描添加</text>
+
+<rect x="52" y="166" width="276" height="40" rx="8" class="bx"/>
+<circle cx="70" cy="186" r="6" fill="var(--muted)"/>
+<text x="86" y="183" class="m">SKG WATCH S7-xxxx</text>
+<text x="86" y="197" class="s">状态徽章 · 版本/电量/进度</text>
+
+<rect x="52" y="214" width="276" height="40" rx="8" class="bx"/>
+<circle cx="70" cy="234" r="6" class="acc"/>
+<text x="86" y="231" class="m">SKG WATCH S7-xxxx</text>
+<text x="86" y="245" class="s">刷写中 · 进度条</text>
+
+<rect x="52" y="262" width="276" height="40" rx="8" class="bx"/>
+<circle cx="70" cy="282" r="6" fill="var(--muted)"/>
+<text x="86" y="279" class="m">SKG WATCH S7-xxxx</text>
+<text x="86" y="293" class="s">待升级 · 可删</text>
+
+<rect x="52" y="322" width="276" height="40" rx="8" class="acc"/>
+<text x="190" y="347" text-anchor="middle" fill="var(--bg)" font-size="12" font-weight="700" font-family="-apple-system,'Microsoft YaHei',sans-serif">开始批量 / 停止批量</text>
+<text x="190" y="380" text-anchor="middle" class="s">1 完成 · 1 失败 · 1 跳过 · 待升级 N</text>
+
+<line x1="312" y1="54" x2="556" y2="52" class="led"/>
+<text x="560" y="49" class="t">顶栏开关</text>
+<text x="560" y="64" class="s">默认关；手动开进多设备</text>
+
+<line x1="328" y1="110" x2="556" y2="112" class="led"/>
+<text x="560" y="109" class="t">单个 OTA 包</text>
+<text x="560" y="124" class="s">全队列共用；多设备锁 1 包</text>
+
+<line x1="300" y1="152" x2="556" y2="172" class="led"/>
+<text x="560" y="169" class="t">扫描添加</text>
+<text x="560" y="184" class="s">入队不连接 · 仅 B2A 可加</text>
+
+<line x1="328" y1="234" x2="556" y2="250" class="led"/>
+<text x="560" y="247" class="t">工作队列</text>
+<text x="560" y="262" class="s">5 态 · 待升级可删 · 失败/低电可重试</text>
+
+<line x1="328" y1="342" x2="556" y2="332" class="led"/>
+<text x="560" y="329" class="t">批量控制</text>
+<text x="560" y="344" class="s">串行逐台 + 实时汇总</text>
+</svg>
+</div>
+
+<blockquote>
+<p><strong>开关关（单设备）</strong> = 现在的 <a href="../../app/src/main/java/io/bluetrace/ui/screen/settings/OtaTestScreen.kt"><code>OtaTestScreen</code></a> 原样：黏性单目标 <code>InfoCard</code>（点进扫描/连接页）+ 1~2 包（2 包 A→B 循环）。多设备只是并列多出的一个模式。</p>
+</blockquote>
+<h3 id="53-5">5.3 队列行状态词汇（5 态）</h3>
+<div class="fig">
+<svg viewBox="0 0 840 130" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>工作队列行的五种状态及右侧动作</title>
+<desc>五个状态：待升级可删除、刷写中锁定、完成显示版本电量前后值、失败可重试、低电跳过可重试。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.p{stroke-width:1.3;fill:var(--code);}
+</style>
+<rect x="20"  y="34" width="150" height="34" rx="8" class="p" stroke="var(--muted)"/>
+<text x="95"  y="55" text-anchor="middle" class="t">待升级</text>
+<text x="95"  y="88" text-anchor="middle" class="s">未连接 · 可删除</text>
+
+<rect x="188" y="34" width="150" height="34" rx="8" class="p" stroke="var(--accent)"/>
+<text x="263" y="55" text-anchor="middle" class="t">刷写中</text>
+<text x="263" y="88" text-anchor="middle" class="s">进度条 · 锁定</text>
+
+<rect x="356" y="34" width="150" height="34" rx="8" class="p" stroke="var(--fg)"/>
+<text x="431" y="55" text-anchor="middle" class="t">完成</text>
+<text x="431" y="88" text-anchor="middle" class="s">版本/电量 前→后</text>
+
+<rect x="524" y="34" width="150" height="34" rx="8" class="p" stroke="var(--danger)"/>
+<text x="599" y="55" text-anchor="middle" class="t">失败</text>
+<text x="599" y="88" text-anchor="middle" class="s">原因 · 可重试 ↻</text>
+
+<rect x="692" y="34" width="128" height="34" rx="8" class="p" stroke="var(--warn)"/>
+<text x="756" y="55" text-anchor="middle" class="t">跳过 · 低电</text>
+<text x="756" y="88" text-anchor="middle" class="s">&lt;30% · 可重试 ↻</text>
+</svg>
+</div>
+
+<ul>
+<li><strong>待升级</strong>：扫描入队后的初态（未连接，只有 name/MAC/RSSI）；右侧「删除」。</li>
+<li><strong>刷写中</strong>（含 连接中/读取中/等待重连）：显示进度/阶段，行<strong>锁定</strong>不可删。</li>
+<li><strong>完成</strong>：<code>版本 v_before → v_after · 电量 b_before% → b_after%</code>。</li>
+<li><strong>失败</strong>：显示失败原因（连接失败/<code>REQ</code> 拒绝/切片失败/重连失败），右侧「重试 ↻」。</li>
+<li><strong>跳过 · 低电</strong>：刷前电量 <code>&lt; 30%</code>，右侧「重试 ↻」（充电后再点）。</li>
+</ul>
+<h3 id="54-b2a">5.4 扫描添加选择表（入队不连接，仅 B2A）</h3>
+<p>点「扫描添加」弹出一个选择表：扫到的设备<strong>只加入队列、不立即连接</strong>；识别为 S7（广播含 <code>FFE0</code>，<code>B2aDetect.matchesAdvertisement</code>）的可勾选，其余灰掉标「不支持 OTA」、不可勾；已在队列的标「已在队列」。</p>
+<div class="fig">
+<svg viewBox="0 0 840 260" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>扫描添加选择表</title>
+<desc>底部弹出表列出扫到的设备：两台 S7 手表可勾选，一台已在队列，一台非 B2A 设备灰掉标不支持；底部为加入队列按钮。仅入队不连接。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.acc{fill:var(--accent);}
+.ok{stroke:var(--accent);stroke-width:1.4;fill:none;}
+.dis{stroke:var(--line);stroke-width:1.2;fill:none;}
+</style>
+<rect x="120" y="20" width="600" height="200" rx="12" class="bx"/>
+<text x="140" y="48" class="t">扫描添加到队列</text>
+<text x="700" y="48" text-anchor="end" class="s">仅入队 · 不连接 · 只支持 S7(B2A)</text>
+
+<rect x="140" y="62" width="24" height="24" rx="5" class="acc"/>
+<text x="152" y="79" text-anchor="middle" fill="var(--bg)" font-size="13">✓</text>
+<text x="176" y="79" class="m">SKG WATCH S7-9B02</text>
+<text x="700" y="79" text-anchor="end" class="a">S7 · 可加</text>
+
+<rect x="140" y="98" width="24" height="24" rx="5" class="acc"/>
+<text x="152" y="115" text-anchor="middle" fill="var(--bg)" font-size="13">✓</text>
+<text x="176" y="115" class="m">SKG WATCH S7-41AD</text>
+<text x="700" y="115" text-anchor="end" class="a">S7 · 可加</text>
+
+<rect x="140" y="134" width="24" height="24" rx="5" class="dis"/>
+<text x="176" y="151" class="m">SKG WATCH S7-FCC4</text>
+<text x="700" y="151" text-anchor="end" class="s">已在队列</text>
+
+<g opacity="0.5">
+<rect x="140" y="170" width="24" height="24" rx="5" class="dis"/>
+<text x="152" y="187" text-anchor="middle" class="s">✕</text>
+<text x="176" y="187" class="m">Mi Band 8</text>
+<text x="700" y="187" text-anchor="end" class="s">不支持 OTA</text>
+</g>
+
+<rect x="140" y="205" width="580" height="0.6" fill="var(--line)"/>
+<text x="430" y="200" text-anchor="middle" class="s">— 底部：加入队列 (2) —</text>
+</svg>
+</div>
+
+<h3 id="55">5.5 增删规则（开始前 / 开始后）</h3>
+<table>
+<thead>
+<tr>
+<th>时机</th>
+<th>新增设备</th>
+<th>删除设备</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>批量<strong>开始前</strong></td>
+<td>✅ 扫描添加任意 B2A 设备</td>
+<td>✅ 任意行可删</td>
+</tr>
+<tr>
+<td>批量<strong>运行中</strong></td>
+<td>❌ 禁止（用户拍板）</td>
+<td>✅ 「待升级」行可删（从后续队列摘除）；「完成/失败/跳过」行可删（清理）；❌ <strong>正在刷写的当前台锁定</strong>（停它只能用顶栏「停止批量」）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 数据模型</h2>
+<p>单设备的 <a href="../../app/src/main/java/io/bluetrace/viewmodel/OtaTestViewModel.kt#L36"><code>OtaTestUiState</code></a> 是单目标（一个 <code>device</code>、一个 <code>runJob</code>、一个全局 log）。多设备把它一般化为「模式 + 队列 + 共享包」。</p>
+<pre><code class="language-kotlin">enum class DeviceOtaStatus { QUEUED, CONNECTING, READING, FLASHING, DONE, FAILED, SKIPPED_LOW_BATTERY }
+
+data class DeviceOtaItem(
+    val device: ScannedDevice,            // 扫描入队时拿到 name/address/rssi
+    val status: DeviceOtaStatus = DeviceOtaStatus.QUEUED,
+    val phase: OtaPhase? = null,          // 刷写子阶段（下载/等复位/重连/读版本）
+    val progress: OtaProgress? = null,    // 字节进度
+    val versionBefore: String? = null,
+    val versionAfter: String? = null,
+    val batteryBefore: Int? = null,
+    val batteryAfter: Int? = null,
+    val failReason: String? = null,       // 失败/跳过原因
+) {
+    val retriable: Boolean get() = status == DeviceOtaStatus.FAILED || status == DeviceOtaStatus.SKIPPED_LOW_BATTERY
+    val removable: Boolean get() = status != DeviceOtaStatus.CONNECTING &amp;&amp;
+        status != DeviceOtaStatus.READING &amp;&amp; status != DeviceOtaStatus.FLASHING
+}
+
+data class MultiOtaUiState(
+    val multiMode: Boolean = false,       // 顶栏开关；默认关
+    val pkg: OtaPkgItem? = null,          // 多设备锁 1 包，全队列共用
+    val queue: List&lt;DeviceOtaItem&gt; = emptyList(),
+    val running: Boolean = false,
+    val currentIndex: Int = -1,           // 当前正在刷第几台
+) {
+    val doneCount get() = queue.count { it.status == DeviceOtaStatus.DONE }
+    val failCount get() = queue.count { it.status == DeviceOtaStatus.FAILED }
+    val skipCount get() = queue.count { it.status == DeviceOtaStatus.SKIPPED_LOW_BATTERY }
+    val canStart get() = pkg != null &amp;&amp; queue.any { it.status == DeviceOtaStatus.QUEUED } &amp;&amp; !running
+}
+</code></pre>
+<p><strong>实现（落码后架构，与上面概念模型的差异已就地对齐）</strong>：串行编排核 = shared <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/MultiOtaController.kt"><code>MultiOtaController</code></a>（commonMain，<strong>无 Android 依赖，iOS 可复用</strong>；<code>DeviceOtaStatus</code>/<code>DeviceOtaItem</code> 一并下沉 shared）——持队列 + <code>startBatch(pkg)</code> 串行遍历 <code>QUEUED</code> 逐台驱动 <a href="#4-每台设备状态机流程">§4</a> 流程 + <code>stopBatch()</code> / <code>retry(id,pkg)</code> / <code>retryAllFailed(pkg)</code> + <code>addDevices</code> / <code>removeDevice</code>；状态经 <code>queue</code> / <code>running</code> <code>StateFlow</code> + <code>opLog</code> <code>SharedFlow</code> 上抛。App 侧 <a href="../../app/src/main/java/io/bluetrace/viewmodel/MultiOtaViewModel.kt"><code>MultiOtaViewModel</code></a> 是<strong>薄壳</strong>：包加载（Uri→zip→<code>OtaPackage</code>）、扫描添加 UI、把 controller 三条流映射成 Compose 状态（<code>MultiOtaUiState</code> 由 VM 组合，<code>multiMode</code> 移到 UI 本地 <code>rememberSaveable</code>、<code>currentIndex</code> 去掉）。与仓库惯例一致（<code>OtaProvisioner</code>/<code>S7Console</code>/<code>ConnectionRegistry</code> 皆在 shared）。</p>
+<blockquote>
+<p><strong>编排核有 jvmTest 覆盖</strong>：<a href="../../shared/src/commonTest/kotlin/io/bluetrace/shared/s7/MultiOtaControllerTest.kt"><code>MultiOtaControllerTest</code></a>（N 个 <code>S7MockWatch</code> 造多设备假 <code>BleClient</code>，虚拟时钟 + <code>Job.join()</code> 驱动）验证 串行全完成 / 失败即跳过继续 / 电量门槛跳过 / 单台重试 —— 4 用例绿。</p>
+<p><strong>顶栏开关落地为同屏切模式</strong>（非两屏）：<code>OtaTestScreen</code> 顶栏 <code>Switch</code> 翻 <code>multiMode</code>，开=渲染 <code>MultiOtaBody</code>（薄壳 VM）、关=现状单设备 body（<code>OtaTestViewModel</code> <strong>零改动</strong>）——单设备现状零风险。</p>
+</blockquote>
+<hr />
+<h2 id="7">7. 串行编排时序</h2>
+<p>批量 = 队列逐台<strong>背靠背</strong>跑完整流程，同一时刻只有一台在通信。</p>
+<div class="fig">
+<svg viewBox="0 0 840 180" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>多设备 OTA 串行编排时间线</title>
+<desc>时间从左到右，设备 A、B、C 的处理块背靠背排列，每块内部依次是连接、读、刷写（占大头）、读、断开；同一时刻只有一台在通信。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.seg{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.hot{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
+.sep{stroke:var(--line);stroke-width:1;stroke-dasharray:4 3;}
+.ax{stroke:var(--muted);stroke-width:1.2;fill:none;}
+</style>
+
+<text x="60" y="44" class="t">设备 A</text>
+<rect x="60"  y="52" width="26" height="40" class="seg"/>
+<rect x="86"  y="52" width="34" height="40" class="seg"/>
+<rect x="120" y="52" width="150" height="40" class="hot"/>
+<rect x="270" y="52" width="26" height="40" class="seg"/>
+<rect x="296" y="52" width="26" height="40" class="seg"/>
+<text x="73"  y="108" text-anchor="middle" class="s">连</text>
+<text x="103" y="108" text-anchor="middle" class="s">读</text>
+<text x="195" y="108" text-anchor="middle" class="s">刷写 OTA（占大头）</text>
+<text x="283" y="108" text-anchor="middle" class="s">读</text>
+<text x="309" y="108" text-anchor="middle" class="s">断</text>
+
+<line x1="326" y1="46" x2="326" y2="120" class="sep"/>
+
+<text x="336" y="44" class="t">设备 B</text>
+<rect x="336" y="52" width="26" height="40" class="seg"/>
+<rect x="362" y="52" width="34" height="40" class="seg"/>
+<rect x="396" y="52" width="150" height="40" class="hot"/>
+<rect x="546" y="52" width="26" height="40" class="seg"/>
+<rect x="572" y="52" width="26" height="40" class="seg"/>
+
+<line x1="602" y1="46" x2="602" y2="120" class="sep"/>
+
+<text x="612" y="44" class="t">设备 C</text>
+<rect x="612" y="52" width="26" height="40" class="seg"/>
+<rect x="638" y="52" width="34" height="40" class="seg"/>
+<rect x="672" y="52" width="110" height="40" class="hot"/>
+<text x="792" y="78" class="s">…</text>
+
+<line x1="40" y1="132" x2="800" y2="132" class="ax" marker-end="url(#ah2)"/>
+<defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.2" stroke-linecap="round"/></marker></defs>
+<text x="420" y="150" text-anchor="middle" class="s">时间 →　　同一时刻只有一台在通信（含设备端授权 + 重连读版本）</text>
+</svg>
+</div>
+
+<hr />
+<h2 id="8">8. 失败与边界处理</h2>
+<ul>
+<li><strong>失败即跳过</strong>：任一步失败标记该台 <code>FAILED(reason)</code>，<code>continue</code> 下一台，不因一台坏而停整批。批尾汇总 <code>X 完成 · Y 失败 · Z 跳过</code>。</li>
+<li><strong>电量门槛</strong>：<code>READING</code> 拿到 <code>batteryBefore</code>，<code>&lt; 30%</code> 直接 <code>SKIPPED_LOW_BATTERY</code>，不进 <code>provision</code>。</li>
+<li><strong>手动重试</strong>：<code>FAILED</code> / <code>SKIPPED_LOW_BATTERY</code> 行显示「重试 ↻」，点击把该台重置回 <code>QUEUED</code> 并单独跑一遍完整流程（复用同一批量单元）。</li>
+<li><strong>停止批量</strong>：顶栏「停止批量」取消当前台的 <code>runJob</code>；已完成/失败/跳过保留结果，未开始的留在 <code>QUEUED</code>。参照单设备 <code>BackHandler(enabled = running)</code>，运行中拦截系统返回。</li>
+<li><strong>重连 by-id 假设</strong>：重连是「按已知 MAC 重发 <code>connect</code>」，不是扫描重发现（<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaProvisioner.kt#L83"><code>OtaProvisioner.reconnect</code></a>）。S7 用静态 MAC，成立；换设备须复核。</li>
+<li><strong>registry 抖动</strong>：刷中自复位会让 <code>linkState → DISCONNECTED</code>，<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/ConnectionRegistry.kt"><code>ConnectionRegistry</code></a> 自动 <code>remove</code>；编排层像单设备一样自持 <code>device</code> 引用、重连后 <code>registry.add</code> 回来（<a href="../../app/src/main/java/io/bluetrace/viewmodel/OtaTestViewModel.kt#L199"><code>OtaTestViewModel.kt:199</code></a>）。</li>
+<li><strong>多连上限</strong>：registry <code>DUT ≤ 3</code>，但串行同一时刻只 1 连，不触上限；队列长度不受此限（未连的只是待办）。</li>
+</ul>
+<hr />
+<h2 id="9">9. 落地（已完成）</h2>
+<blockquote>
+<p><strong>状态：已落地并真机（M2101K9C）验证通过</strong>（2026-07-09）。与设计一处偏差：顶栏开关做成<strong>同屏切模式</strong>（非独立屏），单设备 <code>OtaTestViewModel</code> 零改动；因此<strong>未新增路由</strong>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>落地</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排核（新，shared）</td>
+<td><a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/MultiOtaController.kt"><code>MultiOtaController</code></a>（commonMain 无 Android 依赖，iOS 可复用；<code>DeviceOtaStatus</code>/<code>DeviceOtaItem</code> 同处）——队列 + 串行遍历 + 电量门槛 + 重试；状态经 <code>queue</code>/<code>running</code> <code>StateFlow</code> + <code>opLog</code> <code>SharedFlow</code> 上抛</td>
+</tr>
+<tr>
+<td>VM（新，薄壳）</td>
+<td><a href="../../app/src/main/java/io/bluetrace/viewmodel/MultiOtaViewModel.kt"><code>MultiOtaViewModel</code></a>——Uri→zip 载包、扫描添加 UI、日志镜像、<code>MultiOtaUiState</code> 组合</td>
+</tr>
+<tr>
+<td>UI（新）</td>
+<td><a href="../../app/src/main/java/io/bluetrace/ui/screen/settings/MultiOtaScreen.kt"><code>MultiOtaScreen.kt</code></a> <code>MultiOtaBody</code> + 队列行 5 态 + 扫描添加底部弹窗</td>
+</tr>
+<tr>
+<td>顶栏开关</td>
+<td><a href="../../app/src/main/java/io/bluetrace/ui/screen/settings/OtaTestScreen.kt"><code>OtaTestScreen</code></a> 顶栏 <code>Switch</code> 翻 <code>multiMode</code>（同屏切；单设备 body 不改，运行中锁定）</td>
+</tr>
+<tr>
+<td>DI</td>
+<td><a href="../../app/src/main/java/io/bluetrace/di/AppModule.kt"><code>AppModule.kt</code></a> 注册 <code>MultiOtaViewModel</code>（路由无需新增）</td>
+</tr>
+<tr>
+<td>测试</td>
+<td><a href="../../shared/src/commonTest/kotlin/io/bluetrace/shared/s7/MultiOtaControllerTest.kt"><code>MultiOtaControllerTest</code></a>（jvmTest，N 个 <code>S7MockWatch</code> 造多设备假 <code>BleClient</code>）：串行全完成 / 失败即跳过继续 / 电量门槛跳过 / 单台重试 —— <strong>4 例绿</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>验收（全过）</strong>：队列 5 态显示正确 ✓；版本/电量前后值正确 ✓；单台 + 「重试全部失败」可用 ✓；停止批量干净收尾 ✓；电量门槛生效 ✓；开关关时单设备现状零影响 ✓。</p>
+<hr />
+<h2 id="10-open-questions">10. Open Questions（落地后回填）</h2>
+<ul>
+<li><strong>O-1 电量阈值可配否</strong>：已做成 <code>MultiOtaController(lowBatteryPct = 30)</code> 构造参数（默认 30），暂未放进设置 UI——需要时再提。</li>
+<li><strong>O-2 独立屏 vs 同屏切模式</strong>：<strong>已定 = 同屏切模式</strong>（顶栏 <code>Switch</code> 翻 <code>multiMode</code>，单设备 VM 零改动）。</li>
+<li><strong>O-3 队列持久化</strong>：批量中途退出/杀进程<strong>不恢复</strong>队列——当前定位（attended、盯着刷）下不做。</li>
+<li><strong>O-4 重试全部失败项</strong>：<strong>已做</strong>（批尾「重试全部失败 (N)」+ 每行单台重试 ↻）。</li>
+</ul>
+<hr />
+<h2 id="11-mock">11. 演示与真机验证（Mock 多台）</h2>
+<p>无真表时用 Mock 也能试"多台"：</p>
+<ul>
+<li><strong>Mock 多台</strong>：<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/mock/MockBleClient.kt"><code>MockBleClient</code></a> 从 1 台 S7 扩到 3 台（每设备独立 <code>S7MockWatch</code> + inbound；roster 加 S7-A31B / S7-2D90）；S7 表默认 <code>otaRebootAfterComplete=true</code>，走 <code>刷后自复位 → 断链 → 重连</code> 闭环（更真、无 90s 空等）。</li>
+<li><strong>DEBUG 示例包入口</strong>：多设备屏<strong>长按</strong>「添加烧录包」载入内存合成包（绕过 SAF/真实 zip），<strong>仅 Mock 模式可用</strong>（真实 GATT 下 no-op，防把合成垃圾包误推给真表）。</li>
+<li><strong>怎么试</strong>：设置页开「使用 Mock BLE」（重启生效）→ OTA 固件 → 顶栏开「多设备」→ 长按加示例包 → 扫描添加选 S7 入队 → 开始批量。</li>
+<li><strong>真机走通</strong>（M2101K9C / Android 13）：开关切换、扫描 B2A 过滤（S7「可加」/ 非 B2A「不支持 OTA」）、多选入队、串行逐台（设备1 刷写时设备2 待升级）、两台各 连接·读版本电量·刷写·复位·重连·复读、汇总「完成 2」，日志 REQ/START/STOP/DONE/重连成功 全链印证。</li>
+<li><strong>两处 UI 细节</strong>（真机反馈修正）：扫描底部弹窗 <code>skipPartiallyExpanded=true</code>（默认全展开，「加入队列」按钮不必上拉即见）；队列行「版本 X→Y · 电量 A%→B%」移到名字下方整行铺满（不再被右侧状态药丸/删除键挤占截断）。</li>
+</ul>
+<hr />
+<blockquote>
+<p>配套图文档（离线 HTML）：<code>S7多设备OTA_设计.html</code>（与本 md 成对）。协议真值见 <a href="S7采集OTA_指令交互与流程.md">S7采集OTA_指令交互与流程.md</a>。</p>
+</blockquote></main>
+</div>
+</body>
+</html>

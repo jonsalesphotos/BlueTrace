@@ -1,4 +1,4 @@
-# BlueTrace 开发上下文（最后更新 2026-07-07）
+# BlueTrace 开发上下文（最后更新 2026-07-09）
 
 > 给零上下文的下一个会话/接手人看的活文档。真源永远是 [`/SPEC.md`](../../SPEC.md) ＞ [`prototypes/v4_android.html`](../prototypes/v4_android.html)；本文只记"走到哪了、为什么、下一步"。
 
@@ -21,7 +21,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - **协议规格文档**：[`归档/s7/`](../归档/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
 
 **阻塞**
-- M7（P5 真实 DUT 采集协议解码）：**2026-07-06 口径修正——不是"自研 vs UWTP 二选一"，而是在现网 B2A 主体上添加/扩展采集能力**（UWTP 仅思考方向、可能借用部分设计）；自研 v0.1 线整体归档 [`归档/自研协议线_v0/`](../归档/自研协议线_v0/)，**扩展方案待重新构思**。**采集前置 = OTA**（常规表刷采集固件才能采集）：设计与真实包坐实见 [`OTA/S7采集OTA_设计.md`](../OTA/S7采集OTA_设计.md)（方向 B 实验室 attended，真机可联调，Phase 0 逆向基本完成，下一步 Phase 1 传输地基+Mock）。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
+- M7（P5 真实 DUT 采集协议解码）：**2026-07-06 口径修正——不是"自研 vs UWTP 二选一"，而是在现网 B2A 主体上添加/扩展采集能力**（UWTP 仅思考方向、可能借用部分设计）；自研 v0.1 线整体归档 [`归档/自研协议线_v0/`](../归档/自研协议线_v0/)，**扩展方案待重新构思**。**采集前置 = OTA**（常规表刷采集固件才能采集）：设计与真实包坐实见 [`OTA/S7采集OTA_设计.md`](../OTA/S7采集OTA_设计.md)（方向 B 实验室 attended，真机可联调，Phase 0 逆向基本完成，下一步 Phase 1 传输地基+Mock）。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。**OTA 工具屏进展（2026-07-09）**：DEBUG「OTA 固件」屏已从单设备扩到多设备——顶栏「多设备」开关（默认关）切两态，开=工作队列**串行**批量（一次一台，一个包多台：连接→读版本电量→电量门槛30%→刷写→复读→断开→下一台，失败/低电跳过可重试）。协议/连接/OTA 会话层零改动。串行编排核下沉 shared `MultiOtaController`（commonMain 无 Android 依赖、iOS 可复用，有 jvmTest `MultiOtaControllerTest` 覆盖串行/失败跳过/电量门槛/重试），`MultiOtaViewModel` 是薄壳 + 多设备 UI，复用 `OtaProvisioner.provisionAndReconnect`/`S7Console`。设计见 [`../OTA/S7多设备OTA_设计.md`](../OTA/S7多设备OTA_设计.md)（4 图），落码明细见 CHANGELOG [OTA·多设备]。
 
 ## 关键决策（节选，全表见 SPEC 与各设计文档）
 
