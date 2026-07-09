@@ -57,6 +57,7 @@ import io.bluetrace.ui.screen.settings.DeviceConsoleScreen
 import io.bluetrace.ui.screen.settings.EnvCheckScreen
 import io.bluetrace.ui.screen.settings.ExportLocationScreen
 import io.bluetrace.ui.screen.settings.LanguageScreen
+import io.bluetrace.ui.screen.settings.OtaTestScreen
 import io.bluetrace.ui.screen.settings.SettingsHomeScreen
 import io.bluetrace.ui.screen.settings.StorageScreen
 import io.bluetrace.ui.screen.subject.SubjectEditScreen
@@ -241,6 +242,7 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                     onAbout = { nav.navigate(Route.About) },
                     onAppearance = { nav.navigate(Route.Appearance) },
                     onLanguage = { nav.navigate(Route.Language) },
+                    onOtaTest = { nav.navigate(Route.OtaTest) },
                 )
             }
             composable<Route.EnvCheck> { EnvCheckScreen(onBack = { nav.popBackStack() }) }
@@ -253,6 +255,9 @@ private fun BlueTraceNavHost(nav: NavHostController) {
                     onOpenConnect = { nav.navigate(Route.ConsoleConnect) },
                     onOpenLogs = { nav.navigate(Route.ConsoleLogList) },
                 )
+            }
+            composable<Route.OtaTest> {
+                OtaTestScreen(onBack = { nav.popBackStack() }, onOpenConnect = { nav.navigate(Route.ConsoleConnect) })
             }
             composable<Route.ConsoleConnect> { ConsoleConnectScreen(onBack = { nav.popBackStack() }) }
             composable<Route.ConsoleLogList> {

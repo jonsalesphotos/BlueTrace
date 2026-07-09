@@ -76,6 +76,7 @@ fun SettingsHomeScreen(
     onEnv: () -> Unit, onExportLoc: () -> Unit, onStorage: () -> Unit,
     onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit,
     onAppearance: () -> Unit, onLanguage: () -> Unit,
+    onOtaTest: () -> Unit = {},
 ) {
     // 通用分区两行的副标 = 当前值（主题模式 / 语言名），随偏好实时更新；非说明性副标（red-line #1）。
     val prefs = koinInject<AppPreferences>()
@@ -104,6 +105,10 @@ fun SettingsHomeScreen(
             item { SectionHeader(stringResource(R.string.settings_sec_diag)) }
             item { SettingsNavRow(Icons.Filled.Article, BT.primary, BT.primaryC, stringResource(R.string.settings_log), stringResource(R.string.settings_log_sub), onLog) }
             item { SettingsNavRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_device_maint), stringResource(R.string.settings_device_maint_sub), onDeviceMaint) }
+            if (io.bluetrace.BuildConfig.DEBUG) {
+                // 仅 DEBUG：OTA 固件（选烧录包→连接设备→刷入/循环），与设备维护同级
+                item { SettingsNavRow(Icons.Filled.Memory, BT.primary, BT.primaryC, "OTA 固件", "刷入烧录包 · DEBUG", onOtaTest) }
+            }
             if (io.bluetrace.BuildConfig.DEBUG) {
                 item {
                     // 仅 DEBUG：Mock/真实 BLE 后端切换（重启生效）。无设备演示/UI 回归用 Mock；默认真实 GATT。

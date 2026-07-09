@@ -66,7 +66,8 @@ interface BleClient {
     fun debugInjectDisconnect(deviceId: String) {}
 
     /**
-     * 已协商 MTU（观测，非配置——App 不主动配，D-5）。OTA 分片尺寸推算需要（sliceMaxSize=(MTU−12)×17）。
+     * 已协商 MTU（观测，非配置——App 不主动配，D-5）。OTA 分片尺寸推算需要（sliceMaxSize=(MTU−15)×17）。
+     * 返回**原始协商 MTU**（如 247，非 MTU−3 可用值）；每帧 3B ATT 写头由 [S7FileTrans.maxParamPerFrame] 扣除。
      * 未连接/未协商时返回 BLE 默认 ATT MTU 23（保守）。真实端在 onMtuChanged 回调里存下协商值。
      */
     fun negotiatedMtu(deviceId: String): Int = 23

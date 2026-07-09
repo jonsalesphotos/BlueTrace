@@ -75,15 +75,23 @@ class S7OtaSession(
             ble.write(deviceId, S7FileTrans.encodeReq(pkg.moduleId, pkg.fileCount, pkg.totalBytes))
             val reqMsg = awaitAck(S7FileTrans.KEY_REQ, authorizeTimeoutMs)
                 ?: return@withLock fail(OtaFailure.Timeout("REQ"))
+            // 真机 REQ 应答字节格式待抓包坐实(BUG-2): 可能为 8B 回显而非 12B(含 sliceMaxSize/offset)。
+            // - 可解析为 12B 且**自洽**(moduleId 回显==所发) → 采信 status 判拒 + 采信设备 sliceMax(仍夹本地上限);
+            // - 短应答(parse=null) 或 12B 不自洽(如恰是请求回显, byte[1]=isOffset≠moduleId)
+            //   → 无法可靠判 status, attended 下按"已授权"继续、sliceMax 用本地算值;
+            //   真·拒绝(如 disk_full)会在随后 START ack 暴露 → 优雅降级为后段失败, 不静默挂起, 也不误 abort。
+            // moduleId 自洽门(S1 硬化): 12B 分支不再凭单个未坐实字节硬 abort, 与短应答分支同等保守。
             val req = S7FileTrans.parseReqReply(reqMsg.param)
-                ?: return@withLock fail(OtaFailure.Malformed("REQ"))
-            if (req.status != S7FileTrans.REQ_OK) return@withLock fail(OtaFailure.ReqRejected(req.status))
-            // 切片长以设备回值为准, 但夹到本地 MTU 的分帧容量 (MTU−12)×17 之内——
-            // 否则设备回的 sliceMaxSize 基准 MTU 大于本地(如本地低报 MTU 回退 23)时,
-            // 一切片按本地 MTU 分帧会超过固件 17 包/切片硬限, 触发丢包/拒收(审查 medium)。
+            if (req != null && req.moduleId == pkg.moduleId && req.status != S7FileTrans.REQ_OK) {
+                return@withLock fail(OtaFailure.ReqRejected(req.status))
+            }
+            // 切片长: 设备回值(若有)夹到本地分帧容量 (MTU−15)×17 之内。
+            // 夹取双重意义: (1)设备回值基准 MTU 大于本地(如本地低报回退 23)时防超固件 17 包/切片硬限;
+            // (2)设备不回 sliceMax(短应答)时 localCap 作权威——与官方 App 自算口径一致(golden 日志)。
             val localCap = S7FileTrans.defaultSliceMaxSize(mtu)
-            val sliceMax = (if (req.sliceMaxSize > 0) req.sliceMaxSize else localCap).coerceAtMost(localCap).coerceAtLeast(1)
-            log("RX REQ ok sliceMax=$sliceMax (dev=${req.sliceMaxSize} localCap=$localCap) offset=${req.offset}")
+            val deviceSlice = req?.sliceMaxSize ?: 0
+            val sliceMax = (if (deviceSlice > 0) deviceSlice else localCap).coerceAtMost(localCap).coerceAtLeast(1)
+            log("RX REQ ok sliceMax=$sliceMax (dev=${req?.sliceMaxSize ?: "n/a"} localCap=$localCap reqLen=${reqMsg.param.size} offset=${req?.offset ?: 0})")
 
             // ---- 逐文件 START/TRANS×N/STOP ----
             var sentTotal = 0L

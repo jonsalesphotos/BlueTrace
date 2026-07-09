@@ -57,6 +57,20 @@ class S7OtaTest {
         assertEquals(1020L, S7FileTrans.additiveChecksum(ByteArray(4) { 0xFF.toByte() }))
     }
 
+    /** BUG-1（golden 日志 2026-07-08 ota.log）：每帧 param = MTU−15，满切片 = (MTU−15)×17，上链帧不越 MTU−3。 */
+    @Test
+    fun sliceFragmentation_respectsMtuMinus15_perGoldenLog() {
+        val mtu = 247
+        assertEquals(232, S7FileTrans.maxParamPerFrame(mtu), "每帧 param 应 = MTU−15 = 232（真机 ParamPktLen:232）")
+        assertEquals(3944, S7FileTrans.defaultSliceMaxSize(mtu), "满切片应 = 232×17 = 3944（真机 SliceMaxSize:3944）")
+        // 一个满切片(3944B)分片：恰 17 帧（固件 MAC_SLICE_CNT 硬限），每帧上链(含 3B ATT 写头)不越 MTU
+        val frames = S7FileTrans.encodeSlice(ByteArray(S7FileTrans.defaultSliceMaxSize(mtu)), mtu)
+        assertEquals(17, frames.size, "满切片应恰 17 帧")
+        val attPayloadMax = mtu - S7FileTrans.ATT_HEADER // 244 = 单次 GATT 写可用载荷
+        for (f in frames) assertTrue(f.size <= attPayloadMax, "帧上链 ${f.size}B 越过 ATT 载荷上限 ${attPayloadMax}B")
+        assertEquals(attPayloadMax, frames.first().size, "首帧应恰用满 MTU−3 载荷（旧 MTU−12 会到 247 → 越界）")
+    }
+
     @Test
     fun protocol_encode_parse_roundTrips() {
         // REQ
@@ -67,13 +81,13 @@ class S7OtaTest {
         assertEquals(4, reqMsg.param[2].toInt())
 
         // REQ 应答 12B
-        val rr = OtaReqReply(S7FileTrans.REQ_OK, S7FileTrans.MODULE_OTA, 4, 1, 3995, 512)
+        val rr = OtaReqReply(S7FileTrans.REQ_OK, S7FileTrans.MODULE_OTA, 4, 1, 3944, 512)
         val parsed = S7FileTrans.parseReqReply(S7FrameDecoder().feed(S7FileTrans.encodeReqReply(rr)).single().param)
         assertEquals(rr, parsed)
 
         // START
         val startMsg = S7FrameDecoder().feed(
-            S7FileTrans.encodeStart("ResCheck.dat", fileSize = 4440, sliceSize = 3995, fileType = S7FileTrans.FT_RES),
+            S7FileTrans.encodeStart("ResCheck.dat", fileSize = 4440, sliceSize = 3944, fileType = S7FileTrans.FT_RES),
         ).single()
         assertEquals(S7FileTrans.KEY_START, startMsg.key)
         assertEquals(4440L, readLe32(startMsg.param, 0))
@@ -82,7 +96,7 @@ class S7OtaTest {
         assertEquals("ResCheck.dat", startMsg.param.decodeToString(16, 16 + nameLen))
 
         // 9B DATA ack
-        val ack = OtaDataAck(recvLen = 3995, checkSum = 123456, status = S7Status.SUCC)
+        val ack = OtaDataAck(recvLen = 3944, checkSum = 123456, status = S7Status.SUCC)
         val ackParsed = S7FileTrans.parseDataAck(S7FrameDecoder().feed(S7FileTrans.encodeDataAck(ack)).single().param)
         assertEquals(ack, ackParsed)
 
@@ -160,7 +174,7 @@ class S7OtaTest {
     @Test
     fun provision_multiSlice_singleBigFile() = runTest {
         val ble = FakeOtaBle(S7MockWatch(virtualClock { testScheduler.currentTime }), virtualClock { testScheduler.currentTime }, backgroundScope)
-        // sliceMax=3995 → 10000 字节 = 3 切片
+        // sliceMax=3944（默认 MTU 247）→ 10000 字节 = 3 切片（3944+3944+2112）
         val p = pkg("ResData.dat" to 10000)
         val result = session(ble).provision(p)
         assertIs<OtaResult.DoneDownload>(result)
@@ -197,16 +211,45 @@ class S7OtaTest {
         assertIs<OtaFailure.NotConnected>(failed.reason)
     }
 
-    /** EC-7：会话按设备 REQ 回的 sliceMaxSize 分片（≠本地默认 3995），而非本地 MTU 猜值。 */
+    /** EC-7：会话按设备 REQ 回的 sliceMaxSize 分片（1000 < 本地默认 3944 → 采信小值），而非本地 MTU 猜值。 */
     @Test
     fun provision_honorsDeviceReportedSliceMax_notLocalGuess() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime })
-        watch.otaSliceMax = 1000 // 设备回 1000（≠本地默认 3995）
+        watch.otaSliceMax = 1000 // 设备回 1000（< 本地默认 3944）
         val ble = FakeOtaBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         val result = session(ble).provision(pkg("ResData.dat" to 3000))
         assertIs<OtaResult.DoneDownload>(result)
-        // 若会话忽略设备值改用本地 3995，则 3000B = 单切片 [3000]；honors 1000 → [1000,1000,1000]
+        // 若会话忽略设备值改用本地 3944，则 3000B = 单切片 [3000]；honors 1000 → [1000,1000,1000]
         assertEquals(listOf(1000, 1000, 1000), watch.otaSliceLog)
+    }
+
+    /**
+     * DV-6/BUG-2 分支(1)：设备回 sliceMax > 本地分帧容量（本地 MTU 低报场景）→ 会话向下钳到 localCap，
+     * 防一切片超固件 17 包硬限。删掉 `.coerceAtMost(localCap)` 此测即挂（EC-7 的 dev<local 挡不住此向）。
+     */
+    @Test
+    fun provision_clampsDeviceSliceMax_downToLocalCap() = runTest {
+        val watch = S7MockWatch(virtualClock { testScheduler.currentTime })
+        watch.otaSliceMax = 8000 // 设备回 8000 > 本地默认 localCap 3944（MTU 247）
+        val ble = FakeOtaBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
+        val result = session(ble).provision(pkg("ResData.dat" to 9000))
+        assertIs<OtaResult.DoneDownload>(result)
+        // 采信 8000 会切成 [8000,1000]（且 8000B 需 ⌈8000/232⌉=35 帧 > 17 硬限）；钳到 3944 → [3944,3944,1112]
+        assertEquals(listOf(3944, 3944, 1112), watch.otaSliceLog)
+    }
+
+    /** BUG-2 防御：REQ 应答为非 12B 短帧（真机疑似 8B 回显）→ 会话不 abort，按本地 sliceMax(3944) 完成。 */
+    @Test
+    fun provision_survivesShortReqReply_usesLocalSliceMax() = runTest {
+        val watch = S7MockWatch(virtualClock { testScheduler.currentTime })
+        watch.otaShortReqReply = true // 回 8B 回显 → parseReqReply=null
+        val ble = FakeOtaBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
+        val p = pkg("ResData.dat" to 9000)
+        val result = session(ble).provision(p)
+        assertIs<OtaResult.DoneDownload>(result)
+        assertTrue(p.files[0].bytes.contentEquals(watch.otaReceivedFiles["ResData.dat"]), "短应答下字节仍应完整")
+        // 无设备 sliceMax → 本地 3944 作权威：9000 = [3944,3944,1112]
+        assertEquals(listOf(3944, 3944, 1112), watch.otaSliceLog)
     }
 
     /** 切片重传耗尽 → SliceFailed，offset 指向失败切片起点（非 0，用多切片文件）。 */

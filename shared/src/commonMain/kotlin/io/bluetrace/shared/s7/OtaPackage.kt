@@ -45,10 +45,22 @@ data class OtaProgress(
     val totalBytes: Long,
 )
 
-/** OTA 推送结果。DoneDownload = 末文件 STOP 收讫（设备将自复位生效，App 需重连读版本确认）。 */
+/**
+ * OTA 结果。
+ * - [DoneDownload]：末文件 STOP 收讫（下载阶段成功，[S7OtaSession.provision] 的终态）；生效未确认。
+ * - [Reconnected]：下载后设备自复位 → 重连成功，读到当前版本（[OtaProvisioner] 的终态）。
+ * - [Failed]：下载失败或重连失败。
+ */
 sealed interface OtaResult {
-    /** 全部文件推完、末 STOP 应答成功；生效由设备自主完成。 */
+    /** 全部文件推完、末 STOP 应答成功；生效由设备自主完成，尚未确认。 */
     data object DoneDownload : OtaResult
+
+    /**
+     * 下载完成 + 设备自复位 + 重连成功。[currentVersion] = 重连后读到的设备当前版本（null=读不到，UI 显示"未知"）。
+     * **仅供展示、非成功/失败判据**——OTA 包不含版本信息，无法做"包版本 vs 设备版本"的机器校验
+     * （用户 2026-07-08 决定：不做验证，回连后读取显示当前版本即可）。是否刷成功由人工看版本判断。
+     */
+    data class Reconnected(val currentVersion: String?) : OtaResult
     data class Failed(val reason: OtaFailure) : OtaResult
 }
 
@@ -71,4 +83,13 @@ sealed interface OtaFailure {
 
     /** 应答格式非法（长度不足等）。 */
     data class Malformed(val stage: String) : OtaFailure
+
+    // ---- 下载后回连阶段（[OtaProvisioner]） ----
+
+    /** 设备自复位后重连失败（多次尝试仍未 CONNECTED）——无法回连查看设备（需人工重连）。 */
+    data object ReconnectFailed : OtaFailure
+    // 注：版本读不到不算失败——回连成功即 [OtaResult.Reconnected]，currentVersion=null 显示"未知"。
 }
+
+/** OTA 端到端阶段（驱动 UI 文案；[OtaProvisioner.provisionAndReconnect] 的 onPhase 回调）。 */
+enum class OtaPhase { Downloading, WaitingReboot, Reconnecting, ReadingVersion, Done }

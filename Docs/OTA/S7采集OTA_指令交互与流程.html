@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 采集固件 OTA · 指令交互与流程</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#s7-ota-golden">S7 采集固件 OTA · 指令交互与流程（真机 golden 坐实）</a><ul>
+<li><a href="#0">0. 会话时序（一图速览）</a></li>
+<li><a href="#1">1. 承载与帧信封</a><ul>
+<li><a href="#11">1.1 承载通道</a></li>
+<li><a href="#12-b2a">1.2 B2A 帧结构</a></li>
+<li><a href="#13-statusucstatus-ehst_">1.3 帧头 status（ucStatus / EHST_*）位含义</a></li>
+<li><a href="#14-app">1.4 分片规则（App→表 数据切片）</a></li>
+</ul>
+</li>
+<li><a href="#2-hex">2. 五条指令逐字节（真机 hex + 解码走查）</a><ul>
+<li><a href="#21-req-0x04">2.1 REQ 0x04 — 会话请求（报总量 / 等授权）</a></li>
+<li><a href="#22-start-0x01">2.2 START 0x01 — 单文件头</a></li>
+<li><a href="#23-trans-0x02">2.3 TRANS 0x02 — 数据块（切片）</a></li>
+<li><a href="#24-stop-0x03">2.4 STOP 0x03 — 结束单文件 / 会话</a></li>
+<li><a href="#25-offset-0x06">2.5 OFFSET 0x06 — 查断点续传偏移</a></li>
+</ul>
+</li>
+<li><a href="#3-app">3. 累加和校验（App 必须自算的唯一校验）</a></li>
+<li><a href="#4">4. 完整会话流程 + 真机时间线</a></li>
+<li><a href="#5-app">5. 完成与生效（App 观测边界）</a></li>
+<li><a href="#6-ble2appexh">6. 错误码 / 枚举总表（固件 ble2appEx.h）</a></li>
+<li><a href="#7-app-phase-11">7. App 实现映射（现有 Phase 1.1 代码 → 待办）</a></li>
+<li><a href="#_1">附：溯源</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="s7-ota-golden">S7 采集固件 OTA · 指令交互与流程（真机 golden 坐实）</h1>
+<blockquote>
+<p><strong>状态</strong>：2026-07-08 定稿。<strong>首份带 TX 帧的真机日志 <code>ota2.log</code> + 固件侧文档化头 <code>b2a_protocol.h</code> 双坐实</strong>——本文每条指令的字节布局均有真机 hex + 固件 file:line，不再是反推。
+<strong>真源</strong>：真机报文 = <code>E:\1\apollo4_watch_s7\Docs\log\ota2.log</code>（一次完整成功的 14 文件 ota_all 刷写，2026-07-08 18:06:19→18:16，B→A 切区）；字段定义 = 固件 <code>product/apollo_eiot/Ble2App/b2a_protocol.h</code> + <code>ble2appWrap.c</code>（file:line 在册）；累加/分片实现见 App 侧 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/"><code>shared/.../s7/</code></a>。
+<strong>一句话</strong>：App(BLE 中心/主机) 在现网 B2A/AMDTP 通道上，用 <code>FILE_TRANS</code>(Cmd <code>0x0F</code>) 五条子命令把 14 个文件逐个推给手表(外设/从机)，末文件 STOP 后设备自校验→切资源区→自复位生效。全程 App 只写 + 收 ack，看不到设备内部进度。</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 会话时序（一图速览）</h2>
+<div class="fig">
+<svg viewBox="0 0 840 430" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>S7 OTA 会话时序：App 与手表的指令交互</title>
+<desc>左侧 App(主机)、右侧手表(从机)两条生命线；REQ 报总量→逐文件 START/切片/STOP→末 STOP 后设备自复位。App 只写与收 ack。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.ll{stroke:var(--line);stroke-width:1.5;}
+.arw{stroke:var(--fg);stroke-width:1.2;marker-end:url(#ah);}
+.arwb{stroke:var(--accent);stroke-width:1.2;marker-end:url(#ahb);}
+.lp{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;}
+</style>
+<defs>
+<marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--fg)"/></marker>
+<marker id="ahb" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--accent)"/></marker>
+</defs>
+<text x="150" y="22" text-anchor="middle" class="t">App（手机 · BLE 主机）</text>
+<text x="670" y="22" text-anchor="middle" class="t">手表（S7 · 从机/外设）</text>
+<line x1="150" y1="30" x2="150" y2="410" class="ll"/>
+<line x1="670" y1="30" x2="670" y2="410" class="ll"/>
+
+<line x1="150" y1="60" x2="668" y2="60" class="arw"/>
+<text x="410" y="54" text-anchor="middle" class="m">REQ 0x04  <tspan class="s">报会话总量(module/文件数/总字节) 8B</tspan></text>
+<line x1="670" y1="92" x2="152" y2="92" class="arwb"/>
+<text x="410" y="86" text-anchor="middle" class="m a">12B 应答  <tspan class="s" font-weight="400">status/sliceMaxSize=3944  (先等设备 MMI 授权)</tspan></text>
+
+<rect x="60" y="112" width="720" height="196" rx="4" class="lp"/>
+<text x="70" y="128" class="s">对每个文件循环（本场 14 次）:</text>
+
+<line x1="150" y1="150" x2="668" y2="150" class="arw"/>
+<text x="410" y="144" text-anchor="middle" class="m">START 0x01  <tspan class="s">文件头(名/大小/分片尺寸) 16+N</tspan></text>
+<line x1="670" y1="176" x2="152" y2="176" class="arwb"/>
+<text x="410" y="170" text-anchor="middle" class="m a">1B ack <tspan class="s" font-weight="400">EBEC_SUCC</tspan></text>
+
+<line x1="150" y1="212" x2="668" y2="212" class="arw"/>
+<text x="410" y="206" text-anchor="middle" class="m">TRANS 0x02 ×(≤17 背靠背无响应写)  <tspan class="s">一切片=一条多包消息</tspan></text>
+<line x1="670" y1="238" x2="152" y2="238" class="arwb"/>
+<text x="410" y="232" text-anchor="middle" class="m a">9B DATA ack <tspan class="s" font-weight="400">recvLen+累加和  App 自核→推进 / 不符则重发本切片</tspan></text>
+<text x="410" y="258" text-anchor="middle" class="s">↑ 切片循环直到本文件发完</text>
+
+<line x1="150" y1="282" x2="668" y2="282" class="arw"/>
+<text x="410" y="276" text-anchor="middle" class="m">STOP 0x03  <tspan class="s">无 payload(设备忽略)</tspan></text>
+<line x1="670" y1="300" x2="152" y2="300" class="arwb"/>
+<text x="410" y="296" text-anchor="middle" class="m a">1B ack <tspan class="s" font-weight="400">SUCC / FSUM_FAIL(尺寸校验)  设备 idx++</tspan></text>
+
+<line x1="150" y1="342" x2="668" y2="342" class="arw"/>
+<text x="410" y="336" text-anchor="middle" class="m">末文件 STOP（idx==fileCount）</text>
+<text x="670" y="366" text-anchor="middle" class="s">设备: ResCheck 自校验 → DoRecvAfter → SetFlag → 跳 SecBL 刷写</text>
+<text x="670" y="384" text-anchor="middle" class="m a">SYS_Reset() 自复位生效</text>
+<text x="150" y="384" text-anchor="middle" class="s">App: 收末 STOP SUCC = DoneDownload</text>
+<text x="410" y="404" text-anchor="middle" class="s">断连 → App 重连 → 读取显示当前版本（不做校验；App 观测不到设备内部生效）</text>
+</svg>
+</div>
+
+<p><strong>读法</strong>：黑箭头 = App→表（写），蓝箭头 = 表→App（notify 应答）。App 全程只做两件事：<strong>按序写命令 + 收 ack 核对</strong>。设备内部的 <code>OTAR_*</code> 进度、切区、SecBL 刷写 App 一律看不到——<strong>成功判据只能是"末 STOP 收 SUCC → 重连读版本号变化"</strong>。</p>
+<hr />
+<h2 id="1">1. 承载与帧信封</h2>
+<h3 id="11">1.1 承载通道</h3>
+<ul>
+<li><strong>承载 = AMDTP GATT（现网 B2A 那条通道）</strong>，与设备控制台/对时/拉日志<strong>同一条特征</strong>，不是独立 amota 服务。App 侧现有 <code>AndroidBleClient</code> 连接 S7 时已订阅这条 notify、拿到写特征——<strong>OTA 直接复用，无需新 GATT 发现</strong>。</li>
+<li>方向：App→表 = GATT Write（数据切片走 Write Without Response 背靠背）；表→App = GATT Notify。</li>
+<li><strong>每次 GATT 写的可用载荷 = 协商 MTU − 3</strong>（3B = ATT opcode 1 + handle 2）。本场协商 MTU=247 → 可用 244。</li>
+</ul>
+<h3 id="12-b2a">1.2 B2A 帧结构</h3>
+<p>每一帧（无论方向）= <strong>8B 帧头 + 4B 命令头 + param</strong>，全小端、packed、无转义。</p>
+<div class="fig">
+<svg viewBox="0 0 840 170" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>B2A 帧信封字节布局</title>
+<desc>8B 帧头(SOF/status/uiLen/uiCRC/uiIndex) + 4B 命令头(cmd/key/paramLen) + N 字节 param。</desc>
+<style>
+.t{fill:var(--fg);font-size:11px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:9.5px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.hd{fill:var(--code);stroke:var(--accent);stroke-width:1.3;}
+</style>
+<g>
+<rect x="20" y="40" width="46" height="30" class="bx"/><text x="43" y="59" class="m">BB</text>
+<rect x="66" y="40" width="60" height="30" class="bx"/><text x="96" y="59" class="m">status</text>
+<rect x="126" y="40" width="76" height="30" class="bx"/><text x="164" y="59" class="m">uiLen</text>
+<rect x="202" y="40" width="76" height="30" class="bx"/><text x="240" y="59" class="m a">uiCRC</text>
+<rect x="278" y="40" width="76" height="30" class="bx"/><text x="316" y="59" class="m">uiIndex</text>
+<rect x="354" y="40" width="60" height="30" class="hd"/><text x="384" y="59" class="m a">cmd</text>
+<rect x="414" y="40" width="60" height="30" class="hd"/><text x="444" y="59" class="m a">key</text>
+<rect x="474" y="40" width="86" height="30" class="hd"/><text x="517" y="59" class="m">paramLen</text>
+<rect x="560" y="40" width="250" height="30" class="bx" stroke-dasharray="4 3"/><text x="685" y="59" class="m">param[paramLen] …</text>
+<text x="43" y="34" class="s" text-anchor="middle">1B</text>
+<text x="96" y="34" class="s" text-anchor="middle">1B</text>
+<text x="164" y="34" class="s" text-anchor="middle">2B LE</text>
+<text x="240" y="34" class="s" text-anchor="middle">2B LE</text>
+<text x="316" y="34" class="s" text-anchor="middle">2B LE</text>
+<text x="384" y="34" class="s" text-anchor="middle">1B</text>
+<text x="444" y="34" class="s" text-anchor="middle">1B</text>
+<text x="517" y="34" class="s" text-anchor="middle">2B LE</text>
+</g>
+<text x="164" y="92" class="s" text-anchor="middle">= 命令头+param 的总字节数</text>
+<text x="240" y="92" class="s" text-anchor="middle">CRC16-CCITT-FALSE</text>
+<text x="240" y="104" class="s" text-anchor="middle">覆盖偏移 8 起 uiLen 字节</text>
+<text x="316" y="92" class="s" text-anchor="middle">多包时递增, 单包=0</text>
+<text x="517" y="92" class="s" text-anchor="middle">param 字节数</text>
+<line x1="20" y1="120" x2="354" y2="120" stroke="var(--muted)" stroke-width="1"/><text x="187" y="134" class="s" text-anchor="middle">8B 帧头（B2A_HEAD）</text>
+<line x1="354" y1="120" x2="560" y2="120" stroke="var(--accent)" stroke-width="1"/><text x="457" y="134" class="s" text-anchor="middle">4B 命令头（B2A_DATA_CMD）</text>
+</svg>
+</div>
+
+<p>字段定义见 <code>b2a_protocol.h</code> 注释「Frame common header (8B) + B2A_DATA_CMD (4B)」。<strong><code>uiLen</code> 从 cmd 起算</strong>（= 4 + paramLen）；<strong><code>uiCRC</code> 覆盖偏移 8 起的 <code>uiLen</code> 字节</strong>（即命令头+param，不含帧头），CRC16-CCITT-FALSE(poly 0x1021 / init 0xFFFF / 不反转 / xorout 0)——App 侧实现见 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7Frame.kt"><code>S7Frame.kt</code></a> <code>S7Crc.crc16CcittFalse</code>。</p>
+<h3 id="13-statusucstatus-ehst_">1.3 帧头 status（ucStatus / EHST_*）位含义</h3>
+<p><code>status</code> 是一个位域（<code>ble2appEx.h</code> ENUM_HEAD_STATUS_TYPE）。<strong>应答成功/失败靠外层 status 的 FAIL 位、多包重组靠 MULTI 位</strong>（很多子命令的成功语义不在 param 里）。</p>
+<div class="fig">
+<svg viewBox="0 0 840 150" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>帧头 status 位域（EHST_*）</title>
+<desc>bit0=FAIL, bit1=ACK, bit2=IS_MULTI_PKT, bit3=MULTI_PKT_END, bit4-5=多包ID, bit7=OTA_PART。</desc>
+<style>
+.t{fill:var(--fg);font-size:11px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:9px;font-family:-apple-system,"Microsoft YaHei",sans-serif;text-anchor:middle;}
+.m{fill:var(--fg);font-size:10px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+</style>
+<g>
+<rect x="120" y="40" width="80" height="30" class="bx"/><text x="160" y="59" class="m">bit7</text>
+<rect x="200" y="40" width="80" height="30" class="bx" fill="var(--bg)"/><text x="240" y="59" class="s">bit6</text>
+<rect x="280" y="40" width="160" height="30" class="bx"/><text x="360" y="59" class="m a">bit5:4</text>
+<rect x="440" y="40" width="90" height="30" class="bx"/><text x="485" y="59" class="m">bit3</text>
+<rect x="530" y="40" width="90" height="30" class="bx"/><text x="575" y="59" class="m">bit2</text>
+<rect x="620" y="40" width="70" height="30" class="bx"/><text x="655" y="59" class="m">bit1</text>
+<rect x="690" y="40" width="70" height="30" class="bx"/><text x="725" y="59" class="m a">bit0</text>
+<text x="160" y="90" class="s">OTA_PART</text><text x="160" y="101" class="s">0x80</text>
+<text x="240" y="90" class="s">—</text>
+<text x="360" y="90" class="s">多包 ID (0..3)</text><text x="360" y="101" class="s">(status&gt;&gt;4)&amp;3</text>
+<text x="485" y="90" class="s">MULTI_PKT_END</text><text x="485" y="101" class="s">0x08 末片</text>
+<text x="575" y="90" class="s">IS_MULTI_PKT</text><text x="575" y="101" class="s">0x04 多包</text>
+<text x="655" y="90" class="s">ACK</text><text x="655" y="101" class="s">0x02 要应答</text>
+<text x="725" y="90" class="s">FAIL</text><text x="725" y="101" class="s">0x01 失败</text>
+</g>
+<text x="120" y="130" class="s" text-anchor="start">应答帧 status=0x00(SUCC) 常见；数据切片首片=IS_MULTI_PKT(0x04)、末片再或 MULTI_PKT_END(0x08)；OTA 数据附带 OTA_PART(0x80)。</text>
+</svg>
+</div>
+
+<h3 id="14-app">1.4 分片规则（App→表 数据切片）</h3>
+<p>一个"切片(slice)"= 一条逻辑 <code>TRANS</code> 消息，切成 <strong>1..17 个 GATT 写</strong>（固件 <code>MAC_SLICE_CNT=17</code> 硬限）。<strong>每帧 param 上限 = MTU − 15</strong>（= 3B ATT 头 + 8B 帧头 + 4B 命令头），首帧上链恰 ≤ MTU−3。</p>
+<pre><code>MTU 247  →  每帧 param 232 字节  →  切片上限 sliceMaxSize = 232 × 17 = 3944 字节
+                                     （真机 FiTransReqFoMMI ParamPktLen:232, SliceMaxSize:3944）
+</code></pre>
+<p>⚠️ 这是曾经的 <strong>BUG-1</strong>：早前按"MTU−12=235"算，首帧上链 247B &gt; MTU−3(244) → Android 写被拒、首切片即挂。已修为 MTU−15，见 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7FileTrans.kt"><code>S7FileTrans.kt</code></a> <code>maxParamPerFrame</code>。</p>
+<div class="fig">
+<svg viewBox="0 0 840 200" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>一个切片如何切成多包 GATT 写</title>
+<desc>切片(≤3944B)切成 ≤17 帧：首帧带命令头+第一段 param，续帧只带 param 段，末帧置 MULTI_PKT_END。</desc>
+<style>
+.t{fill:var(--fg);font-size:11px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:9.5px;font-family:-apple-system,"Microsoft YaHei",sans-serif;text-anchor:middle;}
+.m{fill:var(--fg);font-size:10px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.hd{fill:var(--code);stroke:var(--accent);stroke-width:1.3;}
+</style>
+<text x="20" y="24" class="t">切片 = 一条 TRANS 消息 (cmd=0F, key=02, param = 3944B 文件数据)</text>
+<!-- frame 0 -->
+<rect x="20" y="44" width="70" height="28" class="bx"/><text x="55" y="62" class="m">帧头8B</text>
+<rect x="90" y="44" width="120" height="28" class="hd"/><text x="150" y="62" class="m a">0F 02 paramLen</text>
+<rect x="210" y="44" width="150" height="28" class="bx"/><text x="285" y="62" class="m">param[0..231]</text>
+<text x="190" y="88" class="s">首帧 index=0, status=IS_MULTI_PKT(+多包ID)</text>
+<!-- frame 1 -->
+<rect x="20" y="104" width="70" height="28" class="bx"/><text x="55" y="122" class="m">帧头8B</text>
+<rect x="90" y="104" width="270" height="28" class="bx"/><text x="225" y="122" class="m">param[232..463]（续段, 无命令头）</text>
+<text x="150" y="148" class="s">续帧 index=1, status=IS_MULTI_PKT</text>
+<text x="400" y="122" class="s" text-anchor="start">… index 递增 …</text>
+<!-- frame N -->
+<rect x="20" y="164" width="70" height="28" class="bx"/><text x="55" y="182" class="m">帧头8B</text>
+<rect x="90" y="164" width="220" height="28" class="bx"/><text x="200" y="182" class="m">param[末段]</text>
+<text x="200" y="200" class="s">末帧 status 再或 MULTI_PKT_END(0x08) → 设备重组完成、回 9B DATA ack</text>
+</svg>
+</div>
+
+<p><strong>切片内背压（协议层零 ack，GATT 层必须逐帧流控）</strong>：协议上一个切片的 ≤17 帧<strong>只在整切片发完后收一个 9B ack</strong>（不是每包都有 ack）。但 GATT 层<strong>不能真背靠背猛发</strong>——Write Without Response 无流控会溢出 Android GATT 写缓冲、<code>writeCharacteristic</code> 返 BUSY 被静默丢（<strong>真机 ota3.log 实证：单帧过、17 帧全丢 → 设备 15.36s 看门狗 abort</strong>）。故 <code>AndroidBleClient.write</code> <strong>逐帧串行 + 等 <code>onCharacteristicWrite</code> 再发下一帧</strong>（No-Response 写 Android 亦回该回调，作节流；此即 BLE 吞吐节拍）。App 分片/重传逻辑见 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7OtaSession.kt"><code>S7OtaSession.sendSliceWithRetry</code></a>。</p>
+<hr />
+<h2 id="2-hex">2. 五条指令逐字节（真机 hex + 解码走查）</h2>
+<p>子命令（<code>ble2appEx.h:451-461</code>）：<code>START=0x01 / TRANS=0x02 / STOP=0x03 / REQ=0x04 / OFFSET=0x06</code>。下面每条给 <strong>① 请求(App→表) ② 应答(表→App) ③ 真机 hex ④ 逐字段解码</strong>。</p>
+<h3 id="21-req-0x04">2.1 REQ <code>0x04</code> — 会话请求（报总量 / 等授权）</h3>
+<p><strong>请求（App→表，param 8B）</strong> <code>B2A_FILE_TRANS_REQ_REQ_T</code>（<code>ble2appWrap.c:3665-3676</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>字段</th>
+<th>宽</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>ucModuleId</td>
+<td>1B</td>
+<td>模块 ID，OTA=1（<code>BMID_*</code>；见 §6）</td>
+</tr>
+<tr>
+<td>1</td>
+<td>ucIsOffset</td>
+<td>1B</td>
+<td>&gt;0=按已存 offset 续传；0=从头</td>
+</tr>
+<tr>
+<td>2</td>
+<td>ucFileCount</td>
+<td>1B</td>
+<td>本会话文件数（本场 14）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ucReserved</td>
+<td>1B</td>
+<td>保留=0</td>
+</tr>
+<tr>
+<td>4-7</td>
+<td>ulTotalSize</td>
+<td>4B LE</td>
+<td>所有文件总字节；不足回 <code>BFRS_DISK_FULL</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>应答（表→App，param 12B）</strong> <code>B2A_FILE_TRANS_REQ_RESP_T</code>（<code>ble2appWrap.c:4029-4067</code> MMI 授权路径）。<strong>注意：OK 路要先等设备端 MMI 授权（异步），才回这 12B</strong>——不能套固定超时判失败（本机 golden 是即时授权 <code>lAck:1</code>，他机可能弹窗）。</p>
+<div class="fig">
+<svg viewBox="0 0 840 150" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>REQ 12B 应答字节布局（真机 hex）</title>
+<desc>status/moduleId/fileCount/currFileIdx 各 1B + sliceMaxSize 4B LE + offset 4B LE。</desc>
+<style>
+.s{fill:var(--muted);font-size:9px;font-family:-apple-system,"Microsoft YaHei",sans-serif;text-anchor:middle;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+</style>
+<g>
+<rect x="30" y="46" width="46" height="30" class="bx"/><text x="53" y="65" class="m">00</text>
+<rect x="76" y="46" width="46" height="30" class="bx"/><text x="99" y="65" class="m">01</text>
+<rect x="122" y="46" width="46" height="30" class="bx"/><text x="145" y="65" class="m">0e</text>
+<rect x="168" y="46" width="46" height="30" class="bx"/><text x="191" y="65" class="m">00</text>
+<rect x="214" y="46" width="184" height="30" class="bx"/><text x="306" y="65" class="m a">68 0f 00 00</text>
+<rect x="398" y="46" width="184" height="30" class="bx"/><text x="490" y="65" class="m">00 00 00 00</text>
+</g>
+<text x="53" y="40" class="s">[0]</text><text x="99" y="40" class="s">[1]</text><text x="145" y="40" class="s">[2]</text><text x="191" y="40" class="s">[3]</text><text x="306" y="40" class="s">[4-7]</text><text x="490" y="40" class="s">[8-11]</text>
+<text x="53" y="94" class="s">status</text><text x="53" y="105" class="s">0=OK</text>
+<text x="99" y="94" class="s">moduleId</text><text x="99" y="105" class="s">1=OTA</text>
+<text x="145" y="94" class="s">fileCount</text><text x="145" y="105" class="s">14</text>
+<text x="191" y="94" class="s">currIdx</text><text x="191" y="105" class="s">0</text>
+<text x="306" y="94" class="s a">sliceMaxSize LE</text><text x="306" y="105" class="s">0x0f68 = 3944</text>
+<text x="490" y="94" class="s">offset LE</text><text x="490" y="105" class="s">0（不续传）</text>
+</svg>
+</div>
+
+<p><strong>真机帧（TX，24B）</strong> <code>ota2.log 18:06:19</code>：</p>
+<pre><code>bb 00 10 00 5a 66 00 00 · 0f 04 0c 00 · 00 01 0e 00 68 0f 00 00 00 00 00 00
+└─────帧头8B────────┘   cmd key len=12   └────────── param 12B ──────────┘
+   SOF status uiLen=0x10 uiCRC uiIndex   0F=FILE_TRANS 04=REQ paramLen=0x0c
+</code></pre>
+<p>解码：status=<strong>00</strong>(OK)、moduleId=<strong>01</strong>、fileCount=<strong>0e</strong>(=14)、currIdx=<strong>00</strong>、sliceMaxSize=<strong>0x00000f68</strong>=<strong>3944</strong>、offset=<strong>0</strong>。</p>
+<blockquote>
+<p><strong>坐实点</strong>：应答确为 <strong>12B</strong>（固件注释「Both paths produce the same 12-byte layout」）。早前 <code>ota.log</code> 里那个 8B <code>01 00 0e 00 8f 6e 6c 01</code> 是内部 SDM 记录(ftranreq.dat)、<strong>不是上链 TX 帧</strong>。App 侧 <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7FileTrans.kt"><code>parseReqReply</code></a> 的 12B 解析正确；<code>sliceMaxSize</code> 会话取 <code>min(设备回值 3944, 本地 (MTU−15)×17)</code>。</p>
+</blockquote>
+<h3 id="22-start-0x01">2.2 START <code>0x01</code> — 单文件头</h3>
+<p><strong>请求（App→表，param 16+N）</strong> <code>B2A_FILE_TRANS_START_REQ_T</code>（<code>ble2appWrap.c:4149-4174</code>）：</p>
+<div class="fig">
+<svg viewBox="0 0 840 155" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>START 请求字节布局（真机 hex, fCheck.dat）</title>
+<desc>fileSize 4B + offset 4B + sliceSize 4B + type 1B + zip 1B + nameLen 2B + 文件名 N。</desc>
+<style>
+.s{fill:var(--muted);font-size:9px;font-family:-apple-system,"Microsoft YaHei",sans-serif;text-anchor:middle;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+</style>
+<g>
+<rect x="20" y="46" width="130" height="30" class="bx"/><text x="85" y="65" class="m">6c 00 00 00</text>
+<rect x="150" y="46" width="130" height="30" class="bx"/><text x="215" y="65" class="m">00 00 00 00</text>
+<rect x="280" y="46" width="130" height="30" class="bx"/><text x="345" y="65" class="m a">68 0f 00 00</text>
+<rect x="410" y="46" width="44" height="30" class="bx"/><text x="432" y="65" class="m">02</text>
+<rect x="454" y="46" width="44" height="30" class="bx"/><text x="476" y="65" class="m">00</text>
+<rect x="498" y="46" width="70" height="30" class="bx"/><text x="533" y="65" class="m">0a 00</text>
+<rect x="568" y="46" width="242" height="30" class="bx"/><text x="689" y="65" class="m">66 43 68 65 63 6b 2e 64 61 74</text>
+</g>
+<text x="85" y="40" class="s">[0-3]</text><text x="215" y="40" class="s">[4-7]</text><text x="345" y="40" class="s">[8-11]</text><text x="432" y="40" class="s">[12]</text><text x="476" y="40" class="s">[13]</text><text x="533" y="40" class="s">[14-15]</text><text x="689" y="40" class="s">[16..]</text>
+<text x="85" y="94" class="s">fileSize=108</text>
+<text x="215" y="94" class="s">offset=0</text>
+<text x="345" y="94" class="s a">sliceSize=3944</text>
+<text x="432" y="94" class="s">type</text><text x="432" y="105" class="s">2=FW</text>
+<text x="476" y="94" class="s">zip=0</text>
+<text x="533" y="94" class="s">nameLen=10</text>
+<text x="689" y="94" class="s">"fCheck.dat"（ASCII, 不含结尾 0）</text>
+</svg>
+</div>
+
+<ul>
+<li><strong>文件去向 100% 由文件名决定</strong>：设备 <code>sprintf(MAC_EXT_ROOT + name)</code> 裸拼路径写盘。名字 <strong>≤12 字符</strong>（设备 <code>szFile[13]</code>，&gt;13 截断到 12）。</li>
+<li><strong><code>ucType</code>（BFTT_*，见 §6）只驱动进度 UI、不参与路由</strong>——真机官方 App 对<strong>全部 14 个文件都送 type=2(FW)</strong>（连字库/Res 也是 2）。我方可照送 2，或按文件真实类型送，设备都不 care。</li>
+<li><strong><code>ucZipFlag</code> 固件未消费</strong>，恒 0（一律推明文整文件）。</li>
+<li><strong><code>ulOffset</code>=0 → 设备 <code>wb</code> 覆盖写</strong>；&gt;0 → <code>ab+</code> 追加（续传，见 §2.5）。</li>
+</ul>
+<p><strong>应答（表→App，param 1B）</strong> <code>B2A_FILE_TRANS_START_RESP_T</code>：<code>ucResult</code> = <code>EBEC_SUCC(0)</code> 就绪 / <code>EBEC_MEMORY(4)</code> 缓冲分配失败或 <code>ulSliceSize &gt; ulSliceMaxSize</code>。
+<strong>真机帧（TX，13B）</strong> <code>bb 00 05 00 71 35 00 00 · 0f 01 01 00 · 00</code> → cmd=0F key=01 paramLen=1 param=<strong>00</strong>(SUCC)。</p>
+<blockquote>
+<p>⚠️ START 声明的 <code>ulSliceSize</code> <strong>必须 ≤ 设备 sliceMaxSize(3944)</strong>，否则设备回 <code>EBEC_MEMORY(4)</code>。我方 <code>sliceSize = min(sliceMax, 文件大小)</code> 已满足。</p>
+</blockquote>
+<h3 id="23-trans-0x02">2.3 TRANS <code>0x02</code> — 数据块（切片）</h3>
+<p><strong>请求（App→表）</strong>：<strong>裸文件字节流</strong>，无字段结构；多包切分靠外层 status（§1.4）。一个切片 ≤ <code>sliceMaxSize</code>。</p>
+<p><strong>应答（表→App，param 9B）</strong> <code>B2A_FILE_TRANS_DATA_RESP_T</code>（成功，<code>ble2appWrap.c:4967-5009</code>）：</p>
+<div class="fig">
+<svg viewBox="0 0 840 150" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>DATA 9B 应答字节布局（真机 hex）</title>
+<desc>recvLen 4B LE + checkSum 4B LE + status 1B。recvLen=本切片长（非累计）。</desc>
+<style>
+.s{fill:var(--muted);font-size:9px;font-family:-apple-system,"Microsoft YaHei",sans-serif;text-anchor:middle;}
+.m{fill:var(--fg);font-size:11px;font-family:Consolas,monospace;text-anchor:middle;}
+.a{fill:var(--accent);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+</style>
+<g>
+<rect x="60" y="46" width="220" height="30" class="bx"/><text x="170" y="65" class="m">68 0f 00 00</text>
+<rect x="280" y="46" width="220" height="30" class="bx"/><text x="390" y="65" class="m a">b4 52 04 00</text>
+<rect x="500" y="46" width="80" height="30" class="bx"/><text x="540" y="65" class="m">00</text>
+</g>
+<text x="170" y="40" class="s">[0-3]</text><text x="390" y="40" class="s">[4-7]</text><text x="540" y="40" class="s">[8]</text>
+<text x="170" y="94" class="s">recvLen LE = 0x0f68 = 3944</text><text x="170" y="105" class="s">= 本切片实收字节（非累计）</text>
+<text x="390" y="94" class="s a">checkSum LE = 0x000452b4</text><text x="390" y="105" class="s">= 本切片逐字节累加和</text>
+<text x="540" y="94" class="s">status</text><text x="540" y="105" class="s">0=SUCC</text>
+</svg>
+</div>
+
+<p><strong>真机帧（TX，21B，fCN26 首切片）</strong> <code>bb 00 0d 00 c0 7e 00 00 · 0f 02 09 00 · 68 0f 00 00 b4 52 04 00 00</code>。
+另一例（fCheck.dat 整文件 108B 一切片）：<code>… 0f 02 09 00 6c 00 00 00 d9 19 00 00 00</code> → recvLen=<strong>108</strong>、checkSum=<strong>0x000019d9</strong>。</p>
+<ul>
+<li><strong><code>recvLen</code> = 本切片实收字节数（非累计）</strong>——108B 的文件 recvLen=108，满切片 recvLen=3944，末片 recvLen=余数。App 拿它 + 期望切片长比对。</li>
+<li><strong><code>checkSum</code> = 本切片逐字节算术累加和（U32）</strong>，App 自算比对（见 §3），不符则重发本切片。</li>
+</ul>
+<p><strong>错误应答（param 1B）</strong> <code>B2A_FILE_TRANS_DATA_ERR_RESP_T</code>（外层 status 置 FAIL）：<code>EBEC_MEMORY(4)</code> 缓冲空/超限 / <code>EBEC_FAIL(1)</code> 多包丢包(短包) / <code>EBEC_FSUM_FAIL(13)</code> 回读校验失败。<strong>App 收到非 9B 成功应答 → 重发本切片</strong>。</p>
+<h3 id="24-stop-0x03">2.4 STOP <code>0x03</code> — 结束单文件 / 会话</h3>
+<p><strong>请求（App→表）</strong>：<strong>无 payload</strong>。固件 <code>B2A_FileTransStopAck</code>（<code>ble2appWrap.c:5386-5391</code>）<strong>只 hexdump、不解析任何字节</strong>——官方 App 会送一个 16B 摘要（<code>15 c1 b0 f2 …</code>，疑 MD5），但<strong>设备完全忽略</strong>。我方送空即可。</p>
+<p><strong>设备做什么</strong>（<code>ble2appWrap.c:5400-5629</code>）：
+1. <strong>per-file 尺寸兜底</strong>（<code>:5467</code>）：比对刚落盘文件的<strong>磁盘尺寸 == START 声明的 <code>ulCurrFileSize</code></strong>；不符 → <code>EBEC_FSUM_FAIL(13)</code> + 中止（防漏包导致的短文件被提交）。
+2. <code>idx++</code>；若非末文件 → 回 <code>EBEC_SUCC</code>，等下一个 START。
+3. 若是<strong>末文件</strong>（idx==fileCount）→ 跑 <code>B2A_ResCheck()</code>（用随包下发的 <code>ResCheck.dat</code> 校验资源）→ 通过回 <code>EBEC_SUCC</code>、失败回 <code>EBEC_FSUM_FAIL</code>。</p>
+<p><strong>应答（表→App，param 1B）</strong>：<code>EBEC_SUCC(0)</code> / <code>EBEC_FSUM_FAIL(13)</code>。
+<strong>真机帧（TX，13B）</strong> <code>bb 00 05 00 19 d8 00 00 · 0f 03 01 00 · 00</code> → SUCC。</p>
+<blockquote>
+<p>⚠️ <strong>STOP 非幂等</strong>：设备靠内部 <code>idx++</code> 推进，<strong>丢 ack 裸重发会二次推进 → 缺文件</strong>。重传要谨慎（见 §7 纪律）。</p>
+</blockquote>
+<h3 id="25-offset-0x06">2.5 OFFSET <code>0x06</code> — 查断点续传偏移</h3>
+<p><strong>请求（App→表）</strong>：无 payload（固件不解析）。
+<strong>应答（表→App，param 4B）</strong> <code>B2A_FILE_TRANS_OFFSET_RESP_T</code>：<code>ulOffset</code>（4B LE）= 当前文件已接收字节偏移（低内存时退化为 1B <code>EBEC_MEMORY</code>）。
+<strong>续传纪律</strong>：断连重连后，若要续传，<strong>必须先用 REQ 的 <code>ucIsOffset&gt;0</code> 或 OFFSET 拿到设备 offset，再从该 offset 发 START（<code>ulOffset</code> 填它）</strong>。从 0 重发而设备 offset&gt;0 → 设备 <code>ab+</code> 追加成超长文件 → 被尺寸兜底判失败强制整包重传。attended 场景下续传是 best-effort。</p>
+<hr />
+<h2 id="3-app">3. 累加和校验（App 必须自算的唯一校验）</h2>
+<p><strong>算法</strong>：对切片的每个字节做无符号累加，取低 32 位。</p>
+<pre><code>sum = 0
+for b in slice:  sum = (sum + (b &amp; 0xFF)) &amp; 0xFFFFFFFF
+</code></pre>
+<p>例：<code>{0x01,0x02,0x03}</code> → sum=6；<code>{0xFF,0xFF,0xFF,0xFF}</code> → 1020（不溢出 32 位）。App 侧 = <a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/S7FileTrans.kt"><code>S7FileTrans.additiveChecksum</code></a>。</p>
+<p><strong>三套校验各司其职，别混</strong>：
+1. <strong>传输层 9B 累加和</strong>（本文）——App 自算 + 比对设备回值，唯一 App 要算的。
+2. <strong><code>ResCheck.dat</code> / <code>fCheck.dat</code></strong>——构建工具预生成、随包下发的<strong>普通文件</strong>，App 只原样透传落盘，设备升级后自己拿它做 per-file 自检（golden 日志 <code>B2A_ResCheck ResFat 0xf7fc / ResData 0xab9e</code>）。
+3. <strong>STOP 尺寸兜底 + 末文件 ResCheck</strong>——纯设备侧，App 观测不到。</p>
+<hr />
+<h2 id="4">4. 完整会话流程 + 真机时间线</h2>
+<p>真机 <code>ota2.log</code>（14 文件 ota_all，总 23,883,407 字节 ≈ 22.78MB）：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>时间</th>
+<th>事件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入口</td>
+<td>18:06:19.784</td>
+<td><code>APP_OtaReqEntry(B)</code> → <code>OTA_StartTask</code> → <code>OTA_DoRecvBefore ucResArea:B</code>（当前 B 区，写入 A 区）</td>
+</tr>
+<tr>
+<td>REQ 授权</td>
+<td>18:06:19.905</td>
+<td><code>B2A_FileTransReqAckFromMMI lAck:1</code>（即时授权）→ 回 12B <code>sliceMax=3944</code></td>
+</tr>
+<tr>
+<td>文件 1</td>
+<td>18:06:20</td>
+<td><code>fCheck.dat</code> 108B（1 切片）</td>
+</tr>
+<tr>
+<td>文件 2-10</td>
+<td>18:06:20~18:08:12</td>
+<td>字库 <code>fCN26/34/40</code>、<code>fNum48/64/72/80/96/120</code></td>
+</tr>
+<tr>
+<td>文件 11</td>
+<td>18:08:12~</td>
+<td><code>fw.dat</code> 1,670,216B（主 MCU 镜像）</td>
+</tr>
+<tr>
+<td>文件 12-14</td>
+<td>~18:15:59</td>
+<td><code>ResCheck.dat</code> 4560B、<code>ResData.dat</code> 17,824,356B（占大头 ~7min）、<code>ResFat.dat</code> 3024B</td>
+</tr>
+<tr>
+<td>末 STOP</td>
+<td>18:15:59.788</td>
+<td><code>[14/14]</code> → <code>B2A_ResCheck</code>(ResFat 0xf7fc / ResData 0xab9e 自校验 OK)</td>
+</tr>
+<tr>
+<td>收尾</td>
+<td>18:16:03.744</td>
+<td><code>OTA_StopTask</code> → <code>OTA_DoRecvAfter</code>（OldPath 0:/B NewPath 0:/A；Step1 Res 三件套 OK；Step2 fCheck+9 字库 OK）</td>
+</tr>
+<tr>
+<td>生效</td>
+<td>18:16:04~</td>
+<td><code>OTA_SetFlag(1)</code> → <code>OTA_Check(ucOtaFlag:1) goto SecBL 0x1e2000</code> → <code>E2P_LoadRes2Psram</code> → <code>SYS_Reset</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>文件顺序（官方 App）</strong>：字库(fCheck→fCN<em>→fNum</em>) → <code>fw.dat</code> → Res 三件套(ResCheck→ResData→ResFat)。我方可自定序，但<strong>末文件 STOP 才触发完成</strong>。</li>
+<li><strong>A/B 双区交替</strong>：本场 B→A（<code>ota.log</code> 那场是 A→B）。设备总写"另一区"，DoRecvAfter 校验通过才切过去。</li>
+<li><strong>实测速率 ~40KB/s</strong>；<code>ResData.dat</code> 17.8MB 单文件 ~7min。全程 15.36s UI 看门狗未触发。</li>
+</ul>
+<hr />
+<h2 id="5-app">5. 完成与生效（App 观测边界）</h2>
+<p>设备侧完成链（App <strong>全部看不到</strong>，<code>ble2appWrap.c</code> / <code>OTA_Main.c</code>）：</p>
+<pre><code>末 STOP SUCC
+ └─ OTA_DoRecvAfter()==EECT_OK   (新区 Res 三件套存在 + 字库齐, 缺字库从旧区补拷)
+     └─ OTA_SetFlag(MAC_OTA_FLAG)  (MRAM 私有区置 OTA 标志)
+         └─ 重启/跳转 → OTA_Check() 见标志 → goto SecBL (0x1e2000) 执行刷写
+             └─ SYS_Reset() 自复位, 新固件生效
+</code></pre>
+<p><strong>App 侧判据</strong>（<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/OtaPackage.kt"><code>OtaResult</code></a>）：
+- 收到<strong>末文件 STOP 的 SUCC</strong> = <code>DoneDownload</code>（下载收讫，非"已生效"）。
+- 随后设备断连自复位 → App <strong>重连 → 读取并显示当前版本</strong> = <code>Reconnected(currentVersion?)</code>（读不到=null 显示"未知"）。<strong>不做版本校验</strong>（OTA 包无版本信息，无法机器比对包版本 vs 设备版本）——是否刷成功由人工看版本判断。
+- 中途任何 START/STOP 收 <code>EBEC_FSUM_FAIL</code>、或切片重传耗尽 = 下载失败；重连失败 = <code>Failed(ReconnectFailed)</code>（attended 下整包重来 / 手动重连查看）。</p>
+<p><strong>砖化边界</strong>：BLE OTA 永不碰 SecBL/boot（包不含 + 固件无 handler），砖必落应用/资源区，<code>flash_fw.ps1</code>（J-Link SWD）无条件可救。<strong>固件无低电门控（<code>EBEC_LOW_BAT</code> 定义了从不返回）→ 防掉电 100% 靠 App</strong>（发起前强制充电 + 电量阈值）。</p>
+<hr />
+<h2 id="6-ble2appexh">6. 错误码 / 枚举总表（固件 <code>ble2appEx.h</code>）</h2>
+<p><strong>REQ 应答状态 BFRS_*（<code>:500-508</code>）</strong>：<code>OK=0 / DISK_FULL=1 / BUSY=2 / MEMORY=3</code>。</p>
+<p><strong>通用 ack 错误码 EBEC_*（<code>:49-70</code>，STOP/START/DATA 的 1B 应答用）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>名</th>
+<th>值</th>
+<th>名</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>SUCC</td>
+<td>7</td>
+<td>BUSY</td>
+</tr>
+<tr>
+<td>1</td>
+<td>FAIL（多包丢包/短包）</td>
+<td>8</td>
+<td>LOW_BAT（定义了但从不返回）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>TIMEOUT</td>
+<td>9</td>
+<td>NO_DATA</td>
+</tr>
+<tr>
+<td>3</td>
+<td>FORMAT</td>
+<td>10</td>
+<td>MD5</td>
+</tr>
+<tr>
+<td>4</td>
+<td>MEMORY（缓冲空/超限/sliceSize 超上限）</td>
+<td>11</td>
+<td>CRC</td>
+</tr>
+<tr>
+<td>5</td>
+<td>NOT_SUPPORT</td>
+<td>12</td>
+<td>FATAL</td>
+</tr>
+<tr>
+<td>6</td>
+<td>PARAM</td>
+<td><strong>13</strong></td>
+<td><strong>FSUM_FAIL（尺寸/资源校验失败）</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>模块 ID BMID_*（<code>:466-476</code>）</strong>：<code>OTA=1 / GPS_FW=2 / WATCH_BG=3 / MODEM_FW=4 / SECBL_FW=5 / BP_FW=6</code>。</p>
+<blockquote>
+<p><strong>安全</strong>：BLE 收流只认 <code>OTA(1)/WATCH_BG(3)/BP_FW(6)</code> 有 handler；<code>SECBL_FW(5)</code> 只是枚举、无 handler → BLE 永远刷不到 SecBL。</p>
+</blockquote>
+<p><strong>文件类型 BFTT_*（<code>:482-494</code>，START[12]，仅驱动 UI）</strong>：<code>BOOTLOADER=1 / FW=2 / RES=3 / MODEM=4 / GPS_FW=5 / GPS_HIS=6 / FONT=7 / WATCH_BG=8 / WATCH_CFG=9 / BP_FW=10</code>。</p>
+<hr />
+<h2 id="7-app-phase-11">7. App 实现映射（现有 Phase 1.1 代码 → 待办）</h2>
+<table>
+<thead>
+<tr>
+<th>协议元素</th>
+<th>App 侧现状（<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/"><code>shared/.../s7/</code></a>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>帧编解码 + CRC16 + 多包分片/重组</td>
+<td>✅ <code>S7Frame.kt</code>（<code>encodeMultiPacket</code> / <code>S7FrameDecoder</code>）</td>
+</tr>
+<tr>
+<td>五子命令 encode/parse + 累加和</td>
+<td>✅ <code>S7FileTrans.kt</code>（REQ 8B/12B、START 16+N、DATA 9B、OFFSET 4B、<code>additiveChecksum</code>）</td>
+</tr>
+<tr>
+<td>独占长事务（REQ→逐文件→末 STOP=DoneDownload、切片背压+重传）</td>
+<td>✅ <code>S7OtaSession.kt</code></td>
+</tr>
+<tr>
+<td>每帧 param = MTU−15、sliceMax 夹本地</td>
+<td>✅ 已修（BUG-1，本文 §1.4）</td>
+</tr>
+<tr>
+<td>REQ 应答 12B 解析 + 防御式</td>
+<td>✅ <code>parseReqReply</code> 12B（真机坐实）+ 短应答不 abort</td>
+</tr>
+<tr>
+<td>Mock 设备状态机</td>
+<td>✅ <code>S7MockWatch.kt</code></td>
+</tr>
+<tr>
+<td>数据模型 / 结果 / 失败原因 / 阶段</td>
+<td>✅ <code>OtaPackage.kt</code>（<code>OtaResult{DoneDownload/Verified/Failed}</code> / <code>OtaFailure</code> / <code>OtaPhase</code>）</td>
+</tr>
+<tr>
+<td><strong>下载后回连+读版本 编排</strong>（下载→等复位→重连→读当前版本）</td>
+<td>✅ <code>OtaProvisioner.kt</code>（逻辑层，<code>provisionAndReconnect</code> → <code>Reconnected(currentVersion?)</code>；<code>readVersion</code> 注入，不做版本校验）</td>
+</tr>
+<tr>
+<td><strong>烧录包校验</strong>（合法 zip + 必推核心存在 + 名≤12 + 无空 + 缺字库告警）</td>
+<td>✅ <code>OtaPackageValidator.kt</code>（shared，可测）+ <code>sortByPushOrder</code>（golden 序）</td>
+</tr>
+<tr>
+<td><strong>zip 选包/解压/建包</strong>（SAF Uri → OtaPackage）</td>
+<td>✅ <code>OtaZipLoader.kt</code>（app，<code>ZipInputStream</code>）</td>
+</tr>
+<tr>
+<td><strong>DEBUG「OTA 测试」屏 + 循环 N 次</strong></td>
+<td>✅ <code>OtaTestViewModel</code>/<code>OtaTestScreen</code>（选包/校验展示/循环次数/进度/各轮结果/日志，遇失败即停）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>开发待办（Phase 2 端到端）——选包/校验/UI/循环已落地（<code>OtaTest*</code>）</strong>：
+1. <strong>首台真机验证</strong>（D8F7）：走完整刷入→重启→重连→读版本；跑 O-1 实验（能否只推 <code>fw.dat</code> 复用旧 Res，把 30min 降到 2min）；验 <code>reconnect()</code> 真机 link 语义（<code>AndroidBleClient.connect</code> 复位后建新 GATT，已支持）。
+2. <strong>续传/错误路径真机验证</strong>：拔电/切后台触发 OFFSET 续传（golden 是 happy path，续传/NAK 分支未经真机验）。
+3. <strong>采集包联调</strong>：把测试用 stock <code>ota_all.zip</code> 换成采集 <code>ota_all.zip</code>，验采集固件刷入后采集能力（读版本/<code>SYS_DATA_COLLECT_SVC</code>）。</p>
+<hr />
+<h2 id="_1">附：溯源</h2>
+<ul>
+<li>真机报文：<code>E:\1\apollo4_watch_s7\Docs\log\ota2.log</code>（带 TX，2026-07-08 18:06；<code>ota.log</code> 为无 TX 版本）。</li>
+<li>字段表：<code>E:\1\apollo4_watch_s7\Docs\03_BLE与协议\protocol-analysis\manuals\b2a_protocol.h</code>（FILE_TRANS 段 :1955-2119）。</li>
+<li>固件实现：<code>product/apollo_eiot/Ble2App/ble2appWrap.c</code>（REQ :3665/4029、START :4149、DATA :4967、STOP :5400、OFFSET :5654）、<code>ble2appEx.h</code>（枚举 :28-508）、<code>OTA/OTA_Main.c</code>（DoRecvAfter/SetFlag/Check/SecBL）。</li>
+<li>App 侧：<a href="../../shared/src/commonMain/kotlin/io/bluetrace/shared/s7/"><code>shared/src/commonMain/kotlin/io/bluetrace/shared/s7/</code></a>；设计与活文档 <a href="S7采集OTA_设计.md"><code>S7采集OTA_设计.md</code></a> / <a href="implementation-notes.md"><code>implementation-notes.md</code></a>。</li>
+</ul></main>
+</div>
+</body>
+</html>

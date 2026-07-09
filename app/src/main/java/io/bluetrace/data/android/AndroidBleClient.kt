@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -27,11 +28,14 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -41,7 +45,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - 扫描：无过滤全量扫描，提取广播 Service UUID 表（协议识别靠 [B2aDetect]，nRF Connect 式）；
  * - 连接：connectGatt(TRANSPORT_LE) → requestMtu(247) → discoverServices → 订阅已知协议的 Notify
  *   特征（B2A: FFE2；HRS: 2A37）→ CCC 写成功才算 CONNECTED；
- * - 写：对 B2A RX（FFE1）Write Without Response（上层 S7Console 单飞保证串行，无需写队列）；
+ * - 写：对 B2A RX（FFE1）Write Without Response，**逐帧串行 + 等 onCharacteristicWrite 再发下一帧**
+ *   （写流控/背压——多包切片如 OTA 一切片 17 帧背靠背发会溢出 GATT 缓冲丢包，ota3.log 实证）；
  * - 断链：不自动重连（v1；断了就 DISCONNECTED，控制台按钮自动禁用）。
  *
  * 所有蓝牙调用包 SecurityException（权限可被运行期收回）。
@@ -59,6 +64,9 @@ class AndroidBleClient(
         val ready: CompletableDeferred<Boolean> = CompletableDeferred(),
         /** 协商 MTU（onMtuChanged 存下；OTA 分片尺寸推算用，观测非配置）。默认 BLE ATT 23。 */
         @Volatile var mtu: Int = 23,
+        /** 写流控：逐帧串行（[writeLock]）+ 等 [writeAck]（onCharacteristicWrite 完成）再发下一帧，防多包切片溢出 GATT 缓冲丢包。 */
+        val writeLock: Mutex = Mutex(),
+        @Volatile var writeAck: CompletableDeferred<Int>? = null,
     )
 
     private val conns = ConcurrentHashMap<String, Conn>()
@@ -228,6 +236,11 @@ class AndroidBleClient(
                 }
             }
 
+            // 写完成信号（no-response 写 Android 亦回调）：驱动逐帧写流控，防多包切片背靠背溢出 GATT 缓冲丢包
+            override fun onCharacteristicWrite(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) {
+                conn.writeAck?.complete(status)
+            }
+
             // API 33+
             override fun onCharacteristicChanged(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) {
                 notifyFlow(device.id).tryEmit(BleNotification(device.id, clock.nowMs(), value))
@@ -290,22 +303,45 @@ class AndroidBleClient(
 
     override fun negotiatedMtu(deviceId: String): Int = conns[deviceId]?.mtu ?: 23
 
+    /**
+     * 下行写：**逐帧串行 + 等 onCharacteristicWrite 再发下一帧**（写流控/背压）。
+     * 无流控时多包切片（如 OTA 一切片 17 帧 Write-Without-Response）背靠背发会溢出 GATT 写缓冲，
+     * `writeCharacteristic` 返 BUSY 被静默丢——真机 ota3.log 实证：单帧过、17 帧全丢 → 设备看门狗 abort。
+     */
     @SuppressLint("MissingPermission")
     override suspend fun write(deviceId: String, bytes: ByteArray) {
         val conn = conns[deviceId] ?: return
         val ch = conn.writeChar ?: return
         if (link(deviceId).value != LinkState.CONNECTED) return
-        safe {
-            if (Build.VERSION.SDK_INT >= 33) {
-                conn.gatt.writeCharacteristic(ch, bytes, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE)
-            } else {
-                @Suppress("DEPRECATION")
-                ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                @Suppress("DEPRECATION")
-                ch.value = bytes
-                @Suppress("DEPRECATION")
-                conn.gatt.writeCharacteristic(ch)
+        conn.writeLock.withLock {
+            repeat(WRITE_MAX_ATTEMPTS) {
+                val ack = CompletableDeferred<Int>()
+                conn.writeAck = ack
+                val accepted = startWrite(conn, ch, bytes)
+                if (accepted) {
+                    // 等发送完成信号作节流；个别机型不回调 → 短超时兜底继续（退化为无流控但不卡死）。
+                    withTimeoutOrNull(WRITE_ACK_TIMEOUT_MS) { ack.await() }
+                    conn.writeAck = null
+                    return
+                }
+                conn.writeAck = null
+                delay(WRITE_BUSY_BACKOFF_MS) // writeCharacteristic 返 BUSY（上一帧在飞）→ 稍等重试
             }
+        }
+    }
+
+    /** 单次 writeCharacteristic（No-Response）；返回是否被 GATT 接受（false=BUSY/错误，需重试）。 */
+    @SuppressLint("MissingPermission")
+    private fun startWrite(conn: Conn, ch: BluetoothGattCharacteristic, bytes: ByteArray): Boolean = safe {
+        if (Build.VERSION.SDK_INT >= 33) {
+            conn.gatt.writeCharacteristic(ch, bytes, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) == BluetoothStatusCodes.SUCCESS
+        } else {
+            @Suppress("DEPRECATION")
+            ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            @Suppress("DEPRECATION")
+            ch.value = bytes
+            @Suppress("DEPRECATION")
+            conn.gatt.writeCharacteristic(ch)
         }
     }
 
@@ -320,5 +356,9 @@ class AndroidBleClient(
         private const val TAG = "BtRealBle"
         private val CCC_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val CONNECT_TIMEOUT_MS = 15_000L
+        // 写流控：等 onCharacteristicWrite 的兜底超时（正常回调仅 ms 级，此仅防个别机型不回调卡死）+ BUSY 重试
+        private const val WRITE_ACK_TIMEOUT_MS = 300L
+        private const val WRITE_MAX_ATTEMPTS = 8
+        private const val WRITE_BUSY_BACKOFF_MS = 6L
     }
 }

@@ -38,7 +38,7 @@ data class DeviceScanUiState(
     val dutCount: Int = 0,
     val referenceCount: Int = 0,
     val scanning: Boolean = false,
-    val rssiThreshold: Int = -80,
+    val rssiThreshold: Int = ScanDefaults.RSSI_THRESHOLD,
     val query: String = "",
     val showEmpty: Boolean = false,
     val atDutLimit: Boolean = false,
@@ -53,7 +53,7 @@ class DeviceScanViewModel(
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
     private val _links = MutableStateFlow<Map<String, LinkState>>(emptyMap())
     private val _status = MutableStateFlow(ScanStatus.IDLE)
-    private val _rssi = MutableStateFlow(-80)
+    private val _rssi = MutableStateFlow(ScanDefaults.RSSI_THRESHOLD)
     private val _query = MutableStateFlow("")
 
     private var scanJob: Job? = null

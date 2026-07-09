@@ -8,7 +8,11 @@ package io.bluetrace.shared.s7
  *
  * 会话时序（App 驱动）：REQ 报会话总量 → 逐文件 START/TRANS×N/STOP → 末文件 STOP 即整包完成。
  * - 校验：TRANS 的 9B 应答含 U32 逐字节累加和，App 自算比对（[additiveChecksum]）；
- * - 分片：TRANS 数据 = 一条多包 B2A 消息（cmd=0x0F,key=TRANS），切片 ≤ sliceMaxSize=(MTU−12)×17。
+ * - 分片：TRANS 数据 = 一条多包 B2A 消息（cmd=0x0F,key=TRANS），切片 ≤ sliceMaxSize=(MTU−15)×17。
+ *
+ * ⭐ golden 日志坐实（2026-07-08，ota.log）：`ParamPktLen:232 = MTU(247)−15`、`SliceMaxSize:3944=232×17`。
+ * 每帧 param 须预留 **3B ATT 写头**（opcode 1 + handle 2）：线上帧 = 8B B2A头+4B命令头+param ≤ MTU−3。
+ * 曾用 MTU−12（=235）会让首帧上链 247B → ATT PDU 250B > MTU → Android 写被拒、首切片即挂（BUG-1）。
  */
 object S7FileTrans {
     // 子命令（ENUM_B2A_FILE_TRANS_KEY_TYPE，ble2appEx.h:453-458）
@@ -32,13 +36,20 @@ object S7FileTrans {
     const val REQ_BUSY = 2
     const val REQ_MEMORY = 3
 
-    /** 每切片最多 17 包（MAC_SLICE_CNT）——sliceMaxSize = iMaxParamPktLen×17，iMaxParamPktLen = MTU−12。 */
+    /** 每切片最多 17 包（MAC_SLICE_CNT）——sliceMaxSize = iMaxParamPktLen×17，iMaxParamPktLen = MTU−15。 */
     const val SLICE_PACKET_CNT = 17
 
-    /** 每帧 param 上限 = 协商 MTU − (8B 帧头 + 4B 命令头)。首帧总长恰 ≤ MTU。 */
-    fun maxParamPerFrame(mtu: Int): Int = (mtu - S7FrameCodec.HEAD_LEN - S7FrameCodec.CMD_HEAD_LEN).coerceAtLeast(1)
+    /** ATT 通知/写头（opcode 1B + handle 2B）：单次 GATT 写的可用载荷 = MTU − 3（golden 日志坐实）。 */
+    const val ATT_HEADER = 3
 
-    /** 设备缺省 sliceMaxSize 推算（真实值以 REQ 应答回值为准）。 */
+    /**
+     * 每帧 param 上限 = 协商 MTU − 3B ATT 写头 − (8B 帧头 + 4B 命令头) = MTU−15。首帧上链恰 ≤ MTU−3。
+     * golden 日志：MTU 247 → 232（`FiTransReqFoMMI ParamPktLen:232`）。
+     */
+    fun maxParamPerFrame(mtu: Int): Int =
+        (mtu - ATT_HEADER - S7FrameCodec.HEAD_LEN - S7FrameCodec.CMD_HEAD_LEN).coerceAtLeast(1)
+
+    /** 本地 sliceMaxSize 推算 = (MTU−15)×17（MTU 247 → 3944，与设备回值一致；短应答时作权威）。 */
     fun defaultSliceMaxSize(mtu: Int): Int = maxParamPerFrame(mtu) * SLICE_PACKET_CNT
 
     /** U32 逐字节算术累加和（路径 B 校验；对 9B 应答里的 checksum 做期望值比对）。 */
@@ -118,7 +129,11 @@ object S7FileTrans {
         )
     }
 
-    /** REQ 的 12B 应答：`[0]status [1]moduleId [2]fileCount [3]currFileIdx [4-7]sliceMaxSize LE [8-11]offset LE`。 */
+    /**
+     * REQ 的 12B 应答：`[0]status [1]moduleId [2]fileCount [3]currFileIdx [4-7]sliceMaxSize LE [8-11]offset LE`。
+     * ⚠️ 真机应答真实字节格式待抓包坐实（BUG-2；golden 日志设备侧只见 8B 内部记录、非上链 TX 帧）——
+     * 短于 12B 返 null，会话据此走"按已授权继续、sliceMax 用本地算值"的防御分支（见 [S7OtaSession]）。
+     */
     fun parseReqReply(param: ByteArray): OtaReqReply? {
         if (param.size < 12) return null
         return OtaReqReply(

@@ -1,4 +1,4 @@
-# BlueTrace 开发上下文（最后更新 2026-07-06）
+# BlueTrace 开发上下文（最后更新 2026-07-07）
 
 > 给零上下文的下一个会话/接手人看的活文档。真源永远是 [`/SPEC.md`](../../SPEC.md) ＞ [`prototypes/v4_android.html`](../prototypes/v4_android.html)；本文只记"走到哪了、为什么、下一步"。
 
@@ -21,7 +21,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - **协议规格文档**：[`归档/s7/`](../归档/s7/) 下 B2A 下行 + zqdata 上行逐字节规格（md+html，含位域），该子目录有独立 CHANGELOG。协议知识来源于 apollo4_watch_s7 固件侧分析（E:\1\apollo4_watch_s7 的 Docs/06）。
 
 **阻塞**
-- M7（P5 真实 DUT 采集协议解码）：**2026-07-06 口径修正——不是"自研 vs UWTP 二选一"，而是在现网 B2A 主体上添加/扩展采集能力**（UWTP 仅思考方向、可能借用部分设计）；自研 v0.1 线整体归档 [`归档/自研协议线_v0/`](../归档/自研协议线_v0/)，**扩展方案待重新构思**。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
+- M7（P5 真实 DUT 采集协议解码）：**2026-07-06 口径修正——不是"自研 vs UWTP 二选一"，而是在现网 B2A 主体上添加/扩展采集能力**（UWTP 仅思考方向、可能借用部分设计）；自研 v0.1 线整体归档 [`归档/自研协议线_v0/`](../归档/自研协议线_v0/)，**扩展方案待重新构思**。**采集前置 = OTA**（常规表刷采集固件才能采集）：设计与真实包坐实见 [`OTA/S7采集OTA_设计.md`](../OTA/S7采集OTA_设计.md)（方向 B 实验室 attended，真机可联调，Phase 0 逆向基本完成，下一步 Phase 1 传输地基+Mock）。注意口径：s7 分支已把"真实 BLE 链路"这半边做通（控制台方向），MILESTONES 里"BLE/DUT 仍 Mock"**仅对 main 的采集链路成立**；`BleClient`/`SampleDecoder` 接口隔离已就绪，且 2026-07-06 起注册式协议架构（02 R1–R3）已落码——冻结后只需新增一个 ProtocolProfile 注册进表，编排层零改动。
 
 ## 关键决策（节选，全表见 SPEC 与各设计文档）
 
@@ -49,7 +49,8 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 2. **推动 `.proto` 冻结解锁 M7**；冻结前可先用标准心率带（HRS 0x180D，不依赖冻结）把真实 BLE 采集链路跑起来。
 3. ~~刷新 里程碑与进度.md~~ ✅（2026-07-06 全面刷新：M6.1–M6.4 增量线入册、两处过期口径修正、M7 收窄为"解码半边"、冻结路径=UHTP V1 评审 / 自研 .proto 二选一）。
 4. 设计缺口收尾（设计审查报告_v6.md ⏳ 项）。
-5. **架构演进线（评估见 [`architecture/架构评估_20260706.md`](../归档/架构评估_20260706.md)，已扩详版含 §0 机制速览；D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / CI 已上）**：~~波次A~~ ✅（`3a353ad`：A1 落盘挪 IO 池、A2 异常兜底、A3 Store 自守线程、B1 依赖环消除、CI 上线，首跑绿）。~~波次B~~ ✅（2026-07-06：B2 ConnectionRegistry 事件驱动化+下沉 shared.ble（linkState 断连自动清退）、B3 iOS 债下沉（CollectDraft→shared.domain、toS7Person+readAll→shared.s7、DeviceLogStore 包迁 data.android；**zip 组包有意不下沉**——java.util.zip 是 JVM 专属 API，commonMain 不可用，iOS 接 Apple 压缩 API 时再抽象）、B4 = 02 设计 R1–R3 落码（`shared.protocol.registry` + ProtocolEvent 事件模型 + Mock/HRS Profile + RegistrySampleDecoder，DI 按后端拼注册表；偏离 02 两处见 CHANGELOG）；真机冒烟过（Mock 后端新链路双设备采集 47s 全通）。**接下来 R4**：HRS 真实链路首连——HrsProfile/HrsParser 已就绪，等心率带硬件即可接。
+5. **架构优化线（2026-07-07 分析会话收官，接棒架构演进线）**：通用采集框架化 8 项决策（D1–D8）全部拍板、方向终选 **B-lite 数据核先行**、执行波次 **P0–P5** 已定——定稿见 [`设计/架构优化_通用采集框架化.html`](../设计/架构优化_通用采集框架化.html)，活文档（Decisions/Deviations/Edge Cases/Open Questions）= [`架构优化_实施笔记.md`](架构优化_实施笔记.md)。**下一实操 = P0 传输地基**（characteristicId 透传/写队列/connectionPriority/ScanFilter）。⚠️ 两条要记：D6 拍板 M7 帧内**不加**设备时间戳/seq（已接受风险）；Nordic 替换（旧评估 D2）被本计划建议改为"续用自写 GATT"，待用户确认（笔记 #9）。
+6. **架构演进线（评估见 [`architecture/架构评估_20260706.md`](../归档/架构评估_20260706.md)，已扩详版含 §0 机制速览；D1/D2/D3 已拍板：R1–R3 落码 / 传输选 Nordic / CI 已上）**：~~波次A~~ ✅（`3a353ad`：A1 落盘挪 IO 池、A2 异常兜底、A3 Store 自守线程、B1 依赖环消除、CI 上线，首跑绿）。~~波次B~~ ✅（2026-07-06：B2 ConnectionRegistry 事件驱动化+下沉 shared.ble（linkState 断连自动清退）、B3 iOS 债下沉（CollectDraft→shared.domain、toS7Person+readAll→shared.s7、DeviceLogStore 包迁 data.android；**zip 组包有意不下沉**——java.util.zip 是 JVM 专属 API，commonMain 不可用，iOS 接 Apple 压缩 API 时再抽象）、B4 = 02 设计 R1–R3 落码（`shared.protocol.registry` + ProtocolEvent 事件模型 + Mock/HRS Profile + RegistrySampleDecoder，DI 按后端拼注册表；偏离 02 两处见 CHANGELOG）；真机冒烟过（Mock 后端新链路双设备采集 47s 全通）。**接下来 R4**：HRS 真实链路首连——HrsProfile/HrsParser 已就绪，等心率带硬件即可接。
 
 ## 相关
 

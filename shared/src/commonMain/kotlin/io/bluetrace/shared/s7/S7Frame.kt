@@ -102,7 +102,7 @@ object S7FrameCodec {
      * - 首帧 index=0，payload = `[cmd][key][paramLen LE16] + param 首段`，status 置 IS_MULTI_PKT(+多包ID)；
      * - 续帧 index 递增，payload = param 续段；
      * - 末帧另置 MULTI_PKT_END。
-     * 每帧 param 段 ≤ [maxParamPerFrame]（真实端 = 协商MTU−12，使首帧总长恰 ≤ MTU）。param 为空 → 单帧空消息。
+     * 每帧 param 段 ≤ [maxParamPerFrame]（真实端 = 协商MTU−15，含 3B ATT 写头，使首帧上链恰 ≤ MTU−3）。param 为空 → 单帧空消息。
      * 分片总数由调用方经切片尺寸控制在设备 sliceMaxSize/17 上限内（此函数不设 17 帧硬限，由上层保证）。
      */
     fun encodeMultiPacket(

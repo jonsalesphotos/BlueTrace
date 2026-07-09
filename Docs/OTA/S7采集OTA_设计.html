@@ -200,7 +200,7 @@ strong { font-weight:600; }
 <tr>
 <td><code>REQ 0x04</code></td>
 <td>App→表</td>
-<td><code>[0]moduleId=1 [1]ucIsOffset [2]fileCount [3]rsv [4-7]totalSize(LE)</code>；<strong>fileCount/totalSize = 整场合计</strong>（<code>:3685-3695</code>）。设备查磁盘(<code>totalSize/1024</code> vs 剩余 KB)，<strong>OK 路等 MMI 授权后异步回 12B</strong>：<code>status/moduleId/fileCount/currFileIdx/sliceMaxSize(LE)/offset(LE)</code>；<code>sliceMaxSize=(协商MTU−12)×17</code>。</td>
+<td><code>[0]moduleId=1 [1]ucIsOffset [2]fileCount [3]rsv [4-7]totalSize(LE)</code>；<strong>fileCount/totalSize = 整场合计</strong>（<code>:3685-3695</code>）。设备查磁盘(<code>totalSize/1024</code> vs 剩余 KB)，<strong>OK 路等 MMI 授权后异步回</strong>：设计反推为 12B <code>status/moduleId/fileCount/currFileIdx/sliceMaxSize(LE)/offset(LE)</code>，<strong>但 golden 日志(2026-07-08)设备侧只见 8B 回显、真实格式待抓包（implementation-notes BUG-2）</strong>；<code>sliceMaxSize=(协商MTU−15)×17</code>（golden 坐实 <code>ParamPktLen:232=247−15</code>，含 3B ATT 写头；旧 MTU−12 已更正）。</td>
 </tr>
 <tr>
 <td><code>START 0x01</code></td>

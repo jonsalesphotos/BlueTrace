@@ -30,7 +30,7 @@ data class ConsoleConnectUiState(
     val rows: List<ConsoleDeviceRow> = emptyList(),
     val scanning: Boolean = false,
     val query: String = "",
-    val rssiThreshold: Int = -90,
+    val rssiThreshold: Int = ScanDefaults.RSSI_THRESHOLD,
 )
 
 /**
@@ -50,7 +50,7 @@ class ConsoleConnectViewModel(
     private val _scanning = MutableStateFlow(false)
     private val _busy = MutableStateFlow<Set<String>>(emptySet())
     private val _query = MutableStateFlow("")
-    private val _rssi = MutableStateFlow(-90)
+    private val _rssi = MutableStateFlow(ScanDefaults.RSSI_THRESHOLD)
     private val observed = mutableSetOf<String>()
     private var scanJob: Job? = null
 

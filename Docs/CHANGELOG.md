@@ -6,6 +6,129 @@
 
 ---
 
+## [OTA·UI] OTA 固件屏交互收尾：整卡可点进扫描 + 固定不跳 + 运行护栏 + 扫描 RSSI 统一 -48 — ✅ 2026-07-09
+本次会话多轮打磨，`app:installDebug` 绿、真机 M2101K9C 装机验证。
+- **信息卡整卡可点 → 进扫描/连接页**（`ConsoleConnect`），唯一例外=「当前版本」值 chip（嵌套点击=刷新版本）；去掉「重连」chip（重连改在扫描页做）。
+- **固定列宽/行高、运行态不跳动**：标签列 80dp、两行行高 28dp、连接状态恒为 `StatusPill`、chevron `›` 常驻——消除「开始 OTA 后卡片跳一下」。
+- **OTA 运行中护栏**：禁止进扫描页（卡片不可点、chevron 变暗）；禁止返回——系统返回键/顶栏箭头 → **退出确认弹窗**（继续刷写 / 中止并离开，后者停 OTA 再返回），逃生口=停止按钮；副标题变「刷写中 · 请勿退出」。
+- **扫描 RSSI 阈值默认全局统一**：新增 [`viewmodel/ScanDefaults.kt`](../app/src/main/java/io/bluetrace/viewmodel/ScanDefaults.kt) `RSSI_THRESHOLD = -48`，两连接页 VM（`DeviceScanViewModel` 原 -80 / `ConsoleConnectViewModel` 原 -90）统一引用；-48 偏强只显眼前手表（多表环境好用），远设备被滤则滑条往 -99 调低。
+
+---
+
+## [OTA·Phase 2f]「OTA 固件」屏重构：动态包列表 + 终端日志 + 重连 + 自动版本 — ✅ 2026-07-08
+按用户布局反馈重构（真机截图验证、无崩溃）。`app:assembleDebug` 绿，APK 已装机。兼容正式版固件、不改固件。
+- **改名** OTA 测试 → **OTA 固件**（标题 + 设置首页入口）。
+- **固定信息框**：目标设备 + 当前版本两行；**连上自动读版本**（linkState→CONNECTED 触发）；**断联可重连**（「重连」chip，仿 DUT），设备黏性（断联保留、可重连）。
+- **动态包列表 + 「+」上传框**：虚线「+ 添加烧录包」，最多 2 个、可重复添加同一个；去掉 A/B 字样（列表叫「烧录包 1/2」）+ 去掉循环次数/toggle。**1 包=单次 OTA；2 包=包1→包2 循环升级（重复到手动中断）**。
+- **开始 OTA**：运行时变「停止」(单次)/「中断重复测试」(循环，红)。
+- **选包/校验/连接/版本 信息统一进「执行日志」**（终端风：黑底等宽 + 颜色分级 + 清空按钮）；包卡片只显 📁+文件名+✕。
+- VM 改 `packages: List<OtaPkgItem>`（≤2）+ `loadedPkgs` 持字节；`addPackage/removePackage/reconnect/autoReadVersion`；1/2 包决定单次/循环。
+- **答用户问**：不改固件下**最小 OTA 包 = 4 文件（ota_part：fw+ResData/ResFat/ResCheck）**，非 14——字库固件 Step2 自动补拷，Res 必推。`ota_part.zip` 已在手机 `/sdcard/Download/`。
+
+---
+
+## [OTA·文档] 固件端 OTA 完整流程 + 「为什么不能只刷 fw」代码级证据成文 — ✅ 2026-07-08
+应用户要求出一份**代码级证据**的固件侧 OTA 文档，钉死了此前 O-1 分析的最后缺口——**目标区在哪一行被擦空**。产出 [`OTA/S7固件OTA_完整流程与只刷fw失败原因.{md,html}`](OTA/S7固件OTA_完整流程与只刷fw失败原因.html)（2 图，全 file:line + log5 实证）。
+- **锁定擦除点**：`SYS_OtaStart(2)`（`System.c:3706`）里 **`:3763 SYS_fremove_all(目标资源区)`** —— OTA 一开始就擦空目标区（`SYS_flist_all` 是 `f_findfirst` 真目录迭代，log5 擦前 14 文件/擦后空 逐条印证）。之前 workflow 只查了 DoRecvBefore（空壳）漏了这里。
+- **完整链**：擦空(System.c:3763) → 只写推送文件(ble2appWrap.c:4850) → DoRecvBefore 空壳不补拷(OTA_Main.c:222) → **DoRecvAfter Step1 硬校验 Res 三件套存在(OTA_Main.c:643-676，缺→EECT_OTA_LOAD_RES 1101)** → 生效门 `if(EECT_OK) SetFlag+Done`(:1883-1888)。**字库例外**：Step2 缺则从旧区 `SYS_CopyFile` 补拷(:699)——故 ota_part 可行、fw-only 不可。
+- 错误处理总表(EBEC/尺寸兜底/回滚 OTA_Check ErrCnt→SecBL/砖化边界)；真 O-1 唯一正解=固件在 DoRecvAfter Step1 给 Res 加"缺则补拷"(镜像 Step2)。SecBL 闭源处已标【推测】，核心论证不依赖它。
+
+---
+
+## [OTA·Phase 2e] O-1（只推 fw.dat）实测不可行 + 校验器放开(带实况警告) — ✅ 2026-07-08
+workflow 3 路 + 亲验 `OTA_Main.c:192/195/222` 静态分析 → 首验(log5.txt)**推翻"可行"判断**。`shared:jvmTest`(ValidatorTest 10) + `assembleDebug` 绿，APK 已装机。
+- **静态分析(对了一半)**：编译版 `OTA_DoRecvBefore`(:197) 空壳(:222 无条件 return；:788 拷 Res 版死码)、**lData 全量/差分设备侧无效**——但漏了"目标区不保留 Res"。
+- **实测(log5.txt)推翻**：fw.dat 1.67MB **~30s** 传完 ✅，但目标区 A **OTA 前有完整 Res、OTA 后只剩 fw.dat**（Res 未保留/不补拷）→ `DoRecvAfter Step1 Missing 0:/A/ResCheck.dat`→`lRet:1101`→**末 STOP code=13(FSUM_FAIL)**→ App 正确显失败。**非砖**(ucOtaFlag:0)。擦除机制待固件侧定位。
+- **可行路径**：① ota_part(fw+Res 去字库)~8min 稳；② 真 O-1(~1min) 需固件改 DoRecvAfter Step1 缺 Res 补拷(镜像 Step2 字库)。
+- **校验器放开**：`OtaPackageValidator` `RES_FILES`/`FW_FILE` 分离，不硬求 Res；仅 fw.dat→valid + **警告"实测失败 code=13"**；只字库无 fw 无 Res→invalid。测试 3 例。App 侧观测正常(设备回 FSUM_FAIL, 非假成功)。
+
+---
+
+## [OTA·Phase 2d] OTA 测试界面重构：设置首页入口 + 复用连接 + A↔B 循环 + 读版本 + 美化 — ✅ 2026-07-08
+按用户反馈重构 DEBUG OTA 测试屏（真机截图验证渲染、无崩溃）。`app:assembleDebug` 绿，APK 已装机。
+- **入口移到设置首页**（诊断与维护区，**与「设备维护(DUT)」同级**），DEBUG 门控；从控制台 DangerSection 撤回占位。
+- **复用扫描/连接**：设备卡「连接设备/换设备」→ 既有 `ConsoleConnect` 屏（走 `ConnectionRegistry`）；OTA 屏取 registry 首个非参考设备。
+- **主动读版本**：独立「设备版本」栏（栏2）的「读取版本」按钮 → 短命 `S7Console.getDeviceInfo().swVer` 即时显示，人工判断升级完成（升级前/后各读一次比对）。
+- **设备头卡同步 DUT DeviceHeader 风格**：整卡可点→连接页、名/MAC(mono)、链路 `StatusPill`、`›` 箭头、「点此换设备」——与设备维护一致。
+- **A↔B 循环**：`OtaTestViewModel` 双包槽（`pkgA`/`pkgB` + `OtaPkgSlot`）；循环奇数轮包 A、偶数轮包 B（仅当选了有效 B），做 A↔B 交替刷入压测；只选 A 则每轮 A。
+- **尾数/链路优化**：链路做成 `StatusPill`（已连接=success/未连接=warning），尾数并入设备名、MAC 小字，撤掉独立 Kv 行。
+- **美化**：`Surface`+`RoundedCornerShape(BT.radius)` 卡片、`StatusPill`、`LinearProgressIndicator`、BT 主题 token，对齐 app 设计系统。
+- 各轮结果标注用的是包 A/B；遇失败即停。
+- **精简（用户反馈）**：`烧录包 B` + `循环次数` 用「A↔B 循环升级」小开关(`advanced`)包裹，关→隐藏(单包 A 单次)、开→展开；删去满屏说明性文字（设备卡/版本/循环副标/禁用原因/顶栏），版本无值显 `—`。start/canStart 尊重 advanced（关时忽略 B、次数=1）。
+
+---
+
+## [OTA·Phase 2c] 首台真机（D8F7）失败根因 → 写流控修复（EC-5 落地） — ✅ 2026-07-08
+首次真机 OTA（`apollo4_watch_s7/Docs/log/ota3.log`）在**第 2 文件首个多包切片**即失败——根因定位 + 修复。`app:assembleDebug` 绿，APK 已装机。
+- **根因**：`AndroidBleClient.write` 无流控——`writeCharacteristic(NO_RESPONSE)` 发完即返。一切片 17 帧背靠背猛发 → Android GATT 写缓冲溢出、第 2 帧起返 BUSY 被 `safe{}` 静默吞丢 → 设备收不到完整切片 → 15.36s UI 看门狗 abort 断链复位。铁证：fCheck.dat（108B **单帧**）过 → `[1/14]`；fCN26.dat（首切片 3944B **17 帧**）→ `otaTimer 0→15` 零接收 → `DM_CONN_CLOSE_IND`。即设计早标的 **EC-5「切片内逐包背压」真机坑**。
+- **修复**：`write` 改**逐帧串行（`Conn.writeLock`）+ 等 `onCharacteristicWrite` 再发下一帧**（No-Response 写 Android 亦回调，作背压节流）；返 BUSY 短退避重试（8 次）；机型不回调 → 300ms 兜底继续（正常回调仅 ms 级，即 BLE 吞吐节拍，不额外拖慢）。`Conn` 加 `writeLock`/`writeAck`，新增 `onCharacteristicWrite` 回调 + `startWrite`。
+- **旁证无碍**：STOP 发空 payload（固件忽略，fCheck STOP→`[1/14]` 成功）；fCheck 声明 sliceSize=108（<上限，正常）。
+- **✅ 复测全过（ota4.txt，2026-07-08 19:46→19:54，~7min50s / 23.96MB）**：14 文件全传（上次卡死的 fCN26→`[2/14]`，含 ResData 17.9MB）→ `B2A_ResCheck` OK → `OTA_DoRecvAfter`(A→B,Res+字库齐) → `OTA_SetFlag(1)`→`goto SecBL`→`SYS_Reset` **首次真机 OTA 端到端成功**。
+- **缺陷范围澄清**：无流控缺陷在**通用写路径**（所有 BLE 发送都走 `write`），但只有 OTA 会触发丢包——控制台/拉日志均"单帧+单飞"（`request` 发一条等一条应答，任意时刻 ≤1 write 在飞），唯 OTA 一切片背靠背连发 ≤17 帧才溢出。修复对所有发送统一生效（单帧命令仅多几 ms 确认）。
+
+---
+
+## [OTA·Phase 2b] DEBUG「OTA 测试」界面：选包→校验→循环刷入 — ✅ 2026-07-08
+真机 OTA 测试通道（app 层 + UI）。`shared:jvmTest` + `app:assembleDebug` 全绿，APK 已装机。
+- **shared**：`OtaPackageValidator`（纯逻辑，可测）——合法 zip 内容"简单校验"：必推核心 `ResData/ResFat/ResCheck/fw.dat` 存在（缺=硬错）、文件名 ≤12 字符、无 0 字节、缺字库=软警告；`sortByPushOrder` 按 golden 序（字库→fw→Res）。`OtaPackageValidatorTest` 8 例。
+- **app**：`OtaZipLoader`（SAF Uri → `ZipInputStream` 解压 → `List<OtaFile>` → 校验 → `OtaPackage`）；`OtaTestViewModel`（选包/循环 N 次遇失败即停/短命 `S7Console` 读版本/registry 回连补登记）；`OtaTestScreen`（目标设备卡+选包+校验展示+循环次数+进度绑 `OtaPhase`/`OtaProgress`+各轮结果+日志，DEBUG-only）。
+- **接线**：`Route.OtaTest`；`DeviceConsoleScreen` DangerSection 的 OTA 占位改 `BuildConfig.DEBUG` 门控入口 → `OtaTestScreen`；`AppModule` 注册 `OtaZipLoader`+`OtaTestViewModel`。
+- **循环升级测试**：可设次数（默认 1），每轮 下载→自复位→重连→读版本，遇失败即停。目标=registry 首个非参考设备（连 D8F7 即为它）。`AndroidBleClient.connect` 复位后重连已支持（断链 remove+close，再 connect 建新 GATT）。
+- 待真机：首台 D8F7 走通；O-1（只推 fw.dat）；续传/错误路径。
+
+---
+
+## [OTA·Phase 2a] 下载后回连 + 读版本显示 编排层 — ✅ 2026-07-08
+Phase 2 首块（Mock 可验、无需硬件）。`S7OtaSession.provision` 只到 DoneDownload，设备末 STOP 后自复位、App 观测不到内部生效——本层把"下载后回连 + 读当前版本"闭环。`shared:jvmTest` + `app:assembleDebug` 全绿。
+- **不做版本校验**（用户决定）：OTA 包不含版本信息，无法"包版本 vs 设备版本"机器比对 → 改为回连后**读取并显示**当前版本，是否刷成功人工看版本判断。
+- **新增 `OtaProvisioner`**：`provisionAndReconnect` = Downloading→WaitingReboot(best-effort 等断链)→Reconnecting(connect+等 CONNECTED,重试)→ReadingVersion(重试)→`Reconnected(currentVersion?)`/`Failed`；下载失败直通。`readVersion` 注入(生产接重连后新 `S7Console.getDeviceInfo().swVer`)；**读不到不算失败**(Reconnected(null)→UI "未知")，仅重连失败 `Failed(ReconnectFailed)`。
+- **`OtaResult`**：`DoneDownload`/`Reconnected(currentVersion:String?)`(仅展示非判据)/`Failed`；`OtaFailure` 加 `ReconnectFailed`；新增 `OtaPhase` 枚举。`S7MockWatch.otaRebootAfterComplete` 模拟设备自复位断链。
+- **对抗审查修 1 必修（A）**：`readVersionWithRetry` 原对抛异常的 `readVersion` 零防御，而生产读法 `S7Console.getDeviceInfo()` 超时/失败是 *抛* `S7CommandException` 非返 null → 会异常穿透+击穿重试。已修：捕获非取消异常转 null 重试、`CancellationException` 上抛。B（陈旧 CONNECTED 短路，A 修后自愈）留真机期；F 随去掉版本校验自然消解。
+- **`S7OtaProvisionerTest` 6 例**：重连读当前版本 Reconnected / 重连失败 / 版本读不到→Reconnected(null) / 版本读抛异常→Reconnected(null)(守 A) / 不复位仍重连读版本(connectCalls==0) / 下载失败透传。
+- 下一步：生产 UI 接 `readVersion`(重连后新 `S7Console`) + 展示 `Reconnected.currentVersion`；接采集 `ota_all.zip`（zip 解包 app 层）；attended 工具屏；首台真机端到端。
+
+---
+
+## [OTA·Phase 1.1] 首条真机 golden 日志验证 → 修 BUG-1/BUG-2 分片账 — ✅ 2026-07-08
+真机设备侧 OTA 日志（`apollo4_watch_s7/Docs/log/ota.log`，一次完整 14 文件 ota_all 刷写）首次把设计字节假设落到真机报文。验证详情见 [`OTA/implementation-notes.md`](OTA/implementation-notes.md)「Golden 日志验证」。`shared:jvmTest` + `app:assembleDebug` 全绿。
+- **坐实**：START 26B 逐字段一致；DATA ack `recvLen`=本切片长(非累计, O-6 解决)；完成路径 DoRecvAfter→SetFlag→Check→SecBL→SYS_Reset 逐步吻合；14 文件全 type=2；MMI 本机即时授权；~40KB/s。
+- **BUG-1（真机必挂）**：每帧 param 应 = **MTU−15**（含 3B ATT 写头）而非 MTU−12——真机 `ParamPktLen:232=247−15`、`SliceMaxSize:3944=232×17`。旧 MTU−12 使首帧上链 247B>MTU−3 → Android 写被拒、首切片即挂。修 `S7FileTrans.maxParamPerFrame`+`defaultSliceMaxSize`。
+- **BUG-2（防御，后经 ota2.log 翻案）**：`S7OtaSession` REQ 应答改防御式（短应答/12B 不自洽均不 abort、按本地 sliceMax 续）——**次日 `ota2.log`(带 TX)坐实应答实为 12B（`0f 04 0c 00 · 00 01 0e 00 68 0f 00 00 …`），BUG-2 系虚惊**（早前 8B 是内部 SDM 记录非 TX 帧）；防御式改动无害保留。
+- **新测 3**：`sliceFragmentation_respectsMtuMinus15_perGoldenLog`（钉 232/3944/17帧/首帧244）、`provision_survivesShortReqReply_usesLocalSliceMax`、`provision_clampsDeviceSliceMax_downToLocalCap`（device>localCap 向下钳制回归）。四视角对抗审查（4 agent）确认可安全落地。
+- **权威协议文档成文**：[`OTA/S7采集OTA_指令交互与流程.{md,html}`](OTA/S7采集OTA_指令交互与流程.html)——`ota2.log`(带 TX) + 固件 `b2a_protocol.h` 双坐实，五子命令逐字节(真机 hex + file:line + 解码走查) + 会话时序/累加和/完成流程/错误码，7 图。STOP 16B payload 经固件确认被忽略（`ble2appWrap.c:5400` 只 hexdump），空 STOP 正确。承载=复用控制台 B2A/AMDTP 通道（O-4 解，无需新 GATT 发现）。
+
+---
+
+## [架构] 通用采集框架化分析：8 项决策拍板 + B-lite 实施计划 — ✅ 2026-07-07
+架构优化分析会话（10 智能体勘察 7 子系统 + 3 视角盲区批判，采访式 8 问 8 答）：
+- **决策 D1–D8 全部拍板**：M9=发版接新协议（DSL 热下发出局）／多 DUT 真需求按设备分文件／设备身份=固件承诺 static+App 锚 MAC／控制面=独立 DeviceOps 语义层／长连接=息屏长采+自动回连／**D6 时间职责分层=包内时间语义(样本时间戳/seq/间隔)归采集协议, App 只打接收时间标签+raw hex 落盘, 不反推/不校准/不排序**／方向终选=B-lite 数据核先行／受试者信息维持明文（M9 前重议）。
+- **关键勘察结论**：注册表对 B2A 主线空转（识别/订阅/门控三面硬编码旁路）；真正协议锁=DecodedStream 闭合枚举；startScan(null,LOW_LATENCY) 为息屏零结果+节流最坏组合；droppedPackets 计数点错位（SharedFlow DROP_OLDEST 静默）；会话主键=文件夹名会随事后编辑漂移。
+- **实施计划 P0–P5**：P0 传输地基（特征透传/写队列/priority/ScanFilter）→ P1 数据核注册（B2aProfile+流表开放+UI 数据驱动）→ P2 文件格式 v2（sessionUuid/按设备分文件/hexlog 加通道/质量计数）→ P3 长连接保活（席位状态机/回连分段/FGS location/ROM 专项）→ P4 DeviceOps（S7Console 改造+控制台语义化）→ P5 M7 联动。
+- 产出：[`设计/架构优化_通用采集框架化.{md,html}`](设计/架构优化_通用采集框架化.html)（4 图：现状旁路/目标架构/席位状态机/会话分段；含 explainer/handoff/quiz + 附录A 外部验证）+ 活文档 [`context/架构优化_实施笔记.md`](context/架构优化_实施笔记.md)。
+- **codex 交叉验证**（codex-cli 只读独立读码）：13 条承重事实断言 **11 CONFIRMED / 2 PARTIAL / 0 REFUTED**，无一推翻。修一处事实错（CollectType 6 值/DecodedStream 7 值曾混称"7 值枚举"）；补三实施要点（ScanFilter 可过滤 128 位私有 UUID 须用完整基址、per-device 分文件是六处联动、P0 写队列须接口+Mock+测试同批）。
+- 遗留待确认：Nordic 替换时机（本计划推荐续用自写 GATT，与归档评估 D2 口径相左）；S7 功能掩码位含义（找固件）；CDM 保活增强（backlog）。
+
+---
+
+## [OTA·Phase 1] 传输地基：下行多包分片 + FILE_TRANS 编解码 + 独占事务 + Mock — ✅ 2026-07-07
+方向 B Phase 1 落码（Mock 全绿；shared 121 单测 + app 单测/assembleDebug 绿）。设计见 [`OTA/S7采集OTA_设计.md`](OTA/S7采集OTA_设计.md)，活文档 [`OTA/implementation-notes.md`](OTA/implementation-notes.md)。
+- **新增 shared.s7**：`S7Frame.encodeMultiPacket`（下行多包分片器，首个 App→表 多包场景；不变量=分片→`S7FrameDecoder` 无损重组）、`S7FileTrans`（FILE_TRANS 五子命令编解码 + 9B/12B/OFFSET 解析 + U32 累加和）、`OtaPackage`/`OtaResult`/`OtaFailure` 模型、`S7OtaSession`（独占长事务：REQ→逐文件 START/切片/STOP→末 STOP=DoneDownload；切片 ack 背压+累加和核对+重传）。
+- **接口扩展**：`BleClient.negotiatedMtu`（观测，OTA 分片尺寸用）——Mock + 真机 `AndroidBleClient.onMtuChanged` 存值。`S7MockWatch` fileTrans 状态机 + 注入旋钮。
+- **三视角对抗审查**（workflow，24 agent）→ **2 真 bug 修 + 3 测试缺口补**：① `sliceMax` 夹本地分帧容量 `(MTU−12)×17`（防低报 MTU 时切片超固件 17 包硬限；**常数后经 Phase 1.1 golden 日志更正为 MTU−15**）；② 切片重传 drain 提到每次发送前（清跨切片陈旧 ack）；补测 EC-7 设备 sliceMax 采纳 / SliceFailed 耗尽 / EC-1 REQ 授权时延分层。OTA 单测 13 例。
+- 残余（Phase 2 硬化，O-6）：切片重传"真·迟到 ack 落下一等长等和切片窗口"竞态需真机 ack 语义（recvLen 是否累计）根治；Mock 恒即时回不触发。
+- 下一步 Phase 2（真机）：嵌入采集 `ota_all.zip` + attended 工具屏 + 电量门控 + 首台表抓包核对字节序 + O-1 实验（只推 fw.dat？）。
+
+---
+
+## [OTA] S7 采集固件 OTA 设计文档化：真实包坐实 + 盲点/计划落盘 — ✅ 2026-07-07
+方向 B（实验室 attended 配置少量表）开工前的分析与文档化。新增活跃工作线 [`OTA/`](OTA/README.md)：[`S7采集OTA_设计.md`](OTA/S7采集OTA_设计.md)+html + [`implementation-notes.md`](OTA/implementation-notes.md)。
+- **两轮固件工作流 + 真实 OTA 包检查**坐实：升级包组成（`FileList.dat` 清单、`ota_all` 14 文件 / `ota_part` 4 文件）、推包语义（App 定序、文件名决定落地、REQ 会话级 MMI 异步授权、9B 累加和 App 自核、UI 看门狗 ≈15.36s / 后端 61.44s）、承载=AMDTP GATT（App 只见 B2A Ack、`OTAR_*` 不出 BLE）。
+- **推翻两条早期悲观口径**：① BLE OTA **永不碰 SecBL/boot** + `flash_fw.ps1` J-Link 有线**无条件恢复** → 砖化风险"高不可恢复"→"中可救"；② stock→采集 **非 fw.dat 快闪**——Res/字库/fw 全不同，必推采集整包（~19.7–24MB / 15–45min attended）；采集包**已预构建**。
+- **首个真机实验 O-1**：能否只推 `fw.dat` 复用旧 Res（30min→2min）。真机可联调，字节序留抓包窗口。
+- 下一步 Phase 1：下行多包分片器 + FILE_TRANS 编解码 + BleClient MTU/背压 + OtaTransport 独占事务 + Mock fileTrans + commonTest。
+
+---
+
 ## [重构思] architecture 目录消灭：全部入归档 — ✅ 2026-07-07
 重新构思期收尾动作，`Docs/architecture/` 目录不复存在：
 - `架构评估_20260706.{md,html}`（波次A/B 已收官，P2 残项清单在其正文与 v10 条目）、`02_parser_registry_design.md`（R1–R3 已落码，真相在 `shared.protocol.registry`；R4/R5 要点在 context）→ `归档/`。

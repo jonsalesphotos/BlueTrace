@@ -141,6 +141,7 @@ val appModule = module {
     single<SubjectRepository> { SqlDelightSubjectRepository(get(), Dispatchers.IO) }
     single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext(), get()) }
     single { MediaStoreExporter(androidContext(), get()) }
+    single { io.bluetrace.data.android.OtaZipLoader(androidContext()) }
 
     // ---- ViewModels ----
     viewModelOf(::EnvironmentViewModel)
@@ -163,6 +164,16 @@ val appModule = module {
             subjects = get(),
             exporter = get(),
             logStore = get(),
+        )
+    }
+    // DEBUG：OTA 测试（选烧录包→校验→循环刷入）
+    viewModel {
+        io.bluetrace.viewmodel.OtaTestViewModel(
+            ble = get(),
+            registry = get(),
+            clock = get(),
+            zone = get(),
+            zipLoader = get(),
         )
     }
 }
