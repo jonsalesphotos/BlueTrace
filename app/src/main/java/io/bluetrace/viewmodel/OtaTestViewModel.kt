@@ -288,9 +288,12 @@ class OtaTestViewModel(
                 log("已自动断开：${device.name}")
             } finally {
                 _state.update { it.copy(running = false) }
-                // 善后所有权 = CAS 取走 token(不看 isActive): stop/onCleared 已取走则此处必败,
-                // 本协程直接退出(关日志与释放归接管方); 无人接管(纯自然结束)才由本协程收尾.
-                if (runToken.compareAndSet(token, null)) {
+                // 善后所有权 = isActive 且 CAS 取走 token(缺一不可): CAS 挡"stop/onCleared 已
+                // 接管"(移交间隙窗口下 isActive=true 也必败); isActive 挡"被外部取消"——
+                // Lifecycle 2.8+ 先取消 viewModelScope 再调 onCleared, 取消路径若抢走 token
+                // 释放 gate, onCleared 接管者必败跳过 abort/disconnect(设备无人善后).
+                // 取消时不抢, token 留给接管方做完整善后(细节见 controller 同名槽注释).
+                if (isActive && runToken.compareAndSet(token, null)) {
                     closeRunLog()
                     gate.release(token.lease)
                 }

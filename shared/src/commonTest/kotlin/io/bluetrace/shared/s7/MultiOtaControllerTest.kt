@@ -12,6 +12,7 @@ import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.virtualClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -448,5 +449,39 @@ class MultiOtaControllerTest {
         )
         assertEquals(foreign, gate.owner.value, "败者不得动别人的租约")
         gate.release(foreign)
+    }
+
+    /**
+     * Lifecycle 2.8+ 真实销毁顺序 = **先取消 viewModelScope, 再调 onCleared(close)**:
+     * 被取消协程的 finally 不得抢 token 释放 gate(isActive 判定)——否则 close 的 CAS 必败,
+     * abort/disconnect 被跳过而 gate 已空闲. 断言: 取消后 gate 仍占用, close 完成善后才释放.
+     */
+    @Test
+    fun frameworkOrder_cancelScopeThenClose_cleanupStillRuns_thenReleases() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val watch = S7MockWatch(clock)
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        // 运行 scope 独立可取消(模拟 viewModelScope); 善后 scope 用 backgroundScope(模拟 app scope 长寿)
+        val runScope = kotlinx.coroutines.CoroutineScope(
+            coroutineContext + kotlinx.coroutines.SupervisorJob(),
+        )
+        val ctl = MultiOtaController(
+            ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
+            clock = clock, zone = TestZone(), scope = runScope, abortScope = backgroundScope, gate = gate,
+        )
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+        val job = checkNotNull(ctl.startBatch(pkg()))
+        withTimeout(10_000) { ctl.queue.first { q -> q.any { it.status != DeviceOtaStatus.QUEUED } } }
+        val disconnectsBefore = ble.disconnectCount
+
+        runScope.cancel() // 框架第一步: 取消 viewModelScope
+        job.join()
+        assertTrue(gate.busy, "被取消协程的 finally 不得抢 token 释放 gate(留给 onCleared 善后)")
+
+        ctl.close() // 框架第二步: onCleared -> close, 应赢得 token 做完整善后
+        withTimeout(10_000) { gate.owner.first { it == null } }
+        assertTrue(ble.disconnectCount > disconnectsBefore, "close 善后应执行断开")
+        assertEquals(false, gate.busy, "善后完全结束后释放")
     }
 }

@@ -188,9 +188,13 @@ class MultiOtaController(
                 log("===== 结束：${summaryLine()} =====")
             } finally {
                 _running.value = false
-                // 善后所有权 = CAS 取走 token(不看 isActive): stopBatch/close 已取走则此处必败,
-                // 本协程直接退出(收尾与释放归接管方); 无人接管(纯自然结束)才由本协程释放租约.
-                if (runToken.compareAndSet(token, null)) {
+                // 善后所有权 = isActive 且 CAS 取走 token, 两者缺一不可:
+                // - CAS 挡"stopBatch/close 已接管"(即便 isActive=true 的移交间隙窗口, CAS 必败);
+                // - isActive 挡"被外部取消"——Lifecycle 2.8+ 先取消 viewModelScope **再**调
+                //   onCleared: 取消路径的 finally 若抢走 token 并释放, 随后 onCleared 的 CAS
+                //   必败而跳过 abort/disconnect, 设备无人善后 gate 却已空闲. 取消时不抢,
+                //   token 留给接管方(onCleared/close)做完整善后.
+                if (isActive && runToken.compareAndSet(token, null)) {
                     token.lease?.let { gate?.release(it) }
                 }
             }
