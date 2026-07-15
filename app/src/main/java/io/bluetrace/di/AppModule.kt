@@ -236,4 +236,15 @@ val appModule = module {
             gate = get(),
         )
     }
+    // DEBUG：UWTP 传输（S7 离线文件上传联调，v0.2-draft 客户端；拉取件落 files/uwtp/<MAC>/）
+    single { io.bluetrace.data.android.UwtpPullStore(androidContext()) }
+    viewModel {
+        io.bluetrace.viewmodel.UwtpTestViewModel(
+            ble = get(),
+            registry = get(),
+            clock = get(),
+            zone = get(),
+            store = get(),
+        )
+    }
 }

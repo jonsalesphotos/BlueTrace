@@ -1,0 +1,36 @@
+// UWTP v0.2-draft CTRL 域 (main_type=0x01)——DRAFT
+// opcode: 0x01 STATE_QUERY / 0x02 INFO; 0x7E 保留不分配。
+syntax = "proto3";
+
+package uwtp.ctrl;
+
+import "uwtp_common.proto";
+
+// ---- STATE_QUERY (0x01) ----
+message CtrlStateQueryReq {
+  uint32 query_flags = 1;      // bit0 = QUERY_RUNTIME_STATE, 至少置位该位——不是空请求
+}
+
+message CtrlRuntimeState {
+  uint32 offline_state = 1;    // 0 IDLE, 1 CAPTURING
+  uint32 live_state = 2;       // 0 IDLE, 1 ACTIVE (2026-07-15: DETACHED 已删)
+  uint32 transfer_state = 3;   // 0 IDLE, 1 ACTIVE (2026-07-15: PAUSED 已删)
+}
+
+message CtrlStateQueryRsp {
+  uint32 error_code = 1;
+  CtrlRuntimeState runtime = 2;  // 成功响应必须携带 (接收端检查子消息 Presence)
+}
+
+// ---- INFO (0x02, 2026-07-15 D-6 取代三域 SCHEMA_QUERY) ----
+message CtrlInfoReq {
+  // 空请求; 未来参数按加法演进。
+}
+
+message CtrlInfoRsp {
+  uint32 error_code = 1;
+  uint32 fw_version = 2;                              // 编码形态待专项①
+  uint32 registry_rev = 3;                            // 全局注册表快照, 首版=1, 0 保留无效
+  repeated uwtp.common.RawSchemaRef raw_schemas = 4;  // RAW 解码发现 (设备支持集合)
+  // field 5+ 留白: 能力字段按需加法登记; 未实现功能不得宣告 (P-5)。
+}

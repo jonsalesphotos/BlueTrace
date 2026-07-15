@@ -1,0 +1,2 @@
+# nanopb options — DRAFT 占位值, 随专项⑥ (M-4 内存实测) 冻结, 不是已定数值
+uwtp.ctrl.CtrlInfoRsp.raw_schemas max_count:8

@@ -1,0 +1,40 @@
+// UWTP v0.2-draft LIVE 域 (main_type=0x10)——DRAFT
+// opcode: 0x02 START (配置内联, 原 0x01 CONFIG 撤销) / 0x03 STOP / 0x11 RAW_CHUNK (二进制, 不在本文件)
+//         0x12 RESULT_BUNDLE (登记保留, 实现后置) / 0x13 原 LIVE_EVENT 撤销 / 0x7E 保留。
+syntax = "proto3";
+
+package uwtp.live;
+
+// ---- START (0x02): 配置内联, 断连即停 (D-1) ----
+message LiveStartReq {
+  uint64 raw_channel_mask = 1;   // 请求启用的原始通道 (位表见工作稿 §7)
+  uint64 result_mask = 2;        // 请求启用的算法结果
+  // time_mode 等约束待专项②。
+}
+
+message LiveStartRsp {
+  uint32 error_code = 1;
+  uint64 effective_channel_mask = 2;   // 实际生效 (Device 按能力调整, 必须回显)
+  uint64 effective_result_mask = 3;
+  uint32 schema_id = 4;                // 本会话选定的 RAW Schema ("会话实际选择")
+  uint32 schema_rev = 5;
+  // 时间锚点字段待专项② (OQ-10: tick 位宽/回绕/utc 单位/同瞬间采样/UTC 缺省), 编号预留 6..9。
+}
+
+// ---- STOP (0x03): 停止当前会话, 幂等; STOP_RSP = 静止屏障 ----
+message LiveStopReq {
+}
+
+message LiveStopRsp {
+  uint32 error_code = 1;
+}
+
+// ---- RESULT_BUNDLE (0x12, 实现后置; result_payload = 独立 PB, 非 C 结构体内存) ----
+message ResultEntry {
+  uint32 result_type = 1;
+  bytes result_payload = 2;      // 该 result_type 专用 PB 的序列化字节 (专项③)
+}
+
+message LiveResultBundle {
+  repeated ResultEntry entries = 1;
+}
