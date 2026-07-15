@@ -401,11 +401,9 @@ data class TransferIdReq(val transferId: Long = 0) {
     fun encode(): ByteArray = PbWriter().apply { uint32(1, transferId) }.toByteArray()
 }
 
-/** DELETE_OBJECT 请求(单删/批删同一身份)。 */
+/** DELETE_OBJECT 请求(单删/批删同一身份; repeated uint32 按 proto3 默认 packed 编码)。 */
 data class TransferDeleteReq(val fileIds: List<Long> = emptyList()) {
-    fun encode(): ByteArray = PbWriter().apply {
-        for (id in fileIds) uint32(1, id)
-    }.toByteArray()
+    fun encode(): ByteArray = PbWriter().apply { packedUint32(1, fileIds) }.toByteArray()
 }
 
 data class TransferDeleteRsp(

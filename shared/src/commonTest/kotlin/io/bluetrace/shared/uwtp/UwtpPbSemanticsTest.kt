@@ -92,6 +92,13 @@ class UwtpPbSemanticsTest {
     }
 
     @Test
+    fun deleteReqUsesPackedRepeated() {
+        // proto3 repeated uint32 默认 packed: field1 LEN + varint 体(与 protoc 参考生成器一致)
+        assertEquals("0a 03 07 ac 02", bytesToHex(TransferDeleteReq(listOf(7, 300)).encode()))
+        assertEquals(0, TransferDeleteReq(emptyList()).encode().size)
+    }
+
+    @Test
     fun crc32ReferenceVector() {
         // CRC-32(IEEE) 标准测试向量: "123456789" -> 0xCBF43926
         assertEquals(0xCBF43926L, Crc32.of("123456789".encodeToByteArray()))
