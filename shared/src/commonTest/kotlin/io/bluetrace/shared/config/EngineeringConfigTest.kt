@@ -47,7 +47,7 @@ class EngineeringConfigTest {
         assertEquals(100, over.ota.lowBatteryPct)
     }
 
-    /** 产品硬门：回连扫描预算配置只能调大——低于 60s 的配置被钳回 60s。 */
+    /** 产品硬门: 回连扫描预算配置只能调大——低于 60s 的配置被钳回 60s.  */
     @Test
     fun reconnectScanMs_flooredAt60s() {
         assertEquals(60_000L, parseEngineeringConfig("""{"ota":{"reconnectScanSeconds":5}}""")!!.ota.reconnectScanMs)

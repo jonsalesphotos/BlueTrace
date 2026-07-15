@@ -35,43 +35,43 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** 已添加的烧录包（摘要；字节留 VM 私有）。 */
+/** 已添加的烧录包(摘要; 字节留 VM 私有).  */
 data class OtaPkgItem(val sourceName: String, val fileCount: Int, val totalSize: Long, val hasFonts: Boolean)
 
-/** 一轮 OTA 结果（UI 展示壳：终态一句话 + 本轮下载平均速度）。 */
+/** 一轮 OTA 结果(UI 展示壳: 终态一句话 + 本轮下载平均速度).  */
 data class OtaIterationResult(
     val iteration: Int,
     val pkgLabel: String,
     val ok: Boolean,
-    /** 终态一句话："成功（版本 X）" / "失败：<结构化原因>"。 */
+    /** 终态一句话: "成功(版本 X)" / "失败: <结构化原因>".  */
     val detail: String,
-    /** 本轮下载平均速度（B/s；下载阶段未走完=null 不显示）。 */
+    /** 本轮下载平均速度(B/s; 下载阶段未走完=null 不显示).  */
     val avgBps: Long? = null,
 )
 
 data class OtaTestUiState(
-    /** 目标设备（黏性：断联也保留，可重连）。 */
+    /** 目标设备(黏性: 断联也保留, 可重连).  */
     val device: ScannedDevice? = null,
     val link: LinkState = LinkState.DISCONNECTED,
-    /** 已添加的包（0/1/2）；1=单次，2=A→B 循环。 */
+    /** 已添加的包(0/1/2); 1=单次, 2=A→B 循环.  */
     val packages: List<OtaPkgItem> = emptyList(),
     val running: Boolean = false,
-    /** 手动停止的善后进行中(取消旧运行/设备善后/断开): 期间禁止重新开始, 防旧善后误伤新一轮。 */
+    /** 手动停止的善后进行中(取消旧运行/设备善后/断开): 期间禁止重新开始, 防旧善后误伤新一轮.  */
     val stopping: Boolean = false,
     val currentIteration: Int = 0,
     val currentPkgIdx: Int = 0,
     val phase: OtaPhase? = null,
     val progress: OtaProgress? = null,
-    /** 本次运行开始前读到的设备版本（进度卡"版本 A → B"左值；开始 OTA 时读一次）。 */
+    /** 本次运行开始前读到的设备版本(进度卡"版本 A → B"左值; 开始 OTA 时读一次).  */
     val versionBefore: String? = null,
-    /** 最近一轮成功回连后读到的版本（进度卡右值；未出=null）。 */
+    /** 最近一轮成功回连后读到的版本(进度卡右值; 未出=null).  */
     val versionAfter: String? = null,
     val results: List<OtaIterationResult> = emptyList(),
-    /** 最近一次失败的结构化描述（轮次 + 出错指令 / 文件传输失败位置），驱动错误详情卡。 */
+    /** 最近一次失败的结构化描述(轮次 + 出错指令 / 文件传输失败位置), 驱动错误详情卡.  */
     val lastError: String? = null,
 ) {
     val connected: Boolean get() = device != null && link == LinkState.CONNECTED
-    /** 2 包 → A→B 循环升级（重复到手动中断）。 */
+    /** 2 包 → A→B 循环升级(重复到手动中断).  */
     val loopMode: Boolean get() = packages.size == 2
     val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping
     val canAdd: Boolean get() = packages.size < 2 && !running
@@ -80,15 +80,15 @@ data class OtaTestUiState(
 }
 
 /**
- * DEBUG「OTA 固件」VM：连接 S7（复用 registry/连接页，可就地断开/重连）→ 「+」添加 1~2 个烧录包 → 刷入。
- * 1 包=单次 OTA；2 包=A→B 交替**循环升级**（重复到手动中断）。
+ * DEBUG"OTA 固件"VM: 连接 S7(复用 registry/连接页, 可就地断开/重连)→ "+"添加 1~2 个烧录包 → 刷入.
+ * 1 包=单次 OTA; 2 包=A→B 交替**循环升级**(重复到手动中断).
  *
- * 版本读取只两处（用户约定 2026-07-14）：**开始 OTA 前读一次**（进度卡左值）+ **回连后读一次**
- * （升级链内置，进度卡右值/各轮结果）；平时不自动读。**运行自然结束后自动断开**（手动停止走 [stop] 断开）。
+ * 版本读取只两处(用户约定 2026-07-14): **开始 OTA 前读一次**(进度卡左值)+ **回连后读一次**
+ * (升级链内置, 进度卡右值/各轮结果); 平时不自动读. **运行自然结束后自动断开**(手动停止走 [stop] 断开).
  *
- * 刷写编排走 [S7FirmwareUpdateStrategy]（W4 唯一入口：吸收 OtaProvisioner/S7OtaSession 链 + 中止善后
- * 门控红线在策略内）。选包/校验/连接/版本等信息统一进 [logLines]（执行日志），并**逐行落盘**到
- * `Download/BlueTrace/log/ota/`（每次运行一个文件，循环模式全量历史不受内存 300 行限制）。
+ * 刷写编排走 [S7FirmwareUpdateStrategy](W4 唯一入口: 吸收 OtaProvisioner/S7OtaSession 链 + 中止善后
+ * 门控红线在策略内). 选包/校验/连接/版本等信息统一进 [logLines](执行日志), 并**逐行落盘**到
+ * `Download/BlueTrace/log/ota/`(每次运行一个文件, 循环模式全量历史不受内存 300 行限制).
  */
 class OtaTestViewModel(
     private val ble: BleClient,
@@ -105,7 +105,7 @@ class OtaTestViewModel(
     private val _state = MutableStateFlow(OtaTestUiState())
     val state: StateFlow<OtaTestUiState> = _state
 
-    /** 执行日志（终端面板；上限 300 行）。 */
+    /** 执行日志(终端面板; 上限 300 行).  */
     val logLines = mutableStateListOf<String>()
 
     private val loadedPkgs = mutableListOf<OtaPackage>() // 与 state.packages 同序，持字节
@@ -113,10 +113,10 @@ class OtaTestViewModel(
     private var linkJob: Job? = null
     private var runLog: OtaRunLog? = null // 本次运行的落盘日志（log/ota/）
 
-    // 当前运行的升级策略（start 即建）：stop() 转发 abort() 用（传输态门控由策略内部自持）。
+    // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
     private var currentStrategy: S7FirmwareUpdateStrategy? = null
 
-    // 本轮下载平均速度计时（onOtaPhase 回调驱动：进 Downloading 记起点，离开时结算）。
+    // 本轮下载平均速度计时(onOtaPhase 回调驱动: 进 Downloading 记起点, 离开时结算).
     private var downloadStartMs = 0L
     private var lastAvgBps: Long? = null
 
@@ -126,9 +126,9 @@ class OtaTestViewModel(
             registry.connected.collect { list ->
                 if (_state.value.running) return@collect
                 // 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console): 只跟踪识别为 S7 的设备——
-                // 异构协议设备(如 ZX)被灌 S7 REQ 只会超时, 通用 OTA 分派属后续任务。
+                // 异构协议设备(如 ZX)被灌 S7 REQ 只会超时, 通用 OTA 分派属后续任务.
                 val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.identify(it)?.profileId == PROFILE_S7 }
-                // 黏性：出现新设备才切换；断联(target=null)保留旧设备，链路由 linkJob 更新为 DISCONNECTED
+                // 黏性: 出现新设备才切换; 断联(target=null)保留旧设备, 链路由 linkJob 更新为 DISCONNECTED
                 if (target != null && target.id != _state.value.device?.id) trackDevice(target)
             }
         }
@@ -149,7 +149,7 @@ class OtaTestViewModel(
         }
     }
 
-    /** 断联后重连当前设备（就地按钮，仿 DUT 控制台）。 */
+    /** 断联后重连当前设备(就地按钮, 仿 DUT 控制台).  */
     fun reconnect() {
         val device = _state.value.device ?: return
         if (!_state.value.canReconnect) return
@@ -162,7 +162,7 @@ class OtaTestViewModel(
         }
     }
 
-    /** 手动断开当前设备（就地按钮，仿 DUT 控制台；设备黏性保留可重连）。 */
+    /** 手动断开当前设备(就地按钮, 仿 DUT 控制台; 设备黏性保留可重连).  */
     fun disconnect() {
         val device = _state.value.device ?: return
         if (!_state.value.canDisconnect) return
@@ -214,7 +214,7 @@ class OtaTestViewModel(
         val loop = pkgs.size == 2
         closeRunLog() // 上一次自然结束后未关的句柄
         val runLog = otaLogStore.begin(if (loop) "loop" else "single", nowCompact()).also { this.runLog = it }
-        // 策略先建（run 前 abort 也可达：读起始版本阶段手动停止 -> 非传输态语义 = 连接态发 CTRL_RESET）
+        // 策略先建(run 前 abort 也可达: 读起始版本阶段手动停止 -> 非传输态语义 = 连接态发 CTRL_RESET)
         currentStrategy = buildStrategy(device, totalBytes = 0L)
         runJob = viewModelScope.launch {
             _state.update {
@@ -227,7 +227,7 @@ class OtaTestViewModel(
             log(if (loop) "===== 开始 A→B 循环升级（手动中断停止）=====" else "===== 开始单次 OTA =====")
             log("执行日志 → ${runLog.displayPath}")
             log("目标 ${device.name}（${device.address}）· 回连扫描预算 ${configStore.current.ota.reconnectScanMs / 1000}s")
-            // 起始版本：开始前读一次（约定的两处读点之一）
+            // 起始版本: 开始前读一次(约定的两处读点之一)
             val v0 = runCatchingSuspend { readDeviceVersion(device) }
             _state.update { it.copy(versionBefore = v0) }
             log("起始版本：${v0 ?: "未知"}")
@@ -259,7 +259,7 @@ class OtaTestViewModel(
                     if (!loop) break // 单次
                 }
                 log("===== 结束 =====")
-                // 运行自然结束（单次完/循环失败停）自动断开（约定）；手动停止路径由 stop() 断开
+                // 运行自然结束(单次完/循环失败停)自动断开(约定); 手动停止路径由 stop() 断开
                 runCatchingSuspend { ble.disconnect(device.id) }
                 registry.remove(device.id)
                 log("已自动断开：${device.name}")
@@ -270,7 +270,7 @@ class OtaTestViewModel(
         }
     }
 
-    /** 每轮一个新策略实例（内部进度/传输态是 per-run 状态）；速度计时随轮重置。 */
+    /** 每轮一个新策略实例(内部进度/传输态是 per-run 状态); 速度计时随轮重置.  */
     private suspend fun runOnce(device: ScannedDevice, pkg: OtaPackage): FwUpdateResult {
         downloadStartMs = 0L
         lastAvgBps = null
@@ -285,7 +285,7 @@ class OtaTestViewModel(
         reconnectScanMs = configStore.current.ota.reconnectScanMs,
         onLog = { log(it) }, // session="· "/prov="» " 前缀在策略内，TRANS 终端过滤口径不变
         onOtaPhase = { p ->
-            // 平均速度：进 Downloading 记起点，首次离开时结算（回连等阶段不计入）
+            // 平均速度: 进 Downloading 记起点, 首次离开时结算(回连等阶段不计入)
             if (p == OtaPhase.Downloading && downloadStartMs == 0L) downloadStartMs = clock.nowMs()
             else if (p != OtaPhase.Downloading && downloadStartMs > 0L && lastAvgBps == null && totalBytes > 0) {
                 val elapsed = clock.nowMs() - downloadStartMs
@@ -296,7 +296,7 @@ class OtaTestViewModel(
         onOtaProgress = { pr -> _state.update { it.copy(progress = pr) } },
     )
 
-    /** 短命 S7Console 读设备软件版本（开始 OTA 前的一次性读点）。失败抛异常（调用侧容错）。 */
+    /** 短命 S7Console 读设备软件版本(开始 OTA 前的一次性读点). 失败抛异常(调用侧容错).  */
     private suspend fun readDeviceVersion(device: ScannedDevice): String? {
         val c = S7Console(ble, device.id, viewModelScope, clock, zone)
         c.start()
@@ -308,18 +308,18 @@ class OtaTestViewModel(
     }
 
     /**
-     * 手动停止：取消运行 → 设备善后（转发 [S7FirmwareUpdateStrategy.abort]，传输态门控/永不 STOP
-     * 红线在策略内；善后结果日志经 onLog 回吐终端）→ 断开本地 GATT。
-     * 善后跑 [appScope]——"中止并离开"会立刻销毁本 VM，viewModelScope 上发不出指令。
+     * 手动停止: 取消运行 → 设备善后(转发 [S7FirmwareUpdateStrategy.abort], 传输态门控/永不 STOP
+     * 红线在策略内; 善后结果日志经 onLog 回吐终端)→ 断开本地 GATT.
+     * 善后跑 [appScope]——"中止并离开"会立刻销毁本 VM, viewModelScope 上发不出指令.
      *
-     * **运行代际防护**：善后只操作**发起停止那一刻的快照**（job/strategy/runLog），绝不回读可变成员——
-     * 旧善后跑在 app scope 上，快速重新开始时成员已指向新一轮，误读会 abort 新策略/关新日志。
-     * 另以 [OtaTestUiState.stopping] 关死开始入口，善后完成前禁止新一轮。
+     * **运行代际防护**: 善后只操作**发起停止那一刻的快照**(job/strategy/runLog), 绝不回读可变成员——
+     * 旧善后跑在 app scope 上, 快速重新开始时成员已指向新一轮, 误读会 abort 新策略/关新日志.
+     * 另以 [OtaTestUiState.stopping] 关死开始入口, 善后完成前禁止新一轮.
      */
     fun stop() {
         val st = _state.value
         if (!st.running || st.stopping) return
-        // 快照本轮身份：善后全程只用这些局部值
+        // 快照本轮身份: 善后全程只用这些局部值
         val device = st.device
         val job = runJob
         val strategy = currentStrategy
@@ -349,7 +349,7 @@ class OtaTestViewModel(
 
     fun clearLog() = logLines.clear()
 
-    /** 容错：非取消异常转 null（结构化并发下取消照常上抛）。 */
+    /** 容错: 非取消异常转 null(结构化并发下取消照常上抛).  */
     private suspend fun <T> runCatchingSuspend(block: suspend () -> T): T? = try {
         block()
     } catch (c: CancellationException) {
@@ -360,7 +360,7 @@ class OtaTestViewModel(
 
     private fun fmtKbps(bps: Long): String = "${bps / 1000} KB/s"
 
-    /** 屏幕终端行 `[HHMMSS]`；落盘行完整本机时间开头。TRANS 逐切片行只落盘（终端不刷屏，屏上有进度条）。 */
+    /** 屏幕终端行 `[HHMMSS]`; 落盘行完整本机时间开头. TRANS 逐切片行只落盘(终端不刷屏, 屏上有进度条).  */
     private fun log(text: String) {
         runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量，不受 300 行内存窗限制
         if (text.startsWith("· TRANS ")) return

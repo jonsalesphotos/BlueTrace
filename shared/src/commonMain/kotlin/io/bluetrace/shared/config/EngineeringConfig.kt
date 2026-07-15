@@ -6,9 +6,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * 工程配置（`config/bluetrace_config.json`）：实验室调参用的落盘 JSON，与用户偏好(DataStore)分开。
- * 真源在 app 私有 `files/config/`，公共 `Download/BlueTrace/config/` 放只读镜像供翻看。
- * 字段一律带默认值：文件缺失/字段缺失/解析失败都回默认，不阻塞启动。
+ * 工程配置(`config/bluetrace_config.json`): 实验室调参用的落盘 JSON, 与用户偏好(DataStore)分开.
+ * 真源在 app 私有 `files/config/`, 公共 `Download/BlueTrace/config/` 放只读镜像供翻看.
+ * 字段一律带默认值: 文件缺失/字段缺失/解析失败都回默认, 不阻塞启动.
  */
 @Serializable
 data class EngineeringConfig(
@@ -18,21 +18,21 @@ data class EngineeringConfig(
     val log: LogConfig = LogConfig(),
 )
 
-/** 数据导出。[rawdataByDate]=true 时会话 zip 落 `rawdata/<YYYY-MM-DD>/`，false 落 `rawdata/` 平铺。 */
+/** 数据导出. [rawdataByDate]=true 时会话 zip 落 `rawdata/<YYYY-MM-DD>/`, false 落 `rawdata/` 平铺.  */
 @Serializable
 data class ExportConfig(
     val rawdataByDate: Boolean = true,
 )
 
-/** OTA 调参。 */
+/** OTA 调参.  */
 @Serializable
 data class OtaConfig(
     /**
-     * OTA 后 BLE 回连的扫描预算（秒）。**下限 60**（产品要求：回连保证扫描至少 60s），
-     * 配置只能调大不能调小——经 [reconnectScanMs] 取用时钳制。
+     * OTA 后 BLE 回连的扫描预算(秒). **下限 60**(产品要求: 回连保证扫描至少 60s),
+     * 配置只能调大不能调小——经 [reconnectScanMs] 取用时钳制.
      */
     val reconnectScanSeconds: Int = 60,
-    /** 多设备批量刷前电量门槛（%），低于则跳过。 */
+    /** 多设备批量刷前电量门槛(%), 低于则跳过.  */
     val lowBatteryPct: Int = 30,
 ) {
     val reconnectScanMs: Long get() = reconnectScanSeconds.coerceAtLeast(MIN_RECONNECT_SCAN_SECONDS) * 1000L
@@ -42,10 +42,10 @@ data class OtaConfig(
     }
 }
 
-/** 日志。 */
+/** 日志.  */
 @Serializable
 data class LogConfig(
-    /** 应用滚动日志保留天数（`log/app/app-YYYY-MM-DD.log`）。 */
+    /** 应用滚动日志保留天数(`log/app/app-YYYY-MM-DD.log`).  */
     val appRetainDays: Int = 7,
 )
 
@@ -56,7 +56,7 @@ private val configJson = Json {
     encodeDefaults = true // 默认值也写盘，落地文件即完整可改清单
 }
 
-/** 解析失败（含空串/坏 JSON）返回 null，调用方回默认配置。合法 JSON 的越界值钳回安全域。 */
+/** 解析失败(含空串/坏 JSON)返回 null, 调用方回默认配置. 合法 JSON 的越界值钳回安全域.  */
 fun parseEngineeringConfig(text: String): EngineeringConfig? = try {
     configJson.decodeFromString<EngineeringConfig>(text).sanitized()
 } catch (e: SerializationException) {
@@ -66,8 +66,8 @@ fun parseEngineeringConfig(text: String): EngineeringConfig? = try {
 }
 
 /**
- * 越界值钳制(手改 JSON 的防呆): 负电量门槛=关死低电保护、>100=跳过所有设备、负保留天数会让
- * 日志清理 drop() 抛异常——统一钳回安全域。回连预算的 60s 下限已在 [OtaConfig.reconnectScanMs] 钳制。
+ * 越界值钳制(手改 JSON 的防呆): 负电量门槛=关死低电保护, >100=跳过所有设备, 负保留天数会让
+ * 日志清理 drop() 抛异常——统一钳回安全域. 回连预算的 60s 下限已在 [OtaConfig.reconnectScanMs] 钳制.
  */
 private fun EngineeringConfig.sanitized(): EngineeringConfig = copy(
     ota = ota.copy(lowBatteryPct = ota.lowBatteryPct.coerceIn(0, 100)),

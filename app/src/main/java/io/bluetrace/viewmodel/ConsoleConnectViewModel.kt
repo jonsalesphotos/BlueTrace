@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 连接页设备行：是否为控制台可维护的设备（有控制面才可连接；不支持则不可连接）。 */
+/** 连接页设备行: 是否为控制台可维护的设备(有控制面才可连接; 不支持则不可连接).  */
 data class ConsoleDeviceRow(
     val device: ScannedDevice,
     val link: LinkState,
@@ -34,11 +34,11 @@ data class ConsoleConnectUiState(
 )
 
 /**
- * 控制台内置连接页 VM。
- * - 只对 **有控制面的设备**运行连接（识别归 [DeviceProfileCatalog]，不支持设备展示为不可连）；
- * - **无名设备不显示**；已连接设备置顶；顺序稳定（不按 RSSI 实时重排，避免跳动难点选）；
- * - 单点即连/断该设备，**不自动断开其它设备**（多设备由控制台选择控制哪台）；
- * - 名称 / 信号强度过滤。
+ * 控制台内置连接页 VM.
+ * - 只对 **有控制面的设备**运行连接(识别归 [DeviceProfileCatalog], 不支持设备展示为不可连);
+ * - **无名设备不显示**; 已连接设备置顶; 顺序稳定(不按 RSSI 实时重排, 避免跳动难点选);
+ * - 单点即连/断该设备, **不自动断开其它设备**(多设备由控制台选择控制哪台);
+ * - 名称 / 信号强度过滤.
  */
 class ConsoleConnectViewModel(
     private val ble: BleClient,
@@ -70,13 +70,13 @@ class ConsoleConnectViewModel(
             val rssi = ctl.rssi
             val connectedIds = connected.map { it.id }.toSet()
             val resultIds = results.mapTo(HashSet()) { it.id }
-            // 已连接手表常在连接后**停止广播** → 从扫描结果消失；把已连设备并回来，保证始终可见并置顶
+            // 已连接手表常在连接后**停止广播** → 从扫描结果消失; 把已连设备并回来, 保证始终可见并置顶
             val merged = results + connected.filter { it.id !in resultIds && it.kind != DeviceKind.REFERENCE }
 
             val rows = merged.asSequence()
-                // 无名/参考过滤 —— 已连接设备**豁免**（始终显示）
+                // 无名/参考过滤 —— 已连接设备**豁免**(始终显示)
                 .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE) }
-                // RSSI 过滤 —— 已连接设备豁免（信号弱也不隐藏）
+                // RSSI 过滤 —— 已连接设备豁免(信号弱也不隐藏)
                 .filter { it.id in connectedIds || it.rssi >= rssi }
                 .filter { query.isBlank() || it.name.contains(query, true) || it.address.contains(query, true) }
                 .map { d ->
@@ -89,8 +89,8 @@ class ConsoleConnectViewModel(
                         busy = d.id in busy,
                     )
                 }
-                // 排序：已连接置顶 → 支持的在上、不支持下沉 → 信号强度（RSSI 降序）。
-                // 列表更新经 sample 节流（见 startScan），避免每帧重排跳动、可稳定点选。
+                // 排序: 已连接置顶 → 支持的在上, 不支持下沉 → 信号强度(RSSI 降序).
+                // 列表更新经 sample 节流(见 startScan), 避免每帧重排跳动, 可稳定点选.
                 .sortedWith(
                     compareByDescending<ConsoleDeviceRow> { it.link == LinkState.CONNECTED }
                         .thenByDescending { it.supported }
@@ -106,8 +106,8 @@ class ConsoleConnectViewModel(
         _scanning.value = true
         _results.value = emptyList()
         scanJob = viewModelScope.launch {
-            // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
-            // 让列表 ~1 秒才按信号重排一次——既按信号强度排序，又不至跳动到无法点选。
+            // sample(1s): 扫描回调很密(RSSI 每帧变), 节流到最多 1 次/秒,
+            // 让列表 ~1 秒才按信号重排一次——既按信号强度排序, 又不至跳动到无法点选.
             ble.scan().sample(1000).collect { devices ->
                 // 扫描去识别化: 识别在此投影层经 Catalog 统一打标(supported 判定/参考带过滤据此不变).
                 val annotated = devices.map { catalog.annotate(it) }
@@ -126,8 +126,8 @@ class ConsoleConnectViewModel(
     fun setRssiThreshold(v: Int) { _rssi.value = v }
 
     /**
-     * 单点即连/断该设备。**不自动断开其它设备**（除非明确点已连设备断开）；
-     * 不支持的设备直接忽略（不运行连接）。
+     * 单点即连/断该设备. **不自动断开其它设备**(除非明确点已连设备断开);
+     * 不支持的设备直接忽略(不运行连接).
      */
     fun toggleConnect(device: ScannedDevice) {
         if (device.id in _busy.value) return
@@ -142,8 +142,8 @@ class ConsoleConnectViewModel(
                     registry.remove(device.id)
                 } else {
                     observeLink(device.id)
-                    // 识别到档案则走其 gattSpec 声明式通道（新协议只认 spec，探测只认 B2A/HRS）；
-                    // 未识别设备保留探测兜底（spec=null）。
+                    // 识别到档案则走其 gattSpec 声明式通道(新协议只认 spec, 探测只认 B2A/HRS);
+                    // 未识别设备保留探测兜底(spec=null).
                     ble.connect(device, catalog.identify(device)?.gattSpec)
                     if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
                 }

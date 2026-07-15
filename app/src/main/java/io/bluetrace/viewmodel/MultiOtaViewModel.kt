@@ -37,20 +37,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class MultiOtaUiState(
-    /** 全队列共用的单个 OTA 包（多设备锁 1 包）。 */
+    /** 全队列共用的单个 OTA 包(多设备锁 1 包).  */
     val pkg: OtaPkgItem? = null,
     val queue: List<DeviceOtaItem> = emptyList(),
     val running: Boolean = false,
+    /** 停止善后进行中(编排核 stopping 透传): running 已翻 false 但善后未完, 开始/重试须禁用.  */
+    val stopping: Boolean = false,
 ) {
     val doneCount: Int get() = queue.count { it.status == DeviceOtaStatus.DONE }
     val failCount: Int get() = queue.count { it.status == DeviceOtaStatus.FAILED }
     val skipCount: Int get() = queue.count { it.status == DeviceOtaStatus.SKIPPED_LOW_BATTERY }
     val queuedCount: Int get() = queue.count { it.status == DeviceOtaStatus.QUEUED }
-    val canStart: Boolean get() = pkg != null && queuedCount > 0 && !running
-    val hasRetriable: Boolean get() = queue.any { it.retriable } && !running
+    val canStart: Boolean get() = pkg != null && queuedCount > 0 && !running && !stopping
+    val hasRetriable: Boolean get() = queue.any { it.retriable } && !running && !stopping
 }
 
-/** 扫描添加表内一行（仅入队、不连接）。 */
+/** 扫描添加表内一行(仅入队, 不连接).  */
 data class ScanRow(
     val device: ScannedDevice,
     val supported: Boolean, // 有固件升级面才可加(识别归 Catalog, 去 S7 硬编码)
@@ -64,13 +66,13 @@ data class ScanSheetState(
 )
 
 /**
- * 多设备 OTA VM（顶栏「多设备」开关打开后使用；开关默认关=单设备现状 [OtaTestViewModel]）。
+ * 多设备 OTA VM(顶栏"多设备"开关打开后使用; 开关默认关=单设备现状 [OtaTestViewModel]).
  *
- * **薄壳**：串行编排核在 shared [MultiOtaController]（无 Android 依赖、jvmTest 覆盖、iOS 可复用）。
- * 本层只做平台壳：包加载（Uri→zip 解析→[OtaPackage]）、扫描添加 UI、把 controller 的
- * [MultiOtaController.queue]/[MultiOtaController.running]/[MultiOtaController.opLog] 映射成 Compose 状态，
- * 并把执行日志**逐行落盘**到 `Download/BlueTrace/log/ota/`（每次批量一个文件）。
- * 手动停止的重启指令善后在编排核内、跑 [appScope]（退屏也发得出）。
+ * **薄壳**: 串行编排核在 shared [MultiOtaController](无 Android 依赖, jvmTest 覆盖, iOS 可复用).
+ * 本层只做平台壳: 包加载(Uri→zip 解析→[OtaPackage]), 扫描添加 UI, 把 controller 的
+ * [MultiOtaController.queue]/[MultiOtaController.running]/[MultiOtaController.opLog] 映射成 Compose 状态,
+ * 并把执行日志**逐行落盘**到 `Download/BlueTrace/log/ota/`(每次批量一个文件).
+ * 手动停止的重启指令善后在编排核内, 跑 [appScope](退屏也发得出).
  */
 @OptIn(FlowPreview::class) // ble.scan().sample(1000) 节流（同连接页；FlowPreview）
 class MultiOtaViewModel(
@@ -99,11 +101,11 @@ class MultiOtaViewModel(
     private var runLog: OtaRunLog? = null // 本次批量的落盘日志（log/ota/）
 
     val state: StateFlow<MultiOtaUiState> =
-        combine(controller.queue, controller.running, _pkg) { queue, running, pkg ->
-            MultiOtaUiState(pkg = pkg, queue = queue, running = running)
+        combine(controller.queue, controller.running, controller.stopping, _pkg) { queue, running, stopping, pkg ->
+            MultiOtaUiState(pkg = pkg, queue = queue, running = running, stopping = stopping)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MultiOtaUiState())
 
-    // ---- 扫描添加表（只入队、不连接）----
+    // ---- 扫描添加表(只入队, 不连接)----
     private val _scanOpen = MutableStateFlow(false)
     private val _scanResults = MutableStateFlow<List<ScannedDevice>>(emptyList())
     private val _scanSelected = MutableStateFlow<Set<String>>(emptySet())
@@ -113,21 +115,18 @@ class MultiOtaViewModel(
         combine(_scanOpen, _scanResults, _scanSelected, controller.queue) { open, results, selected, queue ->
             val queueIds = queue.mapTo(HashSet()) { it.device.id }
             val rows = results.asSequence()
-                // 无名/参考不显示（同连接页口径）
+                // 无名/参考不显示(同连接页口径)
                 .filter { it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE }
                 .map { d ->
                     ScanRow(
                         device = d,
-                        // 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console 读版本电量), 只放行 S7——
-                        // 泛化到 firmwareUpdate != null 会让异构协议设备(如 ZX)入队后被灌 S7 命令.
-                        // 通用 OTA 需连同包 loader/策略工厂/进度一起按 profile 分派, 属后续任务.
-                        supported = catalog.identify(d)?.profileId == PROFILE_S7,
+                        supported = isS7(d),
                         inQueue = d.id in queueIds,
                         selected = d.id in selected,
                     )
                 }
-                // 支持的在上（手边的表即列表最上）；RSSI 5dBm 分桶 + 名称 tiebreak——
-                // 1s 采样的 RSSI 抖动不再让行序每秒乱跳（滚动锚点按位置记，见 ScanAddSheet）
+                // 支持的在上(手边的表即列表最上); RSSI 5dBm 分桶 + 名称 tiebreak——
+                // 1s 采样的 RSSI 抖动不再让行序每秒乱跳(滚动锚点按位置记, 见 ScanAddSheet)
                 .sortedWith(
                     compareByDescending<ScanRow> { it.supported }
                         .thenByDescending { it.device.rssi / 5 }
@@ -139,11 +138,11 @@ class MultiOtaViewModel(
 
     init {
         log("多设备 OTA 已就绪")
-        // 镜像编排核操作日志到终端面板（加本地时间戳）
+        // 镜像编排核操作日志到终端面板(加本地时间戳)
         viewModelScope.launch { controller.opLog.collect { log(it) } }
     }
 
-    // ---- 烧录包（锁 1 个，全队列共用）----
+    // ---- 烧录包(锁 1 个, 全队列共用)----
 
     fun setPackage(uri: Uri) {
         if (controller.running.value) return
@@ -170,10 +169,10 @@ class MultiOtaViewModel(
         _pkg.value = null
     }
 
-    /** DEBUG：载入内存合成示例包（长按「添加烧录包」触发），供 Mock 多设备演示、绕过 SAF/真实 zip。 */
+    /** DEBUG: 载入内存合成示例包(长按"添加烧录包"触发), 供 Mock 多设备演示, 绕过 SAF/真实 zip.  */
     fun loadDemoPackage() {
         if (controller.running.value) return
-        // 安全门：仅 Mock 后端可用——合成包是垃圾字节，绝不能推给真实手表
+        // 安全门: 仅 Mock 后端可用——合成包是垃圾字节, 绝不能推给真实手表
         if (ble !is io.bluetrace.shared.ble.mock.MockBleClient) {
             log("示例包仅 Mock 模式可用（当前真实 GATT，已忽略）")
             return
@@ -197,7 +196,7 @@ class MultiOtaViewModel(
         _scanResults.value = emptyList()
         _scanSelected.value = emptySet()
         scanJob = viewModelScope.launch {
-            // sample(1s)：扫描回调很密，节流到 1 次/秒，避免列表按 RSSI 每帧重排跳动难勾选（同连接页）
+            // sample(1s): 扫描回调很密, 节流到 1 次/秒, 避免列表按 RSSI 每帧重排跳动难勾选(同连接页)
             // 扫描去识别化: 识别在此投影层经 Catalog 统一打标(参考带过滤/supported 判定据此不变).
             ble.scan().sample(1000).collect { devices -> _scanResults.value = devices.map { catalog.annotate(it) } }
         }
@@ -208,16 +207,23 @@ class MultiOtaViewModel(
         _scanOpen.value = false
     }
 
+    /**
+     * 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console 读版本电量), 只放行 S7——泛化到
+     * firmwareUpdate != null 会让异构协议设备(如 ZX)入队后被灌 S7 命令. 展示(rows)/选择(toggle)/
+     * 确认入队(confirm)三处统一走本判定, 防状态陈旧或绕过展示层直调. 通用 OTA 分派属后续任务.
+     */
+    private fun isS7(d: ScannedDevice): Boolean = catalog.identify(d)?.profileId == PROFILE_S7
+
     fun toggleScanSelect(id: String) {
         val d = _scanResults.value.firstOrNull { it.id == id } ?: return
-        if (catalog.identify(d)?.firmwareUpdate == null) return // 无固件升级面不可选
+        if (!isS7(d)) return // 非 S7 不可选(与行展示同口径)
         if (controller.queue.value.any { it.device.id == id }) return // 已在队列不可选
         _scanSelected.update { if (id in it) it - id else it + id }
     }
 
     fun confirmScanAdd() {
         val sel = _scanSelected.value
-        val toAdd = _scanResults.value.filter { it.id in sel && catalog.identify(it)?.firmwareUpdate != null }
+        val toAdd = _scanResults.value.filter { it.id in sel && isS7(it) }
         if (toAdd.isNotEmpty()) {
             controller.addDevices(toAdd)
             log("加入队列 ${toAdd.size} 台")
@@ -225,22 +231,30 @@ class MultiOtaViewModel(
         closeScanSheet()
     }
 
-    // ---- 队列增删 / 批量执行（委托编排核）----
+    // ---- 队列增删 / 批量执行(委托编排核)----
 
     fun removeFromQueue(id: String) = controller.removeDevice(id)
 
     fun startBatch() {
         val pkg = loadedPkg ?: return
-        // 前置守卫与编排核同条件：落盘文件须在 startBatch **之前**打开——viewModelScope 是
-        // Main.immediate，startBatch 内协程会立即跑到首个挂起点，头几行日志经 collector
-        // 同步镜像进 log()，晚开文件就丢头（真机实证）。
-        if (controller.running.value || controller.queue.value.none { it.status == DeviceOtaStatus.QUEUED }) return
+        // 前置守卫与编排核同条件(含 stopping 门): 落盘文件须在 startBatch **之前**打开——viewModelScope 是
+        // Main.immediate, startBatch 内协程会立即跑到首个挂起点, 头几行日志经 collector
+        // 同步镜像进 log(), 晚开文件就丢头(真机实证).
+        if (controller.running.value || controller.stopping.value ||
+            controller.queue.value.none { it.status == DeviceOtaStatus.QUEUED }
+        ) {
+            return
+        }
         closeRunLog()
         runLog = otaLogStore.begin("multi", nowCompact())
         log("执行日志 → ${runLog?.displayPath}")
         log("回连扫描预算 ${configStore.current.ota.reconnectScanMs / 1000}s · 电量门槛 ${configStore.current.ota.lowBatteryPct}%")
-        // 不在批量结束时抢关文件（结尾汇总/停止善后行经 SharedFlow 迟到）——下次启动或退屏时关。
-        controller.startBatch(pkg)
+        // 不在批量结束时抢关文件(结尾汇总/停止善后行经 SharedFlow 迟到)——下次启动或退屏时关.
+        if (controller.startBatch(pkg) == null) {
+            // 竞态窗口内被编排核拒绝(如恰进 stopping): 回滚刚开的空运行日志, 不留假文件
+            log("启动被拒绝（停止善后进行中），本次未运行")
+            closeRunLog()
+        }
     }
 
     fun stopBatch() = controller.stopBatch()
@@ -260,7 +274,7 @@ class MultiOtaViewModel(
 
     fun clearLog() = logLines.clear()
 
-    /** 屏幕终端行 `[HHMMSS]`；落盘行完整本机时间开头。TRANS 逐切片行只落盘（终端不刷屏，行内有进度条）。 */
+    /** 屏幕终端行 `[HHMMSS]`; 落盘行完整本机时间开头. TRANS 逐切片行只落盘(终端不刷屏, 行内有进度条).  */
     private fun log(text: String) {
         runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量，不受 300 行内存窗限制
         if (text.startsWith("· TRANS ")) return

@@ -59,7 +59,7 @@ val appModule = module {
     // ---- 平台 / 基础设施 ----
     single<EpochClock> { AndroidEpochClock() }
     single<TimeZoneProvider> { AndroidTimeZoneProvider() }
-    // 应用级 scope（架构评估 A2）：挂全局异常兜底——否则任何跑在其上的未捕获协程异常直接崩进程
+    // 应用级 scope(架构评估 A2): 挂全局异常兜底——否则任何跑在其上的未捕获协程异常直接崩进程
     single<CoroutineScope> {
         val koin = getKoin()
         CoroutineScope(
@@ -72,42 +72,42 @@ val appModule = module {
     single<Path> { sessionsRoot(androidContext()) }
     single<io.bluetrace.shared.data.StorageMonitor> { io.bluetrace.data.android.AndroidStorageMonitor(androidContext()) }
     single<io.bluetrace.shared.data.GnssSource> { io.bluetrace.data.android.AndroidGnssSource(androidContext()) }
-    // 采集场景词表（v6）：从 assets/scenes.json 加载（与 Docs/architecture/scenes.json 同源），解析失败兜底 EMPTY。
+    // 采集场景词表(v6): 从 assets/scenes.json 加载(与 Docs/architecture/scenes.json 同源), 解析失败兜底 EMPTY.
     single<io.bluetrace.shared.domain.SceneCatalog> {
         io.bluetrace.shared.domain.parseSceneCatalog(
             androidContext().assets.open("scenes.json").bufferedReader().use { it.readText() },
         )
     }
 
-    // ---- 共享核心（KMP commonMain）----
+    // ---- 共享核心(KMP commonMain)----
     single { SessionStore(get(), get(), Dispatchers.IO).also { it.ensureRoot() } } // A3：Store 自守 IO
-    // 应用日志（v7）：滚动 .log 文件。writerScope 必须单线程（保序、无并发追加竞态）。
+    // 应用日志(v7): 滚动 .log 文件. writerScope 必须单线程(保序, 无并发追加竞态).
     single(named("logWriter")) {
-        // A2：日志写线程兜底走 logcat（不能写 DiagnosticsLog 自己，会递归）
+        // A2: 日志写线程兜底走 logcat(不能写 DiagnosticsLog 自己, 会递归)
         CoroutineScope(
             SupervisorJob() + Dispatchers.IO.limitedParallelism(1) + CoroutineExceptionHandler { _, e ->
                 android.util.Log.e("BlueTrace", "log writer crashed", e)
             },
         )
     }
-    // 工程配置（v8）：files/config/bluetrace_config.json 同步加载（小文件）；公共镜像在 Application 后台跑
+    // 工程配置(v8): files/config/bluetrace_config.json 同步加载(小文件); 公共镜像在 Application 后台跑
     single { io.bluetrace.data.android.ConfigStore(androidContext()).apply { load() } }
     single<DiagnosticsLog> {
         val ctx = androidContext()
-        // logsDir 与 sessionsRoot 同根（getExternalFilesDir），adb pull 直接可取；不放内部 filesDir。
-        // v8 目录树：files/log/app（appLogsDir 内含 v7 files/logs 迁移）；保留天数走工程配置。
+        // logsDir 与 sessionsRoot 同根(getExternalFilesDir), adb pull 直接可取; 不放内部 filesDir.
+        // v8 目录树: files/log/app(appLogsDir 内含 v7 files/logs 迁移); 保留天数走工程配置.
         FileDiagnosticsLog(
             get(), io.bluetrace.data.android.appLogsDir(ctx), get(), get(), get(named("logWriter")),
             retainDays = get<io.bluetrace.data.android.ConfigStore>().current.log.appRetainDays,
         )
     }
-    // ⚠️ BLE 后端的唯一切换点：全 App 只经 BleClient 接口消费（service/controller 均不感知具体类型）。
-    // 三向切换（设置 · 仅 DEBUG，重启生效），优先级 Mock > Nordic > 自写：
-    //   - 「使用 Mock BLE」   -> MockBleClient（无设备演示/UI 回归）；
-    //   - 「使用 Nordic BLE」 -> NordicBleClient（W1.5 引入的第二实现，W1.6 真机 A/B 闸门候选默认）；
-    //   - 默认               -> AndroidBleClient（自写真实 GATT，2026-07-02 用户定"纯真实"）。
+    // ⚠️ BLE 后端的唯一切换点: 全 App 只经 BleClient 接口消费(service/controller 均不感知具体类型).
+    // 三向切换(设置 · 仅 DEBUG, 重启生效), 优先级 Mock > Nordic > 自写:
+    //   - "使用 Mock BLE"   -> MockBleClient(无设备演示/UI 回归);
+    //   - "使用 Nordic BLE" -> NordicBleClient(W1.5 引入的第二实现, W1.6 真机 A/B 闸门候选默认);
+    //   - 默认               -> AndroidBleClient(自写真实 GATT, 2026-07-02 用户定"纯真实").
     // 解码走下方注册表(02 R2): 真实模式已可解 HRS 心率带, 自研 DUT 协议待 M7 冻结——冻结前真实 DUT
-    // 只落 raw HEX(source of truth) + malformed 告警, 属预期。
+    // 只落 raw HEX(source of truth) + malformed 告警, 属预期.
     single { MockBleClient(get(), get()) }
     single<BleClient> {
         when {
@@ -149,7 +149,7 @@ val appModule = module {
             zone = get(),
             diagnostics = get(),
             scope = get(),
-            // A1：会话事件循环+落盘走 IO 弹性池；limitedParallelism(1) 保持单线程串行语义
+            // A1: 会话事件循环+落盘走 IO 弹性池; limitedParallelism(1) 保持单线程串行语义
             runContext = Dispatchers.IO.limitedParallelism(1),
             storageMonitor = get(),
             gnssSource = get(),
@@ -157,7 +157,7 @@ val appModule = module {
     }
 
     // ---- app 级状态 / 仓库 ----
-    // B2：事件驱动登记表（订阅 linkState 自动清退被动断连），下沉 shared 供 iOS 复用
+    // B2: 事件驱动登记表(订阅 linkState 自动清退被动断连), 下沉 shared 供 iOS 复用
     single { ConnectionRegistry(get(), get()) }
     // W3 设备会话宿主(app 级): 每设备一份会话生命周期(identify -> connect(gattSpec) -> confirm -> 控制面).
     // 长事务不落 viewModelScope(挂 app 级 CoroutineScope). 运行时消费方(VM/UI)W5 接; 现无消费方.
@@ -165,14 +165,14 @@ val appModule = module {
     single { io.bluetrace.data.android.DeviceLogStore(androidContext()) }
     single { io.bluetrace.shared.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
-    // 用户存储（v7）：SQLDelight。driver 由 app 注入（commonMain 不碰平台）；io = Dispatchers.IO（Android）。
+    // 用户存储(v7): SQLDelight. driver 由 app 注入(commonMain 不碰平台); io = Dispatchers.IO(Android).
     single<SqlDriver> { AndroidSqliteDriver(BlueTraceDb.Schema, androidContext(), "bluetrace.db") }
     single { BlueTraceDb(get()) }
     single<SubjectRepository> { SqlDelightSubjectRepository(get(), Dispatchers.IO) }
     single<EnvironmentRepository> { AndroidEnvironmentRepository(androidContext(), get()) }
     single { MediaStoreExporter(androidContext(), get(), get()) }
     single { io.bluetrace.data.android.OtaZipLoader(androidContext()) }
-    // OTA 执行日志落盘（Download/BlueTrace/log/ota/，每次运行一个文件）
+    // OTA 执行日志落盘(Download/BlueTrace/log/ota/, 每次运行一个文件)
     single { io.bluetrace.data.android.OtaRunLogStore(androidContext()) }
 
     // ---- ViewModels ----
@@ -186,8 +186,8 @@ val appModule = module {
     viewModel { (folder: String) -> SessionDetailViewModel(folder, get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get()) }
     viewModel { io.bluetrace.viewmodel.ConsoleConnectViewModel(get(), get(), get()) }
-    // 设备维护（DUT）控制台：DeviceSessionManager 首个运行时消费方（W5）；控制走 DeviceControl 六分面。
-    // 固件日志 → Download/BlueTrace/log/firmware/，操作日志 → log/app/
+    // 设备维护(DUT)控制台: DeviceSessionManager 首个运行时消费方(W5); 控制走 DeviceControl 六分面.
+    // 固件日志 → Download/BlueTrace/log/firmware/, 操作日志 → log/app/
     viewModel {
         io.bluetrace.viewmodel.DeviceConsoleViewModel(
             ble = get(),
@@ -200,7 +200,7 @@ val appModule = module {
             logStore = get(),
         )
     }
-    // DEBUG：OTA 测试（选烧录包→校验→循环刷入）；执行日志落 log/ota/，手动停止发重启指令（appScope 善后）
+    // DEBUG: OTA 测试(选烧录包→校验→循环刷入); 执行日志落 log/ota/, 手动停止发重启指令(appScope 善后)
     viewModel {
         io.bluetrace.viewmodel.OtaTestViewModel(
             ble = get(),
@@ -214,7 +214,7 @@ val appModule = module {
             appScope = get(),
         )
     }
-    // DEBUG：多设备 OTA（顶栏开关打开；工作队列串行逐台刷入，一个包全队列共用）
+    // DEBUG: 多设备 OTA(顶栏开关打开; 工作队列串行逐台刷入, 一个包全队列共用)
     viewModel {
         io.bluetrace.viewmodel.MultiOtaViewModel(
             ble = get(),
