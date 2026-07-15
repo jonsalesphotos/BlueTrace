@@ -81,6 +81,17 @@ class PbWriter {
         }
     }
 
+    /** packed repeated uint32(proto3 标量 repeated 默认 packed; 空列表不上 wire)。 */
+    fun packedUint32(field: Int, values: List<Long>) {
+        if (values.isEmpty()) return
+        val body = PbWriter()
+        for (v in values) {
+            require(v in 0..0xFFFF_FFFFL) { "uint32 field $field out of range: $v" }
+            body.rawVarint(v)
+        }
+        message(field, body.toByteArray())
+    }
+
     /** 子消息/repeated message 元素: 显式在场(即使内容为空也上 wire, 表达 Presence)。 */
     fun message(field: Int, encoded: ByteArray) {
         key(field, PbWire.LEN)
