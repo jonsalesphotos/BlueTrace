@@ -1,195 +1,191 @@
 # 通用 OTA 分派 · 设计（任务 #27）
 
-> 2026-07-15 · 分支 `task/27-generic-ota-design` · 状态：**设计稿，待拍板后分阶段落码**
-> 起源：2026-07-15 Codex 一轮复核发现②——W5 把 OTA 入口泛化到 `firmwareUpdate != null`，但执行链是 S7 专属（zip loader / 策略 / S7Console），异构设备（ZX）入队会被灌 S7 指令；当时临时把两屏收紧回 `S7FirmwareUpdateFactory` 类型判定，通用分派另立本任务。
-> 前置事实：抽象层 W1–W6 已闭环（判据"新增协议 = 一个包 + 一行注册"在**采集/控制面**成立）；**OTA 面是该判据唯一尚未覆盖的分面**。
+> 2026-07-15 · 分支 `task/27-generic-ota-design`
+> **v2（按用户纠正重写）**：v1 曾建议把批量控制器改名 `S7MultiOtaController` 并固化为"S7 专属工具"——**该建议已撤回**，方向是反的：批量 OTA 是**软件功能**，协议是**注入的插件**，把软件功能反向绑死到设备型号是架构债而不是边界固化。
+> 一阶段（协议正名 S7→B2A）**已落码**，见 CHANGELOG。本文余下为二~四阶段设计。
 
-## 结论（前置）
+## 命名与分层原则（本设计的地基）
 
-**不要一次性"通用化 OTA"**。测绘显示耦合分三层，难度天差地别，必须分阶段：
+**设备名称会变，GATT UUID 才是稳定锚点。**
 
-1. **纯类型皮**（好换）：两个 VM 的 `import ...s7.*` + 直接 `new S7FirmwareUpdateStrategy/S7Console`、`OtaToolSupport` 锚具体类型 —— 机械改动。
-2. **缺口**（要新建抽象）：**包加载器根本没有框架位置** —— `OtaZipLoader` 在 `:app`、硬编码 S7 zip 格式与 `S7FileTrans.FT_FW`、Koin 单例、两个 VM 编译期直调；`DeviceProfile` 三分面里唯独没有"包怎么来"。ZX 连 loader 都不存在（`ZxPackage()` 只在测试里手搓）。
-3. **语义级假设**（最难，且未必该通用化）：`MultiOtaController` 的流程骨架就是照 S7 写的 —— 电量门槛、独立 READING 状态、**"升级后同一 BLE id 复读电量"**。
-
-**故 #27 拆成 #27A（单设备通用化，含契约）与 #27B（批量，先评估再决定要不要通用化）**，中间设审查闸门。**当前 `OtaToolSupport` 的 S7 限制在 #27A 落地前不得放开** —— 否则 ZX 入队即被灌 B2A 指令。
-
-## 一个被忽略的债：通用工厂签名本身已被 S7 污染
-
-```kotlin
-// shared/device/FirmwareUpdate.kt:70-81 现状
-interface FirmwareUpdateFactory {
-    fun create(
-        ble: BleClient, device: ScannedDevice, scope: CoroutineScope,
-        clock: EpochClock, zone: TimeZoneProvider,
-        abortScope: CoroutineScope,
-        reconnectScanMs: Long = 60_000,   // <-- "自复位后扫描回连"是 S7 私有假设
-        onLog: (String) -> Unit = {},
-    ): FirmwareUpdateStrategy
-}
-```
-
-`ZxFirmwareUpdateFactory` 的 KDoc 明说 `scope`/`clock`/`zone`/`abortScope`/`reconnectScanMs`/`onLog` **全部未使用**。W4 已经做对过一次——把 `onOtaPhase`/`onOtaProgress`（S7 细进度）**排除在通用工厂之外**、改由具体策略构造点注入。`reconnectScanMs` 是同一类东西，却漏进了通用签名。
-
-**决策 D-1**：`reconnectScanMs` 从通用工厂签名下沉为 S7 私有构造参数（由 `S7DeviceProfile` 在构造自己的工厂时从 `EngineeringConfig` 取）。`abortScope` **保留**在通用签名——"善后要跑在调用方生命周期之外"是真正的跨协议需求（ZX 不用属于合理的"可选不使用"，不是语义污染）。
-
-## 现状 vs 目标
+- 设备名称（`SKG WATCH S7-FCC4`）**只用于 UI 展示**，可随产品改名；
+- **GATT UUID（FFE0）是识别锚点**，且 **UUID 不得直接写进批量控制器的 if/when**；
+- Catalog 按 UUID **识别一次**，随后把**协议能力对象注入**软件编排器；
+- **单设备 OTA 与批量 OTA 都是通用软件功能**；
+- FILE_TRANS、包格式、复位、回连、传输态门控 —— 全属**协议插件**。
 
 <div class="fig">
-<svg viewBox="0 0 840 330" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
-<title>OTA 执行链：现状 S7 硬编码 vs 目标按 profile 分派</title>
-<desc>现状下 OTA 屏直接构造 S7 zip 加载器与 S7 策略，判定锚 S7 工厂类型；目标是屏只依赖 DeviceProfile 的升级面与包加载面，按识别结果分派到各协议实现。</desc>
+<svg viewBox="0 0 840 340" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>正确的 OTA 分层：UUID 识别一次，能力注入通用软件编排器</title>
+<desc>GATT UUID 只负责识别，DeviceProfileCatalog 据此注入升级能力对象（含包解析器、升级策略、中止语义、回连验证语义）；批量与单设备 OTA 是通用软件编排器，只持有队列、重试、租约、停止善后，对每个任务调用注入的能力，自身不含任何协议或产品名分支。</desc>
 <style>
 .t{fill:var(--fg);font-size:11.5px;font-weight:700;font-family:Consolas,monospace;}
 .s{fill:var(--muted);font-size:10.5px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
-.h{fill:var(--fg);font-size:12px;font-weight:700;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
 .bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
-.bad{fill:var(--code);stroke:var(--danger);stroke-width:1.5;}
 .ok{fill:var(--code);stroke:var(--accent);stroke-width:1.5;}
-.d{fill:var(--danger);font-size:11.5px;font-weight:700;font-family:Consolas,monospace;}
 .a{fill:var(--accent);font-size:11.5px;font-weight:700;font-family:Consolas,monospace;}
+.lb{fill:var(--muted);font-size:10.5px;font-weight:700;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
 </style>
 <defs>
-<marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+<marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
 </defs>
-<text x="20" y="20" class="h">现状</text>
-<rect x="20" y="30" width="170" height="40" rx="3" class="bx"/>
-<text x="105" y="47" text-anchor="middle" class="t">OTA 屏 / VM</text>
-<text x="105" y="62" text-anchor="middle" class="s">单设备 + 多设备</text>
-<rect x="230" y="30" width="180" height="40" rx="3" class="bad"/>
-<text x="320" y="47" text-anchor="middle" class="d">OtaZipLoader</text>
-<text x="320" y="62" text-anchor="middle" class="s">:app · S7 zip 格式写死</text>
-<rect x="450" y="30" width="180" height="40" rx="3" class="bad"/>
-<text x="540" y="47" text-anchor="middle" class="d">S7FirmwareUpdateStrategy</text>
-<text x="540" y="62" text-anchor="middle" class="s">直接 new · 不查工厂</text>
-<rect x="670" y="30" width="150" height="40" rx="3" class="bad"/>
-<text x="745" y="47" text-anchor="middle" class="d">S7Console</text>
-<text x="745" y="62" text-anchor="middle" class="s">读版本 / 电量</text>
-<line x1="190" y1="50" x2="228" y2="50" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<line x1="410" y1="50" x2="448" y2="50" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<line x1="630" y1="50" x2="668" y2="50" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<text x="20" y="96" class="s">判定锚 S7FirmwareUpdateFactory 具体类型 · 异构设备一律拒绝 · 新增协议 = 改屏改 VM</text>
+<rect x="20" y="14" width="240" height="34" rx="3" class="bx"/>
+<text x="140" y="35" text-anchor="middle" class="t">GATT UUID（FFE0）</text>
+<text x="270" y="35" class="lb">只负责识别</text>
+<line x1="140" y1="48" x2="140" y2="66" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a3)"/>
+<rect x="20" y="68" width="240" height="34" rx="3" class="bx"/>
+<text x="140" y="89" text-anchor="middle" class="t">DeviceProfileCatalog</text>
+<text x="270" y="89" class="lb">识别一次 · 注入能力</text>
+<line x1="140" y1="102" x2="140" y2="120" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a3)"/>
 
-<line x1="20" y1="112" x2="820" y2="112" stroke="var(--line)" stroke-width="1"/>
+<rect x="20" y="122" width="240" height="140" rx="3" class="ok"/>
+<text x="140" y="143" text-anchor="middle" class="a">FirmwareUpdateCapability</text>
+<text x="36" y="166" class="s">├─ 固件包解析器</text>
+<text x="36" y="186" class="s">├─ 升级策略</text>
+<text x="36" y="206" class="s">├─ 中止语义</text>
+<text x="36" y="226" class="s">└─ 回连 / 验证语义</text>
+<text x="140" y="250" text-anchor="middle" class="s">＝ 协议插件（B2A / ZX / 未来）</text>
 
-<text x="20" y="136" class="h">目标（#27A）</text>
-<rect x="20" y="146" width="170" height="44" rx="3" class="ok"/>
-<text x="105" y="164" text-anchor="middle" class="a">OTA 屏 / VM</text>
-<text x="105" y="179" text-anchor="middle" class="s">只认通用类型</text>
-<rect x="230" y="146" width="180" height="44" rx="3" class="bx"/>
-<text x="320" y="164" text-anchor="middle" class="t">DeviceProfile</text>
-<text x="320" y="179" text-anchor="middle" class="s">identify() 一次识别</text>
-<rect x="450" y="146" width="180" height="44" rx="3" class="ok"/>
-<text x="540" y="164" text-anchor="middle" class="a">firmwareUpdate 面</text>
-<text x="540" y="179" text-anchor="middle" class="s">工厂 + 包加载面（新）</text>
-<line x1="190" y1="168" x2="228" y2="168" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<line x1="410" y1="168" x2="448" y2="168" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
+<line x1="260" y1="192" x2="330" y2="192" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a3)"/>
+<text x="266" y="185" class="lb">注入</text>
 
-<rect x="670" y="130" width="150" height="34" rx="3" class="bx"/>
-<text x="745" y="151" text-anchor="middle" class="t">S7 实现</text>
-<rect x="670" y="172" width="150" height="34" rx="3" class="bx"/>
-<text x="745" y="193" text-anchor="middle" class="t">ZX 实现</text>
-<rect x="670" y="214" width="150" height="34" rx="3" class="bx"/>
-<text x="745" y="235" text-anchor="middle" class="s">未来协议…</text>
-<line x1="630" y1="168" x2="668" y2="150" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<line x1="630" y1="168" x2="668" y2="188" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
-<line x1="630" y1="168" x2="668" y2="228" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="335" y="122" width="290" height="140" rx="3" class="ok"/>
+<text x="480" y="143" text-anchor="middle" class="a">OTA 软件编排器（单 / 批量）</text>
+<text x="351" y="166" class="s">├─ 队列 · 重试</text>
+<text x="351" y="186" class="s">├─ Gate / Lease 所有权</text>
+<text x="351" y="206" class="s">├─ 停止与善后</text>
+<text x="351" y="226" class="s">└─ 逐任务调用注入的能力</text>
+<text x="480" y="250" text-anchor="middle" class="s">零协议分支 · 零产品名 · 零 UUID</text>
 
-<rect x="20" y="270" width="800" height="44" rx="3" class="ok"/>
-<text x="420" y="289" text-anchor="middle" class="a">验收：新增协议 = 协议包 + 固件包解析器 + 一行 catalog 注册；屏与编排器零协议判断</text>
-<text x="420" y="306" text-anchor="middle" class="s">判定放开为 firmwareUpdate != null（届时才安全）</text>
+<rect x="660" y="122" width="160" height="42" rx="3" class="bx"/>
+<text x="740" y="140" text-anchor="middle" class="t">B2A 实现</text>
+<text x="740" y="156" text-anchor="middle" class="s">FILE_TRANS · 复位回连</text>
+<rect x="660" y="172" width="160" height="42" rx="3" class="bx"/>
+<text x="740" y="190" text-anchor="middle" class="t">ZX 实现</text>
+<text x="740" y="206" text-anchor="middle" class="s">原地生效 · 不断连</text>
+<rect x="660" y="222" width="160" height="40" rx="3" class="bx"/>
+<text x="740" y="247" text-anchor="middle" class="s">未来协议…</text>
+<line x1="625" y1="192" x2="656" y2="150" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#a3)"/>
+<line x1="625" y1="192" x2="656" y2="192" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#a3)"/>
+<line x1="625" y1="192" x2="656" y2="240" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#a3)"/>
+
+<rect x="20" y="284" width="800" height="42" rx="3" class="ok"/>
+<text x="420" y="302" text-anchor="middle" class="a">改设备广播名 → 仍广播 FFE0 → 仍识别为同一协议 → 编排器一行不改</text>
+<text x="420" y="319" text-anchor="middle" class="s">产品改名不应看起来像要换协议实现</text>
 </svg>
 </div>
 
-## #27A · 单设备通用化（含契约）
+## 一阶段 · 协议正名（✅ 已落码）
 
-### D-2：包加载分两层——平台解容器 / 协议解语义
+`shared.s7` → `shared.b2a`；`S7Xxx` → `B2aXxx`（27 个类型）；`object S7` → `object B2a`；`PROFILE_S7` → `PROFILE_B2A`；`S7_TEST_MAC` → `TEST_DUT_MAC`（它指一台物理测试设备、不是协议，故取中性角色名）。FFE0/FFE1/FFE2 继续作为 GATT 识别与通道声明。
 
-这是本设计的核心裁定。`OtaZipLoader` 现在把两件事揉在一起：**解 zip 容器**（平台活，Android `java.util.zip`，`commonMain` 不可用）与**解读 S7 语义**（推送序、`FT_FW` 类型、字库文件名约定、校验规则）。拆开：
+**严格保护未动**（改了即行为/事实变化）：`"SKG.S7.B2A"`（`PROFILE_B2A` 的值，写进 manifest 的运行时数据）、`"SKG WATCH S7-FCC4"`（真实广播名，设备事实）、`"s7-fcc4"`（Mock roster 设备 id）。
 
-```kotlin
-// shared/device/FirmwareUpdate.kt（新增）
-/** 容器解出的原始条目: 名字 + 字节. 平台侧产出, 协议侧解读.  */
-data class RawFwEntry(val name: String, val bytes: ByteArray)
+**顺带勘误**：`Device.kt` 原 KDoc 称"正式识别按广播名前缀 `SKG WATCH S7-`"——与实际代码矛盾（`B2aDetect.matchesAdvertisement` 按广播 FFE0 判定），已改写为"profileId 是识别**结果**的稳定标识而非判据；识别锚点是 GATT UUID；产品名只用于 UI 展示"。
 
-/** 协议私有的"原始条目 -> 本协议 FwPackage"解析面; 挂在升级面上, 由 profile 提供.  */
-interface FwPackageLoader {
-    /** 解析失败即抛(fail fast), 由调用方转成 UI 错误.  */
-    fun load(entries: List<RawFwEntry>): FwPackage
-}
-```
+零行为改动的证明：216/0 + 9/0 + 33 个测试类，与基线逐条相同。
 
-- **`:app` 侧**保留一个**协议中立**的 `RawPackageReader`：URI → `List<RawFwEntry>`（是 zip 就解成多条目；非 zip 就单条目）。它不认识任何协议。
-- **协议侧**（`shared/s7/S7FwPackageLoader`）把 `RawFwEntry` 列表按 S7 规则排序/校验/打类型，产出 `OtaPackage`。`OtaPackageValidator` 整段搬进来，逻辑零改动。
-- ZX 侧顺带补上真 loader（现在只在测试里手搓 `ZxPackage()`），把"注释里的承诺"兑现，也让 W6 判据在 OTA 面有真样本。
+**遗留待决**：`PROFILE_B2A` 的**值**仍是 `"SKG.S7.B2A"`（含厂商+产品名）。对照既有惯例 `PROFILE_HRS = "HeartRate.SIG.0x180D"`（协议.组织.UUID），它应当是 `"B2A.SKG.0xFFE0"`。但**改值 = 改写进 manifest 的数据**，不属于"纯搬迁"，故单独立项（见 Open Questions 1）。
 
-**为什么不把 loader 直接挂 `DeviceProfile`**：包加载是升级面的一部分，无升级面就无包。挂在 `FirmwareUpdateFactory` 上内聚更好：
+## 二阶段 · 真正分离批量编排与协议
+
+`MultiOtaController` 移出 `b2a` 包 → 通用 OTA 包（如 `shared/device/ota/`），**只保留软件职责**：队列与状态、批次开始/停止/重试、`OtaOperationGate` 与所有权（Lease/RunToken）模型、失败记录与日志、逐台调度。
+
+**它不再引用**：`B2aConsole`、`B2aFirmwareUpdateStrategy`、`OtaPackage`、`FFE0/FFE1/FFE2`、任何产品或协议名。
+
+每个队列项在**入队时**保存识别出的能力：
 
 ```kotlin
-interface FirmwareUpdateFactory {
-    /** 本协议的固件包解析面.  */
-    val packageLoader: FwPackageLoader
-    fun create(ble, device, scope, clock, zone, abortScope, onLog): FirmwareUpdateStrategy
-    //                                                ^ reconnectScanMs 已按 D-1 下沉
-}
+data class FirmwareUpdateJob(
+    val device: ScannedDevice,
+    val capability: FirmwareUpdateCapability,  // catalog 按 UUID 识别后注入
+    val pkg: FwPackage,
+)
 ```
 
-### D-3：UI 只认通用进度，S7 细阶段经 `detail` 透传
+执行时只调用：
 
-现状 `OtaTestUiState.phase: OtaPhase?`（S7 细枚举）直达 UI，两个 Screen 各自重复一份 `OtaPhase.label()`（含"扫描回连"），进度速度显示按 `== OtaPhase.Downloading` 判断。
+```kotlin
+val strategy = job.capability.createStrategy(...)
+strategy.run(job.pkg, onProgress)
+```
 
-改：UI 状态改 `FwUpdateProgress`（`phase: FwUpdatePhase` 粗五阶段 + `percent` + `bytesPerSec` + `detail`）。
+**注**：租约与七轮收口打磨出的停止/善后所有权模型（Lease CAS / RunToken 仲裁 / finally 的 isActive 联用）是**协议中立**的软件资产，整体留在通用层。
 
-- 速度显示判据 `OtaPhase.Downloading` → `FwUpdatePhase.Transferring`；
-- **"扫描回连""等待复位"等 S7 细文案走 `detail`**——W4 设计的 `detail` 字段正是为此，通道现成；
-- 两份重复的 `label()` 合成一份通用 `FwUpdatePhase.label()`。
+### 顺带清掉的债：通用工厂签名已被协议污染
 
-需要细阶段观察的消费方（如按细阶段计时算均速）**直接构造具体策略注入 `onOtaPhase`**——W4 已裁定的现成逃生口，不为它污染通用层。
+```kotlin
+// 现状 shared/device/FirmwareUpdate.kt
+fun create(..., abortScope: CoroutineScope, reconnectScanMs: Long = 60_000, onLog: ...): FirmwareUpdateStrategy
+//                                          ^ "自复位后扫描回连"是 B2A 私有假设
+```
 
-### D-4：中止文案按能力说话
+`ZxFirmwareUpdateFactory` 的 KDoc 明说 `scope/clock/zone/abortScope/reconnectScanMs/onLog` **全部未使用**。W4 已经做对过一次——把 `onOtaPhase`/`onOtaProgress` 排除在通用工厂外、改具体策略构造点注入；`reconnectScanMs` 是同类东西却漏了进来。
 
-`OtaTestScreen.kt:141` 的"会向设备发送重启指令使其复位"是 S7 语义；ZX 的 `abort()` 是空操作。改：文案由策略提供（如 `FirmwareUpdateStrategy.abortHint: String?`，null 即用中性文案）。**这是唯一需要给通用接口加成员的 UI 需求**，其余全走 `detail`。
+**D-1**：`reconnectScanMs` 下沉为 B2A 私有构造参数（由 `B2aDeviceProfile` 构造自己的能力时从 `EngineeringConfig` 取）。`abortScope` **保留**在通用签名——"善后跑在调用方生命周期之外"是真正的跨协议软件需求（ZX 不用属合理的"可选不使用"，不是语义污染）。
 
-### D-5：判定放开（**必须最后做**）
+## 三阶段 · 预检走通用分面
 
-`OtaToolSupport.supportsOtaTool` 从 `is S7FirmwareUpdateFactory` 放开为 `firmwareUpdate != null`。**顺序红线：D-2/D-3/D-4 全部落地并过闸后才可执行 D-5**；提前放开 = ZX 入队被灌 B2A 指令（正是 Codex 一轮发现②）。
+批量控制器现在直接 `B2aConsole` 读版本、电量（`readVersionBattery`/`readBattery`）——拆掉，复用 W3 的 `DeviceControl` 六分面：
 
-### #27A 验收判据
-
-1. **ZX 走通单设备 OTA 全程零 S7 指令**——帧捕获断言：不出现任何 B2A/FILE_TRANS 帧（对照 W4 已有的"传输中 abort 不发 RESET"帧捕获测试写法）；
-2. `app` 层 `import io.bluetrace.shared.s7.*` 在单设备 OTA 链路清零（`OtaToolSupport`/`OtaTestViewModel`/`OtaTestScreen`）；
-3. S7 单设备 OTA 行为**零变化**（现有测试全绿 + 真机冒烟一轮）；
-4. 新增协议接入 OTA = 协议包内加一个 `FwPackageLoader` + 工厂挂上，**屏与 VM 零改动**。
-
-## #27B · 批量 OTA（先评估，不预设通用化）
-
-测绘结论：`MultiOtaController` **物理上在 `io.bluetrace.shared.s7` 包内**，却自称"KMP 通用编排核"。它的流程骨架带三条 S7 语义假设：
-
-| 假设 | 位置 | 对 ZX 这类协议 |
+| 预检项 | 走通用分面 | 分面为 null 时 |
 | --- | --- | --- |
-| 电量门槛（`lowBatteryPct=30`，读数走短命 `S7Console`） | `MultiOtaController.kt:76`/:64/:372-393 | 原地生效无掉电变砖风险，门槛空转 |
-| 独立 `READING` 状态（连接后单读版本+电量） | `:24-33`/:296-359 | 无需要，多余一步 |
-| **升级后用同一 `device`（同 BLE id）复读电量** | `:341-342` | ZX 侥幸成立；"升级后切 Bootloader 服务/换地址"的协议直接读错设备 |
+| 电量门槛 | `control.battery.percent()` | 跳过门槛（无电量能力即无此保护） |
+| 版本读取 | `control.info.get()` | 跳过版本展示 |
 
-**建议（待拍板）**：**#27B 不追求"名义通用"**。三选一，倾向 ② ——
+**低电量阈值属于批量 OTA 的软件策略，不属于 B2A 协议** —— 它留在编排器，但**数据来源**改为通用分面。
 
-1. 抽公共骨架 `MultiUpdateController`（队列/重试/租约/停止善后）+ 协议钩子（`preflight`/`postflight` 可空）—— 收益真实但改动面大，且"同 ID 回连"是结构级假设，抽象要小心；
-2. **正名 + 边界固化**：`MultiOtaController` 保持 S7 专属并改名（如 `S7MultiOtaController`）、多设备屏保持 `PROFILE_S7` 收紧，**把"批量 OTA 是 S7 工具"写成显式设计约束**。理由：批量 OTA 是 DEBUG 工具屏、手头只有 S7 真设备、通用化收益未被真实需求验证；等第二种真设备进场再谈 ①。W6 的判据本就是"新增协议 = 一个包 + 一行注册"，**没承诺"每个 DEBUG 工具都通用"**；
-3. 现状不动 —— 不可取：`s7` 包里放"通用编排核"这个矛盾会持续误导后来人。
+协议特有部分继续留在策略内部：FILE_TRANS 命令、传输态中止门控、**永不发送 STOP**、复位命令、同设备 ID 回连、60s 扫描预算、升级包文件顺序。
 
-**注意**：租约（`OtaOperationGate`）与七轮收口打磨的停止/善后模型是**协议中立**的，无论 #27B 选哪条都应保留在通用层。
+**已知结构级假设待处理**：`MultiOtaController` 升级后用**同一 `device`（同 BLE id）**复读电量。对 B2A 成立（自复位回连同 id），对"升级后切 Bootloader 服务/换地址"的协议会读错设备。二阶段抽公共骨架时，应由策略返回升级后的设备标识（或声明"身份不变"），而不是编排器写死假设。
+
+## 四阶段 · 固件包解析注入
+
+Android 侧只负责**解容器**（协议中立）：
+
+```
+Uri / zip / bin  →  List<RawFwEntry>(name, bytes)
+```
+
+协议侧只负责**解语义**：
+
+```
+List<RawFwEntry>  →  本协议的 FwPackage
+```
+
+```kotlin
+// shared/device/ 新增
+data class RawFwEntry(val name: String, val bytes: ByteArray)
+interface FwPackageLoader { fun load(entries: List<RawFwEntry>): FwPackage }  // 失败即抛, fail fast
+```
+
+- `OtaZipLoader` 现在把两件事揉在一起（解 zip + 认 B2A 的推送序/`FT_FW`/字库名约定/校验规则）。拆开后：`:app` 留一个协议中立的 `RawPackageReader`（它不认识任何协议）；`OtaPackageValidator` 整段搬进 `B2aFwPackageLoader`，**逻辑零改动**。
+- **loader 挂在能力对象上**（而非 `DeviceProfile` 顶层）：无升级面即无包，内聚更好。
+- ZX 顺带补上真 loader —— 现在 `ZxPackage()` 只在测试里手搓，KDoc 的"由本协议 loader 产出"是空头承诺。
+
+这样**新增协议只需提供**：DeviceProfile、GattSpec（UUID）、FwPackageLoader、FirmwareUpdateStrategy/Factory、catalog 一行注册。**单设备与批量页面均无需修改。**
+
+## 验收标准
+
+1. **任意修改设备广播名**，只要仍广播 FFE0，就识别为同一协议；
+2. 通用 OTA UI、ViewModel、批量控制器中**没有 S7 / B2a / FFE0 分支**；
+3. **两个 fake 协议跑同一个批量控制器**，各自调用注入的策略；
+4. **ZX 升级链中不得出现任何 B2A / FILE_TRANS 帧**（帧捕获断言，仿 W4"传输中 abort 不发 RESET"写法）；
+5. **B2A 当前 OTA 行为与四条真机红线零变化**（写流控 / 中止门控·永不 STOP / 扫描回连≥60s / 停止善后 scope）；
+6. 一批任务先限定**同一 protocolId + 兼容固件包** —— 这是**包兼容约束，不是设备名称约束**；控制器结构仍支持以后扩展为混合协议队列。
 
 ## 落码顺序与闸门
 
 | 阶段 | 内容 | 闸门 |
 | --- | --- | --- |
-| #27A-1 | 契约：`RawFwEntry`/`FwPackageLoader`/工厂签名净化（D-1、D-2） | 单测：S7 loader 搬迁后校验规则零改动（既有用例全绿）+ ZX loader 新样本 |
-| #27A-2 | 单设备链路通用化（D-3、D-4） | S7 行为零变化（既有测试全绿）；UI 只剩通用类型 |
-| #27A-3 | 判定放开（D-5） | **ZX 单设备 OTA 帧捕获零 S7 指令**；真机 S7 冒烟一轮 |
-| #27B | 按拍板结果执行 | 见上 |
+| ✅ 一 | 协议正名（纯搬迁） | 216/0 + 9/0 与基线逐条相同 |
+| 二 | 批量编排与协议分离（含 D-1 签名净化） | 验收 2 + 3；B2A 行为零变化 |
+| 三 | 预检走通用分面 | 分面 null 时优雅跳过；验收 5 |
+| 四 | 包解析注入 | 验收 4；B2A 校验规则搬迁后零改动 |
+| — | 判定放开 `firmwareUpdate != null` | **必须最后**：提前放开 = ZX 入队被灌 B2A 指令 |
 
-## Open Questions（待用户拍板）
+## Open Questions
 
-1. **#27B 走哪条**？（倾向 ②"正名 + 边界固化"）
-2. `RawPackageReader` 的非 zip 分支（单 `.bin` 直接当单条目）是否现在就要，还是等真有此类协议？（倾向：接口留位，实现先只做 zip + 单文件兜底，成本近乎为零）
-3. `FirmwareUpdateStrategy.abortHint` 是否值得为它动通用接口？替代方案是中止文案一律中性（"将中止本次刷写"），S7 的"发重启指令"细节移进日志/detail——**若倾向少动接口，可选此替代**。
+1. **`PROFILE_B2A` 的值** `"SKG.S7.B2A"` 是否改为 `"B2A.SKG.0xFFE0"`（对齐 `PROFILE_HRS = "HeartRate.SIG.0x180D"` 的"协议.组织.UUID"惯例，并把 UUID 锚进标识）？**代价**：写进 manifest 的历史会话数据不再匹配（demo 阶段惯例是"直接替换不做迁移"，故成本低）。**倾向：改**，但作为独立可回退提交。
+2. `RawPackageReader` 的非 zip 分支（单 `.bin` 当单条目）现在就要，还是等真有此类协议？**倾向：接口留位，实现先 zip + 单文件兜底**（成本近乎为零）。
+3. 中止文案（现 UI 硬编码"会向设备发送重启指令使其复位"，对 ZX 是错的）：给策略加 `abortHint: String?`，还是文案一律中性、协议细节移进 `detail`/日志？**倾向：后者**，不为一句文案动通用接口。
