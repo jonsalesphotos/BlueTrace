@@ -11,6 +11,7 @@ import io.bluetrace.data.android.OtaZipLoader
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.device.DeviceProfileCatalog
+import io.bluetrace.shared.device.OtaOperationGate
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.s7.DeviceOtaItem
@@ -42,13 +43,19 @@ data class MultiOtaUiState(
     val running: Boolean = false,
     /** 停止善后进行中(编排核 stopping 透传): running 已翻 false 但善后未完, 开始/重试须禁用.  */
     val stopping: Boolean = false,
+    /** app 级 OTA 租约占用中(另一模式/旧实例的运行或善后在飞): 跨实例互斥.  */
+    val gateBusy: Boolean = false,
 ) {
     val doneCount: Int get() = queue.count { it.status == DeviceOtaStatus.DONE }
     val failCount: Int get() = queue.count { it.status == DeviceOtaStatus.FAILED }
     val skipCount: Int get() = queue.count { it.status == DeviceOtaStatus.SKIPPED_LOW_BATTERY }
     val queuedCount: Int get() = queue.count { it.status == DeviceOtaStatus.QUEUED }
-    val canStart: Boolean get() = pkg != null && queuedCount > 0 && !running && !stopping
-    val hasRetriable: Boolean get() = queue.any { it.retriable } && !running && !stopping
+
+    /** 本屏操作是否应整体禁用(运行中/停止善后中/租约被别处占用). 队列行动作/开始/重试统一口径.  */
+    val opBusy: Boolean get() = running || stopping || gateBusy
+
+    val canStart: Boolean get() = pkg != null && queuedCount > 0 && !opBusy
+    val hasRetriable: Boolean get() = queue.any { it.retriable } && !opBusy
 }
 
 /** 扫描添加表内一行(仅入队, 不连接).  */
@@ -73,7 +80,7 @@ data class ScanSheetState(
  * 并把执行日志**逐行落盘**到 `Download/BlueTrace/log/ota/`(每次批量一个文件).
  * 手动停止的重启指令善后在编排核内, 跑 [appScope](退屏也发得出).
  */
-@OptIn(FlowPreview::class) // ble.scan().sample(1000) 节流（同连接页；FlowPreview）
+@OptIn(FlowPreview::class) // ble.scan().sample(1000) 节流(同连接页; FlowPreview)
 class MultiOtaViewModel(
     private val ble: BleClient,
     private val registry: ConnectionRegistry,
@@ -84,6 +91,7 @@ class MultiOtaViewModel(
     private val otaLogStore: OtaRunLogStore,
     private val configStore: ConfigStore,
     private val appScope: CoroutineScope,
+    private val gate: OtaOperationGate,
 ) : ViewModel() {
 
     private val controller = MultiOtaController(
@@ -91,17 +99,18 @@ class MultiOtaViewModel(
         lowBatteryPct = configStore.current.ota.lowBatteryPct,
         reconnectScanMs = configStore.current.ota.reconnectScanMs,
         abortScope = appScope,
+        gate = gate, // 跨实例租约(与单设备屏/重建后的实例共享)
     )
 
     val logLines = mutableStateListOf<String>()
 
     private var loadedPkg: OtaPackage? = null
     private val _pkg = MutableStateFlow<OtaPkgItem?>(null)
-    private var runLog: OtaRunLog? = null // 本次批量的落盘日志（log/ota/）
+    private var runLog: OtaRunLog? = null // 本次批量的落盘日志(log/ota/)
 
     val state: StateFlow<MultiOtaUiState> =
-        combine(controller.queue, controller.running, controller.stopping, _pkg) { queue, running, stopping, pkg ->
-            MultiOtaUiState(pkg = pkg, queue = queue, running = running, stopping = stopping)
+        combine(controller.queue, controller.running, controller.stopping, gate.busy, _pkg) { queue, running, stopping, gateBusy, pkg ->
+            MultiOtaUiState(pkg = pkg, queue = queue, running = running, stopping = stopping, gateBusy = gateBusy)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MultiOtaUiState())
 
     // ---- 扫描添加表(只入队, 不连接)----
@@ -237,7 +246,7 @@ class MultiOtaViewModel(
         // 前置守卫与编排核同条件(含 stopping 门): 落盘文件须在 startBatch **之前**打开——viewModelScope 是
         // Main.immediate, startBatch 内协程会立即跑到首个挂起点, 头几行日志经 collector
         // 同步镜像进 log(), 晚开文件就丢头(真机实证).
-        if (controller.running.value || controller.stopping.value ||
+        if (controller.running.value || controller.stopping.value || gate.busy.value ||
             controller.queue.value.none { it.status == DeviceOtaStatus.QUEUED }
         ) {
             return
@@ -248,9 +257,11 @@ class MultiOtaViewModel(
         log("回连扫描预算 ${configStore.current.ota.reconnectScanMs / 1000}s · 电量门槛 ${configStore.current.ota.lowBatteryPct}%")
         // 不在批量结束时抢关文件(结尾汇总/停止善后行经 SharedFlow 迟到)——下次启动或退屏时关.
         if (controller.startBatch(pkg) == null) {
-            // 竞态窗口内被编排核拒绝(如恰进 stopping): 回滚刚开的空运行日志, 不留假文件
+            // 竞态窗口内被编排核拒绝(如恰进 stopping): 丢弃刚开的运行日志——close 只关流会留下
+            // "假运行"文件, discard 连 MediaStore 行一起删
             log("启动被拒绝（停止善后进行中），本次未运行")
-            closeRunLog()
+            runLog?.discard()
+            runLog = null
         }
     }
 
@@ -273,7 +284,7 @@ class MultiOtaViewModel(
 
     /** 屏幕终端行 `[HHMMSS]`; 落盘行完整本机时间开头. TRANS 逐切片行只落盘(终端不刷屏, 行内有进度条).  */
     private fun log(text: String) {
-        runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量，不受 300 行内存窗限制
+        runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量, 不受 300 行内存窗限制
         if (text.startsWith("· TRANS ")) return
         logLines.add("[${nowHms()}] $text")
         if (logLines.size > 300) logLines.removeRange(0, logLines.size - 300)

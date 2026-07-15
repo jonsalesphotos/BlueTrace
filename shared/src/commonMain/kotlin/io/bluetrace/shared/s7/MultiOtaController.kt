@@ -23,13 +23,13 @@ import kotlinx.coroutines.launch
 
 /** 队列内一台设备的处理状态(设计见 Docs/OTA/S7多设备OTA_设计.md §4/§5.3).  */
 enum class DeviceOtaStatus {
-    QUEUED, // 待升级（入队，未连接）
+    QUEUED, // 待升级(入队, 未连接)
     CONNECTING, // 连接中
     READING, // 读版本 + 电量
-    FLASHING, // 刷写中（phase 细分 下载/等复位/重连/读版本）
+    FLASHING, // 刷写中(phase 细分 下载/等复位/重连/读版本)
     DONE, // 完成
     FAILED, // 失败
-    SKIPPED_LOW_BATTERY, // 电量 < 门槛，跳过
+    SKIPPED_LOW_BATTERY, // 电量 < 门槛, 跳过
 }
 
 /** 队列项: 设备 + 当前状态 + 版本/电量前后值 + 进度. 纯数据(KMP, UI 无关).  */
@@ -82,6 +82,12 @@ class MultiOtaController(
      * 否则"中止并离开"销毁 VM 时善后协程被连带取消, 重启指令发不出去. 测试可与 [scope] 同一个.
      */
     private val abortScope: CoroutineScope = scope,
+    /**
+     * app 级 OTA 操作租约(可空=不启用, 供旧测试): 跨实例互斥——本实例的 stopping 门只管自己,
+     * 单/多两屏或退屏重进的新实例靠共享租约挡住"旧善后在飞时开新一轮". 开始 tryAcquire,
+     * 自然结束或善后完全结束 release.
+     */
+    private val gate: io.bluetrace.shared.device.OtaOperationGate? = null,
 ) {
     private val _queue = MutableStateFlow<List<DeviceOtaItem>>(emptyList())
     val queue: StateFlow<List<DeviceOtaItem>> = _queue
@@ -136,6 +142,8 @@ class MultiOtaController(
     fun startBatch(pkg: OtaPackage): Job? {
         if (_running.value || _stopping.value) return null
         if (_queue.value.none { it.status == DeviceOtaStatus.QUEUED }) return null
+        // 跨实例租约最后取(本地条件全过才占): 占不到=另一实例在运行/善后
+        if (gate != null && !gate.tryAcquire()) return null
         val job = scope.launch {
             _running.value = true
             log("===== 开始批量升级 =====")
@@ -146,7 +154,7 @@ class MultiOtaController(
                     try {
                         processDevice(next.device, pkg)
                     } catch (c: CancellationException) {
-                        throw c // 停止批量/清理：照常上抛
+                        throw c // 停止批量/清理: 照常上抛
                     } catch (e: Exception) {
                         // 单台意外异常不拖垮整批: 标失败, 尽力断开, 继续下一台
                         fail(next.device.id, e.message ?: "异常")
@@ -161,6 +169,8 @@ class MultiOtaController(
                 log("===== 结束：${summaryLine()} =====")
             } finally {
                 _running.value = false
+                // 自然结束释放租约; 取消(=stopBatch 接管)不释放, 由善后 finally 释放
+                if (isActive) gate?.release()
             }
         }
         batchJob = job
@@ -202,6 +212,7 @@ class MultiOtaController(
                 }
             } finally {
                 _stopping.value = false
+                gate?.release() // 善后完全结束才释放跨实例租约
             }
         }
     }
@@ -254,7 +265,7 @@ class MultiOtaController(
 
         // 1) 连接
         updateItem(id) { it.copy(status = DeviceOtaStatus.CONNECTING, phase = null, progress = null, failReason = null) }
-        ble.connect(device) // 不抛业务异常，以 linkState 收敛为准
+        ble.connect(device) // 不抛业务异常, 以 linkState 收敛为准
         if (ble.linkState(id).value != LinkState.CONNECTED) {
             fail(id, "连接失败")
             return

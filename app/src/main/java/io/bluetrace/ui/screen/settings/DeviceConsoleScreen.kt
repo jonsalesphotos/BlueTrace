@@ -64,8 +64,8 @@ import io.bluetrace.viewmodel.DeviceConsoleViewModel
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 设置F · 设备维护（DUT）—— S7 手表控制台（工程风格）。
- * 协议：Docs/归档/s7/protocol-spec.md；缺口边界：同目录 completeness-audit.md。
+ * 设置F · 设备维护(DUT)—— S7 手表控制台(工程风格).
+ * 协议: Docs/归档/s7/protocol-spec.md; 缺口边界: 同目录 completeness-audit.md.
  */
 @Composable
 fun DeviceConsoleScreen(
@@ -80,7 +80,7 @@ fun DeviceConsoleScreen(
     var editPerson by remember { mutableStateOf(false) }
     var editTime by remember { mutableStateOf(false) }
 
-    // 一次性土 toast：指令成功/失败/导出结果
+    // 一次性土 toast: 指令成功/失败/导出结果
     LaunchedEffect(Unit) {
         vm.toasts.collect { t ->
             val msg = when (t) {
@@ -118,7 +118,7 @@ fun DeviceConsoleScreen(
                 CandidateChips(ui, onPick = { vm.selectDevice(it) })
             }
             ui.error?.let { ErrorBar(it) { vm.clearError() } }
-            // ---- 按分面 null 与否显隐功能块（W6 异构设备靠此隐藏缺失能力；当前 S7 六面全有故全显）----
+            // ---- 按分面 null 与否显隐功能块(W6 异构设备靠此隐藏缺失能力; 当前 S7 六面全有故全显)----
             if (ui.hasInfo || ui.hasBattery || ui.hasVendorS7) IdentitySection(ui, onRefresh = { vm.refreshAll() })
             if (ui.hasTimeSync) TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
             if (ui.hasVendorS7) PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
@@ -210,7 +210,7 @@ private fun NotConnected(onOpenConnect: () -> Unit, onOpenLogs: () -> Unit) {
     }
 }
 
-/** 进入前已连多台（非参考）：先选择要控制的设备（用户要求）。 */
+/** 进入前已连多台(非参考): 先选择要控制的设备(用户要求).  */
 @Composable
 private fun DevicePicker(ui: ConsoleUiState, onPick: (String) -> Unit, onOpenConnect: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -237,7 +237,7 @@ private fun DevicePicker(ui: ConsoleUiState, onPick: (String) -> Unit, onOpenCon
     }
 }
 
-/** 多候选切换 chips（当前受控高亮）。 */
+/** 多候选切换 chips(当前受控高亮).  */
 @Composable
 private fun CandidateChips(ui: ConsoleUiState, onPick: (String) -> Unit) {
     Section(stringResource(R.string.console_current_device)) {
@@ -268,7 +268,7 @@ private fun CandidateChips(ui: ConsoleUiState, onPick: (String) -> Unit) {
     }
 }
 
-/** 设备头卡：整卡点击即进「连接手表」页（连接/切换设备）。右侧 › 提示可点。 */
+/** 设备头卡: 整卡点击即进「连接手表」页(连接/切换设备). 右侧 › 提示可点.  */
 @Composable
 private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconnect: () -> Unit, onDisconnect: () -> Unit) {
     Section(onClick = onOpenConnect) {
@@ -283,7 +283,7 @@ private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconn
                     )
                 }
             }
-            // 连接态 → 「断开」按钮；断开态 → 「重连」按钮（均就地操作当前设备，不必回连接页）；中间态 → 状态标
+            // 连接态 → 「断开」按钮; 断开态 → 「重连」按钮(均就地操作当前设备, 不必回连接页); 中间态 → 状态标
             when (ui.link) {
                 LinkState.CONNECTED -> HeaderActionChip(stringResource(R.string.console_disconnect), Icons.Filled.LinkOff, fg = BT.error, bg = BT.errorC, onClick = onDisconnect)
                 LinkState.DISCONNECTED -> HeaderActionChip(stringResource(R.string.console_reconnect), Icons.Filled.Refresh, fg = BT.onPrimaryC, bg = BT.primary, onClick = onReconnect)
@@ -298,7 +298,7 @@ private fun DeviceHeader(ui: ConsoleUiState, onOpenConnect: () -> Unit, onReconn
     }
 }
 
-/** 头卡链路操作按钮（重连 / 断开）：其 clickable 消费点击，不会触发整卡进连接页。 */
+/** 头卡链路操作按钮(重连 / 断开): 其 clickable 消费点击, 不会触发整卡进连接页.  */
 @Composable
 private fun HeaderActionChip(
     text: String,
@@ -323,7 +323,7 @@ private fun HeaderActionChip(
 
 @Composable
 private fun ErrorBar(code: String, onDismiss: () -> Unit) {
-    // NO_SUBJECT 不是命令失败（没发命令）：显示引导文案而非错误码
+    // NO_SUBJECT 不是命令失败(没发命令): 显示引导文案而非错误码
     val text = if (code == "NO_SUBJECT") stringResource(R.string.console_person_none)
     else stringResource(R.string.console_err_fmt, code)
     Text(
@@ -352,7 +352,7 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
             )
         },
     ) {
-        // S7 专属型号/SN 段（vendor 面；通用 info 面不含这些）
+        // S7 专属型号/SN 段(vendor 面; 通用 info 面不含这些)
         if (ui.hasVendorS7) {
             Kv("Model", ui.sn?.devType)
             Kv("SN", ui.sn?.sn)
@@ -360,19 +360,19 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
             Kv("IMEI", ui.sn?.imei)
             Kv("ICCID", ui.sn?.iccid)
         }
-        // 版本段（通用 info 面：swVer + extras；异构设备只显协议提供的字段）
+        // 版本段(通用 info 面: swVer + extras; 异构设备只显协议提供的字段)
         if (ui.hasInfo) {
             Kv("FW", ui.cmdInfo?.swVer)
             ui.cmdInfo?.extras?.get("modemVer")?.let { Kv("Modem", it) }
             ui.cmdInfo?.extras?.get("secBlVer")?.let { Kv("SecBL", it) }
             ui.cmdInfo?.extras?.get("bpVer")?.let { Kv("BP", it) }
         }
-        // S7 专属功能掩码/绑定态（vendor 面）
+        // S7 专属功能掩码/绑定态(vendor 面)
         if (ui.hasVendorS7) {
             Kv("Func", ui.devFunc?.let { "0x" + it.toString(16).uppercase().padStart(8, '0') })
             Kv("Bond", ui.bondState?.toString())
         }
-        // 电量（通用 battery 面给百分比；S7 vendor 补电压/容量）
+        // 电量(通用 battery 面给百分比; S7 vendor 补电压/容量)
         if (ui.hasBattery) {
             val detail = ui.batteryDetail
             if (ui.hasVendorS7 && detail != null) {
@@ -389,7 +389,7 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
 @Composable
 private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit, onCustom: () -> Unit) {
     Section(stringResource(R.string.console_sec_time)) {
-        // 设备时间显示 + 偏差 = S7 vendor（通用 timeSync 面只 sync 不回读）
+        // 设备时间显示 + 偏差 = S7 vendor(通用 timeSync 面只 sync 不回读)
         if (ui.hasVendorS7) {
             Kv(stringResource(R.string.console_time_device), ui.deviceTime?.display())
             val drift = ui.driftSec
@@ -417,7 +417,7 @@ private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit, onCustom: () -> 
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
         )
-        // 自定义对时（任意时间 + 时区，测跨时区 / 过零点）= S7 vendor
+        // 自定义对时(任意时间 + 时区, 测跨时区 / 过零点)= S7 vendor
         if (ui.hasVendorS7) {
             Spacer(Modifier.height(6.dp))
             OutlineBtn(
@@ -439,7 +439,7 @@ private fun PersonSection(ui: ConsoleUiState, onEdit: () -> Unit, onWriteSubject
         Kv("Birth", p?.let { "${it.birthYear}-${it.birthMonth}-${it.birthDay}" })
         Spacer(Modifier.height(8.dp))
         val enabled = ui.busy == null && ui.link == LinkState.CONNECTED
-        // 主：编辑并写入（可修改）；次：快捷写入当前采集用户
+        // 主: 编辑并写入(可修改); 次: 快捷写入当前采集用户
         PrimaryButton(
             stringResource(R.string.console_write_person),
             onClick = onEdit,
@@ -459,7 +459,7 @@ private fun PersonSection(ui: ConsoleUiState, onEdit: () -> Unit, onWriteSubject
 @Composable
 private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit, onView: () -> Unit) {
     Section(stringResource(R.string.console_sec_log)) {
-        // 说明拉的是哪个日志 + 保存位置（用户要求）
+        // 说明拉的是哪个日志 + 保存位置(用户要求)
         Text(stringResource(R.string.console_log_desc), fontSize = 11.sp, color = BT.onSurfaceV)
         if (ui.logRunning || ui.logChunks > 0) {
             Spacer(Modifier.height(4.dp))
@@ -474,7 +474,7 @@ private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit, onView: () -> Uni
             modifier = Modifier.fillMaxWidth(),
             enabled = ui.busy == null && !ui.logRunning && ui.link == LinkState.CONNECTED,
         )
-        // 查看日志列表（离线也可看历史日志，不需连接）
+        // 查看日志列表(离线也可看历史日志, 不需连接)
         Spacer(Modifier.height(6.dp))
         OutlineBtn(
             stringResource(R.string.console_log_view),
@@ -518,7 +518,7 @@ private fun DangerSection(ui: ConsoleUiState, onFind: () -> Unit, onDanger: (Dan
                 )
             }
         }
-        // 恢复出厂 = S7 vendor（第三电源命令；通用 power 面只有重启/关机）
+        // 恢复出厂 = S7 vendor(第三电源命令; 通用 power 面只有重启/关机)
         if (ui.hasVendorS7) {
             Spacer(Modifier.height(6.dp))
             OutlineBtn(
@@ -557,7 +557,7 @@ private fun OpLogSection(vm: DeviceConsoleViewModel, onExport: () -> Unit) {
             val zoneOffset = vm.zoneOffsetSeconds()
             LazyColumn(Modifier.fillMaxSize().padding(8.dp), reverseLayout = true) {
                 items(vm.opLines.asReversed()) { line ->
-                    // 本地时区渲染（对时排障要与「设备时间」栏可比对，勿用 UTC）
+                    // 本地时区渲染(对时排障要与「设备时间」栏可比对, 勿用 UTC)
                     val t = epochMsToLocalParts(line.timeMs, zoneOffset).timeCompact()
                     Text(
                         "[$t] ${line.text}",
@@ -571,7 +571,7 @@ private fun OpLogSection(vm: DeviceConsoleViewModel, onExport: () -> Unit) {
     }
 }
 
-// ---- 基础件（工程风格）----
+// ---- 基础件(工程风格)----
 
 @Composable
 private fun Section(
@@ -605,7 +605,7 @@ private fun Section(
     }
 }
 
-/** Section 标题栏里的小文字动作（刷新/导出），禁用态灰显。 */
+/** Section 标题栏里的小文字动作(刷新/导出), 禁用态灰显.  */
 @Composable
 private fun SectionAction(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Text(
@@ -634,7 +634,7 @@ private fun Kv(label: String, value: String?) {
     }
 }
 
-/** 用户信息编辑对话框（可修改后写入设备）。预填设备读回值或缺省。 */
+/** 用户信息编辑对话框(可修改后写入设备). 预填设备读回值或缺省.  */
 @Composable
 private fun PersonEditDialog(
     initial: S7Person?,
@@ -687,7 +687,7 @@ private fun PersonEditDialog(
     )
 }
 
-/** 自定义对时对话框：年月日时分秒 + 时区，写入设备（测跨时区/过零点）。 */
+/** 自定义对时对话框: 年月日时分秒 + 时区, 写入设备(测跨时区/过零点).  */
 @Composable
 private fun TimeEditDialog(
     initial: S7DateTime,

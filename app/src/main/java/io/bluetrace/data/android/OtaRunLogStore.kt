@@ -24,15 +24,18 @@ class OtaRunLogStore(private val context: Context) {
     fun begin(kind: String, ts: String): OtaRunLog = OtaRunLog(context, writer, "ota_${kind}_$ts.log")
 }
 
-/** 一次 OTA 运行的日志文件句柄. [append] 可多线程调用; [close] 幂等.  */
+/** 一次 OTA 运行的日志文件句柄. [append] 可多线程调用; [close]/[discard] 幂等.  */
 class OtaRunLog internal constructor(
-    context: Context,
+    private val context: Context,
     scope: CoroutineScope,
     val fileName: String,
 ) {
     val displayPath: String = "${PublicTree.display(PublicTree.LOG_OTA)}/$fileName"
 
     private val lines = Channel<String>(Channel.UNLIMITED)
+
+    @Volatile
+    private var discarded = false
 
     init {
         scope.launch {
@@ -46,7 +49,7 @@ class OtaRunLog internal constructor(
                 }
             }
             try {
-                for (line in lines) { // os=null 时仍消费到 close（降级为丢弃）
+                for (line in lines) { // os=null 时仍消费到 close(降级为丢弃)
                     if (os != null) {
                         try {
                             os.write(line.toByteArray())
@@ -63,6 +66,15 @@ class OtaRunLog internal constructor(
                 } catch (e: Exception) {
                     // 关流失败无可挽救
                 }
+                // 丢弃语义: 运行根本没发生(如启动被编排核拒绝)——建行/追加是异步的, close 只关流
+                // 不删文件, 会留下一个"假运行"日志; 由写协程自己收尾删行, 时序天然在关流之后.
+                if (discarded && uri != null) {
+                    try {
+                        context.contentResolver.delete(uri, null, null)
+                    } catch (e: Exception) {
+                        // 删不掉留个空文件, 无害
+                    }
+                }
             }
         }
     }
@@ -73,6 +85,12 @@ class OtaRunLog internal constructor(
 
     /** 关闭(把已入队的行写完后关流). 幂等; close 后 append 静默丢弃.  */
     fun close() {
+        lines.close()
+    }
+
+    /** 丢弃: 关流并删除已建的 MediaStore 文件(运行未真正发生时用, 不留假运行日志). 幂等.  */
+    fun discard() {
+        discarded = true
         lines.close()
     }
 }

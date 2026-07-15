@@ -161,7 +161,7 @@ class DeviceLogStore(private val context: Context) {
                     // delete 影响 0 行=旧件残留: 计 failed 让空目录清理不执行, 下次启动重试
                     if (writeToDownloads(name, bytes, destRel) != null && resolver.delete(uri, null, null) > 0) Unit else failed++
                 } catch (e2: Exception) {
-                    failed++ // 留在旧目录，不阻塞列举
+                    failed++ // 留在旧目录, 不阻塞列举
                 }
             }
         }

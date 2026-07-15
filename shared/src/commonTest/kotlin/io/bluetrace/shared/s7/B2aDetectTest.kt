@@ -18,7 +18,7 @@ class B2aDetectTest {
 
     @Test
     fun matchesAdvertisement_byServiceUuid_noNameNeeded() {
-        // 名称随意（不再是判据），广播含 FFE0 即命中
+        // 名称随意(不再是判据), 广播含 FFE0 即命中
         assertTrue(B2aDetect.matchesAdvertisement(dev(name = "XYZ-999", adv = listOf("180A", "FFE0"))))
         // 128-bit 全串同样命中
         assertTrue(B2aDetect.matchesAdvertisement(dev(adv = listOf("0000FFE0-3C17-D293-8E48-14FE2E4DA212"))))
@@ -26,7 +26,7 @@ class B2aDetectTest {
 
     @Test
     fun matchesAdvertisement_rejectsNonB2a() {
-        // 标准心率带（180D）与无广播设备不命中
+        // 标准心率带(180D)与无广播设备不命中
         assertFalse(B2aDetect.matchesAdvertisement(dev(name = "Polar H10", adv = listOf("180D"))))
         assertFalse(B2aDetect.matchesAdvertisement(dev(name = "SKG WATCH S7-FCC4"))) // 仅名称不作判据
     }

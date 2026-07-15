@@ -24,7 +24,7 @@ class DeviceProfileCatalog(private val profiles: List<DeviceProfile>) {
     /**
      * 扫描去识别化后的统一打标(扫描流投影层调用): 原始上报(真实客户端 profileId=null)按 [identify]
      * 结果 copy 出 profileId/kind. **已带身份的设备原样保留**——MockBleClient roster 是预置设备
-     * (无真实广播, 自带 kind/profileId), 不被 Mock 兜底档案(catch-all)压平(Polar H10=REFERENCE、
+     * (无真实广播, 自带 kind/profileId), 不被 Mock 兜底档案(catch-all)压平(Polar H10=REFERENCE,
      * S7 Mock=DUT 得以保住).
      */
     fun annotate(device: ScannedDevice): ScannedDevice {

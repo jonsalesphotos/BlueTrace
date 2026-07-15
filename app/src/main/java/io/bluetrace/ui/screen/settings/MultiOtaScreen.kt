@@ -72,9 +72,9 @@ import io.bluetrace.viewmodel.MultiOtaViewModel
 import io.bluetrace.viewmodel.ScanRow
 
 /**
- * 多设备 OTA 屏体（顶栏「多设备」开关打开时渲染；开关关=单设备现状 [OtaTestScreen]）。
- * 顺序：单个共用烧录包 → 工作队列（扫描添加/删除/重试）→ 批量控制 → 执行日志。见 Docs/OTA/S7多设备OTA_设计.md。
- * @param modifier 由父 [OtaTestScreen] 传入 `Modifier.weight(1f)`（本屏体是外层 Column 的直接子项）。
+ * 多设备 OTA 屏体(顶栏「多设备」开关打开时渲染; 开关关=单设备现状 [OtaTestScreen]).
+ * 顺序: 单个共用烧录包 → 工作队列(扫描添加/删除/重试)→ 批量控制 → 执行日志. 见 Docs/OTA/S7多设备OTA_设计.md.
+ * @param modifier 由父 [OtaTestScreen] 传入 `Modifier.weight(1f)`(本屏体是外层 Column 的直接子项).
  */
 @Composable
 fun MultiOtaBody(modifier: Modifier, vm: MultiOtaViewModel, ui: MultiOtaUiState) {
@@ -95,6 +95,9 @@ fun MultiOtaBody(modifier: Modifier, vm: MultiOtaViewModel, ui: MultiOtaUiState)
             ui.queue.forEach { item ->
                 QueueRow(
                     item = item,
+                    // 行级动作与开始/重试同口径禁用(运行中/停止善后中/租约被占): 善后窗口内
+                    // 重试图标若可点, 编排核会安全拒绝但 UI 无反馈=静默无效操作
+                    actionsEnabled = !ui.opBusy,
                     onRemove = { vm.removeFromQueue(item.device.id) },
                     onRetry = { vm.retry(item.device.id) },
                 )
@@ -114,7 +117,7 @@ fun MultiOtaBody(modifier: Modifier, vm: MultiOtaViewModel, ui: MultiOtaUiState)
     }
 }
 
-// ---- 烧录包（锁 1 个，全队列共用）----
+// ---- 烧录包(锁 1 个, 全队列共用)----
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -189,7 +192,7 @@ private fun QueueEmptyHint() {
 // ---- 队列行 ----
 
 @Composable
-private fun QueueRow(item: DeviceOtaItem, onRemove: () -> Unit, onRetry: () -> Unit) {
+private fun QueueRow(item: DeviceOtaItem, actionsEnabled: Boolean, onRemove: () -> Unit, onRetry: () -> Unit) {
     val flashing = item.status == DeviceOtaStatus.FLASHING
     Surface(color = BT.surface, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(11.dp)) {
@@ -204,8 +207,11 @@ private fun QueueRow(item: DeviceOtaItem, onRemove: () -> Unit, onRetry: () -> U
                 )
                 if (item.retriable) {
                     Icon(
-                        Icons.Filled.Refresh, contentDescription = "重试", tint = BT.primary,
-                        modifier = Modifier.size(24.dp).clip(CircleShape).clickable { onRetry() }.padding(2.dp),
+                        Icons.Filled.Refresh, contentDescription = "重试",
+                        tint = if (actionsEnabled) BT.primary else BT.outline,
+                        modifier = Modifier.size(24.dp).clip(CircleShape)
+                            .clickable(enabled = actionsEnabled) { onRetry() }
+                            .padding(2.dp),
                     )
                     Spacer(Modifier.width(4.dp))
                 }
@@ -284,7 +290,7 @@ private fun rowMeta(item: DeviceOtaItem): String = when (item.status) {
         item.batteryBefore?.let { append(" · 电量 $it%") }
     }
     DeviceOtaStatus.DONE -> "版本 ${item.versionBefore ?: "—"} → ${item.versionAfter ?: "未知"} · 电量 ${pct(item.batteryBefore)} → ${pct(item.batteryAfter)}"
-    DeviceOtaStatus.FAILED -> item.failReason ?: "—" // describe() 的结构化原因（出错指令/文件+偏移）
+    DeviceOtaStatus.FAILED -> item.failReason ?: "—" // describe() 的结构化原因(出错指令/文件+偏移)
     DeviceOtaStatus.SKIPPED_LOW_BATTERY -> "${item.failReason ?: "—"} · 已跳过"
 }
 
@@ -347,15 +353,15 @@ private fun MultiLogTerminal(vm: MultiOtaViewModel) {
     }
 }
 
-// ---- 扫描添加表（底部弹窗；只入队、不连接）----
+// ---- 扫描添加表(底部弹窗; 只入队, 不连接)----
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ScanAddSheet(rows: List<ScanRow>, onDismiss: () -> Unit, onToggle: (String) -> Unit, onConfirm: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true) // 直接全展开: 「加入队列」按钮不必上拉即见
     val selectedCount = rows.count { it.selected }
-    // 列表消化不掉的滚动/惯性全部吃掉、不上抛给 sheet——在列表里下滑不会把抽屉拖关
-    //（关抽屉 = 顶部横条下拉 / 点遮罩 / 返回键）。
+    // 列表消化不掉的滚动/惯性全部吃掉, 不上抛给 sheet——在列表里下滑不会把抽屉拖关
+    //(关抽屉 = 顶部横条下拉 / 点遮罩 / 返回键).
     val keepSheetStill = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available
@@ -367,8 +373,8 @@ private fun ScanAddSheet(rows: List<ScanRow>, onDismiss: () -> Unit, onToggle: (
             Text("扫描添加到队列", fontSize = 16.sp, fontWeight = FontWeight.W800, color = BT.onSurface)
             Text("仅入队、不连接 · 只支持 S7(B2A) 手表", fontSize = 11.sp, color = BT.onSurfaceV)
             Spacer(Modifier.height(10.dp))
-            // 行序稳定 + 无 key：滚动位置按页面距离（index/offset）记，不追踪设备——扫描重排时视口不跳；
-            // 顶部锚点即"支持的 + 信号最强"（排序保证），打开就看到手边的表。
+            // 行序稳定 + 无 key: 滚动位置按页面距离(index/offset)记, 不追踪设备——扫描重排时视口不跳;
+            // 顶部锚点即"支持的 + 信号最强"(排序保证), 打开就看到手边的表.
             LazyColumn(
                 Modifier.fillMaxWidth().height(320.dp).nestedScroll(keepSheetStill),
                 verticalArrangement = Arrangement.spacedBy(7.dp),

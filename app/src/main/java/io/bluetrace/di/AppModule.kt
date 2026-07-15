@@ -80,7 +80,7 @@ val appModule = module {
     }
 
     // ---- 共享核心(KMP commonMain)----
-    single { SessionStore(get(), get(), Dispatchers.IO).also { it.ensureRoot() } } // A3：Store 自守 IO
+    single { SessionStore(get(), get(), Dispatchers.IO).also { it.ensureRoot() } } // A3: Store 自守 IO
     // 应用日志(v7): 滚动 .log 文件. writerScope 必须单线程(保序, 无并发追加竞态).
     single(named("logWriter")) {
         // A2: 日志写线程兜底走 logcat(不能写 DiagnosticsLog 自己, 会递归)
@@ -162,6 +162,9 @@ val appModule = module {
     // W3 设备会话宿主(app 级): 每设备一份会话生命周期(identify -> connect(gattSpec) -> confirm -> 控制面).
     // 长事务不落 viewModelScope(挂 app 级 CoroutineScope). 运行时消费方(VM/UI)W5 接; 现无消费方.
     single { DeviceSessionManager(get(), get(), get(), get(), get()) }
+    // app 级 OTA 操作租约: 单/多设备两屏与退屏重进的新 VM 实例共享——旧停止善后(app scope)
+    // 在飞时, 任何实例都开不了新一轮(实例内 stopping 门挡不住跨实例场景)
+    single { io.bluetrace.shared.device.OtaOperationGate() }
     single { io.bluetrace.data.android.DeviceLogStore(androidContext()) }
     single { io.bluetrace.shared.domain.CollectDraft(get(), get<io.bluetrace.shared.domain.SceneCatalog>(), get()) }
     single<AppPreferences> { DataStoreAppPreferences(androidContext()) }
@@ -212,6 +215,7 @@ val appModule = module {
             otaLogStore = get(),
             configStore = get(),
             appScope = get(),
+            gate = get(),
         )
     }
     // DEBUG: 多设备 OTA(顶栏开关打开; 工作队列串行逐台刷入, 一个包全队列共用)
@@ -226,6 +230,7 @@ val appModule = module {
             otaLogStore = get(),
             configStore = get(),
             appScope = get(),
+            gate = get(),
         )
     }
 }

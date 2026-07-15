@@ -382,7 +382,7 @@ class AndroidBleClient(
                     return
                 }
                 conn.writeAck = null
-                delay(WRITE_BUSY_BACKOFF_MS) // writeCharacteristic 返 BUSY（上一帧在飞）→ 稍等重试
+                delay(WRITE_BUSY_BACKOFF_MS) // writeCharacteristic 返 BUSY(上一帧在飞)→ 稍等重试
             }
         }
     }

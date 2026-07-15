@@ -53,7 +53,7 @@ private val configJson = Json {
     ignoreUnknownKeys = true // 老 App 读新字段配置不炸
     isLenient = true // 容忍手改 JSON 的宽松写法
     prettyPrint = true
-    encodeDefaults = true // 默认值也写盘，落地文件即完整可改清单
+    encodeDefaults = true // 默认值也写盘, 落地文件即完整可改清单
 }
 
 /** 解析失败(含空串/坏 JSON)返回 null, 调用方回默认配置. 合法 JSON 的越界值钳回安全域.  */

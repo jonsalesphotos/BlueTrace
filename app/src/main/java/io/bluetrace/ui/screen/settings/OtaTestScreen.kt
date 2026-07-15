@@ -70,10 +70,10 @@ import io.bluetrace.viewmodel.OtaTestViewModel
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * DEBUG「OTA 固件」屏。顶栏右侧「多设备」开关(默认关)切两态:
- * - **关(单设备)**: 连接 S7 → 「+」添加 1~2 个烧录包 → 刷入(1 包=单次; 2 包=A→B 循环)。见 [OtaTestViewModel]。
- * - **开(多设备)**: 工作队列串行逐台刷, 一个包全队列共用 → [MultiOtaBody] / [MultiOtaViewModel]。
- *   设计见 Docs/OTA/S7多设备OTA_设计.md。
+ * DEBUG「OTA 固件」屏. 顶栏右侧「多设备」开关(默认关)切两态:
+ * - **关(单设备)**: 连接 S7 → 「+」添加 1~2 个烧录包 → 刷入(1 包=单次; 2 包=A→B 循环). 见 [OtaTestViewModel].
+ * - **开(多设备)**: 工作队列串行逐台刷, 一个包全队列共用 → [MultiOtaBody] / [MultiOtaViewModel].
+ *   设计见 Docs/OTA/S7多设备OTA_设计.md.
  */
 @Composable
 fun OtaTestScreen(
@@ -86,6 +86,9 @@ fun OtaTestScreen(
     val ui by vm.state.collectAsState()
     val mui by multiVm.state.collectAsState()
     val running = if (multiMode) mui.running else ui.running
+    // 模式切换禁用口径 = app 级租约(gateBusy 两 VM 透传同一 single, 任取): 覆盖"停止后善后仍在飞"
+    // 的窗口——此时 running 已 false 但切模式开新一轮会被旧善后误伤, 靠租约挡住
+    val otaBusy = ui.gateBusy || mui.gateBusy
     var confirmExit by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.addPackage(it) }
@@ -105,7 +108,7 @@ fun OtaTestScreen(
             actions = {
                 Text("多设备", fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.onSurfaceV)
                 Spacer(Modifier.width(6.dp))
-                Switch(checked = multiMode, enabled = !running, onCheckedChange = { multiMode = it })
+                Switch(checked = multiMode, enabled = !running && !otaBusy, onCheckedChange = { multiMode = it })
             },
         )
         if (multiMode) {
@@ -142,7 +145,7 @@ fun OtaTestScreen(
             confirmButton = {
                 TextButton(onClick = {
                     confirmExit = false
-                    // 停止善后（向设备发送重启指令）跑 app 级 scope，退屏销毁 VM 也能发完
+                    // 停止善后(向设备发送重启指令)跑 app 级 scope, 退屏销毁 VM 也能发完
                     if (multiMode) multiVm.stopBatch() else vm.stop()
                     onBack()
                 }) { Text("中止并离开", color = BT.error, fontWeight = FontWeight.W700) }
@@ -152,12 +155,12 @@ fun OtaTestScreen(
     }
 }
 
-// ---- 固定信息框：目标设备 + 就地链路操作(断开/重连, 仿 DUT 控制台头卡)；整卡可点进扫描/连接页 ----
+// ---- 固定信息框: 目标设备 + 就地链路操作(断开/重连, 仿 DUT 控制台头卡); 整卡可点进扫描/连接页 ----
 
 @Composable
 private fun InfoCard(ui: OtaTestUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onReconnect: () -> Unit) {
     // 整卡可点 -> onConnect(扫描/连接页, 复用 DUT 调试同款连接页); 右侧链路 chip 消费点击不进连接页——
-    // 连接态"断开"/断开态"重连"就地操作(2026-07-14 用户要求); 中间态/运行中回落状态 pill。
+    // 连接态"断开"/断开态"重连"就地操作(2026-07-14 用户要求); 中间态/运行中回落状态 pill.
     Surface(
         color = BT.surface,
         shape = RoundedCornerShape(BT.radius),
@@ -182,7 +185,7 @@ private fun InfoCard(ui: OtaTestUiState, onConnect: () -> Unit, onDisconnect: ()
     }
 }
 
-/** 链路操作 chip（断开/重连）：其 clickable 消费点击，不触发整卡进连接页。 */
+/** 链路操作 chip(断开/重连): 其 clickable 消费点击, 不触发整卡进连接页.  */
 @Composable
 private fun LinkActionChip(text: String, fg: Color, bg: Color, onClick: () -> Unit) {
     Text(
@@ -202,7 +205,7 @@ private fun LinkStatusPill(link: LinkState) = when (link) {
     else -> StatusPill("未连接", BT.onSurfaceV, BT.surface2, showDot = false)
 }
 
-// ---- 烧录包：动态列表 + "+" 添加 ----
+// ---- 烧录包: 动态列表 + "+" 添加 ----
 
 @Composable
 private fun PackageSection(ui: OtaTestUiState, enabled: Boolean, onAdd: () -> Unit, onRemove: (Int) -> Unit) {
@@ -262,7 +265,7 @@ private fun AddBox(onAdd: () -> Unit) {
 @Composable
 private fun RunButton(ui: OtaTestUiState, onStart: () -> Unit, onStop: () -> Unit) {
     if (ui.running) {
-        // 单次=停止；循环=中断重复测试
+        // 单次=停止; 循环=中断重复测试
         PrimaryButtonDanger(if (ui.loopMode) "中断重复测试" else "停止", onStop)
     } else {
         PrimaryButton("开始 OTA", onClick = onStart, modifier = Modifier.fillMaxWidth(), enabled = ui.canStart)
@@ -289,7 +292,7 @@ private fun ProgressCard(ui: OtaTestUiState) {
             )
             ui.phase?.let { StatusPill(it.label(), BT.onPrimaryC, BT.primaryC, showDot = ui.running) }
         }
-        // 版本 起始 → 新：起始=开始 OTA 前读一次；新=回连后读一次（运行中未出显示 …）
+        // 版本 起始 → 新: 起始=开始 OTA 前读一次; 新=回连后读一次(运行中未出显示 …)
         Spacer(Modifier.height(4.dp))
         Text(
             "版本 ${ui.versionBefore ?: "未知"} → ${ui.versionAfter ?: if (ui.running) "…" else "未知"}",
@@ -312,7 +315,7 @@ private fun ProgressCard(ui: OtaTestUiState) {
     }
 }
 
-/** 错误详情卡：最近一次失败的出错指令 / 文件传输失败位置（含失败瞬间的传输进度）。 */
+/** 错误详情卡: 最近一次失败的出错指令 / 文件传输失败位置(含失败瞬间的传输进度).  */
 @Composable
 private fun ErrorCard(lastError: String, progressAtFailure: io.bluetrace.shared.s7.OtaProgress?) {
     Surface(color = BT.errorC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
@@ -344,7 +347,7 @@ private fun ResultsCard(results: List<OtaIterationResult>) {
                     r.detail, fontSize = 12.sp, fontWeight = FontWeight.W700,
                     color = if (r.ok) BT.success else BT.error, modifier = Modifier.weight(1f),
                 )
-                // 本轮下载平均速度（结束时结算；下载没走完不显示）
+                // 本轮下载平均速度(结束时结算; 下载没走完不显示)
                 r.avgBps?.let {
                     Text(fmtSpeed(it), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = BT.onSurfaceV)
                 }
@@ -353,7 +356,7 @@ private fun ResultsCard(results: List<OtaIterationResult>) {
     }
 }
 
-// ---- 执行日志（终端风） ----
+// ---- 执行日志(终端风) ----
 
 @Composable
 private fun LogTerminal(vm: OtaTestViewModel, ui: OtaTestUiState) {
@@ -422,5 +425,5 @@ private fun fmtBytes(b: Long): String = when {
     else -> "$b B"
 }
 
-/** BLE 上传速度（首个 1s 窗口未出数时显示占位）。 */
+/** BLE 上传速度(首个 1s 窗口未出数时显示占位).  */
 internal fun fmtSpeed(bps: Long): String = if (bps <= 0) "— KB/s" else "%.1f KB/s".format(bps / 1024.0)

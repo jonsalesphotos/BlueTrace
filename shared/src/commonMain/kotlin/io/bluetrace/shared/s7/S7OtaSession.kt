@@ -14,32 +14,32 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * S7 采集固件 OTA 推送会话（独占长事务；每已连接设备一个实例）。
+ * S7 采集固件 OTA 推送会话(独占长事务; 每已连接设备一个实例).
  *
- * 设计见 `Docs/OTA/S7采集OTA_设计.md`。仿 [S7Console.pullLog] 的独占事务范式（自建 ack 通道 + 空闲超时），
- * **不复用** 3s 单飞 `request()`——TRANS 数据片只写不回、每切片才回 9B ack、REQ 授权异步。
+ * 设计见 `Docs/OTA/S7采集OTA_设计.md`. 仿 [S7Console.pullLog] 的独占事务范式(自建 ack 通道 + 空闲超时),
+ * **不复用** 3s 单飞 `request()`——TRANS 数据片只写不回, 每切片才回 9B ack, REQ 授权异步.
  *
- * 时序：REQ（会话总量，等设备 MMI 授权异步回 12B）→ 逐文件 START/TRANS×N/STOP → 末文件 STOP 即整包完成。
- * 流控：每切片发完（≤17 无响应写）等 9B ack、核对 U32 累加和再发下一切片（**切片内**的逐包背压 = Phase 2 真机项）。
- * 纪律：切片 ack 超时须 < 设备 ~15.36s UI 看门狗（[sliceAckTimeoutMs] 默认 10s 留余量）。
+ * 时序: REQ(会话总量, 等设备 MMI 授权异步回 12B)→ 逐文件 START/TRANS×N/STOP → 末文件 STOP 即整包完成.
+ * 流控: 每切片发完(≤17 无响应写)等 9B ack, 核对 U32 累加和再发下一切片(**切片内**的逐包背压 = Phase 2 真机项).
+ * 纪律: 切片 ack 超时须 < 设备 ~15.36s UI 看门狗([sliceAckTimeoutMs] 默认 10s 留余量).
  *
- * ⚠️ **中途取消绝不可补发 STOP**（固件审查 2026-07-14，`Docs/OTA/OTA中止_固件行为审查.md`）：
- * 固件 `B2A_FileTransStopAck` 会删除 61s 收包看门狗定时器且**不清 OTA 标志**——设备既不自复位、
- * 其他命令又被 OTA 门控丢弃，永久卡传输态。协程取消天然停在切片循环（不发 STOP）即正确行为：
- * 停发切片 → 固件看门狗 ~61s 超时 → 设备自行 SYS_Reset（复位前主动断链）。
+ * ⚠️ **中途取消绝不可补发 STOP**(固件审查 2026-07-14, `Docs/OTA/OTA中止_固件行为审查.md`):
+ * 固件 `B2A_FileTransStopAck` 会删除 61s 收包看门狗定时器且**不清 OTA 标志**——设备既不自复位,
+ * 其他命令又被 OTA 门控丢弃, 永久卡传输态. 协程取消天然停在切片循环(不发 STOP)即正确行为:
+ * 停发切片 → 固件看门狗 ~61s 超时 → 设备自行 SYS_Reset(复位前主动断链).
  */
 class S7OtaSession(
     private val ble: BleClient,
     val deviceId: String,
     private val scope: CoroutineScope,
     private val clock: EpochClock,
-    /** REQ → 12B 应答等待上限（含设备端人工授权，异步；非固定协议超时）。 */
+    /** REQ → 12B 应答等待上限(含设备端人工授权, 异步; 非固定协议超时).  */
     private val authorizeTimeoutMs: Long = 60_000,
-    /** 单切片 9B ack 超时（须 < 设备 ~15.36s 看门狗）。 */
+    /** 单切片 9B ack 超时(须 < 设备 ~15.36s 看门狗).  */
     private val sliceAckTimeoutMs: Long = 10_000,
-    /** START/STOP 命令 ack 超时。 */
+    /** START/STOP 命令 ack 超时.  */
     private val cmdAckTimeoutMs: Long = 5_000,
-    /** 单切片校验/NAK 失败重传上限。 */
+    /** 单切片校验/NAK 失败重传上限.  */
     private val maxSliceRetries: Int = 3,
 ) {
     private val mutex = Mutex()
@@ -47,8 +47,8 @@ class S7OtaSession(
     val opLog: SharedFlow<String> = _opLog
 
     /**
-     * 推送整包。挂起直到 [OtaResult]。独占：同一实例并发调用被 [mutex] 串行化。
-     * 成功 = [OtaResult.DoneDownload]（末文件 STOP 收讫；生效由设备自复位完成，调用方随后重连读版本确认）。
+     * 推送整包. 挂起直到 [OtaResult]. 独占: 同一实例并发调用被 [mutex] 串行化.
+     * 成功 = [OtaResult.DoneDownload](末文件 STOP 收讫; 生效由设备自复位完成, 调用方随后重连读版本确认).
      */
     suspend fun provision(pkg: OtaPackage, onProgress: (OtaProgress) -> Unit = {}): OtaResult = mutex.withLock {
         if (ble.linkState(deviceId).value != LinkState.CONNECTED) return@withLock fail(OtaFailure.NotConnected)
@@ -76,7 +76,7 @@ class S7OtaSession(
             val mtu = ble.negotiatedMtu(deviceId)
             val startedMs = clock.nowMs()
             var sentTotal = 0L
-            // 上传速度：≥1s 滑动窗口（速度显示 + 逐切片日志用）
+            // 上传速度: ≥1s 滑动窗口(速度显示 + 逐切片日志用)
             var winStartMs = startedMs
             var winStartBytes = 0L
             var speedBps = 0L
@@ -86,24 +86,24 @@ class S7OtaSession(
                 return OtaResult.Failed(reason)
             }
 
-            // ---- REQ：报会话总量，等（异步授权）12B ----
+            // ---- REQ: 报会话总量, 等(异步授权)12B ----
             log("TX REQ module=${pkg.moduleId} files=${pkg.fileCount} total=${pkg.totalBytes}")
             ble.write(deviceId, S7FileTrans.encodeReq(pkg.moduleId, pkg.fileCount, pkg.totalBytes))
             val reqMsg = awaitAck(S7FileTrans.KEY_REQ, authorizeTimeoutMs)
                 ?: return@withLock failWithProgress(OtaFailure.Timeout("REQ"))
-            // 真机 REQ 应答字节格式待抓包坐实(BUG-2): 可能为 8B 回显而非 12B(含 sliceMaxSize/offset)。
+            // 真机 REQ 应答字节格式待抓包坐实(BUG-2): 可能为 8B 回显而非 12B(含 sliceMaxSize/offset).
             // - 可解析为 12B 且**自洽**(moduleId 回显==所发) → 采信 status 判拒 + 采信设备 sliceMax(仍夹本地上限);
             // - 短应答(parse=null) 或 12B 不自洽(如恰是请求回显, byte[1]=isOffset≠moduleId)
-            //   → 无法可靠判 status, attended 下按"已授权"继续、sliceMax 用本地算值;
-            //   真·拒绝(如 disk_full)会在随后 START ack 暴露 → 优雅降级为后段失败, 不静默挂起, 也不误 abort。
-            // moduleId 自洽门(S1 硬化): 12B 分支不再凭单个未坐实字节硬 abort, 与短应答分支同等保守。
+            //   → 无法可靠判 status, attended 下按"已授权"继续, sliceMax 用本地算值;
+            //   真·拒绝(如 disk_full)会在随后 START ack 暴露 → 优雅降级为后段失败, 不静默挂起, 也不误 abort.
+            // moduleId 自洽门(S1 硬化): 12B 分支不再凭单个未坐实字节硬 abort, 与短应答分支同等保守.
             val req = S7FileTrans.parseReqReply(reqMsg.param)
             if (req != null && req.moduleId == pkg.moduleId && req.status != S7FileTrans.REQ_OK) {
                 return@withLock failWithProgress(OtaFailure.ReqRejected(req.status))
             }
-            // 切片长: 设备回值(若有)夹到本地分帧容量 (MTU−15)×17 之内。
+            // 切片长: 设备回值(若有)夹到本地分帧容量 (MTU−15)×17 之内.
             // 夹取双重意义: (1)设备回值基准 MTU 大于本地(如本地低报回退 23)时防超固件 17 包/切片硬限;
-            // (2)设备不回 sliceMax(短应答)时 localCap 作权威——与官方 App 自算口径一致(golden 日志)。
+            // (2)设备不回 sliceMax(短应答)时 localCap 作权威——与官方 App 自算口径一致(golden 日志).
             val localCap = S7FileTrans.defaultSliceMaxSize(mtu)
             val deviceSlice = req?.sliceMaxSize ?: 0
             val sliceMax = (if (deviceSlice > 0) deviceSlice else localCap).coerceAtMost(localCap).coerceAtLeast(1)
@@ -136,7 +136,7 @@ class S7OtaSession(
                         winStartBytes = sentTotal
                     }
                     onProgress(OtaProgress(idx, pkg.fileCount, file.name, sentTotal, pkg.totalBytes, speedBps))
-                    // 逐切片一行（约定：TRANS 前缀行 UI 终端不刷屏、只进落盘执行日志）
+                    // 逐切片一行(约定: TRANS 前缀行 UI 终端不刷屏, 只进落盘执行日志)
                     log("TRANS [$idx] ${file.name} $off/${file.bytes.size} · 总 $sentTotal/${pkg.totalBytes} ${pctNow()}% · ${speedBps / 1024} KB/s")
                 }
 
@@ -158,7 +158,7 @@ class S7OtaSession(
         }
     }
 
-    /** 发一切片（≤17 帧背靠背无响应写）→ 等 9B ack → 核对；失败重传至 [maxSliceRetries]。 */
+    /** 发一切片(≤17 帧背靠背无响应写)→ 等 9B ack → 核对; 失败重传至 [maxSliceRetries].  */
     private suspend fun sendSliceWithRetry(
         slice: ByteArray,
         expectSum: Long,
@@ -167,10 +167,10 @@ class S7OtaSession(
         await: suspend (Int, Long) -> S7Message?,
     ): Boolean {
         repeat(maxSliceRetries) { attempt ->
-            // 每次发送前清残留 ack（含首发）：TRANS ack 无 seq/offset、全同 key，相邻等长等和切片
-            // 的陈旧 ack 会被误配为当前切片成功。首发前清掉上一切片重传遗留的 ack 是主要防线。
+            // 每次发送前清残留 ack(含首发): TRANS ack 无 seq/offset, 全同 key, 相邻等长等和切片
+            // 的陈旧 ack 会被误配为当前切片成功. 首发前清掉上一切片重传遗留的 ack 是主要防线.
             // 残余的"真·迟到 ack 落在本切片 await 窗口内"竞态需真机 ack 语义(recvLen 是否累计)才能根治
-            // →Phase 2 硬化(见 implementation-notes)。Mock 恒即时回, 此路径不发生。
+            // →Phase 2 硬化(见 implementation-notes). Mock 恒即时回, 此路径不发生.
             while (acks.tryReceive().isSuccess) { /* drain stale */ }
             for (frame in S7FileTrans.encodeSlice(slice, mtu)) ble.write(deviceId, frame)
             val ackMsg = await(S7FileTrans.KEY_TRANS, sliceAckTimeoutMs)

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/** 导出态（导出A 进度 / B 完成 Toast / C 失败 / D 存储不足，§5.8）。 */
+/** 导出态(导出A 进度 / B 完成 Toast / C 失败 / D 存储不足, §5.8).  */
 sealed interface ExportUiState {
     data object Idle : ExportUiState
     data class InProgress(val current: String, val progress: Float) : ExportUiState
@@ -19,9 +19,9 @@ sealed interface ExportUiState {
 }
 
 /**
- * 单会话/批量导出（MediaStore → Download/BlueTrace/，§6.4）。
- * 导出任务跑在**应用级 scope**：页面销毁不再把 zip 写一半就取消（曾留下 IS_PENDING 幽灵文件）；
- * 取消只经 [cancel]（exporter 会清掉 pending 记录）。
+ * 单会话/批量导出(MediaStore → Download/BlueTrace/, §6.4).
+ * 导出任务跑在**应用级 scope**: 页面销毁不再把 zip 写一半就取消(曾留下 IS_PENDING 幽灵文件);
+ * 取消只经 [cancel](exporter 会清掉 pending 记录).
  */
 class ExportViewModel(
     private val exporter: MediaStoreExporter,
@@ -31,7 +31,7 @@ class ExportViewModel(
     val state: StateFlow<ExportUiState> = _state
     private var job: Job? = null
 
-    /** @param selectedFiles null=整夹；非空=仅导出所选相对路径（数据C 勾选导出）。 */
+    /** @param selectedFiles null=整夹; 非空=仅导出所选相对路径(数据C 勾选导出).  */
     fun export(folderName: String, selectedFiles: Set<String>? = null) {
         if (_state.value is ExportUiState.InProgress) return // 防重入
         job = appScope.launch {
@@ -46,7 +46,7 @@ class ExportViewModel(
         }
     }
 
-    /** 取消当前导出：exporter 在取消路径上删除 IS_PENDING 记录，不留幽灵文件。 */
+    /** 取消当前导出: exporter 在取消路径上删除 IS_PENDING 记录, 不留幽灵文件.  */
     fun cancel() {
         job?.cancel()
         job = null
@@ -71,7 +71,7 @@ class ExportViewModel(
                     }
                 }
             }
-            // 多夹导出：同一批全落同一 rawdata 日期夹，显示末个成功路径的父目录
+            // 多夹导出: 同一批全落同一 rawdata 日期夹, 显示末个成功路径的父目录
             _state.value = ExportUiState.Done(if (folders.size == 1) lastPath else lastPath.substringBeforeLast('/', "Download/BlueTrace/rawdata"))
         }
     }

@@ -25,9 +25,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * [OtaProvisioner] 端到端编排测试：下载 → 设备自复位断链 → 重连 → 读当前版本 → Reconnected(version?)。
- * 不做版本校验(OTA 包无版本信息)，仅读取显示当前版本；读不到 = Reconnected(null)。
- * Mock 手表 `otaRebootAfterComplete=true` 在末 STOP 后随 ack 断链，模拟设备自复位。
+ * [OtaProvisioner] 端到端编排测试: 下载 → 设备自复位断链 → 重连 → 读当前版本 → Reconnected(version?).
+ * 不做版本校验(OTA 包无版本信息), 仅读取显示当前版本; 读不到 = Reconnected(null).
+ * Mock 手表 `otaRebootAfterComplete=true` 在末 STOP 后随 ack 断链, 模拟设备自复位.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class S7OtaProvisionerTest {
@@ -37,12 +37,12 @@ class S7OtaProvisionerTest {
         rssi = -50, kind = DeviceKind.DUT,
     )
 
-    /** 直连 Mock 手表 + 可控重连的 BleClient：write→watch.handle→异步回 notify；末 STOP 后按注入断链。 */
+    /** 直连 Mock 手表 + 可控重连的 BleClient: write→watch.handle→异步回 notify; 末 STOP 后按注入断链.  */
     private class FakeProvBle(
         val watch: S7MockWatch,
         private val clock: EpochClock,
         private val scope: CoroutineScope,
-        /** connect() 是否置 CONNECTED（false = 模拟设备开不回来，测重连失败）。 */
+        /** connect() 是否置 CONNECTED(false = 模拟设备开不回来, 测重连失败).  */
         var connectSucceeds: Boolean = true,
         private val mtu: Int = 247,
     ) : BleClient {
@@ -50,10 +50,10 @@ class S7OtaProvisionerTest {
         var connectCalls = 0
             private set
 
-        /** 注入扫描流（null = emptyFlow，模拟无扫描能力 → provisioner 走直连兜底）。 */
+        /** 注入扫描流(null = emptyFlow, 模拟无扫描能力 → provisioner 走直连兜底).  */
         var scanFlow: Flow<List<ScannedDevice>>? = null
 
-        /** 逐次连接结果剧本（队列空则回落 [connectSucceeds]）。 */
+        /** 逐次连接结果剧本(队列空则回落 [connectSucceeds]).  */
         val connectPlan = ArrayDeque<Boolean>()
         private val inbound = MutableSharedFlow<BleNotification>(extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
@@ -122,7 +122,7 @@ class S7OtaProvisionerTest {
         assertEquals(3, ble.connectCalls, "应尝试满 reconnectAttempts 次")
     }
 
-    /** 版本读不到不算失败：重连成功即 Reconnected，currentVersion=null（UI 显示"未知"）。 */
+    /** 版本读不到不算失败: 重连成功即 Reconnected, currentVersion=null(UI 显示"未知").  */
     @Test
     fun provisionAndReconnect_versionUnreadable_yieldsReconnectedNull() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
@@ -133,8 +133,8 @@ class S7OtaProvisionerTest {
     }
 
     /**
-     * A 修复守护：生产 readVersion(=S7Console.getDeviceInfo) 超时是 **抛异常** 非返 null →
-     * 本层须容错(转 null 重试)而非抛穿 → 终态 Reconnected(null)、不异常穿透。
+     * A 修复守护: 生产 readVersion(=S7Console.getDeviceInfo) 超时是 **抛异常** 非返 null →
+     * 本层须容错(转 null 重试)而非抛穿 → 终态 Reconnected(null), 不异常穿透.
      */
     @Test
     fun provisionAndReconnect_versionReadThrows_yieldsReconnectedNull_notPropagated() = runTest {
@@ -146,13 +146,13 @@ class S7OtaProvisionerTest {
             readVersion = { reads++; throw S7CommandException(S7Failure.Timeout) }, // 仿 getDeviceInfo 超时抛
             versionReadRetries = 3,
         )
-        // A 修复前此调用会异常穿透(测试直接失败)；修复后容错为 Reconnected(null)
+        // A 修复前此调用会异常穿透(测试直接失败); 修复后容错为 Reconnected(null)
         val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
         assertEquals(null, assertIs<OtaResult.Reconnected>(result).currentVersion)
         assertEquals(3, reads, "异常被容错转 null → 应重试满 versionReadRetries 次")
     }
 
-    /** 设备未断链(OTA 静默没触发复位)时仍能重连+读到当前版本；reconnect 首圈短路 connectCalls==0。 */
+    /** 设备未断链(OTA 静默没触发复位)时仍能重连+读到当前版本; reconnect 首圈短路 connectCalls==0.  */
     @Test
     fun provisionAndReconnect_noReboot_readsStaleVersion() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime }) // 不断链
@@ -163,9 +163,9 @@ class S7OtaProvisionerTest {
         assertEquals(0, ble.connectCalls, "链路未断 → reconnect 首圈短路, 从未真 connect")
     }
 
-    // ---- 扫描优先回连（2026-07-14：回连保证扫描至少 60s） ----
+    // ---- 扫描优先回连(2026-07-14: 回连保证扫描至少 60s) ----
 
-    /** 有扫描能力时：先扫到目标广播再连接（一次即中），阶段含 Scanning。 */
+    /** 有扫描能力时: 先扫到目标广播再连接(一次即中), 阶段含 Scanning.  */
     @Test
     fun reconnect_scansFirst_connectsAfterSighting() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
@@ -187,7 +187,7 @@ class S7OtaProvisionerTest {
         assertTrue(OtaPhase.Scanning in phases, "阶段应含 Scanning: $phases")
     }
 
-    /** 扫描预算硬门：目标始终不出现 + 直连也失败 → 至少扫满 60s（虚拟时钟计时）才判 ReconnectFailed。 */
+    /** 扫描预算硬门: 目标始终不出现 + 直连也失败 → 至少扫满 60s(虚拟时钟计时)才判 ReconnectFailed.  */
     @Test
     fun reconnect_scanBudget_atLeast60s_beforeFailing() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
@@ -211,7 +211,7 @@ class S7OtaProvisionerTest {
         assertEquals(3, ble.connectCalls, "预算耗尽后应走直连兜底 reconnectAttempts 次")
     }
 
-    /** 扫到广播但首连失败 → 回到扫描等下一次广播，再连成功。 */
+    /** 扫到广播但首连失败 → 回到扫描等下一次广播, 再连成功.  */
     @Test
     fun reconnect_connectFailThenRescan_succeedsOnSecondSighting() = runTest {
         val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }

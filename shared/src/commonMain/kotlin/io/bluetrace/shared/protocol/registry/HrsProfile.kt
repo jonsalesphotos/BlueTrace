@@ -8,8 +8,8 @@ import io.bluetrace.shared.protocol.DecodedSample
 import io.bluetrace.shared.protocol.ProtocolEvent
 
 /**
- * 标准心率服务档案(SIG HRS 0x180D / 心率测量 0x2A37)——参考心率带(Polar H10 等)。
- * R4 真实链路首连的先行协议: 不依赖自研协议冻结, 有心率带即可跑通真实采集。
+ * 标准心率服务档案(SIG HRS 0x180D / 心率测量 0x2A37)——参考心率带(Polar H10 等).
+ * R4 真实链路首连的先行协议: 不依赖自研协议冻结, 有心率带即可跑通真实采集.
  */
 class HrsProfile : ProtocolProfile {
     override val id: String = PROFILE_HRS
@@ -36,9 +36,9 @@ class HrsProfile : ProtocolProfile {
 }
 
 /**
- * 心率测量特征(0x2A37)解析: flags(1B) + bpm(u8 或 u16LE, 按 flags bit0)。
- * Energy Expended / RR-Interval 等后续字段与传感器接触位暂不消费。
- * HRS 无设备时钟, deviceTsUs 用接收时刻充当(参考设备只做对齐参照, 精度够用)。
+ * 心率测量特征(0x2A37)解析: flags(1B) + bpm(u8 或 u16LE, 按 flags bit0).
+ * Energy Expended / RR-Interval 等后续字段与传感器接触位暂不消费.
+ * HRS 无设备时钟, deviceTsUs 用接收时刻充当(参考设备只做对齐参照, 精度够用).
  */
 class HrsParser : ChannelParser {
     override fun parse(notification: BleNotification): List<ProtocolEvent> {

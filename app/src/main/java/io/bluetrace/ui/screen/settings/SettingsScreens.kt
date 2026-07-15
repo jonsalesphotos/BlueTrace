@@ -78,7 +78,7 @@ fun SettingsHomeScreen(
     onAppearance: () -> Unit, onLanguage: () -> Unit,
     onOtaTest: () -> Unit = {},
 ) {
-    // 通用分区两行的副标 = 当前值（主题模式 / 语言名），随偏好实时更新；非说明性副标（red-line #1）。
+    // 通用分区两行的副标 = 当前值(主题模式 / 语言名), 随偏好实时更新; 非说明性副标(red-line #1).
     val prefs = koinInject<AppPreferences>()
     val theme by prefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
     val language by prefs.language.collectAsState(initial = AppLanguage.ZH)
@@ -106,12 +106,12 @@ fun SettingsHomeScreen(
             item { SettingsNavRow(Icons.Filled.Article, BT.primary, BT.primaryC, stringResource(R.string.settings_log), stringResource(R.string.settings_log_sub), onLog) }
             item { SettingsNavRow(Icons.Filled.Memory, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_device_maint), stringResource(R.string.settings_device_maint_sub), onDeviceMaint) }
             if (io.bluetrace.BuildConfig.DEBUG) {
-                // 仅 DEBUG：OTA 固件（选烧录包→连接设备→刷入/循环），与设备维护同级
+                // 仅 DEBUG: OTA 固件(选烧录包→连接设备→刷入/循环), 与设备维护同级
                 item { SettingsNavRow(Icons.Filled.Memory, BT.primary, BT.primaryC, "OTA 固件", "刷入烧录包 · DEBUG", onOtaTest) }
             }
             if (io.bluetrace.BuildConfig.DEBUG) {
                 item {
-                    // 仅 DEBUG：Mock/真实 BLE 后端切换（重启生效）。无设备演示/UI 回归用 Mock；默认真实 GATT。
+                    // 仅 DEBUG: Mock/真实 BLE 后端切换(重启生效). 无设备演示/UI 回归用 Mock; 默认真实 GATT.
                     val ctx = LocalContext.current
                     var useMock by remember { mutableStateOf(io.bluetrace.data.android.BleBackendSwitch.useMock(ctx)) }
                     fun toggle(on: Boolean) {
@@ -127,8 +127,8 @@ fun SettingsHomeScreen(
                     )
                 }
                 item {
-                    // 仅 DEBUG：Nordic BLE 后端切换（重启生效）。开启走 Nordic Kotlin-BLE（第二实现），
-                    // 供 W1.6 真机 A/B；Mock 打开时优先 Mock，本开关不生效（优先级 Mock > Nordic > 自写）。
+                    // 仅 DEBUG: Nordic BLE 后端切换(重启生效). 开启走 Nordic Kotlin-BLE(第二实现),
+                    // 供 W1.6 真机 A/B; Mock 打开时优先 Mock, 本开关不生效(优先级 Mock > Nordic > 自写).
                     val ctx = LocalContext.current
                     var useNordic by remember { mutableStateOf(io.bluetrace.data.android.BleBackendSwitch.useNordic(ctx)) }
                     fun toggleNordic(on: Boolean) {
@@ -147,7 +147,7 @@ fun SettingsHomeScreen(
             item { SectionHeader(stringResource(R.string.settings_sec_about)) }
             item { SettingsNavRow(Icons.Filled.Info, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_about), stringResource(R.string.settings_about_sub), onAbout) }
             item {
-                // 二期项灰显禁用（服务器 / 上传 / 远程下发）。原型未画此行，保留为既有占位（提交说明列明）。
+                // 二期项灰显禁用(服务器 / 上传 / 远程下发). 原型未画此行, 保留为既有占位(提交说明列明).
                 ListTileRow(Icons.Filled.Info, BT.onSurfaceV, BT.surface2, stringResource(R.string.settings_phase2), stringResource(R.string.settings_phase2_sub), enabled = false)
             }
         }
@@ -161,7 +161,7 @@ private fun SettingsNavRow(icon: androidx.compose.ui.graphics.vector.ImageVector
     })
 }
 
-/** 设置A · 环境与权限检查详情。 */
+/** 设置A · 环境与权限检查详情.  */
 @Composable
 fun EnvCheckScreen(onBack: () -> Unit, vm: EnvironmentViewModel = koinViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -205,7 +205,7 @@ private fun reqTitle(id: RequirementId): String = stringResource(
     },
 )
 
-/** 设置B · 导出位置。 */
+/** 设置B · 导出位置.  */
 @Composable
 fun ExportLocationScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(BT.bg)) {
@@ -219,7 +219,7 @@ fun ExportLocationScreen(onBack: () -> Unit) {
     }
 }
 
-/** 设置C · 存储占用（StorageBreakdown）。 */
+/** 设置C · 存储占用(StorageBreakdown).  */
 @Composable
 fun StorageScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     val storage by vm.storage.collectAsStateWithLifecycle()
@@ -264,11 +264,11 @@ private fun Legend(label: String, color: Color, bytes: Long) {
     }
 }
 
-/** 设置E · 应用日志（运行错误/事件，可导出/清空）。 */
+/** 设置E · 应用日志(运行错误/事件, 可导出/清空).  */
 @Composable
 fun AppLogScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     val entries by vm.logEntries.collectAsStateWithLifecycle()
-    // 导出/清空结果反馈：VM 的 toast 流此前没有任何消费方——点了没反应
+    // 导出/清空结果反馈: VM 的 toast 流此前没有任何消费方——点了没反应
     val toastMsg by vm.toast.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
     LaunchedEffect(toastMsg) {
@@ -306,15 +306,15 @@ fun AppLogScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) {
     }
 }
 
-/** 日志行时间：裸 epochMs（13 位数字）→ 本地时刻 HH:mm:ss.SSS。 */
+/** 日志行时间: 裸 epochMs(13 位数字)→ 本地时刻 HH:mm:ss.SSS.  */
 private fun logClock(epochMs: Long): String {
     val t = java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
     return "%02d:%02d:%02d.%03d".format(t.hour, t.minute, t.second, epochMs % 1000)
 }
 
-// 设置F · 设备维护（DUT）已升级为 S7 控制台 → DeviceConsoleScreen.kt（原灰显占位删除）。
+// 设置F · 设备维护(DUT)已升级为 S7 控制台 → DeviceConsoleScreen.kt(原灰显占位删除).
 
-/** 设置D · 关于。 */
+/** 设置D · 关于.  */
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(BT.bg)) {

@@ -33,21 +33,21 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * v1 BLE = Mock（第一版核心）。造假设备 + 连接后持续造数据（原始字节 [MockPacketCodec]）。
- * 放 commonMain 便于 JVM 单测；用 coroutines 定时 emit。可注入断联事件演示「内联重连中 → 自动续」。
+ * v1 BLE = Mock(第一版核心). 造假设备 + 连接后持续造数据(原始字节 [MockPacketCodec]).
+ * 放 commonMain 便于 JVM 单测; 用 coroutines 定时 emit. 可注入断联事件演示「内联重连中 → 自动续」.
  *
- * 协议冻结后整类替换为 androidMain 的 Nordic 实现（同 [BleClient] 接口），上层不改。
+ * 协议冻结后整类替换为 androidMain 的 Nordic 实现(同 [BleClient] 接口), 上层不改.
  */
 class MockBleClient(
     private val clock: EpochClock,
-    /** 断联后自动重连的定时器跑在这个 scope（app=应用域 / 测试=测试域）。 */
+    /** 断联后自动重连的定时器跑在这个 scope(app=应用域 / 测试=测试域).  */
     private val scope: CoroutineScope,
     private val emitIntervalMs: Long = 100,
     private val connectDelayMs: Long = 600,
     private val reconnectDelayMs: Long = 3000,
 ) : BleClient {
 
-    /** 下一次扫描是否走「无结果空态」（设备C 演示）。 */
+    /** 下一次扫描是否走「无结果空态」(设备C 演示).  */
     var nextScanEmpty: Boolean = false
 
     private val roster: List<ScannedDevice> = listOf(
@@ -59,14 +59,14 @@ class MockBleClient(
             "ref-h10", "Polar H10", "A0:9E:1A:55:0D:10", -60, DeviceKind.REFERENCE, PROFILE_HRS,
             advertisedServices = listOf("180D"),
         ),
-        // S7 手表（B2A 协议 Mock，设备维护控制台联调用）：MAC 用测试真机地址（S7_TEST_MAC，非白名单）。
-        // 广播 UUID 表按真机口径（180A + FFE0/FFE1/FFE2/FFEB）——识别走 DeviceProfileCatalog（S7 档案命中 FFE0），
-        // 名称仅展示；广播名后缀 = MAC[1]MAC[0] 4 位 hex → FCC4（spec §1）。roster 直接带 profileId=PROFILE_S7。
+        // S7 手表(B2A 协议 Mock, 设备维护控制台联调用): MAC 用测试真机地址(S7_TEST_MAC, 非白名单).
+        // 广播 UUID 表按真机口径(180A + FFE0/FFE1/FFE2/FFEB)——识别走 DeviceProfileCatalog(S7 档案命中 FFE0),
+        // 名称仅展示; 广播名后缀 = MAC[1]MAC[0] 4 位 hex → FCC4(spec §1). roster 直接带 profileId=PROFILE_S7.
         ScannedDevice(
             "s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
         ),
-        // 追加两台 S7（多设备 OTA 演示/联调）：各自独立 S7MockWatch（见下 s7Watch(id)），MAC 末 4 位 = 名称后缀。
+        // 追加两台 S7(多设备 OTA 演示/联调): 各自独立 S7MockWatch(见下 s7Watch(id)), MAC 末 4 位 = 名称后缀.
         ScannedDevice(
             "s7-a31b", "SKG WATCH S7-A31B", "71:61:48:19:A3:1B", -60, DeviceKind.DUT, PROFILE_S7,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
@@ -95,7 +95,7 @@ class MockBleClient(
     override fun scan(): Flow<List<ScannedDevice>> = flow {
         emit(emptyList())
         if (nextScanEmpty) {
-            // 空态：60s 内不产设备（ViewModel 计时自停后落空态）
+            // 空态: 60s 内不产设备(ViewModel 计时自停后落空态)
             while (coroutineContext.isActive) delay(1000)
             return@flow
         }
@@ -126,7 +126,7 @@ class MockBleClient(
 
     override fun linkState(deviceId: String): StateFlow<LinkState> = link(deviceId)
 
-    /** Mock 协商 MTU（可调，联调 OTA 分片尺寸用；默认 247 = 真机常见协商值）。 */
+    /** Mock 协商 MTU(可调, 联调 OTA 分片尺寸用; 默认 247 = 真机常见协商值).  */
     var mockMtu: Int = 247
     override fun negotiatedMtu(deviceId: String): Int = mockMtu
 
@@ -137,7 +137,7 @@ class MockBleClient(
     override fun discoveredService16s(deviceId: String): List<String> =
         byId[deviceId]?.advertisedServices?.mapNotNull { extract16(it) } ?: emptyList()
 
-    /** 演示「断联 → 内联重连中 → 自动续」：标 RECONNECTING，[reconnectDelayMs] 后自动回 CONNECTED。 */
+    /** 演示「断联 → 内联重连中 → 自动续」: 标 RECONNECTING, [reconnectDelayMs] 后自动回 CONNECTED.  */
     fun injectDisconnect(deviceId: String) {
         val l = link(deviceId)
         if (l.value != LinkState.CONNECTED) return
@@ -148,14 +148,14 @@ class MockBleClient(
         }
     }
 
-    /** [BleClient.debugInjectDisconnect] 的 Mock 实现（编排层经接口调用，不再对 Mock 具体类型强转）。 */
+    /** [BleClient.debugInjectDisconnect] 的 Mock 实现(编排层经接口调用, 不再对 Mock 具体类型强转).  */
     override fun debugInjectDisconnect(deviceId: String) = injectDisconnect(deviceId)
 
     private val btOffDevices = HashSet<String>()
 
     /**
-     * 系统蓝牙开关变化（app 监听 ACTION_STATE_CHANGED 广播驱动，§5.4 横切A）：
-     * 关 → 已连设备转"重连中"（暂停接收，不自动续）；开 → 恢复已连。
+     * 系统蓝牙开关变化(app 监听 ACTION_STATE_CHANGED 广播驱动, §5.4 横切A):
+     * 关 → 已连设备转"重连中"(暂停接收, 不自动续); 开 → 恢复已连.
      */
     fun setBluetoothOff(off: Boolean) {
         if (off) {
@@ -173,23 +173,23 @@ class MockBleClient(
         }
     }
 
-    /** [BleClient.onAdapterStateChanged]：service 侧只依赖接口，不再注入 Mock 具体类型。 */
+    /** [BleClient.onAdapterStateChanged]: service 侧只依赖接口, 不再注入 Mock 具体类型.  */
     override fun onAdapterStateChanged(off: Boolean) = setBluetoothOff(off)
 
-    // ---- S7 手表模拟（B2A 协议；每设备一个 S7MockWatch + inbound，支持多台联调 / 多设备 OTA 演示）----
-    // 该设备是否走 S7 命令面模拟：roster 的 S7 设备已带 profileId=PROFILE_S7（W5 起按 profileId 判定，
-    // 不再耦合 s7 包的识别工具）。S7 应答帧回填的 Notify 通道短码见 [S7_NOTIFY_16]（对齐真机口径）。
+    // ---- S7 手表模拟(B2A 协议; 每设备一个 S7MockWatch + inbound, 支持多台联调 / 多设备 OTA 演示)----
+    // 该设备是否走 S7 命令面模拟: roster 的 S7 设备已带 profileId=PROFILE_S7(W5 起按 profileId 判定,
+    // 不再耦合 s7 包的识别工具). S7 应答帧回填的 Notify 通道短码见 [S7_NOTIFY_16](对齐真机口径).
     private fun isS7(device: ScannedDevice): Boolean = device.profileId == PROFILE_S7
     private val s7Watches = HashMap<String, S7MockWatch>()
     private val s7Inbounds = HashMap<String, MutableSharedFlow<BleNotification>>()
-    // 刷后复位=真: OTA 末 STOP 后模拟设备自复位断链 → 上层等复位→重连闭环走通(演示更真、无 90s 空等)
+    // 刷后复位=真: OTA 末 STOP 后模拟设备自复位断链 → 上层等复位→重连闭环走通(演示更真, 无 90s 空等)
     private fun s7Watch(id: String): S7MockWatch = s7Watches.getOrPut(id) { S7MockWatch(clock).apply { otaRebootAfterComplete = true } }
     private fun s7Inbound(id: String): MutableSharedFlow<BleNotification> =
         s7Inbounds.getOrPut(id) { MutableSharedFlow(extraBufferCapacity = 128, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
 
     /**
-     * 下行写：S7 设备路由到 [S7MockWatch] 生成应答帧（模拟链路时延 40ms/帧）；
-     * 其余 Mock 设备无命令面，静默丢弃（与真实 GATT 对未订阅特征写入为 no-op 一致）。
+     * 下行写: S7 设备路由到 [S7MockWatch] 生成应答帧(模拟链路时延 40ms/帧);
+     * 其余 Mock 设备无命令面, 静默丢弃(与真实 GATT 对未订阅特征写入为 no-op 一致).
      *
      * [char16] 接受即忽略: Mock 单通道(S7 命令面隐含写 FFE1), 无需按特征寻址.
      */
@@ -212,7 +212,7 @@ class MockBleClient(
         }
     }
 
-    /** S7 设备 Notify 流：模拟应答帧 + 30s 周期心跳（仅连接态）。心跳同走 B2A TX(FFE2) 通道. */
+    /** S7 设备 Notify 流: 模拟应答帧 + 30s 周期心跳(仅连接态). 心跳同走 B2A TX(FFE2) 通道. */
     private fun s7Notifications(deviceId: String): Flow<BleNotification> = channelFlow {
         val l = link(deviceId)
         launch {

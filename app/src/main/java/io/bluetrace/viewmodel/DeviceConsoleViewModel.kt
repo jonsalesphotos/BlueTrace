@@ -500,7 +500,7 @@ class DeviceConsoleViewModel(
                     DangerAction.RESTORE -> vendorS7?.restore() ?: false
                 }
             } catch (c: CancellationException) {
-                throw c // 取消（切换设备/退屏）：不写终态，交给代际校验后的收尾
+                throw c // 取消(切换设备/退屏): 不写终态, 交给代际校验后的收尾
             } catch (e: Exception) {
                 // 命令面可能抛(如 GATT 异常): danger 必须到达 Done, 否则 Waiting 对话框永久卡死
                 false

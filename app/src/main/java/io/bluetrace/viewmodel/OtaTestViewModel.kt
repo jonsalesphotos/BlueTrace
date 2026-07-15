@@ -12,6 +12,7 @@ import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.device.FwUpdateResult
+import io.bluetrace.shared.device.OtaOperationGate
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
@@ -57,6 +58,8 @@ data class OtaTestUiState(
     val running: Boolean = false,
     /** 手动停止的善后进行中(取消旧运行/设备善后/断开): 期间禁止重新开始, 防旧善后误伤新一轮.  */
     val stopping: Boolean = false,
+    /** app 级 OTA 租约占用中(另一模式/旧实例的运行或善后在飞): 跨实例互斥, 开始入口须禁用.  */
+    val gateBusy: Boolean = false,
     val currentIteration: Int = 0,
     val currentPkgIdx: Int = 0,
     val phase: OtaPhase? = null,
@@ -72,7 +75,7 @@ data class OtaTestUiState(
     val connected: Boolean get() = device != null && link == LinkState.CONNECTED
     /** 2 包 → A→B 循环升级(重复到手动中断).  */
     val loopMode: Boolean get() = packages.size == 2
-    val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping
+    val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping && !gateBusy
     val canAdd: Boolean get() = packages.size < 2 && !running
     val canReconnect: Boolean get() = device != null && !connected && link != LinkState.CONNECTING && !running
     val canDisconnect: Boolean get() = connected && !running
@@ -99,6 +102,7 @@ class OtaTestViewModel(
     private val otaLogStore: OtaRunLogStore,
     private val configStore: ConfigStore,
     private val appScope: CoroutineScope,
+    private val gate: OtaOperationGate,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OtaTestUiState())
@@ -107,10 +111,10 @@ class OtaTestViewModel(
     /** 执行日志(终端面板; 上限 300 行).  */
     val logLines = mutableStateListOf<String>()
 
-    private val loadedPkgs = mutableListOf<OtaPackage>() // 与 state.packages 同序，持字节
+    private val loadedPkgs = mutableListOf<OtaPackage>() // 与 state.packages 同序, 持字节
     private var runJob: Job? = null
     private var linkJob: Job? = null
-    private var runLog: OtaRunLog? = null // 本次运行的落盘日志（log/ota/）
+    private var runLog: OtaRunLog? = null // 本次运行的落盘日志(log/ota/)
 
     // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
     private var currentStrategy: S7FirmwareUpdateStrategy? = null
@@ -124,14 +128,15 @@ class OtaTestViewModel(
         viewModelScope.launch {
             registry.connected.collect { list ->
                 if (_state.value.running) return@collect
-                // 可刷判定 = 协议 UUID 口径(supportsOtaTool, 见 OtaToolSupport.kt): 本工具链绑定
-                // B2A 指令集, 异构协议设备被灌 B2A REQ 只会超时——只跟踪 B2A 协议设备.
-                // 判定不用设备名/档案名(名称会变, GATT 服务 UUID 才是协议稳定标识).
+                // 可刷判定 = 升级能力工厂口径(supportsOtaTool, 见 OtaToolSupport.kt): 只跟踪
+                // 声明 S7FirmwareUpdateFactory 的协议设备(异构策略/无升级面设备被灌 B2A REQ 只会超时).
                 val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.supportsOtaTool(it) }
                 // 黏性: 出现新设备才切换; 断联(target=null)保留旧设备, 链路由 linkJob 更新为 DISCONNECTED
                 if (target != null && target.id != _state.value.device?.id) trackDevice(target)
             }
         }
+        // app 级租约占用态透传(另一模式/旧实例的运行或善后在飞 -> 本屏开始入口禁用)
+        viewModelScope.launch { gate.busy.collect { b -> _state.update { it.copy(gateBusy = b) } } }
     }
 
     private fun trackDevice(target: ScannedDevice) {
@@ -142,7 +147,7 @@ class OtaTestViewModel(
             ble.linkState(target.id).collect { l ->
                 _state.update { it.copy(link = l) }
                 if (l == LinkState.CONNECTED && prev != LinkState.CONNECTED && !_state.value.running) {
-                    log("S7 已连接：${target.name}") // 版本不自动读（开始 OTA 时才读一次）
+                    log("S7 已连接：${target.name}") // 版本不自动读(开始 OTA 时才读一次)
                 }
                 prev = l
             }
@@ -210,6 +215,11 @@ class OtaTestViewModel(
         val st = _state.value
         if (!st.canStart) return
         val device = st.device ?: return
+        // 跨实例租约(app 级): 另一模式/退屏重进前的旧实例, 其运行或停止善后在飞时不得开新一轮
+        if (!gate.tryAcquire()) {
+            log("已有 OTA 运行或停止善后在飞（另一模式/上次未完成），稍后再试")
+            return
+        }
         val pkgs = loadedPkgs.toList()
         val loop = pkgs.size == 2
         closeRunLog() // 上一次自然结束后未关的句柄
@@ -265,7 +275,10 @@ class OtaTestViewModel(
                 log("已自动断开：${device.name}")
             } finally {
                 _state.update { it.copy(running = false) }
-                if (isActive) closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关，别在这抢先截断
+                if (isActive) {
+                    closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关, 别在这抢先截断
+                    gate.release() // 自然结束释放租约; 取消(=stop 接管)由善后 finally 释放
+                }
             }
         }
     }
@@ -281,9 +294,9 @@ class OtaTestViewModel(
 
     private fun buildStrategy(device: ScannedDevice, totalBytes: Long) = S7FirmwareUpdateStrategy(
         ble, device, viewModelScope, clock, zone,
-        abortScope = appScope, // 中止善后须比 VM 长寿（"中止并离开"销毁 VM 后仍要发得出重启指令）
+        abortScope = appScope, // 中止善后须比 VM 长寿("中止并离开"销毁 VM 后仍要发得出重启指令)
         reconnectScanMs = configStore.current.ota.reconnectScanMs,
-        onLog = { log(it) }, // session="· "/prov="» " 前缀在策略内，TRANS 终端过滤口径不变
+        onLog = { log(it) }, // session="· "/prov="» " 前缀在策略内, TRANS 终端过滤口径不变
         onOtaPhase = { p ->
             // 平均速度: 进 Downloading 记起点, 首次离开时结算(回连等阶段不计入)
             if (p == OtaPhase.Downloading && downloadStartMs == 0L) downloadStartMs = clock.nowMs()
@@ -325,7 +338,7 @@ class OtaTestViewModel(
         val strategy = currentStrategy
         val snapLog = runLog
         log("已手动中断") // 落盘要赶在移交前; 之后的善后行只进屏幕终端(runLog 已移交, 不与新一轮抢句柄)
-        runLog = null // 移交所有权给善后（start() 的 closeRunLog 不再碰它）
+        runLog = null // 移交所有权给善后(start() 的 closeRunLog 不再碰它)
         _state.update { it.copy(stopping = true) }
         appScope.launch {
             try {
@@ -343,6 +356,7 @@ class OtaTestViewModel(
                 snapLog?.close()
             } finally {
                 _state.update { it.copy(stopping = false) }
+                gate.release() // 善后完全结束才释放跨实例租约
             }
         }
     }
@@ -362,7 +376,7 @@ class OtaTestViewModel(
 
     /** 屏幕终端行 `[HHMMSS]`; 落盘行完整本机时间开头. TRANS 逐切片行只落盘(终端不刷屏, 屏上有进度条).  */
     private fun log(text: String) {
-        runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量，不受 300 行内存窗限制
+        runLog?.append("${formatFullStamp(clock.nowMs(), zone.offsetSeconds())} $text") // 落盘全量, 不受 300 行内存窗限制
         if (text.startsWith("· TRANS ")) return
         logLines.add("[${nowHms()}] $text")
         if (logLines.size > 300) logLines.removeRange(0, logLines.size - 300)

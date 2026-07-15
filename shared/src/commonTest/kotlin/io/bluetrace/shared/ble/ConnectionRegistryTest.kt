@@ -15,10 +15,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** 已连接登记: 扁平限额(DUT≤3 + 参考≤1, D-V4-3) + B2 事件驱动清退(linkState 断连自动移除)。 */
+/** 已连接登记: 扁平限额(DUT≤3 + 参考≤1, D-V4-3) + B2 事件驱动清退(linkState 断连自动移除).  */
 class ConnectionRegistryTest {
 
-    /** 只喂 linkState 的假客户端(登记表只依赖这一个成员)。 */
+    /** 只喂 linkState 的假客户端(登记表只依赖这一个成员).  */
     private class FakeLinkBleClient : BleClient {
         val links = HashMap<String, MutableStateFlow<LinkState>>()
         fun link(id: String): MutableStateFlow<LinkState> =

@@ -206,7 +206,7 @@ class MultiOtaControllerTest {
 
         ctl.startBatch(pkg())
         testScheduler.advanceTimeBy(1)
-        testScheduler.runCurrent() // 连接后读版本/电量中（READING，未进 FILE_TRANS）
+        testScheduler.runCurrent() // 连接后读版本/电量中(READING, 未进 FILE_TRANS)
         val mid = ctl.queue.value.single()
         assertTrue(mid.status in setOf(DeviceOtaStatus.CONNECTING, DeviceOtaStatus.READING), "应停在读取阶段: ${mid.status}")
 
@@ -278,5 +278,47 @@ class MultiOtaControllerTest {
         checkNotNull(retryJob) { "善后完成后 retry 应恢复可用" }
         retryJob.join()
         assertEquals(DeviceOtaStatus.DONE, ctl.queue.value.single().status)
+    }
+
+    /**
+     * app 级租约跨实例互斥: 实例 A 的停止善后(阻塞中)期间, **另一实例** B(共享同一
+     * OtaOperationGate, 模拟另一模式屏/退屏重进的新 VM)不得开始; A 善后完全结束后 B 可开始;
+     * B 自然结束后租约释放(第三次可再开始).
+     */
+    @Test
+    fun gate_sharedAcrossInstances_blocksWhileCleanup_releasesAfter() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val watchA = S7MockWatch(clock)
+        val bleA = FakeMultiBle(mapOf("a" to watchA), clock, backgroundScope)
+        val ctlA = MultiOtaController(
+            ble = bleA, registry = ConnectionRegistry(bleA, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        val watchB = S7MockWatch(clock).apply { otaRebootAfterComplete = true }
+        val bleB = FakeMultiBle(mapOf("b" to watchB), clock, backgroundScope)
+        val ctlB = MultiOtaController(
+            ble = bleB, registry = ConnectionRegistry(bleB, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        ctlA.addDevices(listOf(s7("a", "S7-A")))
+        ctlB.addDevices(listOf(s7("b", "S7-B")))
+
+        val jobA = checkNotNull(ctlA.startBatch(pkg()))
+        withTimeout(10_000) { ctlA.queue.first { q -> q.any { it.status != DeviceOtaStatus.QUEUED } } }
+        bleA.disconnectGate = kotlinx.coroutines.CompletableDeferred()
+        ctlA.stopBatch()
+        jobA.join()
+
+        // A 善后阻塞中(租约仍被 A 持有): B 开新一轮必须被拒
+        assertEquals(null, ctlB.startBatch(pkg()), "旧实例善后在飞时另一实例不得开始")
+
+        // A 善后完成 -> 租约释放 -> B 可开始并跑完; B 自然结束后租约再次可用
+        bleA.disconnectGate!!.complete(Unit)
+        withTimeout(10_000) { ctlA.stopping.first { !it } }
+        val jobB = checkNotNull(ctlB.startBatch(pkg())) { "善后结束后另一实例应可开始" }
+        jobB.join()
+        assertEquals(DeviceOtaStatus.DONE, ctlB.queue.value.single().status)
+        assertEquals(false, gate.busy.value, "自然结束应释放租约")
     }
 }

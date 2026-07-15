@@ -125,7 +125,7 @@ class DeviceScanViewModel(
         _status.value = ScanStatus.SCANNING
         _results.value = emptyList()
         timerJob = viewModelScope.launch {
-            delay(60_000) // 扫描 60s 自停（§5.3）
+            delay(60_000) // 扫描 60s 自停(§5.3)
             stopScan()
         }
         scanJob = viewModelScope.launch {

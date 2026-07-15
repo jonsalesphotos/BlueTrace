@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
  * 类型沿用 [S7DateTime]/[S7Person]/[S7Snapshot] 等——vendor 面本就是 S7 专属.
  *
  * 通用面(info/battery/timeSync/logs/power)承载通用操作; 本面补齐 S7 独有的富信息与操作:
- * SN/IMEI/ICCID、功能掩码、绑定态、设备时间、用户信息、找表、恢复出厂(电源面只有重启/关机)、
+ * SN/IMEI/ICCID, 功能掩码, 绑定态, 设备时间, 用户信息, 找表, 恢复出厂(电源面只有重启/关机),
  * 心跳/操作日志流. **均为 [S7Console] 的薄委托, 不改 S7Console 本体.**
  *
  * 失败一律经 [mapS7] 转 [io.bluetrace.shared.device.DeviceCommandException](与通用面同一异常类型),
