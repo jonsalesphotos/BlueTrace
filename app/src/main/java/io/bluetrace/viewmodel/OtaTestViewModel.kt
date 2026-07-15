@@ -120,9 +120,14 @@ class OtaTestViewModel(
     // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
     private var currentStrategy: S7FirmwareUpdateStrategy? = null
 
-    // 本轮租约槽(原子): 释放权唯一化——运行协程 finally / stop 善后 / onCleared 善后, 谁
-    // **CAS 赢得槽**谁负责 release, 且都发生在对应工作真正结束后(细节见 MultiOtaController.leaseSlot).
-    private val leaseSlot = MutableStateFlow<OtaOperationGate.Lease?>(null)
+    /** 一轮运行的善后所有权凭据(语义见 MultiOtaController.RunToken). */
+    private class RunToken(val lease: OtaOperationGate.Lease)
+
+    // 本轮所有权槽(原子): 仲裁**整个善后的执行权**——运行协程 finally / stop / onCleared 三方
+    // 谁 CAS 取走 token 谁才允许执行收尾(abort/disconnect)与释放租约, 败者直接退出.
+    // 只仲裁释放权不够: "中止并离开"= stop 后紧跟 onCleared, 败者照跑善后会双份 abort/disconnect;
+    // 自然结束赢家释放后, 陈旧 running 读进来的 stop 照跑善后会打断新实例(细节见 controller 同名槽).
+    private val runToken = MutableStateFlow<RunToken?>(null)
 
     // 本轮下载平均速度计时(onOtaPhase 回调驱动: 进 Downloading 记起点, 离开时结算).
     private var downloadStartMs = 0L
@@ -226,7 +231,8 @@ class OtaTestViewModel(
             log("已有 OTA 运行或停止善后在飞（另一模式/上次未完成），稍后再试")
             return
         }
-        leaseSlot.value = l
+        val token = RunToken(l)
+        runToken.value = token
         val pkgs = loadedPkgs.toList()
         val loop = pkgs.size == 2
         closeRunLog() // 上一次自然结束后未关的句柄
@@ -282,10 +288,12 @@ class OtaTestViewModel(
                 log("已自动断开：${device.name}")
             } finally {
                 _state.update { it.copy(running = false) }
-                if (isActive) closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关, 别在这抢先截断
-                // 释放权 = CAS 赢得租约槽(不看 isActive): stop/onCleared 若已移交善后, 此处必败
-                // 不释放(善后完全结束后由善后释放); 无人移交(纯自然结束)才由本协程释放
-                if (leaseSlot.compareAndSet(l, null)) gate.release(l)
+                // 善后所有权 = CAS 取走 token(不看 isActive): stop/onCleared 已取走则此处必败,
+                // 本协程直接退出(关日志与释放归接管方); 无人接管(纯自然结束)才由本协程收尾.
+                if (runToken.compareAndSet(token, null)) {
+                    closeRunLog()
+                    gate.release(token.lease)
+                }
             }
         }
     }
@@ -332,20 +340,21 @@ class OtaTestViewModel(
      * 红线在策略内; 善后结果日志经 onLog 回吐终端)→ 断开本地 GATT.
      * 善后跑 [appScope]——"中止并离开"会立刻销毁本 VM, viewModelScope 上发不出指令.
      *
-     * **运行代际防护**: 善后只操作**发起停止那一刻的快照**(job/strategy/runLog), 绝不回读可变成员——
-     * 旧善后跑在 app scope 上, 快速重新开始时成员已指向新一轮, 误读会 abort 新策略/关新日志.
+     * **善后所有权仲裁**: CAS 取走 [runToken] 败(运行已自然收尾/onCleared 已接管)则**直接退出**,
+     * 一个动作都不做——照跑善后会与赢家并发重复 abort/disconnect, 或在自然结束+新实例已开始后
+     * 打断新实例的连接. 赢家的善后只操作**发起停止那一刻的快照**, 绝不回读可变成员.
      * 另以 [OtaTestUiState.stopping] 关死开始入口, 善后完成前禁止新一轮.
      */
     fun stop() {
         val st = _state.value
         if (!st.running || st.stopping) return
+        // 仲裁善后执行权: 败 = 无事可做(赢家会完成收尾)
+        val token = runToken.value?.takeIf { runToken.compareAndSet(it, null) } ?: return
         // 快照本轮身份: 善后全程只用这些局部值
         val device = st.device
         val job = runJob
         val strategy = currentStrategy
         val snapLog = runLog
-        // 移交租约 = CAS 赢得槽(赢家负责在善后完全结束后释放); 输=运行协程已自然释放
-        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         log("已手动中断") // 落盘要赶在移交前; 之后的善后行只进屏幕终端(runLog 已移交, 不与新一轮抢句柄)
         runLog = null // 移交所有权给善后(start() 的 closeRunLog 不再碰它)
         _state.update { it.copy(stopping = true) }
@@ -365,7 +374,7 @@ class OtaTestViewModel(
                 snapLog?.close()
             } finally {
                 _state.update { it.copy(stopping = false) }
-                l?.let { gate.release(it) } // 善后完全结束才释放; token 保证清不掉别人的租约
+                gate.release(token.lease) // 善后完全结束才释放(所有权已随 token 归本路径)
             }
         }
     }
@@ -405,18 +414,22 @@ class OtaTestViewModel(
         io.bluetrace.shared.util.epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds()).compact()
 
     /**
-     * 非 stop 路径的 VM 销毁(导航栈清理/系统回收). 若仍在运行: **完整善后**(取消收尾→策略
-     * abort→断开)后才释放租约——立即 release 会让新实例在旧协程仍在飞时开始并被其断链;
-     * 不做 abort 会让传输态设备挂着等固件看门狗. 善后跑 [appScope], 与 stop() 同款语义;
-     * 租约移交 CAS 赢槽(与运行协程 finally 互斥, 只有一方释放).
+     * 非 stop 路径的 VM 销毁(导航栈清理/系统回收). 善后执行权同样经 [runToken] 仲裁: CAS 败
+     * (运行已自然收尾 / stop 已接管——"中止并离开"= stop 后紧跟本回调)则**只关自己的日志句柄**,
+     * 不碰设备不碰租约. 赢家做**完整善后**(取消收尾→策略 abort→断开)后才释放租约; 善后跑
+     * [appScope], 与 stop() 同款语义.
      */
     override fun onCleared() {
+        val token = runToken.value?.takeIf { runToken.compareAndSet(it, null) }
+        if (token == null) {
+            closeRunLog() // 无所有权: 只收自己的句柄(stop 接管时 runLog 已移交为 null, 幂等)
+            return
+        }
         val job = runJob
         val strategy = currentStrategy
         val device = _state.value.device
-        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         closeRunLog()
-        if (job != null && job.isActive) {
+        if (job != null) {
             appScope.launch {
                 try {
                     job.cancelAndJoin()
@@ -431,11 +444,11 @@ class OtaTestViewModel(
                         registry.remove(device.id)
                     }
                 } finally {
-                    l?.let { gate.release(it) }
+                    gate.release(token.lease)
                 }
             }
         } else {
-            l?.let { gate.release(it) } // 没有在飞的运行: 槽里若有残留租约直接归还
+            gate.release(token.lease) // token 在而 job 无: 归还租约即可
         }
     }
 }

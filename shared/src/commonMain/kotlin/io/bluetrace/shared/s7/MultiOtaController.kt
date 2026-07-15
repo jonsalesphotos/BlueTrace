@@ -111,11 +111,17 @@ class MultiOtaController(
     // 串行编排下无并发访问; cancelAndJoin 屏障后读有 happens-before.
     private var currentStrategy: FirmwareUpdateStrategy? = null
 
-    // 本轮租约槽(原子): 释放权唯一化——运行协程 finally / stopBatch 善后 / close 善后, 谁
-    // **CAS 赢得槽**(compareAndSet(l, null))谁负责 release, 且都发生在对应工作真正结束后.
-    // 普通 var + isActive 判断有窗口: stop 在"主体已完成, finally 未调度"间隙移交时, finally
-    // 的 isActive=true 会抢先释放, 善后还在飞 gate 就空闲(别处 acquire 后被旧善后误伤).
-    private val leaseSlot = MutableStateFlow<io.bluetrace.shared.device.OtaOperationGate.Lease?>(null)
+    /**
+     * 一轮运行的**善后所有权凭据**: 恒非空对象(即便 gate=null 也有 token), [lease] 才可空——
+     * 不用可空 Lease 同时表达"无 gate"与"已失去所有权"两种语义.
+     */
+    private class RunToken(val lease: io.bluetrace.shared.device.OtaOperationGate.Lease?)
+
+    // 本轮所有权槽(原子): 仲裁的是**整个善后的执行权**, 不只是租约释放——运行协程 finally /
+    // stopBatch / close 三方谁 CAS 取走 token, 谁才允许执行收尾(标记/abort/disconnect)与释放
+    // 租约; CAS 败者**直接退出, 一个动作都不做**. 只仲裁释放权是不够的: 败者若照跑善后, 会与
+    // 赢家并发重复 abort/disconnect(非传输态重复发 CTRL_RESET), 或在新实例开始后打断其连接.
+    private val runToken = MutableStateFlow<RunToken?>(null)
 
     // ---- 队列增删(入队不连接)----
 
@@ -155,7 +161,8 @@ class MultiOtaController(
 
     /** 批量协程本体(调用方已持租约 [l]): startBatch/retry 的公共尾段. */
     private fun launchBatch(pkg: OtaPackage, l: io.bluetrace.shared.device.OtaOperationGate.Lease?): Job {
-        leaseSlot.value = l
+        val token = RunToken(l)
+        runToken.value = token
         val job = scope.launch {
             _running.value = true
             log("===== 开始批量升级 =====")
@@ -181,9 +188,11 @@ class MultiOtaController(
                 log("===== 结束：${summaryLine()} =====")
             } finally {
                 _running.value = false
-                // 释放权 = CAS 赢得租约槽(不看 isActive): stopBatch/close 若已移交善后, 此处
-                // CAS 必败不释放(善后完全结束后由善后释放); 无人移交(纯自然结束)才由本协程释放.
-                if (l != null && leaseSlot.compareAndSet(l, null)) gate?.release(l)
+                // 善后所有权 = CAS 取走 token(不看 isActive): stopBatch/close 已取走则此处必败,
+                // 本协程直接退出(收尾与释放归接管方); 无人接管(纯自然结束)才由本协程释放租约.
+                if (runToken.compareAndSet(token, null)) {
+                    token.lease?.let { gate?.release(it) }
+                }
             }
         }
         batchJob = job
@@ -201,10 +210,11 @@ class MultiOtaController(
      */
     fun stopBatch() {
         val job = batchJob ?: return
-        if (!job.isActive || _stopping.value) return
+        if (_stopping.value) return
+        // 仲裁善后执行权: CAS 败 = 运行已自然收尾(finally 取走)或 close 已接管——**直接退出,
+        // 一个动作都不做**(照跑善后会与赢家并发重复 abort/disconnect, 或打断新实例).
+        val token = runToken.value?.takeIf { runToken.compareAndSet(it, null) } ?: return
         val strategy = currentStrategy // 快照本轮身份
-        // 移交租约 = CAS 赢得槽(赢家负责在善后完全结束后释放); 输=运行协程已自然释放, 善后照跑但不管租约
-        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         _stopping.value = true
         abortScope.launch {
             try {
@@ -227,7 +237,7 @@ class MultiOtaController(
                 }
             } finally {
                 _stopping.value = false
-                l?.let { gate?.release(it) } // 善后完全结束才释放; token 保证清不掉别人的租约
+                token.lease?.let { gate?.release(it) } // 善后完全结束才释放(所有权已随 token 归本路径)
             }
         }
     }
@@ -392,16 +402,16 @@ class MultiOtaController(
     }
 
     /**
-     * 非 stop 路径的销毁(VM onCleared 等). 若批量仍在跑: **完整善后**(取消收尾→策略 abort→断开)
-     * 后才释放租约——立即 release 会让新实例在旧协程仍在飞时开始并被其断链; 立即取消不善后
-     * 会让传输态设备挂着等固件看门狗. 善后跑 [abortScope](比 VM 长寿), 与 stopBatch 同款语义;
-     * 租约移交同为 CAS 赢槽(与运行协程 finally 互斥, 只有一方释放).
+     * 非 stop 路径的销毁(VM onCleared 等). 善后执行权同样经 [runToken] 仲裁: CAS 败(运行已
+     * 自然收尾 / stopBatch 已接管)则**直接退出**——"中止并离开"= stopBatch 后紧跟 close, 无
+     * 仲裁会双善后并发重复 abort/disconnect. 赢家做**完整善后**(取消收尾→策略 abort→断开)
+     * 后才释放租约; 善后跑 [abortScope](比 VM 长寿), 与 stopBatch 同款语义.
      */
     fun close() {
+        val token = runToken.value?.takeIf { runToken.compareAndSet(it, null) } ?: return
         val job = batchJob
         val strategy = currentStrategy
-        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
-        if (job != null && job.isActive) {
+        if (job != null) {
             abortScope.launch {
                 try {
                     job.cancelAndJoin()
@@ -416,11 +426,11 @@ class MultiOtaController(
                         }
                     }
                 } finally {
-                    l?.let { gate?.release(it) }
+                    token.lease?.let { gate?.release(it) }
                 }
             }
         } else {
-            l?.let { gate?.release(it) } // 没有在飞的批量: 槽里若还有残留租约直接归还
+            token.lease?.let { gate?.release(it) } // token 在而 job 无: 归还租约即可
         }
     }
 

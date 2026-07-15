@@ -56,9 +56,14 @@ class MultiOtaControllerTest {
         /** 非空时 disconnect 挂起等放行: 拉长停止善后窗口, 测 stopping 门竞态用. */
         var disconnectGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
+        /** disconnect 调用计数: 断言善后唯一性(双路径并发善后会重复断开)用. */
+        var disconnectCount = 0
+            private set
+
         override fun scan(): Flow<List<ScannedDevice>> = emptyFlow()
         override suspend fun connect(device: ScannedDevice, spec: GattSpec?) { links.getValue(device.id).value = LinkState.CONNECTED }
         override suspend fun disconnect(deviceId: String) {
+            disconnectCount++
             disconnectGate?.await()
             links.getValue(deviceId).value = LinkState.DISCONNECTED
         }
@@ -381,5 +386,67 @@ class MultiOtaControllerTest {
         ble.disconnectGate!!.complete(Unit)
         withTimeout(10_000) { gate.owner.first { it == null } }
         assertEquals(false, gate.busy, "close 善后完全结束后必须释放租约")
+    }
+
+    /**
+     * 善后执行权唯一("中止并离开"= stopBatch 后紧跟 close): token 仲裁下 close 必败退出,
+     * 不得双善后——断言重启指令(CTRL_RESET)与断开各仅一次, 租约最终释放.
+     */
+    @Test
+    fun stopThenClose_singleCleanup_noDuplicateAbortOrDisconnect() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val watch = S7MockWatch(clock)
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = MultiOtaController(
+            ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+        val job = checkNotNull(ctl.startBatch(pkg()))
+        withTimeout(10_000) { ctl.queue.first { q -> q.any { it.status != DeviceOtaStatus.QUEUED } } }
+
+        ctl.stopBatch() // 赢家
+        ctl.close() // "中止并离开"路径: token 已被 stopBatch 取走, 必须直接退出
+        job.join()
+        withTimeout(10_000) { gate.owner.first { it == null } } // 等 stop 善后完全结束
+
+        val resets = ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET }
+        assertTrue(resets <= 1, "双善后会重复发 CTRL_RESET: 实发 $resets 次")
+        assertTrue(ble.disconnectCount <= 1, "双善后会重复断开: 实发 ${ble.disconnectCount} 次")
+        assertEquals(false, gate.busy)
+    }
+
+    /** 自然结束(finally 赢 token)后调 stopBatch: 旧路径必败退出, 不得再操作设备/租约. */
+    @Test
+    fun stopAfterNaturalFinish_doesNothing() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val watch = S7MockWatch(clock).apply { otaRebootAfterComplete = true }
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = MultiOtaController(
+            ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+        checkNotNull(ctl.startBatch(pkg())).join() // 跑到自然结束(token 被 finally 取走并释放)
+        assertEquals(DeviceOtaStatus.DONE, ctl.queue.value.single().status)
+        assertEquals(false, gate.busy)
+        val disconnectsBefore = ble.disconnectCount
+        val resetsBefore = ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET }
+
+        // 另一实例(模拟)取得租约后, 陈旧的 stopBatch 进来: token 已空必败, 不得动设备
+        val foreign = checkNotNull(gate.tryAcquire())
+        ctl.stopBatch()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(disconnectsBefore, ble.disconnectCount, "败者不得再断开设备")
+        assertEquals(
+            resetsBefore,
+            ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
+            "败者不得再发重启指令",
+        )
+        assertEquals(foreign, gate.owner.value, "败者不得动别人的租约")
+        gate.release(foreign)
     }
 }
