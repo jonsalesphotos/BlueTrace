@@ -6,6 +6,14 @@
 
 ---
 
+## [OTA·设计] #27 通用 OTA 分派：耦合面测绘 + 分阶段设计稿 — 📐 2026-07-15（待拍板）
+分支 `task/27-generic-ota-design`，自基线 tag 开出。**本轮只出设计不落码**（范围比初估大，直接改两个 VM 不妥）。设计=[`设计/通用OTA分派_设计.{md,html}`](设计/通用OTA分派_设计.md)（1 图）。
+- **耦合面测绘（subagent 只读测绘 + 主线核实）**：耦合分三层，难度天差地别——① **纯类型皮**（好换）：两 VM 的 `import ...s7.*`、直接 `new S7FirmwareUpdateStrategy/S7Console`、`OtaToolSupport` 锚具体类型；② **缺口**（要新建抽象）：**包加载器根本没有框架位置**——`OtaZipLoader` 在 `:app`、硬编码 S7 zip 格式与 `S7FileTrans.FT_FW`、Koin 单例、两 VM 编译期直调，`DeviceProfile` 三分面里唯独没有"包怎么来"；ZX 连 loader 都不存在（`ZxPackage()` 只在测试里手搓，KDoc"由本协议 loader 产出"是空头承诺）；③ **语义级假设**（最难且未必该通用化）：`MultiOtaController` 流程骨架就是照 S7 写的——电量门槛（`lowBatteryPct`+短命 `S7Console`）、独立 `READING` 状态、**"升级后同一 BLE id 复读电量"**（`:341-342`，对"升级后切 Bootloader 服务/换地址"的协议会读错设备，属排队引擎**结构级**假设）。
+- **新发现的债：通用工厂签名本身已被 S7 污染** —— `FirmwareUpdateFactory.create` 的 `reconnectScanMs`（"自复位后扫描回连"）是 S7 私有假设，`ZxFirmwareUpdateFactory` KDoc 明说该参数连同 `scope/clock/zone/abortScope/onLog` **全部未使用**。W4 已经做对过一次（把 `onOtaPhase/onOtaProgress` 排除在通用工厂外、改具体策略构造点注入），`reconnectScanMs` 是同类东西却漏了进来。**D-1 决策**：`reconnectScanMs` 下沉为 S7 私有构造参数（由 S7DeviceProfile 从 EngineeringConfig 取）；`abortScope` **保留**（"善后跑在调用方生命周期外"是真跨协议需求，ZX 不用属合理的可选不使用）。
+- **拆 #27A / #27B**：**#27A = 单设备通用化（含契约）**——D-2 **包加载分两层**（`:app` 侧协议中立的 `RawPackageReader`：URI→`List<RawFwEntry>` 只解容器；协议侧 `FwPackageLoader` 只解语义，`OtaPackageValidator` 整段搬入 S7 loader 逻辑零改动；loader 挂 `FirmwareUpdateFactory` 而非 DeviceProfile——无升级面即无包，内聚更好）/ D-3 UI 只认 `FwUpdateProgress` 粗五阶段，**"扫描回连"等 S7 细文案走现成的 `detail` 通道**，两屏重复的 `OtaPhase.label()` 合一 / D-4 中止文案按能力说话（S7"发重启指令" vs ZX 空操作）/ **D-5 判定放开 `firmwareUpdate != null` 必须最后做**（提前放开 = ZX 入队被灌 B2A，正是 Codex 一轮发现②）。**#27B = 批量，先评估不预设通用化**，三选一倾向**②"正名 + 边界固化"**（`MultiOtaController` → `S7MultiOtaController`、多设备屏保持 PROFILE_S7 收紧、把"批量 OTA 是 S7 工具"写成显式设计约束）——理由：DEBUG 工具屏、手头只有 S7 真设备、通用化收益未被真实需求验证；**W6 判据本就是"新增协议=一个包+一行注册"，没承诺"每个 DEBUG 工具都通用"**。注：租约 `OtaOperationGate` 与七轮收口的停止/善后模型**协议中立**，无论 #27B 选哪条都留在通用层。
+- **#27A 验收判据**：ZX 走通单设备 OTA **全程零 S7 指令（帧捕获断言**，仿 W4"传输中 abort 不发 RESET"写法）/ 单设备链路 `import ...s7.*` 清零 / S7 行为零变化 / 新增协议接入 OTA = 协议包内加 loader + 工厂挂上、**屏与 VM 零改动**。
+- **Open Questions（待拍板）**：#27B 走哪条（倾向②）；`RawPackageReader` 非 zip 分支是否现在就要（倾向接口留位、实现先 zip + 单文件兜底）；`FirmwareUpdateStrategy.abortHint` 是否值得动通用接口（替代=文案一律中性、S7 细节移进 detail/日志）。
+
 ## [BLE·Nordic·抽象层] D2 裁决恢复：Nordic 双库真机闭环 + 设备抽象层 W1–W6 全过闸（判据达成）+ OTA 屏 UI 一轮 — ✅ 2026-07-14/15
 - **Codex 独立复核 + 修复一轮（2026-07-15，`5687737` 提交后 GPT 全 diff 复核：0 P0 / 6 P1 / 4 P2，全部核实为真并修复；修后 206 tests/0 failures）**：
   ① **连接入口带 gattSpec**——ConsoleConnect/DeviceScan 连接改 `connect(device, catalog.identify(device)?.gattSpec)`（识别过的协议走声明式通道，未识别保留探测兜底；此前 UI 判"支持"、连接却只认 B2A/HRS 探测，新协议必连不上，Mock 忽略 spec 掩盖了问题）；
