@@ -29,6 +29,7 @@ import io.bluetrace.shared.s7.toS7Person
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.epochMsToLocalParts
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -146,6 +147,11 @@ class DeviceConsoleViewModel(
     private var vendorS7: S7VendorOps? = null
     private var attachJob: Job? = null
 
+    // 附着代际：teardown 递增。在飞 op 的取消是异步的（cancel 只打标记），其 catch/finally 在
+    // 切换到新设备后仍会执行——所有跨挂起点的状态回写（busy/error/toast/danger）都必须校验
+    // 发起时代际，防旧设备协程清掉新设备的在飞状态（切 A→B 时 A 的 finally 清 B 的 busy）。
+    private var attachGen = 0
+
     /** 在飞操作作用域：随 attach 重建——设备切换/断开时取消全部在飞 op，防旧协程污染新状态。 */
     private var opsScope: CoroutineScope = newOpsScope()
 
@@ -216,6 +222,7 @@ class DeviceConsoleViewModel(
 
     /** 取消当前附着的协程与在飞 op，清控制面引用（不动黏附的 _state 显示）。 */
     private fun teardownAttachment() {
+        attachGen++
         attachJob?.cancel()
         attachJob = null
         opsScope.cancel()
@@ -278,19 +285,25 @@ class DeviceConsoleViewModel(
         }
     }
 
-    /** 串行动作壳：busy 互斥 + 错误落 state + 失败 toast。跑在 opsScope（随 attach 取消）。 */
+    /**
+     * 串行动作壳：busy 互斥 + 错误落 state + 失败 toast。跑在 opsScope（随 attach 取消）。
+     * 状态回写全部校验发起时代际（[attachGen]）：切换设备后旧协程的 catch/finally 不得触碰新附着的状态。
+     */
     private fun op(label: String, block: suspend () -> Unit) {
         if (control == null) return
         if (_state.value.busy != null) return
+        val gen = attachGen
         opsScope.launch {
             _state.update { it.copy(busy = label, error = null) }
             try {
                 block()
             } catch (e: DeviceCommandException) {
-                _state.update { it.copy(error = failureText(e.failure)) }
-                _toasts.tryEmit(ConsoleToast.Failed(failureText(e.failure)))
+                if (gen == attachGen) {
+                    _state.update { it.copy(error = failureText(e.failure)) }
+                    _toasts.tryEmit(ConsoleToast.Failed(failureText(e.failure)))
+                }
             } finally {
-                _state.update { it.copy(busy = null) }
+                if (gen == attachGen) _state.update { it.copy(busy = null) }
             }
         }
     }
@@ -474,6 +487,7 @@ class DeviceConsoleViewModel(
             _state.update { it.copy(danger = DangerState.Done(false)) }
             return
         }
+        val gen = attachGen
         opsScope.launch {
             _state.update { it.copy(busy = "power", danger = DangerState.Waiting(labelKey), error = null) }
             val ok = try {
@@ -482,13 +496,15 @@ class DeviceConsoleViewModel(
                     DangerAction.POWER_OFF -> control?.power?.powerOff() ?: false
                     DangerAction.RESTORE -> vendorS7?.restore() ?: false
                 }
+            } catch (c: CancellationException) {
+                throw c // 取消（切换设备/退屏）：不写终态，交给代际校验后的收尾
             } catch (e: Exception) {
                 // 命令面可能抛（如 GATT 异常）：danger 必须到达 Done，否则 Waiting 对话框永久卡死
                 false
             } finally {
-                _state.update { it.copy(busy = null) }
+                if (gen == attachGen) _state.update { it.copy(busy = null) }
             }
-            _state.update { it.copy(danger = DangerState.Done(ok)) }
+            if (gen == attachGen) _state.update { it.copy(danger = DangerState.Done(ok)) }
         }
     }
 

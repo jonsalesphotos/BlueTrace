@@ -205,6 +205,7 @@ val appModule = module {
         io.bluetrace.viewmodel.OtaTestViewModel(
             ble = get(),
             registry = get(),
+            catalog = get(),
             clock = get(),
             zone = get(),
             zipLoader = get(),

@@ -5,6 +5,7 @@ import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,7 +67,16 @@ class DeviceSessionManager(
             return@withLock null
         }
 
-        val control = profile.controlPlane?.create(ble, device.id, scope, clock, zone)
+        // 控制面构造失败(工厂抛异常/协程取消)不得遗留已建立的连接: 断开后再传播/返回.
+        val control = try {
+            profile.controlPlane?.create(ble, device.id, scope, clock, zone)
+        } catch (c: CancellationException) {
+            runCatching { ble.disconnect(device.id) }
+            throw c
+        } catch (e: Exception) {
+            ble.disconnect(device.id)
+            return@withLock null
+        }
         val session = DeviceSession(device.id, profile, control)
         sessions[device.id] = session
         session
@@ -88,7 +98,11 @@ class DeviceSessionManager(
      */
     suspend fun release(deviceId: String): Unit = mutex.withLock {
         val session = sessions.remove(deviceId) ?: return@withLock
-        ble.disconnect(deviceId)
-        session.control?.close()
+        try {
+            ble.disconnect(deviceId)
+        } finally {
+            // 缓存已移除: 即便断开抛异常/被取消, 控制面也必须关掉(否则 S7 会话协程泄漏且无人再持有)
+            session.control?.close()
+        }
     }
 }

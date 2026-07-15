@@ -10,9 +10,11 @@ import io.bluetrace.data.android.OtaRunLogStore
 import io.bluetrace.data.android.OtaZipLoader
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
+import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.device.FwUpdateResult
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
+import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.s7.OtaPackage
 import io.bluetrace.shared.s7.OtaPhase
@@ -54,6 +56,8 @@ data class OtaTestUiState(
     /** 已添加的包（0/1/2）；1=单次，2=A→B 循环。 */
     val packages: List<OtaPkgItem> = emptyList(),
     val running: Boolean = false,
+    /** 手动停止的善后进行中(取消旧运行/设备善后/断开): 期间禁止重新开始, 防旧善后误伤新一轮。 */
+    val stopping: Boolean = false,
     val currentIteration: Int = 0,
     val currentPkgIdx: Int = 0,
     val phase: OtaPhase? = null,
@@ -69,7 +73,7 @@ data class OtaTestUiState(
     val connected: Boolean get() = device != null && link == LinkState.CONNECTED
     /** 2 包 → A→B 循环升级（重复到手动中断）。 */
     val loopMode: Boolean get() = packages.size == 2
-    val canStart: Boolean get() = packages.isNotEmpty() && connected && !running
+    val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping
     val canAdd: Boolean get() = packages.size < 2 && !running
     val canReconnect: Boolean get() = device != null && !connected && link != LinkState.CONNECTING && !running
     val canDisconnect: Boolean get() = connected && !running
@@ -89,6 +93,7 @@ data class OtaTestUiState(
 class OtaTestViewModel(
     private val ble: BleClient,
     private val registry: ConnectionRegistry,
+    private val catalog: DeviceProfileCatalog,
     private val clock: EpochClock,
     private val zone: TimeZoneProvider,
     private val zipLoader: OtaZipLoader,
@@ -120,7 +125,9 @@ class OtaTestViewModel(
         viewModelScope.launch {
             registry.connected.collect { list ->
                 if (_state.value.running) return@collect
-                val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE }
+                // 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console): 只跟踪识别为 S7 的设备——
+                // 异构协议设备(如 ZX)被灌 S7 REQ 只会超时, 通用 OTA 分派属后续任务。
+                val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.identify(it)?.profileId == PROFILE_S7 }
                 // 黏性：出现新设备才切换；断联(target=null)保留旧设备，链路由 linkJob 更新为 DISCONNECTED
                 if (target != null && target.id != _state.value.device?.id) trackDevice(target)
             }
@@ -304,20 +311,39 @@ class OtaTestViewModel(
      * 手动停止：取消运行 → 设备善后（转发 [S7FirmwareUpdateStrategy.abort]，传输态门控/永不 STOP
      * 红线在策略内；善后结果日志经 onLog 回吐终端）→ 断开本地 GATT。
      * 善后跑 [appScope]——"中止并离开"会立刻销毁本 VM，viewModelScope 上发不出指令。
+     *
+     * **运行代际防护**：善后只操作**发起停止那一刻的快照**（job/strategy/runLog），绝不回读可变成员——
+     * 旧善后跑在 app scope 上，快速重新开始时成员已指向新一轮，误读会 abort 新策略/关新日志。
+     * 另以 [OtaTestUiState.stopping] 关死开始入口，善后完成前禁止新一轮。
      */
     fun stop() {
-        if (!_state.value.running) return
-        val device = _state.value.device
+        val st = _state.value
+        if (!st.running || st.stopping) return
+        // 快照本轮身份：善后全程只用这些局部值
+        val device = st.device
         val job = runJob
-        log("已手动中断")
+        val strategy = currentStrategy
+        val snapLog = runLog
+        log("已手动中断") // 落盘要赶在移交前; 之后的善后行只进屏幕终端(runLog 已移交, 不与新一轮抢句柄)
+        runLog = null // 移交所有权给善后（start() 的 closeRunLog 不再碰它）
+        _state.update { it.copy(stopping = true) }
         appScope.launch {
-            job?.cancelAndJoin()
-            currentStrategy?.abort()
-            if (device != null) {
-                runCatching { ble.disconnect(device.id) }
-                registry.remove(device.id)
+            try {
+                job?.cancelAndJoin()
+                strategy?.abort()
+                if (device != null) {
+                    try {
+                        ble.disconnect(device.id)
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (_: Exception) {
+                    }
+                    registry.remove(device.id)
+                }
+                snapLog?.close()
+            } finally {
+                _state.update { it.copy(stopping = false) }
             }
-            closeRunLog()
         }
     }
 

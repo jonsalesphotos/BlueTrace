@@ -56,13 +56,22 @@ private val configJson = Json {
     encodeDefaults = true // 默认值也写盘，落地文件即完整可改清单
 }
 
-/** 解析失败（含空串/坏 JSON）返回 null，调用方回默认配置。 */
+/** 解析失败（含空串/坏 JSON）返回 null，调用方回默认配置。合法 JSON 的越界值钳回安全域。 */
 fun parseEngineeringConfig(text: String): EngineeringConfig? = try {
-    configJson.decodeFromString<EngineeringConfig>(text)
+    configJson.decodeFromString<EngineeringConfig>(text).sanitized()
 } catch (e: SerializationException) {
     null
 } catch (e: IllegalArgumentException) {
     null
 }
+
+/**
+ * 越界值钳制(手改 JSON 的防呆): 负电量门槛=关死低电保护、>100=跳过所有设备、负保留天数会让
+ * 日志清理 drop() 抛异常——统一钳回安全域。回连预算的 60s 下限已在 [OtaConfig.reconnectScanMs] 钳制。
+ */
+private fun EngineeringConfig.sanitized(): EngineeringConfig = copy(
+    ota = ota.copy(lowBatteryPct = ota.lowBatteryPct.coerceIn(0, 100)),
+    log = log.copy(appRetainDays = log.appRetainDays.coerceAtLeast(0)),
+)
 
 fun EngineeringConfig.toJsonText(): String = configJson.encodeToString(this)

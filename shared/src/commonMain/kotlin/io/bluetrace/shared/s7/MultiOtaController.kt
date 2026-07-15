@@ -89,6 +89,10 @@ class MultiOtaController(
     private val _running = MutableStateFlow(false)
     val running: StateFlow<Boolean> = _running
 
+    // 手动停止的善后进行中(取消/标记/策略 abort/断开): 期间禁止 startBatch/retry——
+    // 旧善后跑在 abortScope 上, 无门槛时快速重启会让它误伤新一轮(abort 新策略/标错新队列项).
+    private val _stopping = MutableStateFlow(false)
+
     private val _opLog = MutableSharedFlow<String>(replay = 64, extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val opLog: SharedFlow<String> = _opLog
 
@@ -127,7 +131,7 @@ class MultiOtaController(
 
     /** 启动串行批量；返回批量 Job（可 join 观测完成，测试/调用方用）；不满足条件返回 null。 */
     fun startBatch(pkg: OtaPackage): Job? {
-        if (_running.value) return null
+        if (_running.value || _stopping.value) return null
         if (_queue.value.none { it.status == DeviceOtaStatus.QUEUED }) return null
         val job = scope.launch {
             _running.value = true
@@ -158,21 +162,39 @@ class MultiOtaController(
     /**
      * 手动停止批量：取消 → 当前通信中的台子标"手动停止"（可重试）→ 转发 [S7FirmwareUpdateStrategy.abort]
      * （传输态门控/永不 STOP 红线在策略内；链路仍在且非传输态则发 CTRL_RESET 复位回干净状态）→ 断开清退。
-     * 善后跑 [abortScope]（退屏也能发完）；策略在 processDevice 开始即建、cancelAndJoin 后仍可达。
+     * 善后跑 [abortScope]（退屏也能发完）。
+     *
+     * **运行代际防护**：策略在发起停止那一刻**快照**为局部值，善后绝不回读可变成员；
+     * [_stopping] 关死 startBatch/retry 入口, 善后完成前新一轮起不来——二者合力保证
+     * 旧善后不可能 abort 新策略/标错新队列项/断开新一轮设备。
      */
     fun stopBatch() {
         val job = batchJob ?: return
-        if (!job.isActive) return
+        if (!job.isActive || _stopping.value) return
+        val strategy = currentStrategy // 快照本轮身份
+        _stopping.value = true
         abortScope.launch {
-            job.cancelAndJoin()
-            log("已停止批量")
-            // 取消发生在流程中段时，当前台停在 CONNECTING/READING/FLASHING（= 不可删项）
-            val active = _queue.value.firstOrNull { !it.removable } ?: return@launch
-            val id = active.device.id
-            updateItem(id) { it.copy(status = DeviceOtaStatus.FAILED, failReason = "手动停止", phase = null, progress = null) }
-            // 传输态门控(是否吞重启指令)由策略内部 otaTransferActive 自持；善后结果经 onLog=log 回吐终端。
-            currentStrategy?.abort()
-            runCatching { disconnect(id) }
+            try {
+                job.cancelAndJoin()
+                log("已停止批量")
+                // 取消发生在流程中段时，当前台停在 CONNECTING/READING/FLASHING（= 不可删项）;
+                // stopping 门下队列不会被新一轮改写, 此读仍属本轮.
+                val active = _queue.value.firstOrNull { !it.removable }
+                if (active != null) {
+                    val id = active.device.id
+                    updateItem(id) { it.copy(status = DeviceOtaStatus.FAILED, failReason = "手动停止", phase = null, progress = null) }
+                    // 传输态门控(是否吞重启指令)由策略内部 otaTransferActive 自持；善后结果经 onLog=log 回吐终端。
+                    strategy?.abort()
+                    try {
+                        disconnect(id)
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (_: Exception) {
+                    }
+                }
+            } finally {
+                _stopping.value = false
+            }
         }
     }
 

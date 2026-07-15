@@ -161,8 +161,10 @@ class DeviceScanViewModel(
             if (!registry.canConnect(device.kind)) return
             observeLink(device.id)
             viewModelScope.launch {
-                // 先连后入册：真实 BLE 连接可失败/超时，失败不得留下幽灵「已连接」条目
-                bleClient.connect(device)
+                // 先连后入册：真实 BLE 连接可失败/超时，失败不得留下幽灵「已连接」条目。
+                // 识别到档案则走其 gattSpec 声明式通道（新协议只认 spec，探测只认 B2A/HRS）；
+                // 未识别设备保留探测兜底（spec=null）。
+                bleClient.connect(device, catalog.identify(device)?.gattSpec)
                 if (bleClient.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
             }
         }

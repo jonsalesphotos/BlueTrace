@@ -135,7 +135,9 @@ class DeviceLogStore(private val context: Context) {
         val resolver = context.contentResolver
         val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME)
         val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
-        val args = arrayOf("$legacyPublicDir%")
+        // RELATIVE_PATH 存储值恒以 '/' 结尾: 前缀补尾斜杠做精确目录匹配, 否则 logs% 会误命中
+        // logs-backup/ 等同前缀兄弟目录
+        val args = arrayOf("$legacyPublicDir/%")
         val hits = mutableListOf<Pair<Long, String>>()
         resolver.query(collection, projection, selection, args, null)?.use { c ->
             val idi = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
@@ -146,14 +148,18 @@ class DeviceLogStore(private val context: Context) {
         for ((id, name) in hits) {
             val uri = ContentUris.withAppendedId(collection, id)
             val destRel = if (name.startsWith("s7_devlog")) relPath else PublicTree.relPath(PublicTree.LOG_APP)
-            try {
+            // 改 RELATIVE_PATH 失败或影响 0 行（ROM 差异/非本 app 行）→ 回退复制+删除；再失败则留在原地下次重试
+            val moved = try {
                 val v = ContentValues().apply { put(MediaStore.Downloads.RELATIVE_PATH, destRel) }
-                resolver.update(uri, v, null, null)
+                resolver.update(uri, v, null, null) > 0
             } catch (e: Exception) {
-                // 改 RELATIVE_PATH 失败（ROM 差异 / 非本 app 行）→ 回退复制+删除；再失败则留在原地下次重试
+                false
+            }
+            if (!moved) {
                 try {
                     val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: run { failed++; continue }
-                    if (writeToDownloads(name, bytes, destRel) != null) resolver.delete(uri, null, null) else failed++
+                    // delete 影响 0 行=旧件残留: 计 failed 让空目录清理不执行, 下次启动重试
+                    if (writeToDownloads(name, bytes, destRel) != null && resolver.delete(uri, null, null) > 0) Unit else failed++
                 } catch (e2: Exception) {
                     failed++ // 留在旧目录，不阻塞列举
                 }

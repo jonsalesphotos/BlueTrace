@@ -142,7 +142,9 @@ class ConsoleConnectViewModel(
                     registry.remove(device.id)
                 } else {
                     observeLink(device.id)
-                    ble.connect(device)
+                    // 识别到档案则走其 gattSpec 声明式通道（新协议只认 spec，探测只认 B2A/HRS）；
+                    // 未识别设备保留探测兜底（spec=null）。
+                    ble.connect(device, catalog.identify(device)?.gattSpec)
                     if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
                 }
             } finally {

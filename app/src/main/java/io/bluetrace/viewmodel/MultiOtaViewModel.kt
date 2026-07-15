@@ -12,6 +12,7 @@ import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.DeviceKind
+import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.s7.DeviceOtaItem
 import io.bluetrace.shared.s7.DeviceOtaStatus
@@ -117,8 +118,10 @@ class MultiOtaViewModel(
                 .map { d ->
                     ScanRow(
                         device = d,
-                        // 支持 OTA = 识别到的档案有固件升级面(S7 有; 参考带/纯数据设备无).
-                        supported = catalog.identify(d)?.firmwareUpdate != null,
+                        // 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console 读版本电量), 只放行 S7——
+                        // 泛化到 firmwareUpdate != null 会让异构协议设备(如 ZX)入队后被灌 S7 命令.
+                        // 通用 OTA 需连同包 loader/策略工厂/进度一起按 profile 分派, 属后续任务.
+                        supported = catalog.identify(d)?.profileId == PROFILE_S7,
                         inQueue = d.id in queueIds,
                         selected = d.id in selected,
                     )

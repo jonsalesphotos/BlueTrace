@@ -7,6 +7,15 @@
 ---
 
 ## [BLE·Nordic·抽象层] D2 裁决恢复：Nordic 双库真机闭环 + 设备抽象层 W1–W6 全过闸（判据达成）+ OTA 屏 UI 一轮 — ✅ 2026-07-14/15
+- **Codex 独立复核 + 修复一轮（2026-07-15，`5687737` 提交后 GPT 全 diff 复核：0 P0 / 6 P1 / 4 P2，全部核实为真并修复；修后 206 tests/0 failures）**：
+  ① **连接入口带 gattSpec**——ConsoleConnect/DeviceScan 连接改 `connect(device, catalog.identify(device)?.gattSpec)`（识别过的协议走声明式通道，未识别保留探测兜底；此前 UI 判"支持"、连接却只认 B2A/HRS 探测，新协议必连不上，Mock 忽略 spec 掩盖了问题）；
+  ② **OTA 两屏过滤收紧 PROFILE_S7**——单/多设备 OTA 屏是 S7 专属工具（S7 zip loader/策略/Console），W5 泛化到 `firmwareUpdate != null` 会让异构设备（ZX）入队后被灌 S7 命令；通用 OTA 分派（loader/策略/进度按 profile）另立后续任务；
+  ③ **spec 通道全量契约**——两真实 client 的 spec 路径改"声明即必须存在"：缺写特征/缺任一 notify 直接连接失败 teardown（此前静默降级=写丢弃/丢一路数据）；
+  ④ **Nordic 多 notify 全就绪**——全部声明特征 CCC 使能才置 CONNECTED、任一路失败整体失败（此前只等首路，W1.5 审查意见①遗留项闭环）；
+  ⑤ **OTA 停止运行代际防护**——OtaTestViewModel.stop/MultiOtaController.stopBatch 改"发起时快照 job/strategy/runLog + stopping 门关死重启入口"（此前旧善后跑 app scope 回读可变成员，快速重启会 abort 新策略/关新日志/标错新队列项）；
+  ⑥ **控制台附着代际防护**——DeviceConsoleViewModel op/sendDanger 状态回写校验 attachGen（W5 重写时丢了旧实现的 console identity 保护：切 A→B 时 A 的取消 finally 会清 B 的 busy）；
+  P2：会话宿主异常安全（controlPlane.create 抛异常不遗留连接/release 断开失败仍 close 控制面）、工程配置越界钳制（lowBatteryPct 0..100/appRetainDays≥0，防关死低电保护）、3 处 runCatching 改 CE 重抛、DeviceLogStore 迁移 LIKE 补尾斜杠+影响行数检查；nit：5 个 app 新文件注释全角→半角机械清理（145 行，字符串文案未动）。
+  **未发现回归的维度（Codex 对照红线核验）**：写流控（含对 beta03 jar 的实现核验）、OTA 中止门控/永不 STOP、回连扫描优先+60s 钳制、停止善后 scope。
 - **用户拍板（笔记 #9 关闭）**：Android 主用 **Kotlin-BLE-Library**、iOS 用 **IOS-BLE-Library**——D2 恢复并扩展，架构优化线"续用自写"翻案建议作废。联网核实：Kotlin-BLE 2.0.0-beta03（2026-07-02，1.x 已停更，beta 但 API 冻结意向）；IOS-BLE 0.4.3。**两库是平台库非 KMP**——跨平台统一层 = 自有 `BleClient`+`GattSpec` 契约。切换方案（评估/映射表/必验清单）：[`设计/BLE库切换_Nordic评估.{md,html}`](设计/BLE库切换_Nordic评估.md)——**并存双实现 + DEBUG 三向开关 + 真机 A/B 等价闸门**（W1.5/W1.6 插入波次；重点=17 帧切片写流控语义、连接取消清理、24MB OTA 吞吐对照 ~51.7KB/s 基线），过闸 Nordic 转默认、自写降回退。
 - **抽象层 W1（BLE 通道抽象）过闸 ✅（opus 执行 + 主线审查）**：`GattSpec`（服务/多 Notify/写特征/写类型声明式）+ `BleClient.connect(spec)/write(char16)` 默认参数向后兼容；`AndroidBleClient` GattSpec 路径纯加法（CCC **串行订阅状态机**）、真机坑（写流控/取消清理/MTU 时序）逐字未动、通知补填 `characteristicId`（16bit 短码）；Mock 分路（S7 命令面=FFE2/数据面=null）。= 架构优化 P0 特征透传落地。验收 156 tests/0 failures 主线复跑。**审查发现（W2 必修）**：解码侧 profile 通道注册 128bit 全串 vs BLE 层 16bit 短码——`DeviceParserHost.parse` 的按通道分流**从不命中、全靠单通道 single 兜底**掩盖，多通道协议接入前必须统一短码口径。
 - 执行模式沉淀：每波 subagent 落码（重构=opus/机械=sonnet）+ 主线审查闸门（diff 审读/验收复跑/对照设计/风格红线），波次状态与审查记录 = [`context/设备指令抽象层_执行笔记.md`](context/设备指令抽象层_执行笔记.md)。

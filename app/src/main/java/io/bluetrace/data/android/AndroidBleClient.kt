@@ -206,19 +206,31 @@ class AndroidBleClient(
                         return
                     }
                     val byShortInSvc = svc.characteristics.associateBy { extract16(it.uuid.toString()) }
-                    // 默认写特征 + char16 寻址表 + 写类型(spec.writeWithResponse; W1 仍为无响应写)
-                    spec.writeChar16?.let { w ->
-                        byShortInSvc[w]?.let { wc ->
-                            conn.writeChar = wc
-                            conn.writeChars[w] = wc
+                    // 声明的通道必须全量存在(全量契约): 写特征声明了就必须在, notify 一个都不能少——
+                    // 缺写特征=之后所有写静默丢弃, 缺一路 notify=静默丢一路数据, 都比连接失败更糟.
+                    val declaredWrite = spec.writeChar16
+                    if (declaredWrite != null) {
+                        val wc = byShortInSvc[declaredWrite]
+                        if (wc == null) {
+                            conn.ready.complete(false)
+                            return
                         }
+                        conn.writeChar = wc
+                        conn.writeChars[declaredWrite] = wc
                     }
                     conn.writeType = if (spec.writeWithResponse) {
                         BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     } else {
                         BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     }
-                    val toSubscribe = spec.notifyChar16s.mapNotNull { byShortInSvc[it] }
+                    val toSubscribe = ArrayList<BluetoothGattCharacteristic>(spec.notifyChar16s.size)
+                    for (n16 in spec.notifyChar16s) {
+                        val ch = byShortInSvc[n16] ?: run {
+                            conn.ready.complete(false)
+                            return
+                        }
+                        toSubscribe.add(ch)
+                    }
                     if (toSubscribe.isEmpty()) {
                         conn.ready.complete(false)
                         return
