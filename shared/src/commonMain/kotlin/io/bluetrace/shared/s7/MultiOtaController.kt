@@ -111,9 +111,11 @@ class MultiOtaController(
     // 串行编排下无并发访问; cancelAndJoin 屏障后读有 happens-before.
     private var currentStrategy: FirmwareUpdateStrategy? = null
 
-    // 本轮持有的租约: startBatch/retry 获取, 自然结束 release, stopBatch **显式移交**给善后
-    // (置 null=已移交), close() 兜底释放未移交的(非 stop 取消不得泄漏成永久占用).
-    private var lease: io.bluetrace.shared.device.OtaOperationGate.Lease? = null
+    // 本轮租约槽(原子): 释放权唯一化——运行协程 finally / stopBatch 善后 / close 善后, 谁
+    // **CAS 赢得槽**(compareAndSet(l, null))谁负责 release, 且都发生在对应工作真正结束后.
+    // 普通 var + isActive 判断有窗口: stop 在"主体已完成, finally 未调度"间隙移交时, finally
+    // 的 isActive=true 会抢先释放, 善后还在飞 gate 就空闲(别处 acquire 后被旧善后误伤).
+    private val leaseSlot = MutableStateFlow<io.bluetrace.shared.device.OtaOperationGate.Lease?>(null)
 
     // ---- 队列增删(入队不连接)----
 
@@ -153,7 +155,7 @@ class MultiOtaController(
 
     /** 批量协程本体(调用方已持租约 [l]): startBatch/retry 的公共尾段. */
     private fun launchBatch(pkg: OtaPackage, l: io.bluetrace.shared.device.OtaOperationGate.Lease?): Job {
-        lease = l
+        leaseSlot.value = l
         val job = scope.launch {
             _running.value = true
             log("===== 开始批量升级 =====")
@@ -179,12 +181,9 @@ class MultiOtaController(
                 log("===== 结束：${summaryLine()} =====")
             } finally {
                 _running.value = false
-                // 自然结束释放租约(带 token: 即便与停止竞态, 过期释放是 no-op 清不掉新持有者);
-                // 取消路径的所有权已由 stopBatch 显式移交善后(lease 置 null), 或由 close() 兜底.
-                if (isActive && l != null) {
-                    gate?.release(l)
-                    if (lease === l) lease = null
-                }
+                // 释放权 = CAS 赢得租约槽(不看 isActive): stopBatch/close 若已移交善后, 此处
+                // CAS 必败不释放(善后完全结束后由善后释放); 无人移交(纯自然结束)才由本协程释放.
+                if (l != null && leaseSlot.compareAndSet(l, null)) gate?.release(l)
             }
         }
         batchJob = job
@@ -204,8 +203,8 @@ class MultiOtaController(
         val job = batchJob ?: return
         if (!job.isActive || _stopping.value) return
         val strategy = currentStrategy // 快照本轮身份
-        val l = lease // 租约显式移交善后(自然结束若已释放, l 的过期释放是 no-op)
-        lease = null
+        // 移交租约 = CAS 赢得槽(赢家负责在善后完全结束后释放); 输=运行协程已自然释放, 善后照跑但不管租约
+        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         _stopping.value = true
         abortScope.launch {
             try {
@@ -259,7 +258,7 @@ class MultiOtaController(
         val l = if (gate != null) gate.tryAcquire() ?: return null else null
         _queue.update(requeue)
         if (_queue.value.none { it.status == DeviceOtaStatus.QUEUED }) {
-            // 没有可重试项(id 不存在/不可重试): 归还租约, 不启动
+            // 没有可重试项(id 不存在/不可重试): 归还租约, 不启动(尚未入槽, 直接还 gate)
             l?.let { gate?.release(it) }
             return null
         }
@@ -392,13 +391,36 @@ class MultiOtaController(
         _queue.update { cur -> cur.map { if (it.device.id == id) f(it) else it } }
     }
 
+    /**
+     * 非 stop 路径的销毁(VM onCleared 等). 若批量仍在跑: **完整善后**(取消收尾→策略 abort→断开)
+     * 后才释放租约——立即 release 会让新实例在旧协程仍在飞时开始并被其断链; 立即取消不善后
+     * 会让传输态设备挂着等固件看门狗. 善后跑 [abortScope](比 VM 长寿), 与 stopBatch 同款语义;
+     * 租约移交同为 CAS 赢槽(与运行协程 finally 互斥, 只有一方释放).
+     */
     fun close() {
-        batchJob?.cancel()
-        // 非 stop 路径的取消(VM onCleared 等): 兜底释放未移交的租约——
-        // 取消的协程 finally 里 isActive=false 不会释放, 又没有 stop 善后接管, 不兜底=永久占用.
-        lease?.let { l ->
-            gate?.release(l)
-            lease = null
+        val job = batchJob
+        val strategy = currentStrategy
+        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
+        if (job != null && job.isActive) {
+            abortScope.launch {
+                try {
+                    job.cancelAndJoin()
+                    val active = _queue.value.firstOrNull { !it.removable }
+                    if (active != null) {
+                        strategy?.abort()
+                        try {
+                            disconnect(active.device.id)
+                        } catch (c: CancellationException) {
+                            throw c
+                        } catch (_: Exception) {
+                        }
+                    }
+                } finally {
+                    l?.let { gate?.release(it) }
+                }
+            }
+        } else {
+            l?.let { gate?.release(it) } // 没有在飞的批量: 槽里若还有残留租约直接归还
         }
     }
 

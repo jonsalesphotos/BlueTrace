@@ -350,9 +350,12 @@ class MultiOtaControllerTest {
         gate.release(foreign2)
     }
 
-    /** 非 stop 路径的取消(VM onCleared -> close): 兜底释放租约, 不得泄漏成永久占用. */
+    /**
+     * 非 stop 路径的销毁(VM onCleared -> close): ①完整善后期间(清理闸门未放行)租约**保持占用**
+     * (别处不得 acquire, 防旧协程在飞时新一轮被断链); ②善后完全结束后释放, 不泄漏成永久占用.
+     */
     @Test
-    fun close_duringRun_releasesLease_noPermanentBusy() = runTest {
+    fun close_duringRun_holdsLeaseUntilCleanupDone_thenReleases() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
         val watch = S7MockWatch(clock)
@@ -366,8 +369,17 @@ class MultiOtaControllerTest {
         withTimeout(10_000) { ctl.queue.first { q -> q.any { it.status != DeviceOtaStatus.QUEUED } } }
         assertTrue(gate.busy)
 
-        ctl.close() // 直接取消(非 stopBatch): 协程 finally isActive=false 不释放, 靠 close 兜底
+        ble.disconnectGate = kotlinx.coroutines.CompletableDeferred() // 卡住 close 善后的断开步
+        ctl.close() // 直接销毁(非 stopBatch): 善后移交 abortScope
         job.join()
-        assertEquals(false, gate.busy, "close 必须兜底释放租约, 否则重进后永远无法开始")
+
+        // 善后未放行: 租约保持占用, 别处不得开始
+        assertTrue(gate.busy, "close 善后在飞时租约必须保持占用")
+        assertEquals(null, gate.tryAcquire(), "善后未完成前别处不得 acquire")
+
+        // 放行善后 -> 释放
+        ble.disconnectGate!!.complete(Unit)
+        withTimeout(10_000) { gate.owner.first { it == null } }
+        assertEquals(false, gate.busy, "close 善后完全结束后必须释放租约")
     }
 }

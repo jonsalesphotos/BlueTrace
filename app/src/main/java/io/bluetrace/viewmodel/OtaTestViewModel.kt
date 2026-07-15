@@ -77,9 +77,9 @@ data class OtaTestUiState(
     val loopMode: Boolean get() = packages.size == 2
     val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping && !gateBusy
     val canAdd: Boolean get() = packages.size < 2 && !running
-    // 链路操作也吃 stopping/gateBusy: 善后期间重连会被旧善后(尽力 RESET+断开)再次打断, 属静默抖动
+    // 链路操作也吃 stopping/gateBusy: 善后/别处运行期间的连接操作会与旧善后或在飞实例互相打断
     val canReconnect: Boolean get() = device != null && !connected && link != LinkState.CONNECTING && !running && !stopping && !gateBusy
-    val canDisconnect: Boolean get() = connected && !running && !stopping
+    val canDisconnect: Boolean get() = connected && !running && !stopping && !gateBusy
 }
 
 /**
@@ -120,9 +120,9 @@ class OtaTestViewModel(
     // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
     private var currentStrategy: S7FirmwareUpdateStrategy? = null
 
-    // 本轮持有的租约: start 获取, 自然结束 release, stop **显式移交**给善后(置 null=已移交),
-    // onCleared 兜底释放未移交的(非 stop 取消不得泄漏成永久占用).
-    private var lease: OtaOperationGate.Lease? = null
+    // 本轮租约槽(原子): 释放权唯一化——运行协程 finally / stop 善后 / onCleared 善后, 谁
+    // **CAS 赢得槽**谁负责 release, 且都发生在对应工作真正结束后(细节见 MultiOtaController.leaseSlot).
+    private val leaseSlot = MutableStateFlow<OtaOperationGate.Lease?>(null)
 
     // 本轮下载平均速度计时(onOtaPhase 回调驱动: 进 Downloading 记起点, 离开时结算).
     private var downloadStartMs = 0L
@@ -226,7 +226,7 @@ class OtaTestViewModel(
             log("已有 OTA 运行或停止善后在飞（另一模式/上次未完成），稍后再试")
             return
         }
-        lease = l
+        leaseSlot.value = l
         val pkgs = loadedPkgs.toList()
         val loop = pkgs.size == 2
         closeRunLog() // 上一次自然结束后未关的句柄
@@ -282,13 +282,10 @@ class OtaTestViewModel(
                 log("已自动断开：${device.name}")
             } finally {
                 _state.update { it.copy(running = false) }
-                if (isActive) {
-                    closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关, 别在这抢先截断
-                    // 自然结束释放租约(带 token, 与停止竞态时过期释放是 no-op 清不掉新持有者);
-                    // 取消路径所有权已由 stop 移交善后, 或由 onCleared 兜底
-                    gate.release(l)
-                    if (lease === l) lease = null
-                }
+                if (isActive) closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关, 别在这抢先截断
+                // 释放权 = CAS 赢得租约槽(不看 isActive): stop/onCleared 若已移交善后, 此处必败
+                // 不释放(善后完全结束后由善后释放); 无人移交(纯自然结束)才由本协程释放
+                if (leaseSlot.compareAndSet(l, null)) gate.release(l)
             }
         }
     }
@@ -347,8 +344,8 @@ class OtaTestViewModel(
         val job = runJob
         val strategy = currentStrategy
         val snapLog = runLog
-        val l = lease // 租约显式移交善后(自然结束若已释放, 过期释放是 no-op)
-        lease = null
+        // 移交租约 = CAS 赢得槽(赢家负责在善后完全结束后释放); 输=运行协程已自然释放
+        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         log("已手动中断") // 落盘要赶在移交前; 之后的善后行只进屏幕终端(runLog 已移交, 不与新一轮抢句柄)
         runLog = null // 移交所有权给善后(start() 的 closeRunLog 不再碰它)
         _state.update { it.copy(stopping = true) }
@@ -407,14 +404,38 @@ class OtaTestViewModel(
     private fun nowCompact(): String =
         io.bluetrace.shared.util.epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds()).compact()
 
+    /**
+     * 非 stop 路径的 VM 销毁(导航栈清理/系统回收). 若仍在运行: **完整善后**(取消收尾→策略
+     * abort→断开)后才释放租约——立即 release 会让新实例在旧协程仍在飞时开始并被其断链;
+     * 不做 abort 会让传输态设备挂着等固件看门狗. 善后跑 [appScope], 与 stop() 同款语义;
+     * 租约移交 CAS 赢槽(与运行协程 finally 互斥, 只有一方释放).
+     */
     override fun onCleared() {
-        runJob?.cancel()
+        val job = runJob
+        val strategy = currentStrategy
+        val device = _state.value.device
+        val l = leaseSlot.value?.takeIf { leaseSlot.compareAndSet(it, null) }
         closeRunLog()
-        // 非 stop 路径的 VM 销毁(导航栈清理/系统回收): 兜底释放未移交的租约——
-        // 取消的协程 finally 里 isActive=false 不会释放, 又没有 stop 善后接管, 不兜底=永久占用.
-        lease?.let { l ->
-            gate.release(l)
-            lease = null
+        if (job != null && job.isActive) {
+            appScope.launch {
+                try {
+                    job.cancelAndJoin()
+                    strategy?.abort()
+                    if (device != null) {
+                        try {
+                            ble.disconnect(device.id)
+                        } catch (c: CancellationException) {
+                            throw c
+                        } catch (_: Exception) {
+                        }
+                        registry.remove(device.id)
+                    }
+                } finally {
+                    l?.let { gate.release(it) }
+                }
+            }
+        } else {
+            l?.let { gate.release(it) } // 没有在飞的运行: 槽里若有残留租约直接归还
         }
     }
 }
