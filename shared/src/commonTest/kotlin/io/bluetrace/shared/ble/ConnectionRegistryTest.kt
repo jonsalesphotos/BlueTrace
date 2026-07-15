@@ -25,11 +25,11 @@ class ConnectionRegistryTest {
             links.getOrPut(id) { MutableStateFlow(LinkState.CONNECTED) }
 
         override fun scan(): Flow<List<ScannedDevice>> = emptyFlow()
-        override suspend fun connect(device: ScannedDevice) {}
+        override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {}
         override suspend fun disconnect(deviceId: String) {}
         override fun linkState(deviceId: String): StateFlow<LinkState> = link(deviceId)
         override fun notifications(deviceId: String): Flow<BleNotification> = emptyFlow()
-        override suspend fun write(deviceId: String, bytes: ByteArray) {}
+        override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {}
     }
 
     private fun dut(i: Int) = ScannedDevice("dut$i", "BT-DUT-$i", "C4:7B:8D:0A:00:0$i", -50, DeviceKind.DUT)

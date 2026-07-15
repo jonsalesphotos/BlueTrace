@@ -12,12 +12,13 @@ enum class CollectType(
     val label: String,
     val defaultOn: Boolean,
 ) {
+    // label 恒英文 token（直接上屏，i18n 红线；2026-07-14 审查修复 MAG/TEMP 中文泄漏）
     PPG_G("ppg_g", "PPG_G", true),
     PPG_IR("ppg_ir", "PPG_IR", true),
     ACC("acc", "ACC", true),
     GYRO("gyro", "GYRO", false),
-    MAG("mag", "地磁", false),
-    TEMP("temp", "温度", false);
+    MAG("mag", "MAG", false),
+    TEMP("temp", "TEMP", false);
 
     companion object {
         val defaults: Set<CollectType> get() = entries.filter { it.defaultOn }.toSet()

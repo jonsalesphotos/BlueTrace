@@ -1,5 +1,6 @@
 package io.bluetrace.shared.s7
 
+import io.bluetrace.shared.ble.extract16
 import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 
@@ -31,21 +32,5 @@ object B2aDetect {
     fun confirmByCharacteristics(characteristicUuids: Collection<String>): Boolean {
         val set = characteristicUuids.mapNotNull { extract16(it) }.toSet()
         return RX_16 in set && TX_16 in set
-    }
-
-    /**
-     * 归一化出 16-bit 段（大写 4 位 hex）——真实 GATT 层（app 模块）也用它做特征匹配：
-     * - `"ffe0"` / `"FFE0"` → `FFE0`
-     * - 标准 base 128-bit `0000FFE0-0000-1000-8000-00805F9B34FB` → `FFE0`
-     * - 私有 base `0000FFE0-3C17-...` → `FFE0`
-     */
-    fun extract16(uuid: String): String? {
-        val u = uuid.trim().uppercase()
-        return when {
-            u.length == 4 -> u
-            u.length >= 8 && u.startsWith("0000") -> u.substring(4, 8)
-            u.length >= 8 -> u.substring(4, 8) // 非 0000 前缀的 128-bit：仍取 bits 16..31 段
-            else -> null
-        }
     }
 }

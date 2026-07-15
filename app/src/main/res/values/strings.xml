@@ -240,7 +240,7 @@
     <string name="settings_env_check">环境与权限检查</string>
     <string name="settings_env_check_sub">蓝牙开关 / 权限 / 后台保活</string>
     <string name="settings_export_loc">导出位置</string>
-    <string name="settings_export_loc_sub">Download/BlueTrace/</string>
+    <string name="settings_export_loc_sub">Download/BlueTrace/rawdata/</string>
     <string name="settings_storage">存储占用</string>
     <string name="settings_storage_sub">原始 HEX + 解码 CSV</string>
     <string name="settings_log">应用日志</string>
@@ -284,8 +284,8 @@
 
     <string name="export_loc_title">导出位置</string>
     <string name="export_loc_subtitle">会话文件夹导出路径</string>
-    <string name="export_loc_path">Download/BlueTrace/</string>
-    <string name="export_loc_note">所有会话文件夹经 MediaStore 导出到公共下载目录（无需存储权限）。应用日志导出到 Download/BlueTrace/logs/。</string>
+    <string name="export_loc_path">Download/BlueTrace/rawdata/&lt;日期&gt;/</string>
+    <string name="export_loc_note">所有会话文件夹经 MediaStore 导出到公共下载目录（无需存储权限），按导出日期归档到 rawdata/ 下。日志统一在 Download/BlueTrace/log/：应用日志 log/app/、设备固件日志 log/firmware/、OTA 执行日志 log/ota/。</string>
 
     <string name="storage_title">存储占用</string>
     <string name="storage_subtitle">%1$s MB · %2$d 会话 · %3$d 文件</string>
@@ -355,7 +355,7 @@
     <string name="console_log_empty">暂无日志，先拉取。</string>
     <string name="console_log_progress">已收 %1$d 块 · %2$d B</string>
     <string name="console_log_lines">%1$d 行 · %2$d 字符</string>
-    <string name="console_log_desc">拉取设备固件运行日志（now + bak 两个文件），导出到 Download/BlueTrace/logs/。</string>
+    <string name="console_log_desc">拉取设备固件运行日志（now + bak 两个文件），导出到 Download/BlueTrace/log/firmware/。</string>
     <string name="console_log_note">协议无结束标志：空闲 4 秒判完成，内容可能不完整。</string>
     <string name="console_oplog_export">导出</string>
     <string name="console_tap_to_switch">点此卡片连接 / 切换设备</string>
@@ -418,7 +418,7 @@
     <string name="export_err_write">无法写入导出文件</string>
     <string name="export_err_log_create">无法创建日志文件</string>
     <string name="export_err_generic">导出失败</string>
-    <string name="export_many_done">Download/BlueTrace/</string>
+    <string name="export_many_done">Download/BlueTrace/rawdata/</string>
 
     <!-- ===== 通知 ===== -->
     <string name="notif_channel_name">采集运行</string>

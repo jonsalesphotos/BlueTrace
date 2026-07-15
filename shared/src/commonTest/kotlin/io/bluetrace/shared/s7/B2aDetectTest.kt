@@ -3,7 +3,6 @@ package io.bluetrace.shared.s7
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.ScannedDevice
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -15,16 +14,7 @@ class B2aDetectTest {
         adv: List<String> = emptyList(),
     ) = ScannedDevice("id", name, "00:11:22:33:44:55", -50, DeviceKind.DUT, profileId, adv)
 
-    @Test
-    fun extract16_normalizesAllForms() {
-        assertEquals("FFE0", B2aDetect.extract16("ffe0"))
-        assertEquals("FFE0", B2aDetect.extract16("FFE0"))
-        // 标准 base 128-bit
-        assertEquals("FFE0", B2aDetect.extract16("0000FFE0-0000-1000-8000-00805F9B34FB"))
-        // S7 私有 base 128-bit
-        assertEquals("FFE1", B2aDetect.extract16("0000FFE1-3C17-D293-8E48-14FE2E4DA212"))
-        assertEquals(null, B2aDetect.extract16("18"))
-    }
+    // extract16 归一测试随函数迁至 io.bluetrace.shared.ble.Uuid16Test(W5 通用化).
 
     @Test
     fun matchesAdvertisement_byServiceUuid_noNameNeeded() {

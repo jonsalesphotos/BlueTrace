@@ -16,12 +16,11 @@ import android.content.Context
 import android.os.Build
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
+import io.bluetrace.shared.ble.GattSpec
+import io.bluetrace.shared.ble.extract16
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_HRS
-import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.B2aDetect
 import io.bluetrace.shared.util.EpochClock
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -42,7 +41,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 真实 Android BLE Central（v1 精简版，真机联调用）。
  *
  * 范围（够控制台 + HRS 参考即可，复杂能力交给后续 Nordic Kotlin-BLE 替换，D-V4-19）：
- * - 扫描：无过滤全量扫描，提取广播 Service UUID 表（协议识别靠 [B2aDetect]，nRF Connect 式）；
+ * - 扫描：无过滤全量扫描，提取广播 Service UUID 表（协议识别归 DeviceProfileCatalog，本层只 extract16 归一）；
  * - 连接：connectGatt(TRANSPORT_LE) → requestMtu(247) → discoverServices → 订阅已知协议的 Notify
  *   特征（B2A: FFE2；HRS: 2A37）→ CCC 写成功才算 CONNECTED；
  * - 写：对 B2A RX（FFE1）Write Without Response，**逐帧串行 + 等 onCharacteristicWrite 再发下一帧**
@@ -60,17 +59,28 @@ class AndroidBleClient(
 
     private class Conn(
         val gatt: BluetoothGatt,
+        /** 默认写特征(char16=null 的写落这里): 探测路径=B2A RX(FFE1); GattSpec 路径=spec.writeChar16. */
         var writeChar: BluetoothGattCharacteristic? = null,
+        /** char16 寻址写: 16-bit 短码(extract16 口径) -> 可写特征; 查无静默丢弃. */
+        val writeChars: MutableMap<String, BluetoothGattCharacteristic> = mutableMapOf(),
+        /** 连接级写类型: GattSpec.writeWithResponse 决定(默认无响应写); W1 全部特征仍走无响应写. */
+        @Volatile var writeType: Int = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE,
         val ready: CompletableDeferred<Boolean> = CompletableDeferred(),
         /** 协商 MTU（onMtuChanged 存下；OTA 分片尺寸推算用，观测非配置）。默认 BLE ATT 23。 */
         @Volatile var mtu: Int = 23,
         /** 写流控：逐帧串行（[writeLock]）+ 等 [writeAck]（onCharacteristicWrite 完成）再发下一帧，防多包切片溢出 GATT 缓冲丢包。 */
         val writeLock: Mutex = Mutex(),
         @Volatile var writeAck: CompletableDeferred<Int>? = null,
+        /** GattSpec 路径待订阅的 Notify 特征队列(CCC 写异步且同一刻只能一个在飞, 故串行); 探测路径不用. */
+        val pendingNotify: ArrayDeque<BluetoothGattCharacteristic> = ArrayDeque(),
+        /** true=GattSpec 串行订阅路径(onDescriptorWrite 续订下一个); false=现状探测单特征路径. */
+        @Volatile var specSubscribe: Boolean = false,
     )
 
     private val conns = ConcurrentHashMap<String, Conn>()
     private val links = ConcurrentHashMap<String, MutableStateFlow<LinkState>>()
+    // 连接后发现的 16-bit 短码服务表(会话宿主 confirm 二次确认用; 断连清理).
+    private val discoveredServices16 = ConcurrentHashMap<String, List<String>>()
 
     // 设备级持久通知流（与连接生命周期解耦：订阅可先于 connect——console attach 早于连接完成）
     private val notifyFlows = ConcurrentHashMap<String, MutableSharedFlow<BleNotification>>()
@@ -126,19 +136,16 @@ class AndroidBleClient(
         val addr = device?.address ?: return null
         // nRF Connect 式全量展示：无名设备用占位名（便于确认周围广播活性、按 MAC 定位目标）
         val name = scanRecord?.deviceName ?: device?.name ?: "(unnamed)"
-        val adv = scanRecord?.serviceUuids?.mapNotNull { B2aDetect.extract16(it.uuid.toString()) } ?: emptyList()
-        val profile = when {
-            adv.contains(B2aDetect.SERVICE_16) -> PROFILE_S7
-            adv.contains("180D") -> PROFILE_HRS
-            else -> null
-        }
+        val adv = scanRecord?.serviceUuids?.mapNotNull { extract16(it.uuid.toString()) } ?: emptyList()
+        // 扫描层去识别化(W2): 只上报原始广播(profileId=null/kind=DUT), 识别归 DeviceProfileCatalog
+        // (消费投影层 annotate 打标); 名称/MAC/RSSI/广播 service 原样带出.
         ScannedDevice(
             id = addr,
             name = name,
             address = addr,
             rssi = rssi,
-            kind = if (profile == PROFILE_HRS) DeviceKind.REFERENCE else DeviceKind.DUT,
-            profileId = profile,
+            kind = DeviceKind.DUT,
+            profileId = null,
             advertisedServices = adv,
         )
     } catch (e: SecurityException) {
@@ -148,7 +155,7 @@ class AndroidBleClient(
     // ---- 连接 / 订阅 ----
 
     @SuppressLint("MissingPermission")
-    override suspend fun connect(device: ScannedDevice) {
+    override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {
         val l = link(device.id)
         if (l.value == LinkState.CONNECTED || l.value == LinkState.CONNECTING) return
         val btDevice = try {
@@ -174,6 +181,7 @@ class AndroidBleClient(
                         conn.ready.complete(false)
                         safe { gatt.close() }
                         conns.remove(device.id)
+                        discoveredServices16.remove(device.id)
                     }
                 }
             }
@@ -188,12 +196,45 @@ class AndroidBleClient(
                     conn.ready.complete(false)
                     return
                 }
+                // 服务发现完成: 存 16-bit 短码服务表(spec/探测两路径共用), 供会话宿主 confirm 二次确认.
+                discoveredServices16[device.id] = gatt.services.mapNotNull { extract16(it.uuid.toString()) }
+                // GattSpec 路径(W1 加法): 按 spec 定位服务/登记写特征/串行订阅多 Notify; 协议知识不进本实现.
+                if (spec != null) {
+                    val svc = gatt.services.firstOrNull { extract16(it.uuid.toString()) == spec.serviceUuid16 }
+                    if (svc == null) {
+                        conn.ready.complete(false)
+                        return
+                    }
+                    val byShortInSvc = svc.characteristics.associateBy { extract16(it.uuid.toString()) }
+                    // 默认写特征 + char16 寻址表 + 写类型(spec.writeWithResponse; W1 仍为无响应写)
+                    spec.writeChar16?.let { w ->
+                        byShortInSvc[w]?.let { wc ->
+                            conn.writeChar = wc
+                            conn.writeChars[w] = wc
+                        }
+                    }
+                    conn.writeType = if (spec.writeWithResponse) {
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    } else {
+                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                    }
+                    val toSubscribe = spec.notifyChar16s.mapNotNull { byShortInSvc[it] }
+                    if (toSubscribe.isEmpty()) {
+                        conn.ready.complete(false)
+                        return
+                    }
+                    // CCC descriptor 写异步且同一刻只能一个在飞: 串行状态机(写一个 CCC -> onDescriptorWrite -> 下一个).
+                    conn.specSubscribe = true
+                    conn.pendingNotify.addAll(toSubscribe)
+                    subscribeNext(conn, l)
+                    return
+                }
                 val chars = gatt.services.flatMap { it.characteristics }
-                val byShort = chars.groupBy { B2aDetect.extract16(it.uuid.toString()) }
+                val byShort = chars.groupBy { extract16(it.uuid.toString()) }
                 // B2A 优先（连接后确认策略：RX+TX 同在即认定，spec §1）；否则 HRS
-                val b2aTx = byShort[B2aDetect.TX_16]?.firstOrNull()
-                val b2aRx = byShort[B2aDetect.RX_16]?.firstOrNull()
-                val hrsMeasure = byShort["2A37"]?.firstOrNull()
+                val b2aTx = byShort[PROBE_B2A_TX_16]?.firstOrNull()
+                val b2aRx = byShort[PROBE_B2A_RX_16]?.firstOrNull()
+                val hrsMeasure = byShort[PROBE_HRS_MEASURE_16]?.firstOrNull()
                 val notifyChar = when {
                     b2aTx != null && b2aRx != null -> {
                         conn.writeChar = b2aRx
@@ -214,23 +255,17 @@ class AndroidBleClient(
                     conn.ready.complete(true)
                     return
                 }
-                val ok = safe {
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        gatt.writeDescriptor(ccc, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) ==
-                            BluetoothGatt.GATT_SUCCESS
-                    } else {
-                        @Suppress("DEPRECATION")
-                        ccc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        @Suppress("DEPRECATION")
-                        gatt.writeDescriptor(ccc)
-                    }
-                }
+                val ok = safe { writeCcc(gatt, ccc) }
                 if (!ok) conn.ready.complete(false)
             }
 
             override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-                if (descriptor.uuid == CCC_UUID) {
-                    val ok = status == BluetoothGatt.GATT_SUCCESS
+                if (descriptor.uuid != CCC_UUID) return
+                val ok = status == BluetoothGatt.GATT_SUCCESS
+                if (conn.specSubscribe) {
+                    // GattSpec 串行订阅: 本特征成功 -> 续订下一个(全部成功才置 CONNECTED); 任一失败即撤销
+                    if (ok) subscribeNext(conn, l) else conn.ready.complete(false)
+                } else {
                     if (ok) l.value = LinkState.CONNECTED
                     conn.ready.complete(ok)
                 }
@@ -243,7 +278,8 @@ class AndroidBleClient(
 
             // API 33+
             override fun onCharacteristicChanged(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) {
-                notifyFlow(device.id).tryEmit(BleNotification(device.id, clock.nowMs(), value))
+                // 补填来源特征 16-bit 短码: 多 Notify 协议(如 B2A FFE2 与 DUT 数据特征并存)按此分流解码 + hexlog 标注
+                notifyFlow(device.id).tryEmit(BleNotification(device.id, clock.nowMs(), value, extract16(ch.uuid.toString())))
             }
 
             // API ≤32
@@ -252,7 +288,7 @@ class AndroidBleClient(
             override fun onCharacteristicChanged(gatt: BluetoothGatt, ch: BluetoothGattCharacteristic) {
                 if (Build.VERSION.SDK_INT < 33) {
                     val v = ch.value ?: return
-                    notifyFlow(device.id).tryEmit(BleNotification(device.id, clock.nowMs(), v))
+                    notifyFlow(device.id).tryEmit(BleNotification(device.id, clock.nowMs(), v, extract16(ch.uuid.toString())))
                 }
             }
         }
@@ -294,12 +330,16 @@ class AndroidBleClient(
             safe { c.gatt.disconnect() }
             safe { c.gatt.close() }
         }
+        discoveredServices16.remove(deviceId)
         link(deviceId).value = LinkState.DISCONNECTED
     }
 
     override fun linkState(deviceId: String): StateFlow<LinkState> = link(deviceId)
 
     override fun notifications(deviceId: String): Flow<BleNotification> = notifyFlow(deviceId)
+
+    /** 连接后发现的 16-bit 短码服务表(会话宿主 confirm 用); 未连接/未发现回空. */
+    override fun discoveredService16s(deviceId: String): List<String> = discoveredServices16[deviceId] ?: emptyList()
 
     override fun negotiatedMtu(deviceId: String): Int = conns[deviceId]?.mtu ?: 23
 
@@ -309,9 +349,14 @@ class AndroidBleClient(
      * `writeCharacteristic` 返 BUSY 被静默丢——真机 ota3.log 实证：单帧过、17 帧全丢 → 设备看门狗 abort。
      */
     @SuppressLint("MissingPermission")
-    override suspend fun write(deviceId: String, bytes: ByteArray) {
+    override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
         val conn = conns[deviceId] ?: return
-        val ch = conn.writeChar ?: return
+        // char16=null 写默认写特征(现状); 否则按 16-bit 短码寻址, 查无静默丢弃(同"未连接静默丢弃"契约).
+        val ch = if (char16 == null) {
+            conn.writeChar ?: return
+        } else {
+            conn.writeChars[extract16(char16) ?: return] ?: return
+        }
         if (link(deviceId).value != LinkState.CONNECTED) return
         conn.writeLock.withLock {
             repeat(WRITE_MAX_ATTEMPTS) {
@@ -330,20 +375,54 @@ class AndroidBleClient(
         }
     }
 
-    /** 单次 writeCharacteristic（No-Response）；返回是否被 GATT 接受（false=BUSY/错误，需重试）。 */
+    /** 单次 writeCharacteristic; 写类型取 [Conn.writeType](默认 No-Response); 返回是否被 GATT 接受(false=BUSY/错误, 需重试). */
     @SuppressLint("MissingPermission")
     private fun startWrite(conn: Conn, ch: BluetoothGattCharacteristic, bytes: ByteArray): Boolean = safe {
         if (Build.VERSION.SDK_INT >= 33) {
-            conn.gatt.writeCharacteristic(ch, bytes, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) == BluetoothStatusCodes.SUCCESS
+            conn.gatt.writeCharacteristic(ch, bytes, conn.writeType) == BluetoothStatusCodes.SUCCESS
         } else {
             @Suppress("DEPRECATION")
-            ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            ch.writeType = conn.writeType
             @Suppress("DEPRECATION")
             ch.value = bytes
             @Suppress("DEPRECATION")
             conn.gatt.writeCharacteristic(ch)
         }
     }
+
+    /**
+     * GattSpec 路径的多 Notify 串行订阅推进: 取队首特征 setNotification + 写 CCC, 等 onDescriptorWrite 回调再来续订;
+     * 队列空 = 全部成功 -> 置 CONNECTED/ready.complete(true). CCC 写异步且同一刻只能一个在飞, 故必须串行.
+     */
+    @SuppressLint("MissingPermission")
+    private fun subscribeNext(conn: Conn, l: MutableStateFlow<LinkState>) {
+        val ch = conn.pendingNotify.removeFirstOrNull()
+        if (ch == null) {
+            l.value = LinkState.CONNECTED
+            conn.ready.complete(true)
+            return
+        }
+        safe { conn.gatt.setCharacteristicNotification(ch, true) }
+        val ccc = ch.getDescriptor(CCC_UUID)
+        if (ccc == null) {
+            // 无 CCC 描述符的非常规实现: 该特征视为就绪, 直接续订下一个
+            subscribeNext(conn, l)
+            return
+        }
+        val ok = safe { writeCcc(conn.gatt, ccc) }
+        if (!ok) conn.ready.complete(false)
+    }
+
+    /** 写 CCC 使能 Notify(API 33+/≤32 分支); 返回是否被 GATT 接受. 探测/GattSpec 两路径共用同一时序. */
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
+    private fun writeCcc(gatt: BluetoothGatt, ccc: BluetoothGattDescriptor): Boolean =
+        if (Build.VERSION.SDK_INT >= 33) {
+            gatt.writeDescriptor(ccc, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothGatt.GATT_SUCCESS
+        } else {
+            ccc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            gatt.writeDescriptor(ccc)
+        }
 
     private inline fun safe(block: () -> Any?): Boolean = try {
         val r = block()
@@ -354,6 +433,12 @@ class AndroidBleClient(
 
     companion object {
         private const val TAG = "BtRealBle"
+        // 现状探测路径(spec==null)的已知通道短码——B2A(RX+TX 同在即认定)/HRS 心率测量。
+        // 声明式路径(spec!=null)由各 profile 的 GattSpec 提供通道, 不经这些常量; 探测路径是迁移期
+        // 遗留兜底(设计 §3.4), 故这些 S7/HRS 短码在本层自持, 不再耦合 s7 包的识别工具(W5 去耦)。
+        private const val PROBE_B2A_TX_16 = "FFE2" // B2A 表->App Notify
+        private const val PROBE_B2A_RX_16 = "FFE1" // B2A App->表 Write Without Response
+        private const val PROBE_HRS_MEASURE_16 = "2A37" // 标准心率测量
         private val CCC_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val CONNECT_TIMEOUT_MS = 15_000L
         // 写流控：等 onCharacteristicWrite 的兜底超时（正常回调仅 ms 级，此仅防个别机型不回调卡死）+ BUSY 重试

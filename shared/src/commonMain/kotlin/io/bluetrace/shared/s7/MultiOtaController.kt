@@ -2,6 +2,8 @@ package io.bluetrace.shared.s7
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
+import io.bluetrace.shared.device.FirmwareUpdateStrategy
+import io.bluetrace.shared.device.FwUpdateResult
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
@@ -9,6 +11,7 @@ import io.bluetrace.shared.util.TimeZoneProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,8 +57,12 @@ data class DeviceOtaItem(
  *
  * 一个包全队列共用，**串行**逐台跑：连接→读版本+电量→（电量门槛）→刷写→复读电量→断开→下一台。
  * 失败/低电即跳过、继续下一台，失败/跳过项可手动重试。串行理由（设备端授权 + 切片看门狗 + 重连风暴）
- * 与流程见 Docs/OTA/S7多设备OTA_设计.md。每台复用现成件：[OtaProvisioner.provisionAndReconnect]
- * （刷写+等复位+重连+读版本）、[S7Console] 读 `swVer`/`battery.percent`。
+ * 与流程见 Docs/OTA/S7多设备OTA_设计.md。
+ *
+ * **W4 瘦身为队列壳**：排队/电量门槛/重试/取消/日志留本层，逐台把刷写下沉 [S7FirmwareUpdateStrategy.run]
+ * （吸收原 OtaProvisioner/S7OtaSession 编排链），手动停止善后转发 [S7FirmwareUpdateStrategy.abort]
+ * （传输态门控/永不 STOP 红线在策略内）。电量门槛读数仍走短命 [S7Console]（`swVer`/`battery.percent`，
+ * 改动最小；W3 的 DeviceSessionManager 途径引宿主依赖、暂不引入）。
  *
  * 状态经 [queue]/[running] StateFlow + [opLog] SharedFlow 上抛；Android VM / iOS 各做薄壳订阅。
  * 包加载（Uri→zip 解析）、扫描 UI 属平台壳职责，不在本层——[startBatch]/[retry] 直接收 [OtaPackage]。
@@ -66,8 +73,15 @@ class MultiOtaController(
     private val clock: EpochClock,
     private val zone: TimeZoneProvider,
     private val scope: CoroutineScope,
-    /** 刷前电量门槛：低于此值跳过（固件无低电门控，掉电变砖由 App 兜底）。 */
+    /** 刷前电量门槛：低于此值跳过（固件无低电门控，掉电变砖由 App 兜底）。工程配置 ota.lowBatteryPct。 */
     private val lowBatteryPct: Int = 30,
+    /** OTA 后回连扫描预算（产品下限 60s；工程配置 ota.reconnectScanSeconds，只可调大）。 */
+    private val reconnectScanMs: Long = 60_000,
+    /**
+     * 手动停止善后（发重启指令）用的 scope——须比 UI 壳长寿（Android 传 app 级 scope），
+     * 否则"中止并离开"销毁 VM 时善后协程被连带取消、重启指令发不出去。测试可与 [scope] 同一个。
+     */
+    private val abortScope: CoroutineScope = scope,
 ) {
     private val _queue = MutableStateFlow<List<DeviceOtaItem>>(emptyList())
     val queue: StateFlow<List<DeviceOtaItem>> = _queue
@@ -79,6 +93,10 @@ class MultiOtaController(
     val opLog: SharedFlow<String> = _opLog
 
     private var batchJob: Job? = null
+
+    // 当前处理台的固件升级策略(processDevice 开始即建): stopBatch 转发 abort() 用.
+    // 串行编排下无并发访问; cancelAndJoin 屏障后读有 happens-before.
+    private var currentStrategy: FirmwareUpdateStrategy? = null
 
     // ---- 队列增删（入队不连接）----
 
@@ -137,9 +155,25 @@ class MultiOtaController(
         return job
     }
 
+    /**
+     * 手动停止批量：取消 → 当前通信中的台子标"手动停止"（可重试）→ 转发 [S7FirmwareUpdateStrategy.abort]
+     * （传输态门控/永不 STOP 红线在策略内；链路仍在且非传输态则发 CTRL_RESET 复位回干净状态）→ 断开清退。
+     * 善后跑 [abortScope]（退屏也能发完）；策略在 processDevice 开始即建、cancelAndJoin 后仍可达。
+     */
     fun stopBatch() {
-        batchJob?.cancel()
-        log("已停止批量")
+        val job = batchJob ?: return
+        if (!job.isActive) return
+        abortScope.launch {
+            job.cancelAndJoin()
+            log("已停止批量")
+            // 取消发生在流程中段时，当前台停在 CONNECTING/READING/FLASHING（= 不可删项）
+            val active = _queue.value.firstOrNull { !it.removable } ?: return@launch
+            val id = active.device.id
+            updateItem(id) { it.copy(status = DeviceOtaStatus.FAILED, failReason = "手动停止", phase = null, progress = null) }
+            // 传输态门控(是否吞重启指令)由策略内部 otaTransferActive 自持；善后结果经 onLog=log 回吐终端。
+            currentStrategy?.abort()
+            runCatching { disconnect(id) }
+        }
     }
 
     /** 单台重试（失败/低电）：重置为待升级；未在跑则起一轮把它跑掉。返回新起的批量 Job（在跑中返回 null）。 */
@@ -172,6 +206,17 @@ class MultiOtaController(
         val id = device.id
         log("── ${device.name} ──")
 
+        // 策略在设备处理开始即建（轻量, 无副作用）: abort() 在连接/读取阶段(未进 FILE_TRANS)也需可达,
+        // 细进度经 onOtaPhase/onOtaProgress 塞回队列项(供现有 UI 直接消费 OtaPhase/OtaProgress).
+        val strategy = S7FirmwareUpdateStrategy(
+            ble, device, scope, clock, zone, abortScope,
+            reconnectScanMs = reconnectScanMs,
+            onLog = { log(it) },
+            onOtaPhase = { p -> updateItem(id) { it.copy(phase = p) } },
+            onOtaProgress = { pr -> updateItem(id) { it.copy(progress = pr) } },
+        )
+        currentStrategy = strategy
+
         // 1) 连接
         updateItem(id) { it.copy(status = DeviceOtaStatus.CONNECTING, phase = null, progress = null, failReason = null) }
         ble.connect(device) // 不抛业务异常，以 linkState 收敛为准
@@ -195,42 +240,27 @@ class MultiOtaController(
             return
         }
 
-        // 4) 刷写 + 等复位 + 重连 + 读版本（复用 OtaProvisioner）
+        // 4) 刷写 + 等复位 + 扫描回连 + 读版本（下沉 S7FirmwareUpdateStrategy；细日志经 onLog 回吐, 一条不丢）
         updateItem(id) { it.copy(status = DeviceOtaStatus.FLASHING, phase = OtaPhase.Downloading, progress = null) }
-        val session = S7OtaSession(ble, id, scope, clock)
-        val prov = OtaProvisioner(session, ble, device, readVersion = { readVersion(device) })
-        val collectors = listOf(
-            scope.launch { session.opLog.collect { log("· $it") } },
-            scope.launch { prov.opLog.collect { log("» $it") } },
-        )
-        val result = try {
-            prov.provisionAndReconnect(
-                pkg,
-                onPhase = { p -> updateItem(id) { it.copy(phase = p) } },
-                onProgress = { pr -> updateItem(id) { it.copy(progress = pr) } },
-            )
-        } finally {
-            collectors.forEach { it.cancel() }
-        }
+        val result = strategy.run(pkg)
 
         // 5) 结果 + 复读电量
         when (result) {
-            is OtaResult.Reconnected -> {
+            is FwUpdateResult.Success -> {
                 registry.add(device)
                 val b1 = readBattery(device)
                 updateItem(id) {
                     it.copy(
                         status = DeviceOtaStatus.DONE,
-                        versionAfter = result.currentVersion,
+                        versionAfter = result.versionAfter,
                         batteryAfter = b1,
                         phase = OtaPhase.Done,
                         progress = null,
                     )
                 }
-                log("完成 ✓ 版本=${result.currentVersion ?: "未知"} 电量=${b1?.let { "$it%" } ?: "未知"}")
+                log("完成 ✓ 版本=${result.versionAfter ?: "未知"} 电量=${b1?.let { "$it%" } ?: "未知"}")
             }
-            is OtaResult.Failed -> fail(id, "${result.reason}")
-            OtaResult.DoneDownload -> fail(id, "未重连（下载已收讫）")
+            is FwUpdateResult.Failed -> fail(id, result.summary)
         }
 
         // 6) 断开，释放射频给下一台
@@ -255,17 +285,6 @@ class MultiOtaController(
             val v = runCatchingSuspend { c.getDeviceInfo().swVer }
             val b = runCatchingSuspend { c.getBattery().percent }
             v to b
-        } finally {
-            c.stop()
-        }
-    }
-
-    /** 短命 S7Console 只读版本（注入给 OtaProvisioner 重连后读版本）。 */
-    private suspend fun readVersion(device: ScannedDevice): String? {
-        val c = S7Console(ble, device.id, scope, clock, zone)
-        c.start()
-        return try {
-            c.getDeviceInfo().swVer
         } finally {
             c.stop()
         }

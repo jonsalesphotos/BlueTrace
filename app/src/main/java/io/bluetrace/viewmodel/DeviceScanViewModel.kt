@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
+import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.DeviceLimits
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.B2aDetect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,9 +26,9 @@ data class DeviceRowUi(
     val device: ScannedDevice,
     val link: LinkState,
     val disabled: Boolean, // 达上限且未连 → 不可点
-    /** 已识别目标：有 B2A 服务(FFE0)的手表 或 参考心率带；用于排序置顶与打标。 */
+    /** 已识别目标：有控制面的手表 或 参考心率带；用于排序置顶与打标。 */
     val recognized: Boolean = false,
-    /** 有 B2A 服务(FFE0) → 可作 S7 手表控制（区别于参考带）。 */
+    /** 有控制面 → 可作维护控制台目标（区别于参考带）；沿用字段名 b2a（UI 徽章）。 */
     val b2a: Boolean = false,
 )
 
@@ -48,6 +48,7 @@ data class DeviceScanUiState(
 class DeviceScanViewModel(
     private val bleClient: BleClient,
     private val registry: ConnectionRegistry,
+    private val catalog: DeviceProfileCatalog,
 ) : ViewModel() {
 
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
@@ -94,8 +95,9 @@ class DeviceScanViewModel(
                         DeviceKind.DUT -> dutCount >= DeviceLimits.MAX_DUT
                         DeviceKind.REFERENCE -> refCount >= DeviceLimits.MAX_REFERENCE
                     }
-                    // 识别：有 B2A 服务(FFE0)的手表 或 参考心率带 → 已识别目标；其余（随机 BLE）沉底
-                    val b2a = B2aDetect.matchesAdvertisement(dev)
+                    // 识别：有控制面的手表 或 参考心率带 → 已识别目标；其余（随机 BLE）沉底.
+                    // 控制面判定归 Catalog(去 S7 硬编码): S7 有控制面, HRS/随机设备无.
+                    val b2a = catalog.identify(dev)?.controlPlane != null
                     val recognized = b2a || dev.kind == DeviceKind.REFERENCE
                     DeviceRowUi(dev, link, disabled = atLimit && dev.id !in connectedIds, recognized = recognized, b2a = b2a)
                 }
@@ -130,8 +132,11 @@ class DeviceScanViewModel(
             // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
             // 让列表 ~1 秒才按信号重排一次——防跳动、可稳定点选（与控制台页一致）。
             bleClient.scan().sample(1000).collect { devices ->
-                _results.value = devices
-                devices.forEach { observeLink(it.id) }
+                // 扫描去识别化: client 只上报原始广播(profileId=null/kind=DUT), 识别在此投影层
+                // 经 Catalog 统一打标(Mock roster 预置身份由 annotate 守卫保留).
+                val annotated = devices.map { catalog.annotate(it) }
+                _results.value = annotated
+                annotated.forEach { observeLink(it.id) }
             }
         }
     }

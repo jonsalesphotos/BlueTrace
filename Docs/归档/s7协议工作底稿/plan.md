@@ -1,6 +1,6 @@
 # S7 设备维护（DUT）控制台 · 实施计划表
 
-> 依据：[protocol-spec.md](../s7/protocol-spec.md)（实现规格）+ [completeness-audit.md](../s7/completeness-audit.md)（缺口边界）。
+> 依据：[protocol-spec.md](../../S7B2A/protocol-spec.md)（实现规格）+ [completeness-audit.md](../../S7B2A/completeness-audit.md)（缺口边界）。
 > 原则：逻辑全下沉 `shared` commonMain（KMP 就绪，遵循 architecture-v2/04 号规划）；UI 工程风格不做华丽；
 > OTA 一期**不做**（端到端编排文档缺失），入口灰显保留；日志拉取按空闲超时启发式实现并明示局限。
 

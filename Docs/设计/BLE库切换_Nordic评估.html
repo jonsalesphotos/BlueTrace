@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLE 库切换评估：Nordic 双库</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#ble-nordic-kotlin-ble-libraryandroid-ios-ble-libraryios">BLE 库切换评估：Nordic Kotlin-BLE-Library（Android）+ IOS-BLE-Library（iOS）</a><ul>
+<li><a href="#0">0. 结论</a></li>
+<li><a href="#1-2026-07-14">1. 库现状（2026-07-14 联网核实）</a></li>
+<li><a href="#2-bleclient-kotlin-ble-20">2. BleClient 契约 ↔ Kotlin-BLE 2.0 映射</a></li>
+<li><a href="#3-s7-nordic-poc">3. S7 真机坑 × Nordic 必验清单（PoC 闸门，不过不转正）</a></li>
+<li><a href="#4">4. 风险与缓解</a></li>
+<li><a href="#5">5. 切换计划（并入现有波次，任务链已更新）</a></li>
+<li><a href="#6">6. 决策记录</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="ble-nordic-kotlin-ble-libraryandroid-ios-ble-libraryios">BLE 库切换评估：Nordic Kotlin-BLE-Library（Android）+ IOS-BLE-Library（iOS）</h1>
+<blockquote>
+<p>2026-07-14，用户拍板方向：<strong>要 Nordic 双库</strong>（D2 恢复并扩展到 iOS；架构优化笔记 #9 的"续用自写"翻案建议作废）。
+本文回答"怎么切才不翻车"：库现状核实 → 契约映射 → 真机坑对照必验清单 → 分阶段切换计划（并存+回退）。</p>
+</blockquote>
+<h2 id="0">0. 结论</h2>
+<p><strong>可以切，且现在切的时机比 2026-07-06 评估时更好</strong>——W1 通道抽象（进行中）正是两库共同需要的适配面。但必须<strong>分阶段、带回退</strong>：</p>
+<ol>
+<li>Nordic 作为 <code>BleClient</code> 的<strong>第二实现并存引入</strong>（DEBUG 三向开关：自写 / Nordic / Mock），不是替换式切换；</li>
+<li>过<strong>真机 A/B 等价闸门</strong>（含 24MB OTA 大包与吞吐基线对比）后 Nordic 转默认；自写实现保留一个版本周期作回退，再按需删除；</li>
+<li>iOS 二期（M8）用 IOS-BLE-Library 在 Swift 侧实现同一 <code>BleClient</code> 契约。</li>
+<li>W2–W6（识别/分面/固件策略/UI/异构验收）<strong>只依赖 BleClient 接口，不被切换阻塞</strong>，照原计划推进。</li>
+</ol>
+<h2 id="1-2026-07-14">1. 库现状（2026-07-14 联网核实）</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Kotlin-BLE-Library</th>
+<th>IOS-BLE-Library</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最新版本</td>
+<td><strong>2.0.0-beta03（2026-07-02，两周前）</strong></td>
+<td>0.4.3（2025-10-13）</td>
+</tr>
+<tr>
+<td>版本态势</td>
+<td>2.0 是唯一活跃主线（beta01–03 密集发布：06-19/06-25/07-02）；<strong>1.x 已停更</strong>，新接入没有"稳定 1.x"可选</td>
+<td>0.x 早期但持续维护（438 commits / 12 releases）</td>
+</tr>
+<tr>
+<td>API 模型</td>
+<td>Kotlin coroutines + Flow（suspend 函数、Flow 订阅）</td>
+<td>CoreBluetooth 的 <strong>Combine/async</strong> 现代封装</td>
+</tr>
+<tr>
+<td>平台</td>
+<td><strong>Android-only</strong>（无 KMP/iOS——两库是两个平台库，统一层是我们自己的 <code>BleClient</code> 接口）</td>
+<td>iOS / iPadOS / macOS，Swift 100%</td>
+</tr>
+<tr>
+<td>模块结构</td>
+<td>core / client / server / advertiser × <code>-core</code>/<code>-android</code>/<strong><code>-mock</code></strong> 全家族分层</td>
+<td>单库但<strong>真实+Mock 双产品</strong>（SwiftPM 插件同源生成）</td>
+</tr>
+<tr>
+<td>测试性</td>
+<td><code>client-android-mock</code> 可做无设备单测（大加分：我们现在 AndroidBleClient 无法单测）</td>
+<td>Mock 产品同理</td>
+</tr>
+<tr>
+<td>minSdk / 许可</td>
+<td>21（我们 29 ✓）/ BSD-3</td>
+<td>— / BSD-3</td>
+</tr>
+<tr>
+<td>Beta 风险声明</td>
+<td>"Unless some serious issue is found, API should not change"（API 冻结意向，但仍是 beta）</td>
+<td>无 WIP/弃用声明</td>
+</tr>
+<tr>
+<td>2.0 破坏性变更要点</td>
+<td>services 改<strong>事件流</strong>（RemoteServices events 非静态列表）、OperationStatus 改 sealed class、Service Changed 自动订阅、断连行为调整</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-bleclient-kotlin-ble-20">2. <code>BleClient</code> 契约 ↔ Kotlin-BLE 2.0 映射</h2>
+<p>W1 落成后的 <code>BleClient</code> 契约（scan / connect(spec) / disconnect / linkState / negotiatedMtu / notifications(characteristicId) / write(char16)）逐项映射：</p>
+<table>
+<thead>
+<tr>
+<th>我方契约</th>
+<th>Nordic 2.0 对应</th>
+<th>适配层职责</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scan(): Flow&lt;List&lt;ScannedDevice&gt;&gt;</code>（累积列表）</td>
+<td>scanner 模块 Flow（逐条结果）</td>
+<td>累积去重 + advertisedServices 提取（现逻辑平移）</td>
+<td>低</td>
+</tr>
+<tr>
+<td><code>connect(device, spec)</code></td>
+<td>client connect（suspend）+ services 事件流中按 <code>GattSpec</code> 定位服务/特征</td>
+<td>services <strong>事件流</strong>消费（2.0 语义）、订阅 spec.notifyChar16s、登记写特征；confirm 二次确认数据源即此</td>
+<td>中（事件流语义新）</td>
+</tr>
+<tr>
+<td><code>linkState</code></td>
+<td>连接状态 Flow</td>
+<td>映射到我们 LinkState 三态</td>
+<td>低</td>
+</tr>
+<tr>
+<td><code>negotiatedMtu</code></td>
+<td>requestMtu / mtu 值</td>
+<td>OTA sliceMax=(MTU−15)×17 依赖，语义不变</td>
+<td>低</td>
+</tr>
+<tr>
+<td><code>notifications(characteristicId)</code></td>
+<td>per-characteristic <code>getNotifications(): Flow</code></td>
+<td>多特征 Flow 合流 + 填 characteristicId（比自写更自然）</td>
+<td>低</td>
+</tr>
+<tr>
+<td><code>write(deviceId, bytes, char16)</code></td>
+<td>characteristic write（WRITE_COMMAND/WRITE_REQUEST）</td>
+<td><strong>写流控语义 = PoC 第一验证项</strong>（见 §3）</td>
+<td><strong>高</strong></td>
+</tr>
+<tr>
+<td>连接取消清理</td>
+<td>结构化并发取消行为</td>
+<td>验证取消时库是否 close/释放（我们踩过泄漏占死设备坑）</td>
+<td>中</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-s7-nordic-poc">3. S7 真机坑 × Nordic 必验清单（PoC 闸门，不过不转正）</h2>
+<ol>
+<li><strong>17 帧切片写流控</strong>（历史坑 BUG-1 变体：无流控背靠背 WriteWithoutResponse 溢出 GATT 缓冲静默丢帧 → 设备 15.36s 看门狗 abort）：验证 Nordic <code>write(WRITE_COMMAND)</code> suspend 是否内部排队等写完成回调；若否，适配层保留现有"逐帧串行+等回调+BUSY 退避"流控。<strong>用 24MB ota_all 真包验，对照吞吐基线 ~51.7 KB/s（2026-07-14 D8F7 实测）</strong>——慢太多也算不过（固件看门狗与实验室效率双重约束）。</li>
+<li><strong>连接协程取消清理</strong>：取消 connect 后设备须可被再次连接（不留幽灵连接占死设备）。</li>
+<li><strong>OTA 复位回连</strong>：设备自复位 → 扫描回连 11s 基线 → 重连读版本（S7 策略语义在上层，但断链事件/重连时序过库）。</li>
+<li><strong>MTU 247 协商</strong>与 sliceMax 推算不变。</li>
+<li><strong>多特征订阅时序</strong>（B2A FFE2 + 未来多通道）：CCC 串行订阅是否由库妥善处理。</li>
+<li><strong>TX/RX 逐帧日志能力</strong>：我们排固件问题靠逐帧 hex 日志（golden log 工作法）——适配层必须保留同等可观测性（库回调点上打日志）。</li>
+<li>固件 OTA 门控/61s 看门狗/永不补发 STOP 等语义全在 S7 策略层，与库无关（确认不受影响即可）。</li>
+</ol>
+<h2 id="4">4. 风险与缓解</h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>评级</th>
+<th>缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2.0.0-beta 依赖进生产</td>
+<td>中</td>
+<td>版本<strong>锁定 beta03</strong>；并存开关随时回退自写；等 2.0 stable 后再删自写</td>
+</tr>
+<tr>
+<td>写节奏变化影响 OTA 吞吐/固件看门狗</td>
+<td>高</td>
+<td>§3-1 真机 A/B 硬闸门</td>
+</tr>
+<tr>
+<td>services 事件流等 2.0 新语义踩坑</td>
+<td>中</td>
+<td>适配层集中消化 + client-android-mock 单测</td>
+</tr>
+<tr>
+<td>iOS 库 0.4.x 早期</td>
+<td>低（二期才用）</td>
+<td>M8 时重评版本；接口契约已隔离</td>
+</tr>
+<tr>
+<td>排障可观测性下降（库黑盒）</td>
+<td>中</td>
+<td>适配层统一日志点（TX/RX/状态迁移）；保留自写实现作对照参考</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 切换计划（并入现有波次，任务链已更新）</h2>
+<pre><code>W1  通道抽象契约（进行中，opus）        ← Nordic 路线的前置，不受影响
+W1.5 NordicBleClient PoC + 三向开关（opus）：client-android 2.0.0-beta03 实现 BleClient 全契约；
+     DEBUG 开关 自写/Nordic/Mock；client-android-mock 适配层单测
+W1.6 真机 A/B 等价闸门（主线+用户）：控制台全功能 / 拉日志 / OTA 单+多+循环(24MB) /
+     停止善后 / 扫描回连 / HRS 采集；吞吐对照基线 → 过闸 Nordic 转默认
+W2–W6 照旧（只依赖 BleClient 接口）
+iOS（M8）：Swift 实现 BleClient（IOS-BLE-Library），GattSpec 语义同一份
+</code></pre>
+<p><strong>自写 AndroidBleClient 的归宿</strong>：W1.6 过闸后降级为回退实现保留一个版本周期（开关仍可切回），2.0 stable + 无回退需求后删除。</p>
+<h2 id="6">6. 决策记录</h2>
+<ul>
+<li><strong>D2 恢复并扩展（2026-07-14 用户拍板）</strong>：Android=Kotlin-BLE-Library 2.0、iOS=IOS-BLE-Library；架构优化实施笔记 #9 的"续用自写"建议<strong>作废关闭</strong>。</li>
+<li>统一层 = 自有 <code>BleClient</code> + <code>GattSpec</code> 契约（W1），<strong>不是</strong>指望 Nordic 提供跨平台——两库是两个平台库。</li>
+</ul></main>
+</div>
+</body>
+</html>

@@ -4,6 +4,7 @@ import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
 import io.bluetrace.shared.ble.ConnectionRegistry
+import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_S7
@@ -18,8 +19,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,15 +49,20 @@ class MultiOtaControllerTest {
             MutableSharedFlow<BleNotification>(extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         }
 
+        /** 下行帧捕获（cmd,key 解码后记录）：断言"手动停止发了 CTRL_RESET"用。 */
+        private val txDecoders = watches.keys.associateWith { S7FrameDecoder() }
+        val txCmds = mutableListOf<Triple<String, Int, Int>>()
+
         override fun scan(): Flow<List<ScannedDevice>> = emptyFlow()
-        override suspend fun connect(device: ScannedDevice) { links.getValue(device.id).value = LinkState.CONNECTED }
+        override suspend fun connect(device: ScannedDevice, spec: GattSpec?) { links.getValue(device.id).value = LinkState.CONNECTED }
         override suspend fun disconnect(deviceId: String) { links.getValue(deviceId).value = LinkState.DISCONNECTED }
         override fun linkState(deviceId: String): StateFlow<LinkState> = links.getValue(deviceId)
         override fun negotiatedMtu(deviceId: String): Int = 247
         override fun notifications(deviceId: String): Flow<BleNotification> = inbound.getValue(deviceId)
-        override suspend fun write(deviceId: String, bytes: ByteArray) {
+        override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
             val link = links.getValue(deviceId)
             if (link.value != LinkState.CONNECTED) return
+            for (m in txDecoders.getValue(deviceId).feed(bytes)) txCmds += Triple(deviceId, m.cmd, m.key)
             val reply = watches.getValue(deviceId).handle(bytes)
             scope.launch {
                 for (f in reply.frames) {
@@ -142,6 +150,69 @@ class MultiOtaControllerTest {
         assertEquals(82, a.batteryBefore)
         assertEquals(null, a.versionAfter, "低电跳过不应刷写/读刷后版本")
         assertTrue(!watch.otaComplete, "低电跳过不应推包")
+    }
+
+    /**
+     * 手动停止（传输中）：固件 OTA 门控会丢弃一切非 FILE_TRANS 命令（审查坐实 2026-07-14）——
+     * **不发**重启指令，标"手动停止"（可重试）并断开连接（设备由固件 61s 看门狗自复位）。
+     * ⚠️ 停止善后跑 backgroundScope——`testScheduler.advanceUntilIdle()` **不处理后台任务**
+     * （只推进到"无前台任务"），须像其他用例一样用挂起等待（first{}）让 workRunner 消化后台队列。
+     */
+    @Test
+    fun stopBatch_midTransfer_marksStopped_skipsReset_disconnects() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        // 大包（多切片）拖慢传输，保证停止发生在下载中段（phase=Downloading）
+        val bigPkg = OtaPackage(files = listOf(OtaFile("fw.dat", ByteArray(100_000) { (it * 7).toByte() }, S7FileTrans.FT_FW)))
+        val watch = S7MockWatch(clock)
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = newController(ble)
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+
+        ctl.startBatch(bigPkg)
+        testScheduler.advanceTimeBy(30)
+        testScheduler.runCurrent() // 走到下载中段
+        val mid = ctl.queue.value.single()
+        assertEquals(DeviceOtaStatus.FLASHING, mid.status, "应停在刷写中段: ${mid.status}")
+        assertEquals(OtaPhase.Downloading, mid.phase)
+
+        ctl.stopBatch()
+        withTimeout(10_000) { ctl.queue.first { q -> q.single().status == DeviceOtaStatus.FAILED } }
+        withTimeout(10_000) { ble.linkState("a").first { it == LinkState.DISCONNECTED } }
+
+        val item = ctl.queue.value.single()
+        assertEquals("手动停止", item.failReason)
+        assertTrue(item.retriable, "手动停止的台子应可重试")
+        assertTrue(
+            ble.txCmds.none { it.first == "a" && it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
+            "传输中固件门控吞掉重启指令——不应发送: ${ble.txCmds.filter { it.second == S7.CMD_DEV_CTRL }}",
+        )
+        assertEquals(false, ctl.running.value)
+    }
+
+    /** 手动停止（非传输态，READING 刷前读取阶段）：OTA 标志未置位，重启指令应正常发送。 */
+    @Test
+    fun stopBatch_beforeTransfer_sendsReset() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val watch = S7MockWatch(clock)
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = newController(ble)
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+
+        ctl.startBatch(pkg())
+        testScheduler.advanceTimeBy(1)
+        testScheduler.runCurrent() // 连接后读版本/电量中（READING，未进 FILE_TRANS）
+        val mid = ctl.queue.value.single()
+        assertTrue(mid.status in setOf(DeviceOtaStatus.CONNECTING, DeviceOtaStatus.READING), "应停在读取阶段: ${mid.status}")
+
+        ctl.stopBatch()
+        withTimeout(10_000) { ctl.queue.first { q -> q.single().status == DeviceOtaStatus.FAILED } }
+        withTimeout(10_000) { ble.linkState("a").first { it == LinkState.DISCONNECTED } }
+
+        assertTrue(
+            ble.txCmds.any { it.first == "a" && it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
+            "非传输态停止应发送重启指令: ${ble.txCmds.filter { it.second == S7.CMD_DEV_CTRL }}",
+        )
+        assertEquals(false, ctl.running.value)
     }
 
     @Test

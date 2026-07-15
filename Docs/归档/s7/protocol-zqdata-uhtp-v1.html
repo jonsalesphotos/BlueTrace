@@ -122,8 +122,8 @@ strong { font-weight:600; }
 <blockquote>
 <p><strong>本文是 ZQDATA 服务协议的重设计稿</strong>：以 <a href="../../UWTP/UHTP_BLE_Protocol_Design_V4.md"><code>UHTP_BLE_Protocol_Design_V4.md</code></a>（UHTP V4，5B 小头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象传输；<strong>已被 <a href="../../UWTP/UWTP_BLE_Protocol_Design_V0.99.md">UWTP V0.99</a> 取代，本文待按其改写为 S7 采集 Profile</strong>）为最佳实践基线，<strong>收敛成采集业务的一个剖面（Profile）</strong>并把离线回传深化到可实现级。
 <strong>范围钉死</strong>（用户口径 2026-07-06）：① <strong>离线数据回传为主体</strong>；② <strong>在线数据控制一律透传</strong>（不重新设计在线流）；③ <strong>可开关的算法结果上传</strong>；④ <strong>可写个人信息</strong>。其余（LOG/OTA/SENSOR_CTRL/SECURITY）保留编号、V1 不实现。
-<strong>状态</strong>：设计稿 V1（2026-07-06），待与固件端评审冻结。机器可读契约：<a href="zqdata_uhtp_v1_draft.proto"><code>zqdata_uhtp_v1_draft.proto</code></a>。示例包全部由脚本实算（<a href="assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a>），protobuf wire 与 CRC32 可复验。
-现网协议（被替代对象）见 <a href="S7协议共识规格.md"><code>S7协议共识规格.md</code></a>：B2A TEST 0x10-0x12 + 40B→28B 重打包那套；迁移与共存见 §11。深度参考：同目录 <a href="protocol-b2a.md"><code>protocol-b2a.md</code></a>（B2A 全命令集）、<a href="protocol-zqdata.md"><code>protocol-zqdata.md</code></a>（现网 zqdata 全量审计）。</p>
+<strong>状态</strong>：设计稿 V1（2026-07-06），待与固件端评审冻结。机器可读契约：<a href="zqdata_uhtp_v1_draft.proto"><code>zqdata_uhtp_v1_draft.proto</code></a>。示例包全部由脚本实算（<a href="../../S7B2A/assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a>），protobuf wire 与 CRC32 可复验。
+现网协议（被替代对象）见 <a href="../../S7B2A/S7协议共识规格.md"><code>S7协议共识规格.md</code></a>：B2A TEST 0x10-0x12 + 40B→28B 重打包那套；迁移与共存见 §11。深度参考：同目录 <a href="../../S7B2A/protocol-b2a.md"><code>protocol-b2a.md</code></a>（B2A 全命令集）、<a href="../../S7B2A/protocol-zqdata.md"><code>protocol-zqdata.md</code></a>（现网 zqdata 全量审计）。</p>
 </blockquote>
 <table>
 <thead>
@@ -227,7 +227,7 @@ strong { font-weight:600; }
 <table>
 <thead>
 <tr>
-<th>现网问题（见 <a href="S7协议共识规格.md">S7协议共识规格.md</a>）</th>
+<th>现网问题（见 <a href="../../S7B2A/S7协议共识规格.md">S7协议共识规格.md</a>）</th>
 <th>本设计的解法</th>
 </tr>
 </thead>
@@ -712,7 +712,7 @@ message ReadReady {
 <tr>
 <td><code>0x01</code></td>
 <td>ECG1_V2</td>
-<td>现网 <code>ecg_raw.dat</code>（32B 头 + 8B 帧头流 + ACC 段，小端；见 <a href="S7协议共识规格.md">S7协议共识规格.md</a> §6）</td>
+<td>现网 <code>ecg_raw.dat</code>（32B 头 + 8B 帧头流 + ACC 段，小端；见 <a href="../../S7B2A/S7协议共识规格.md">S7协议共识规格.md</a> §6）</td>
 </tr>
 <tr>
 <td><code>0x02</code> / <code>0x03</code></td>
@@ -914,7 +914,7 @@ message ReadReady {
 </ul>
 <h2 id="12-example-raw-packet-decode">12. Example raw packet + decode</h2>
 <blockquote>
-<p>全部由 <a href="assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a> 实算（protobuf wire + CRC32），len 自洽断言通过。示例 UTC = 1783324800（2026-07-06 08:00:00Z）。</p>
+<p>全部由 <a href="../../S7B2A/assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a> 实算（protobuf wire + CRC32），len 自洽断言通过。示例 UTC = 1783324800（2026-07-06 08:00:00Z）。</p>
 </blockquote>
 <h3 id="121-e1-time_sync">12.1 E1 · TIME_SYNC（固定二进制）</h3>
 <pre><code>ping (14B): 14 01 05 21 09 | 01 | 00 60 5B A0 9D 37 06 00
@@ -1016,9 +1016,9 @@ HEARTBEAT (13B): 10 01 06 70 08 | 08 90 1C 10 8C 1F 18 01   uptime=3600s, batt=3
 <h2 id="14">14. 引用</h2>
 <ul>
 <li>设计基线：<a href="../../UWTP/UHTP_BLE_Protocol_Design_V4.md"><code>Docs/UWTP/UHTP_BLE_Protocol_Design_V4.md</code></a>（UHTP V4：5B 头 / 事务域 / Report TLV / offset 传输 / 分层版本，本文 §2/§5/§10/§11 大量原样收编）；<strong>后继定稿 = <a href="../../UWTP/UWTP_BLE_Protocol_Design_V0.99.md"><code>Docs/UWTP/UWTP_BLE_Protocol_Design_V0.99.md</code></a></strong></li>
-<li>被替代的现网协议：<a href="S7协议共识规格.md"><code>S7协议共识规格.md</code></a>（B2A + DC 0x10-0x12 + 40B→28B 重打包）；全量审计：<a href="protocol-b2a.md"><code>protocol-b2a.md</code></a>、<a href="protocol-zqdata.md"><code>protocol-zqdata.md</code></a></li>
+<li>被替代的现网协议：<a href="../../S7B2A/S7协议共识规格.md"><code>S7协议共识规格.md</code></a>（B2A + DC 0x10-0x12 + 40B→28B 重打包）；全量审计：<a href="../../S7B2A/protocol-b2a.md"><code>protocol-b2a.md</code></a>、<a href="../../S7B2A/protocol-zqdata.md"><code>protocol-zqdata.md</code></a></li>
 <li>机器可读契约：<a href="zqdata_uhtp_v1_draft.proto"><code>zqdata_uhtp_v1_draft.proto</code></a>（本文所有 Protobuf 消息的权威定义）</li>
-<li>示例生成脚本：<a href="assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a></li>
+<li>示例生成脚本：<a href="../../S7B2A/assets/gen_zqdata_uhtp_examples.py"><code>assets/gen_zqdata_uhtp_examples.py</code></a></li>
 <li>传输层落点：开发仓 <code>product/apollo_eiot/zqdata/</code>（新 zqdata 模块：环 + 双线程 + txReady，正好是本协议的收发骨架）</li>
 <li>BlueTrace 侧接入：<a href="../02_parser_registry_design.md"><code>../02_parser_registry_design.md</code></a>（Profile/解析器注册架构）；相关草案 <a href="../03_collect_protocol_design.md"><code>../03_collect_protocol_design.md</code></a>（BTCP/1，其对时/credit/离线镜像思想已并入本文 §4.3/§6）</li>
 </ul></main>

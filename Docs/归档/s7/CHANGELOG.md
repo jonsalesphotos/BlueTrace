@@ -1,7 +1,7 @@
 # S7 设备维护控制台 · 修改记录
 
 > 本文件记录设备维护（DUT）控制台从设计到真机联调再到体验优化的关键改动。
-> 完整设计见同目录 [protocol-spec.md](protocol-spec.md) / [command-status.md](command-status.md)（工作底稿 plan/review/_raw 已归档至 [`../../归档/s7协议工作底稿/`](../../归档/s7协议工作底稿/)）。
+> 完整设计见同目录 [protocol-spec.md](../../S7B2A/protocol-spec.md) / [command-status.md](../../S7B2A/command-status.md)（工作底稿 plan/review/_raw 已归档至 [`../../归档/s7协议工作底稿/`](../../归档/s7协议工作底稿/)）。
 > **截图/日志证据归档说明（2026-07-06）**：下文各轮 `assets/*.png` 截图与 devlog 引用均已迁至 [`../../归档/s7协议工作底稿/assets/`](../../归档/s7协议工作底稿/assets/)（历史条目原文保真不逐条改写）；本目录 `assets/` 只留协议文档的示例帧生成脚本。
 
 ## 2026-07-06 · 调试证据归档：s7/ 收敛为纯协议文档目录（第 23 轮）
@@ -13,7 +13,7 @@
 ## 2026-07-06 · 协议分册补齐五要素 + 目录归档（第 22 轮）
 
 - **需求**：对照协议文档标准五要素（Frame 表 / bit-level ASCII 图 / 逐字节 payload / 实例包 decode / 状态机）审计本目录——共识稿达标；两份分册缺项：b2a 缺 ASCII 标尺图与 OTA 状态机图，zqdata 缺 ASCII 图、**实例包**、状态机。
-- **protocol-zqdata.md** 补齐：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据的分界可视化）、§3.8 实例包 decode（HR 起帧 16B 全注解 + HR 数据包 212B 帧0/帧1 逐字段，脚本 [assets/gen_zqdata_wire_examples.py](assets/gen_zqdata_wire_examples.py) 实算 CRC + 金帧 0x462D 自校验；**数值为构造演示值，无真机抓包待采集固件手表实录替换**）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
+- **protocol-zqdata.md** 补齐：§3.1 增 40B 帧 bit-level memory map（28B 大端主体 + 12B AGC 尾逐位）；新增 §3.7 B2A 封装上行包字节标尺（小端信封/大端数据的分界可视化）、§3.8 实例包 decode（HR 起帧 16B 全注解 + HR 数据包 212B 帧0/帧1 逐字段，脚本 [assets/gen_zqdata_wire_examples.py](../../S7B2A/assets/gen_zqdata_wire_examples.py) 实算 CRC + 金帧 0x462D 自校验；**数值为构造演示值，无真机抓包待采集固件手表实录替换**）、§3.9 离线上行发送序列状态机（门槛/流控/截尾/OTA 抢占全 file:line 实证）。
 - **protocol-b2a.md** 补齐：§2 增帧信封 bit-level 标尺图（与共识稿 §3.2 同源自包含）；§9.1 OTA 状态机由一行文字扩为 ASCII 图（REQ→READY→START→TRANS→END + 60s 超时/STOP/ERROR 回边 + OFFSET 断点续传）。
 - **目录归档**：`plan.md` / `review-report.md` / `_raw/`（10 份工作底稿）→ `Docs/归档/s7协议工作底稿/`；保留活文档 command-status（实现追踪）与 completeness-audit（缺口清单，OTA 编排缺口在册）。
 - 两份 html 重新生成。
@@ -21,19 +21,19 @@
 ## 2026-07-06 · ZQDATA·UHTP V1 协议重设计（离线优先）（第 21 轮）
 
 - **需求**：以 [`../../UWTP/UHTP_BLE_Protocol_Design_V4.md`](../../UWTP/UHTP_BLE_Protocol_Design_V4.md)（5B 头 + 事务域状态机 + Protobuf 协商 + Report TLV + offset 大对象；2026-07-06 归档入仓，后收敛为 `Docs/UWTP/` 下的 UWTP V0.99）为最佳实践基线，重设计 ZQDATA 协议。范围钉死：**离线数据回传为主体**、在线数据控制透传、可开关的算法结果上传、可写个人信息；其余（LOG/OTA/SENSOR/SECURITY）保留编号不实现。
-- **产出**：[protocol-zqdata-uhtp-v1.md](protocol-zqdata-uhtp-v1.md) + [.html](protocol-zqdata-uhtp-v1.html)（3 张 SVG + ASCII 位图）+ 机器可读契约 [zqdata_uhtp_v1_draft.proto](zqdata_uhtp_v1_draft.proto) + 示例脚本 [assets/gen_zqdata_uhtp_examples.py](assets/gen_zqdata_uhtp_examples.py)（protobuf wire + CRC32 实算，全帧 len 自洽断言）。
+- **产出**：[protocol-zqdata-uhtp-v1.md](protocol-zqdata-uhtp-v1.md) + [.html](protocol-zqdata-uhtp-v1.html)（3 张 SVG + ASCII 位图）+ 机器可读契约 [zqdata_uhtp_v1_draft.proto](zqdata_uhtp_v1_draft.proto) + 示例脚本 [assets/gen_zqdata_uhtp_examples.py](../../S7B2A/assets/gen_zqdata_uhtp_examples.py)（protobuf wire + CRC32 实算，全帧 len 自洽断言）。
 - **要点**：复用 ZQDATA GATT 服务与开发仓新 zqdata 传输模块；FILE 域深化为 CATALOG/READ(BEGIN/READY/DATA/ACK/END)/ABORT/DELETE——窗口 ACK 授信 + resume_offset 断点续传 + 整档 CRC32 + 显式删除；新增 TUNNEL 域透传汇顶 EVK；CTRL 域含 HELLO 协商（AlgorithmManifest/content_format 注册表）、NTP 式四时戳对时（离线 UTC 锚点）、USER_PROFILE、ALGO_CTRL（结果上传开关，active_ids 对账）；REPORT_TLV 收编 UHTP §10（time_delta 冻结为 ×100ms）。
 - **迁移**：legacy B2A 帧首字节 0xBB 与 UHTP 0x1? 完全不相交 → 固件可双栈分流；App HELLO 超时回落 legacy。文件格式经 content_format 解耦（先原样回传现网 ECG1_V2/PPGHR40/GS18，推荐迁移目标 UOF1 统一格式：32B 头 + 流描述表 + 8B 帧头多流交错）。
 - **状态**：设计稿 V1，待与固件端评审冻结（开放问题 O-1~O-8 见文档 §13）。
 
 ## 2026-07-06 · S7 协议共识规格（B2A + 采集固件专用协议）（第 20 轮）
 
-- 新增 [S7协议共识规格.md](S7协议共识规格.md) + [.html](S7协议共识规格.html)：跨项目（固件双仓 ↔ BlueTrace）单一共识稿，全字段 file:line 溯源固件代码；覆盖 GATT 服务地图 / B2A 信封逐位 / 采集仓新增 DC 会话协议（TEST 0x10-0x12 + ecg_raw.dat v2）/ ZQDATA 上行（40B→28B 重打包等）/ 7 组实算示例包（金帧 0x462D 自校验，脚本 [assets/gen_s7_protocol_examples.py](assets/gen_s7_protocol_examples.py)）/ 双固件 git diff 实证差异表。详细条目见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。
+- 新增 [S7协议共识规格.md](../../S7B2A/S7协议共识规格.md) + [.html](../../S7B2A/S7协议共识规格.html)：跨项目（固件双仓 ↔ BlueTrace）单一共识稿，全字段 file:line 溯源固件代码；覆盖 GATT 服务地图 / B2A 信封逐位 / 采集仓新增 DC 会话协议（TEST 0x10-0x12 + ecg_raw.dat v2）/ ZQDATA 上行（40B→28B 重打包等）/ 7 组实算示例包（金帧 0x462D 自校验，脚本 [assets/gen_s7_protocol_examples.py](../../S7B2A/assets/gen_s7_protocol_examples.py)）/ 双固件 git diff 实证差异表。详细条目见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。
 
 ## 2026-07-03 · zqdata 上行协议核查 + 规格文档（逐字节·含位域）（第 19 轮）
 
 - **需求**：核查 zqdata(离线采集数据通道)协议文档的完整性/与代码一致性(像 B2A 那样代码实证 vs 文档,代码在采集固件 `apollo4_watch_s7_collect`),再拉进 BlueTrace 生成工程侧 HTML,与 protocol-b2a 并列。
-- **产出**：新增 [protocol-zqdata.md](protocol-zqdata.md)（480 行）+ [protocol-zqdata.html](protocol-zqdata.html)（68KB，样式与 protocol-b2a.html 一致）。
+- **产出**：新增 [protocol-zqdata.md](../../S7B2A/protocol-zqdata.md)（480 行）+ [protocol-zqdata.html](../../S7B2A/protocol-zqdata.html)（68KB，样式与 protocol-b2a.html 一致）。
 - **方法**：多代理工作流——并行抽取①文档声明 ②采集固件 `_collect` 上行代码实证 ③新 zqdata 模块代码实证 → 合成逐字节 markdown + **文档-代码差异核查章**。
 - **内容(6 章)**：三通道架构(zqdata / gh3x2x 190E / B2A FFE0)、zqdata GATT 传输层逐字节(句柄 `0x0A10-0x0A15`/环/双线程/txReady)、**上行数据协议逐字节**(40B 落盘 ABI → 40B→28B 重打包逐字节映射 → B2A `TEST(0x08)` 封装 212B/240B,含 HR/SpO2/gsensor 变体)、下行/ECG 会话/广播、**代码实证 vs 文档 15 条差异表**、附录。
 - **核查关键结论**：字节 ABI(重打包映射/212B/句柄)与代码**逐字节一致**;需修正/补充 6 处——① 文档把**两棵源码树混叙**(上行真相在 A 树 `_collect` 走 `GH3X2X_BLE_TX_HDL`,B 树新 zqdata 模块尚未接生产者);②「全大端」需分层(主体大端、40B 尾 AGC 位域、ECG 小端,三序并存);③ 补 SpO2 240B/包 + 228B 硬上限;④ 补 gsensor 18B 帧;另 4 项标 `🔬需固件核对`。
@@ -42,7 +42,7 @@
 ## 2026-07-03 · B2A 协议完整规格文档（逐字节·含位域）（第 18 轮）
 
 - **需求**：把 B2A 协议逐条整理——每条命令、分类分组、数据如何组包、包的每字节含义(含位域展开)，成 HTML 文档。
-- **产出**：新增 [protocol-b2a.md](protocol-b2a.md)（44KB / 684 行）+ [protocol-b2a.html](protocol-b2a.html)（71KB，自包含、样式对齐 command-status.html）。
+- **产出**：新增 [protocol-b2a.md](../../S7B2A/protocol-b2a.md)（44KB / 684 行）+ [protocol-b2a.html](../../S7B2A/protocol-b2a.html)（71KB，自包含、样式对齐 command-status.html）。
 - **方法**：多代理工作流——4 个抽取代理并行读①传输/帧层 ②app 命令全集 ③日志+OTA ④**代码实证**(shared/s7/*.kt，真机联调过) → 1 个合成代理产出逐字节 markdown → 再由一个代理忠实渲染成 HTML。
 - **内容**：11 章——传输栈(GATT FFE0/E1/E2 / MTU / 分包重组)、**帧格式逐字节**(帧头 8B + 命令头 4B + CRC16-CCITT-FALSE + `ucStatus` 位域逐 bit)、**组包流程**(逻辑包→分片→重组，含 golden hex 示例)、**按分类分组全部命令**(一级 10 个 / Key 级 90+ 条：BOND/GET/SET/PUSH/IND/RPT_DATA/DEV_CTRL/TEST/FILE_TRANS-OTA)，每条含 payload 逐字节表 + 位域表 + 示例帧 + 实现状态徽章、**代码实证 vs 文档 6 处差异**、附录(EBEC 错误码/CRC/全命令索引)。
 - **权威口径**：字节布局以代码实证为最高权威(真机验证)，命令全集/语义/示例补自固件源码，冲突处标 `⚠差异` 并在第 10 章汇总。
@@ -203,7 +203,7 @@
 
 **真机验证**（SKG WATCH S7-FCC4）：切换入口、刷新入栏、编辑写入 + toast「已写入用户信息」、操作日志导出 + toast「已导出到 Download/BlueTrace/logs/…」全部通过；导出文件确认落盘。截图见 `assets/c_*.png`。
 
-**文档**：新增 [command-status.md](command-status.md) + [command-status.html](command-status.html)（B2A 全指令实现状态：维护指令全实现，除 OTA 二期外未实现项均为业务类/固件未开/可选诊断）。
+**文档**：新增 [command-status.md](../../S7B2A/command-status.md) + [command-status.html](../../S7B2A/command-status.html)（B2A 全指令实现状态：维护指令全实现，除 OTA 二期外未实现项均为业务类/固件未开/可选诊断）。
 
 ## 2026-07-02 · 真实蓝牙 + 联调（第 3 轮）
 
@@ -212,7 +212,7 @@
 - 控制台内置连接页（非参考限连 1 台）+ 多设备先选择
 - 真机联调全通：GET 全套、对时、拉日志 431KB、危险命令断链判据
 - 协议实证修正：MAC LE 反序、DevType device_type 码 hex、ASCII 尾部截断
-- Android 侧工程坑（定位静默过滤 / 扫描节流 / GATT 泄漏）已**网络核查**并修正归因，见 [completeness-audit.md](completeness-audit.md)
+- Android 侧工程坑（定位静默过滤 / 扫描节流 / GATT 泄漏）已**网络核查**并修正归因，见 [completeness-audit.md](../../S7B2A/completeness-audit.md)
 
 ## 2026-07-02 · 设计 + shared 实现 + Mock 联调（第 1–2 轮）
 

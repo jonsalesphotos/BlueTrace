@@ -10,14 +10,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 设备日志存储（app 级单例）：拉取的设备固件日志经 **MediaStore** 落到**公共**
- * `Download/BlueTrace/logs/`（免存储权限、文件管理器可直接翻看），可列举、按名读取。
+ * 设备固件日志存储（app 级单例）：拉取的设备固件日志经 **MediaStore** 落到**公共**
+ * `Download/BlueTrace/log/firmware/`（免存储权限、文件管理器可直接翻看），可列举、按名读取。
  *
  * 文件名以 **MAC 区分**：`s7_devlog_<MAC无冒号大写>_<时间戳>.log`。
  * minSdk 29（Android 10）起用 RELATIVE_PATH scoped storage，无需 WRITE/READ 运行时权限。
  *
- * 早期版本曾把设备日志存 app 私有目录 `<外部文件目录>/devlogs/`（adb 才能取），
- * 首次 [list] 时把遗留文件**一次性迁移**进 Download，避免历史日志丢失。
+ * 迁移链（首次 [list] 时一次性跑，幂等）：
+ * - 早期 app 私有 `<外部文件目录>/devlogs/`（adb 才能取）→ 公共目录；
+ * - v7 公共 `Download/BlueTrace/logs/` 混放目录 → v8 `log/firmware/`（2026-07-14 目录树重组）。
  */
 class DeviceLogStore(private val context: Context) {
 
@@ -26,10 +27,13 @@ class DeviceLogStore(private val context: Context) {
     private val collection get() = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
 
     /** MediaStore 里 RELATIVE_PATH 存为带尾斜杠形式。 */
-    private val relPath = "${Environment.DIRECTORY_DOWNLOADS}/BlueTrace/logs/"
+    private val relPath = PublicTree.relPath(PublicTree.LOG_FIRMWARE)
 
     /** 展示用目录（顶栏副标题 / toast）。 */
-    private val displayDir = "Download/BlueTrace/logs"
+    private val displayDir = PublicTree.display(PublicTree.LOG_FIRMWARE)
+
+    /** v7 遗留公共混放目录（迁移来源）。 */
+    private val legacyPublicDir = PublicTree.display(PublicTree.LEGACY_LOGS)
 
     /** 遗留的 app 私有目录（迁移来源）。 */
     private val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "devlogs")
@@ -43,9 +47,21 @@ class DeviceLogStore(private val context: Context) {
         writeToDownloads(name, bytes) ?: displayDir
     }
 
-    /** 列举全部设备日志（新→旧）。列前先迁移遗留私有目录、并把旧的 `.log.txt` 改名回 `.log`。 */
+    /**
+     * 迁移链（幂等；App 启动后台 + 首次列举各跑一次）：
+     * 私有 `devlogs/` → 公共；旧公共 `logs/` **整目录合并**进 `log/`（s7_devlog* → `log/firmware/`，
+     * 其余 App 侧日志 → `log/app/`）；`.log.txt` 改名。搬空后尽力删除遗留空目录。
+     */
+    suspend fun migrateLegacyDirs() = withContext(Dispatchers.IO) {
+        migrateLegacy()
+        migrateLegacyPublicDir()
+        renameLegacyTxtToLog()
+    }
+
+    /** 列举全部设备日志（新→旧）。列前先跑迁移链。 */
     suspend fun list(): List<Entry> = withContext(Dispatchers.IO) {
         migrateLegacy()
+        migrateLegacyPublicDir()
         renameLegacyTxtToLog()
         val projection = arrayOf(
             MediaStore.Downloads.DISPLAY_NAME,
@@ -85,14 +101,14 @@ class DeviceLogStore(private val context: Context) {
         result
     }
 
-    /** 写字节到 Download/BlueTrace/logs/<name>，返回展示路径（失败返回 null）。 */
-    private fun writeToDownloads(name: String, bytes: ByteArray): String? {
+    /** 写字节到 `Download/<destRel>/<name>`（默认固件日志目录），返回展示路径（失败返回 null）。 */
+    private fun writeToDownloads(name: String, bytes: ByteArray, destRel: String = relPath): String? {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             // 用 octet-stream 而非 text/plain：后者会被 MediaStore 强制补 .txt（.log→.log.txt）
             put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-            put(MediaStore.Downloads.RELATIVE_PATH, relPath)
+            put(MediaStore.Downloads.RELATIVE_PATH, destRel)
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val uri = resolver.insert(collection, values) ?: return null
@@ -106,6 +122,48 @@ class DeviceLogStore(private val context: Context) {
         } catch (e: Exception) {
             runCatching { resolver.delete(uri, null, null) }
             null
+        }
+    }
+
+    /**
+     * v7→v8：旧公共 `Download/BlueTrace/logs/` **整目录合并**进 `log/`（用户 2026-07-14：log 与 logs 重复）。
+     * 分流：`s7_devlog*`（手表拉的固件日志）→ `log/firmware/`；其余（bluetrace_log/s7_oplog 等 App 侧产物）
+     * → `log/app/`。优先 MediaStore 原地改 RELATIVE_PATH（物理移动）；个别 ROM 不支持 → 回退读字节重写+删旧行。
+     * 幂等：旧目录搬空后查询命中 0 即空转；搬空后尽力删除遗留空目录（删不掉留空壳无害）。
+     */
+    private fun migrateLegacyPublicDir() {
+        val resolver = context.contentResolver
+        val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME)
+        val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
+        val args = arrayOf("$legacyPublicDir%")
+        val hits = mutableListOf<Pair<Long, String>>()
+        resolver.query(collection, projection, selection, args, null)?.use { c ->
+            val idi = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+            val ni = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+            while (c.moveToNext()) hits += c.getLong(idi) to c.getString(ni)
+        }
+        var failed = 0
+        for ((id, name) in hits) {
+            val uri = ContentUris.withAppendedId(collection, id)
+            val destRel = if (name.startsWith("s7_devlog")) relPath else PublicTree.relPath(PublicTree.LOG_APP)
+            try {
+                val v = ContentValues().apply { put(MediaStore.Downloads.RELATIVE_PATH, destRel) }
+                resolver.update(uri, v, null, null)
+            } catch (e: Exception) {
+                // 改 RELATIVE_PATH 失败（ROM 差异 / 非本 app 行）→ 回退复制+删除；再失败则留在原地下次重试
+                try {
+                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: run { failed++; continue }
+                    if (writeToDownloads(name, bytes, destRel) != null) resolver.delete(uri, null, null) else failed++
+                } catch (e2: Exception) {
+                    failed++ // 留在旧目录，不阻塞列举
+                }
+            }
+        }
+        if (failed == 0) {
+            // 全部搬空 → 尽力删空目录（scoped storage 下可能无权限，失败即留空壳）
+            runCatching {
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), PublicTree.LEGACY_LOGS).delete()
+            }
         }
     }
 

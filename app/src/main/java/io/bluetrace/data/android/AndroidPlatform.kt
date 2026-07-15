@@ -24,3 +24,25 @@ fun sessionsRoot(context: Context): Path {
     val base = context.getExternalFilesDir(null) ?: context.filesDir
     return base.resolve("sessions").absolutePath.toPath()
 }
+
+/**
+ * 应用滚动日志目录（v8 目录树统一，与公共侧 `log/app` 同名）：`getExternalFilesDir(null)/log/app`。
+ * 首次调用把 v7 遗留 `files/logs/` 的 `app-*.log` 迁入（同卷 rename，幂等；重名保新删旧）。
+ */
+fun appLogsDir(context: Context): Path {
+    val base = context.getExternalFilesDir(null) ?: context.filesDir
+    val dir = base.resolve("log/app")
+    val legacy = base.resolve("logs")
+    if (legacy.isDirectory) {
+        dir.mkdirs()
+        legacy.listFiles()?.forEach { f ->
+            if (!f.isFile) return@forEach
+            runCatching {
+                val dst = dir.resolve(f.name)
+                if (dst.exists()) f.delete() else f.renameTo(dst)
+            }
+        }
+        runCatching { legacy.delete() } // 搬空才删得掉；有残留就留着下次再试
+    }
+    return dir.absolutePath.toPath()
+}

@@ -349,7 +349,7 @@ class S7Console(
         val disconnected = withTimeoutOrNull(disconnectWaitMs) {
             ble.linkState(deviceId).first { it != LinkState.CONNECTED }
         } != null
-        log(if (disconnected) "device link down → 命令生效" else "10s 未断链 → 设备未响应")
+        log(if (disconnected) "device link down → 命令生效" else "${disconnectWaitMs / 1000}s 未断链 → 未观测到复位")
         disconnected
     }
 

@@ -55,11 +55,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.shared.s7.OtaPhase
+import io.bluetrace.shared.util.formatMb
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.shared.s7.DeviceOtaItem
 import io.bluetrace.shared.s7.DeviceOtaStatus
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import io.bluetrace.viewmodel.MultiOtaUiState
 import io.bluetrace.viewmodel.MultiOtaViewModel
 import io.bluetrace.viewmodel.ScanRow
@@ -93,7 +100,7 @@ fun MultiOtaBody(modifier: Modifier, vm: MultiOtaViewModel, ui: MultiOtaUiState)
                 )
             }
         }
-        BatchControl(ui, onStart = { vm.startBatch() }, onStop = { vm.stopBatch() }, onRetryAll = { vm.retryAllFailed() })
+        BatchControl(ui, summary = vm.summaryLine(), onStart = { vm.startBatch() }, onStop = { vm.stopBatch() }, onRetryAll = { vm.retryAllFailed() })
         MultiLogTerminal(vm)
         Spacer(Modifier.navigationBarsPadding().height(8.dp))
     }
@@ -137,7 +144,7 @@ private fun MultiPackageSection(ui: MultiOtaUiState, enabled: Boolean, onAdd: ()
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(pkg.sourceName, fontSize = 13.sp, fontWeight = FontWeight.W700, color = BT.onSurface, fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${pkg.fileCount} 文件 · ${fmtMB(pkg.totalSize)} · 全队列共用", fontSize = 11.sp, color = BT.onSurfaceV)
+                    Text("${pkg.fileCount} 文件 · ${formatMb(pkg.totalSize)} · 全队列共用", fontSize = 11.sp, color = BT.onSurfaceV)
                 }
                 if (enabled) {
                     Icon(
@@ -223,6 +230,10 @@ private fun QueueRow(item: DeviceOtaItem, onRemove: () -> Unit, onRetry: () -> U
                 Column(Modifier.padding(start = 34.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.phase?.label() ?: "刷写中", fontSize = 11.sp, fontWeight = FontWeight.W700, color = BT.primary, modifier = Modifier.weight(1f))
+                        if (p != null && item.phase == OtaPhase.Downloading) {
+                            Text(fmtSpeed(p.bytesPerSec), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = BT.onSurfaceV)
+                            Spacer(Modifier.width(8.dp))
+                        }
                         if (p != null) Text("${(frac(p) * 100).toInt()}%", fontSize = 11.sp, color = BT.onSurfaceV)
                     }
                     Spacer(Modifier.height(4.dp))
@@ -273,7 +284,8 @@ private fun rowMeta(item: DeviceOtaItem): String = when (item.status) {
         item.batteryBefore?.let { append(" · 电量 $it%") }
     }
     DeviceOtaStatus.DONE -> "版本 ${item.versionBefore ?: "—"} → ${item.versionAfter ?: "未知"} · 电量 ${pct(item.batteryBefore)} → ${pct(item.batteryAfter)}"
-    DeviceOtaStatus.FAILED, DeviceOtaStatus.SKIPPED_LOW_BATTERY -> "${item.failReason ?: "—"} · 已跳过"
+    DeviceOtaStatus.FAILED -> item.failReason ?: "—" // describe() 的结构化原因（出错指令/文件+偏移）
+    DeviceOtaStatus.SKIPPED_LOW_BATTERY -> "${item.failReason ?: "—"} · 已跳过"
 }
 
 private fun pct(v: Int?): String = v?.let { "$it%" } ?: "—"
@@ -281,7 +293,7 @@ private fun pct(v: Int?): String = v?.let { "$it%" } ?: "—"
 // ---- 批量控制 ----
 
 @Composable
-private fun BatchControl(ui: MultiOtaUiState, onStart: () -> Unit, onStop: () -> Unit, onRetryAll: () -> Unit) {
+private fun BatchControl(ui: MultiOtaUiState, summary: String, onStart: () -> Unit, onStop: () -> Unit, onRetryAll: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (ui.running) {
             Row(
@@ -305,7 +317,7 @@ private fun BatchControl(ui: MultiOtaUiState, onStart: () -> Unit, onStop: () ->
             }
         }
         if (ui.queue.isNotEmpty()) {
-            Text(ui.summaryLine(), fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
+            Text(summary, fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
         }
     }
 }
@@ -342,13 +354,29 @@ private fun MultiLogTerminal(vm: MultiOtaViewModel) {
 private fun ScanAddSheet(rows: List<ScanRow>, onDismiss: () -> Unit, onToggle: (String) -> Unit, onConfirm: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true) // 直接全展开: 「加入队列」按钮不必上拉即见
     val selectedCount = rows.count { it.selected }
+    // 列表消化不掉的滚动/惯性全部吃掉、不上抛给 sheet——在列表里下滑不会把抽屉拖关
+    //（关抽屉 = 顶部横条下拉 / 点遮罩 / 返回键）。
+    val keepSheetStill = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = available
+        }
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = BT.surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
             Text("扫描添加到队列", fontSize = 16.sp, fontWeight = FontWeight.W800, color = BT.onSurface)
             Text("仅入队、不连接 · 只支持 S7(B2A) 手表", fontSize = 11.sp, color = BT.onSurfaceV)
             Spacer(Modifier.height(10.dp))
-            LazyColumn(Modifier.fillMaxWidth().height(320.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                items(rows, key = { it.device.id }) { r -> ScanRowItem(r, onToggle) }
+            // 行序稳定 + 无 key：滚动位置按页面距离（index/offset）记，不追踪设备——扫描重排时视口不跳；
+            // 顶部锚点即"支持的 + 信号最强"（排序保证），打开就看到手边的表。
+            LazyColumn(
+                Modifier.fillMaxWidth().height(320.dp).nestedScroll(keepSheetStill),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                items(rows) { r -> ScanRowItem(r, onToggle) }
+                if (rows.isEmpty()) {
+                    item { Text("扫描中…", fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.padding(vertical = 24.dp)) }
+                }
             }
             Spacer(Modifier.height(10.dp))
             PrimaryButton(
@@ -426,6 +454,7 @@ private fun Modifier.dashedBorder(color: Color, radius: androidx.compose.ui.unit
 private fun OtaPhase.label(): String = when (this) {
     OtaPhase.Downloading -> "下载中"
     OtaPhase.WaitingReboot -> "等待复位"
+    OtaPhase.Scanning -> "扫描回连"
     OtaPhase.Reconnecting -> "重连中"
     OtaPhase.ReadingVersion -> "读取版本"
     OtaPhase.Done -> "完成"
@@ -433,5 +462,3 @@ private fun OtaPhase.label(): String = when (this) {
 
 private fun frac(p: io.bluetrace.shared.s7.OtaProgress): Float =
     if (p.totalBytes > 0) (p.sentBytes.toFloat() / p.totalBytes).coerceIn(0f, 1f) else 0f
-
-private fun fmtMB(b: Long): String = if (b >= 1_000_000) "%.1f MB".format(b / 1_000_000.0) else "%.0f KB".format(b / 1_000.0)

@@ -235,7 +235,7 @@
     <string name="settings_env_check">Environment &amp; permission check</string>
     <string name="settings_env_check_sub">Bluetooth toggle / permissions / keep-alive</string>
     <string name="settings_export_loc">Export location</string>
-    <string name="settings_export_loc_sub">Download/BlueTrace/</string>
+    <string name="settings_export_loc_sub">Download/BlueTrace/rawdata/</string>
     <string name="settings_storage">Storage usage</string>
     <string name="settings_storage_sub">Raw HEX + decoded CSV</string>
     <string name="settings_log">App log</string>
@@ -277,8 +277,8 @@
 
     <string name="export_loc_title">Export location</string>
     <string name="export_loc_subtitle">Session folder export path</string>
-    <string name="export_loc_path">Download/BlueTrace/</string>
-    <string name="export_loc_note">All session folders are exported via MediaStore to the public Downloads dir (no storage permission). App log goes to Download/BlueTrace/logs/.</string>
+    <string name="export_loc_path">Download/BlueTrace/rawdata/&lt;date&gt;/</string>
+    <string name="export_loc_note">All session folders are exported via MediaStore to the public Downloads dir (no storage permission), archived by export date under rawdata/. Logs live under Download/BlueTrace/log/: app log in log/app/, device firmware logs in log/firmware/, OTA run logs in log/ota/.</string>
 
     <string name="storage_title">Storage usage</string>
     <string name="storage_subtitle">%1$s MB · %2$d sessions · %3$d files</string>
@@ -348,7 +348,7 @@
     <string name="console_log_empty">No log yet; pull first.</string>
     <string name="console_log_progress">%1$d chunks · %2$d B</string>
     <string name="console_log_lines">%1$d lines · %2$d chars</string>
-    <string name="console_log_desc">Pulls the device firmware runtime log (now + bak files), exported to Download/BlueTrace/logs/.</string>
+    <string name="console_log_desc">Pulls the device firmware runtime log (now + bak files), exported to Download/BlueTrace/log/firmware/.</string>
     <string name="console_log_note">Protocol has no EOF: completion inferred after 4 s idle; content may be incomplete.</string>
     <string name="console_oplog_export">Export</string>
     <string name="console_tap_to_switch">Tap this card to connect / switch device</string>
@@ -411,7 +411,7 @@
     <string name="export_err_write">Cannot write export file</string>
     <string name="export_err_log_create">Cannot create log file</string>
     <string name="export_err_generic">Export failed</string>
-    <string name="export_many_done">Download/BlueTrace/</string>
+    <string name="export_many_done">Download/BlueTrace/rawdata/</string>
 
     <!-- ===== Notification ===== -->
     <string name="notif_channel_name">Collection running</string>

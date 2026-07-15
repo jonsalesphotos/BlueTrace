@@ -46,8 +46,12 @@ interface BleClient {
     /**
      * 连接（挂起到连上或失败）。失败契约：**不抛业务异常**，以 `linkState(deviceId)` 收敛到
      * DISCONNECTED 为准（调用方以观测状态 + 超时兜底）；协程被取消时实现方必须释放底层链路资源。
+     *
+     * 通道语义(向后兼容契约): [spec] = null 时实现方**自行探测**服务/特征(现状 B2A->HRS 分支,
+     * 行为等价, 现有调用零改动); [spec] != null 时按 [GattSpec] 声明式发现服务/订阅多个 Notify/
+     * 登记默认写特征; 协议知识由 spec 提供, 不进 BleClient 实现.
      */
-    suspend fun connect(device: ScannedDevice)
+    suspend fun connect(device: ScannedDevice, spec: GattSpec? = null)
 
     /** 断开（再点断开 / 退出不调用——连接后台保持，§5.3）。 */
     suspend fun disconnect(deviceId: String)
@@ -76,9 +80,20 @@ interface BleClient {
     fun notifications(deviceId: String): Flow<BleNotification>
 
     /**
+     * 连接后服务发现得到的 **16-bit 短码服务表**(口径同通用 [extract16], 如 ["180A","FFE0"]):
+     * 会话宿主 [io.bluetrace.shared.device.DeviceProfile.confirm] 二次确认用(广播命中但服务表不符 -> 撤销识别).
+     * 默认返回 emptyList()(未实现/未连接); AndroidBleClient/NordicBleClient 在服务发现后保存并实现,
+     * MockBleClient 返回其模拟广播 service 表.
+     */
+    fun discoveredService16s(deviceId: String): List<String> = emptyList()
+
+    /**
      * 下行写（App→设备，命令通道）。真实端 = 对协议写特征 Write Without Response
      * （S7 = FFE1，自研 DUT = DUT_WRITE，UUID 由 profile 决定）；Mock 端路由到对应模拟应答器。
      * 设备未连接时静默丢弃（与真实 GATT 行为一致，可靠性由上层命令队列超时兜底）。
+     *
+     * 通道寻址(向后兼容契约): [char16] = null 写默认写特征(现状, 现有调用零改动); 否则按
+     * 16-bit 短码(口径同通用 [extract16])寻址写特征, **查无静默丢弃**(同"未连接静默丢弃"契约).
      */
-    suspend fun write(deviceId: String, bytes: ByteArray)
+    suspend fun write(deviceId: String, bytes: ByteArray, char16: String? = null)
 }

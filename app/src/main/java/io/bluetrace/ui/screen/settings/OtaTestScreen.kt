@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,7 +58,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.s7.OtaPhase
-import io.bluetrace.shared.s7.OtaResult
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
@@ -118,10 +116,11 @@ fun OtaTestScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Spacer(Modifier.height(4.dp))
-                InfoCard(ui, onConnect = onOpenConnect, onRefreshVersion = { vm.refreshVersion() })
+                InfoCard(ui, onConnect = onOpenConnect, onDisconnect = { vm.disconnect() }, onReconnect = { vm.reconnect() })
                 PackageSection(ui, enabled = !ui.running, onAdd = { picker.launch(arrayOf("*/*")) }, onRemove = { vm.removePackage(it) })
                 RunButton(ui, onStart = { vm.start() }, onStop = { vm.stop() })
                 if (ui.running || ui.currentIteration > 0) ProgressCard(ui)
+                ui.lastError?.let { ErrorCard(it, ui.progress) }
                 if (ui.results.isNotEmpty()) ResultsCard(ui.results)
                 LogTerminal(vm, ui)
                 Spacer(Modifier.navigationBarsPadding().height(8.dp))
@@ -136,13 +135,14 @@ fun OtaTestScreen(
             title = { Text("OTA 刷写进行中") },
             text = {
                 Text(
-                    "现在离开会中止本次刷写。设备不会变砖，但升级会失败、需重新刷写。确定要离开吗？",
+                    "现在离开会中止本次刷写，并向设备发送重启指令使其复位。设备不会变砖，但升级会失败、需重新刷写。确定要离开吗？",
                     fontSize = 13.sp,
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirmExit = false
+                    // 停止善后（向设备发送重启指令）跑 app 级 scope，退屏销毁 VM 也能发完
                     if (multiMode) multiVm.stopBatch() else vm.stop()
                     onBack()
                 }) { Text("中止并离开", color = BT.error, fontWeight = FontWeight.W700) }
@@ -152,58 +152,47 @@ fun OtaTestScreen(
     }
 }
 
-// ---- 固定信息框：目标设备 + 当前版本；整卡可点进扫描/连接页(仅版本值 chip 例外=刷新版本) ----
+// ---- 固定信息框：目标设备 + 就地链路操作(断开/重连, 仿 DUT 控制台头卡)；整卡可点进扫描/连接页 ----
 
 @Composable
-private fun InfoCard(ui: OtaTestUiState, onConnect: () -> Unit, onRefreshVersion: () -> Unit) {
-    // 整卡可点 -> onConnect(扫描/连接页); 仅"当前版本"值 chip 嵌套点击=刷新版本。
-    // 固定标签列宽(80dp)+行高(28dp)+状态恒为 StatusPill+chevron 常驻 => 运行态变化时卡片不跳动。
+private fun InfoCard(ui: OtaTestUiState, onConnect: () -> Unit, onDisconnect: () -> Unit, onReconnect: () -> Unit) {
+    // 整卡可点 -> onConnect(扫描/连接页, 复用 DUT 调试同款连接页); 右侧链路 chip 消费点击不进连接页——
+    // 连接态"断开"/断开态"重连"就地操作(2026-07-14 用户要求); 中间态/运行中回落状态 pill。
     Surface(
         color = BT.surface,
         shape = RoundedCornerShape(BT.radius),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(BT.radius)).clickable(enabled = !ui.running) { onConnect() },
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                // 行1: 目标设备 + 连接状态(只读指示)
-                Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("目标设备", fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.width(80.dp))
-                    Text(
-                        ui.device?.name ?: "未连接",
-                        fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface,
-                        fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    LinkStatusPill(ui.link)
-                }
-                Spacer(Modifier.height(8.dp))
-                // 行2: 当前版本(值 chip 可点刷新, 仅连接态)
-                Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("当前版本", fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.width(80.dp))
-                    val canRefresh = ui.connected && !ui.versionReading && !ui.running
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .then(if (canRefresh) Modifier.background(BT.primaryC).clickable { onRefreshVersion() } else Modifier)
-                            .padding(horizontal = if (canRefresh) 10.dp else 0.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            if (ui.versionReading) "读取中…" else (ui.version ?: "—"),
-                            fontSize = 14.sp, fontWeight = FontWeight.W700, fontFamily = FontFamily.Monospace,
-                            color = if (canRefresh) BT.primary else BT.onSurfaceV,
-                        )
-                        if (canRefresh) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Filled.Refresh, contentDescription = "刷新版本", tint = BT.primary, modifier = Modifier.size(13.dp))
-                        }
-                    }
-                }
+        Row(Modifier.padding(14.dp).height(28.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("目标设备", fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.width(80.dp))
+            Text(
+                ui.device?.name ?: "未连接",
+                fontSize = 14.sp, fontWeight = FontWeight.W700, color = BT.onSurface,
+                fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                ui.canDisconnect -> LinkActionChip("断开", BT.error, BT.errorC, onDisconnect)
+                ui.canReconnect -> LinkActionChip("重连", BT.primary, BT.primaryC, onReconnect)
+                else -> LinkStatusPill(ui.link)
             }
             Spacer(Modifier.width(8.dp))
             Icon(Icons.Filled.ChevronRight, contentDescription = "进入扫描/连接", tint = if (ui.running) BT.outline else BT.onSurfaceV, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+/** 链路操作 chip（断开/重连）：其 clickable 消费点击，不触发整卡进连接页。 */
+@Composable
+private fun LinkActionChip(text: String, fg: Color, bg: Color, onClick: () -> Unit) {
+    Text(
+        text, fontSize = 12.sp, fontWeight = FontWeight.W700, color = fg,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(bg)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    )
 }
 
 @Composable
@@ -300,6 +289,12 @@ private fun ProgressCard(ui: OtaTestUiState) {
             )
             ui.phase?.let { StatusPill(it.label(), BT.onPrimaryC, BT.primaryC, showDot = ui.running) }
         }
+        // 版本 起始 → 新：起始=开始 OTA 前读一次；新=回连后读一次（运行中未出显示 …）
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "版本 ${ui.versionBefore ?: "未知"} → ${ui.versionAfter ?: if (ui.running) "…" else "未知"}",
+            fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = BT.onSurfaceV,
+        )
         val p = ui.progress
         if (p != null) {
             Spacer(Modifier.height(8.dp))
@@ -307,7 +302,32 @@ private fun ProgressCard(ui: OtaTestUiState) {
             val frac = if (p.totalBytes > 0) (p.sentBytes.toFloat() / p.totalBytes).coerceIn(0f, 1f) else 0f
             Spacer(Modifier.height(4.dp))
             LinearProgressIndicator(progress = { frac }, modifier = Modifier.fillMaxWidth(), trackColor = BT.surface2)
-            Text("${fmtBytes(p.sentBytes)} / ${fmtBytes(p.totalBytes)}  (${(frac * 100).toInt()}%)", fontSize = 11.sp, color = BT.onSurfaceV)
+            Row {
+                Text("${fmtBytes(p.sentBytes)} / ${fmtBytes(p.totalBytes)}  (${(frac * 100).toInt()}%)", fontSize = 11.sp, color = BT.onSurfaceV, modifier = Modifier.weight(1f))
+                if (ui.phase == OtaPhase.Downloading) {
+                    Text(fmtSpeed(p.bytesPerSec), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.W700, color = BT.primary)
+                }
+            }
+        }
+    }
+}
+
+/** 错误详情卡：最近一次失败的出错指令 / 文件传输失败位置（含失败瞬间的传输进度）。 */
+@Composable
+private fun ErrorCard(lastError: String, progressAtFailure: io.bluetrace.shared.s7.OtaProgress?) {
+    Surface(color = BT.errorC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp)) {
+            Text("失败详情", fontSize = 12.sp, fontWeight = FontWeight.W800, color = BT.error)
+            Spacer(Modifier.height(6.dp))
+            Text(lastError, fontSize = 12.sp, fontWeight = FontWeight.W600, color = BT.onSurface, lineHeight = 17.sp)
+            if (progressAtFailure != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "中断位置：文件 ${progressAtFailure.fileIdx + 1}/${progressAtFailure.fileCount} " +
+                        "${progressAtFailure.fileName} · 已发 ${fmtBytes(progressAtFailure.sentBytes)}/${fmtBytes(progressAtFailure.totalBytes)}",
+                    fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = BT.onSurfaceV,
+                )
+            }
         }
     }
 }
@@ -320,8 +340,14 @@ private fun ResultsCard(results: List<OtaIterationResult>) {
         results.takeLast(20).forEach { r ->
             Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("第 ${r.iteration} 轮 · ${r.pkgLabel}", fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.width(120.dp))
-                val ok = r.result is OtaResult.Reconnected
-                Text(r.result.label(), fontSize = 12.sp, fontWeight = FontWeight.W700, color = if (ok) BT.success else BT.error)
+                Text(
+                    r.detail, fontSize = 12.sp, fontWeight = FontWeight.W700,
+                    color = if (r.ok) BT.success else BT.error, modifier = Modifier.weight(1f),
+                )
+                // 本轮下载平均速度（结束时结算；下载没走完不显示）
+                r.avgBps?.let {
+                    Text(fmtSpeed(it), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = BT.onSurfaceV)
+                }
             }
         }
     }
@@ -384,15 +410,10 @@ private fun Modifier.dashedBorder(color: Color, radius: Dp): Modifier = drawBehi
 private fun OtaPhase.label(): String = when (this) {
     OtaPhase.Downloading -> "下载中"
     OtaPhase.WaitingReboot -> "等待复位"
+    OtaPhase.Scanning -> "扫描回连"
     OtaPhase.Reconnecting -> "重连中"
     OtaPhase.ReadingVersion -> "读取版本"
     OtaPhase.Done -> "完成"
-}
-
-private fun OtaResult.label(): String = when (this) {
-    is OtaResult.Reconnected -> "成功（版本 ${currentVersion ?: "未知"}）"
-    is OtaResult.Failed -> "失败：$reason"
-    OtaResult.DoneDownload -> "下载完成"
 }
 
 private fun fmtBytes(b: Long): String = when {
@@ -400,3 +421,6 @@ private fun fmtBytes(b: Long): String = when {
     b >= 1_000 -> "%.0f KB".format(b / 1_000.0)
     else -> "$b B"
 }
+
+/** BLE 上传速度（首个 1s 窗口未出数时显示占位）。 */
+internal fun fmtSpeed(bps: Long): String = if (bps <= 0) "— KB/s" else "%.1f KB/s".format(bps / 1024.0)

@@ -20,6 +20,9 @@ Docs/
 │   ├── 设计稿画廊_v6.html + _files/       ← V4 设计稿截图集（46 屏 + 映射索引）
 │   ├── 设计稿与真机对比_v2.html + _files/ ← 设计稿 ↔ 真机 A/B 并排对比（design×6 + device×7）
 │   └── brand/                    ← 图标/首屏源图（品牌资产，不属于单个 html）
+├── S7B2A/                        ← S7 手表 B2A 指令协议家族目录（现行规格唯一入口，2026-07-14 自归档/s7 迁出）
+│   ├── README.md                 ← 家族索引（共识规格/protocol-spec/b2a/zqdata/command-status/audit/assets）
+│   └── S7协议共识规格.{md,html} 等  ← B2A 扩展（M7）参考真源
 ├── UWTP/                         ← UWTP 统一可穿戴传输协议（跨项目标准，独立目录）
 │   ├── README.md                 ← 家族索引与演进路线
 │   ├── UWTP_BLE_Protocol_Design_V0.99.{md,html} + uwtp_v0.99_draft.proto ← 当前基线（冻结候选）
@@ -35,10 +38,10 @@ Docs/
 │   ├── s7协议工作底稿/           ← s7 协议线过程件（plan/review/_raw，2026-07-06 归档）
 │   ├── 架构评估_20260706.{md,html} · 02_parser_registry_design.md · scenes.json（旧镜像）← 2026-07-07 architecture 目录消灭时入库
 │   ├── 自研协议线_v0/            ← 12B 信封自研方案整线（口径修正后归档：M7 改走 B2A 扩展）
-│   ├── s7/                       ← S7 协议资料库（B2A/zqdata 共识稿+分册+下一代稿；重新构思期整体入库，仍是协议参考真源）
+│   ├── s7/                       ← s7 线历史（CHANGELOG + UHTP 旧稿；现行 B2A 规格已迁 S7B2A/）
 │   ├── 历史截图/                 ← 无活引用的旧截图（screenshots v4-v5 轮、device_v5/v6/v7、pic 参考图）
 │   └── compare_design_vs_device.html ← 旧版对比页
-└── （s7 过程件 plan/review/_raw 已归档；completeness-audit 留 s7/ 作活缺口清单）
+└── （s7 过程件 plan/review/_raw 已归档；completeness-audit 随协议件在 S7B2A/）
 ```
 
 ## 怎么读
@@ -54,7 +57,7 @@ Docs/
 | 代码还有哪些问题要修 | [`代码审查报告_20260706.md`](代码审查报告_20260706.md)（波次①–④已收官，看遗留清单） |
 | 自研 DUT 协议（App↔固件） | [`归档/自研协议线_v0/bluetrace_v0.proto`](归档/自研协议线_v0/bluetrace_v0.proto) + [`归档/自研协议线_v0/BLE协议帧规格_开发者版.md`](归档/自研协议线_v0/BLE协议帧规格_开发者版.md) + [`归档/自研协议线_v0/03_collect_protocol_design.md`](归档/自研协议线_v0/03_collect_protocol_design.md) |
 | **UWTP 传输协议（跨项目标准）** | [`UWTP/`](UWTP/README.md)（V0.99 冻结候选为准；前身 UHTP V4 同目录） |
-| S7 手表协议（B2A / zqdata 现网 + Profile） | [`归档/s7/`](归档/s7/)（共识稿为准；protocol-zqdata-uhtp-v1 待按 UWTP V0.99 改写为 S7 采集 Profile） |
+| **S7 手表协议（B2A / zqdata 现网 + 指令表）** | [`S7B2A/`](S7B2A/README.md)（共识稿为准；FILE_TRANS OTA 指令在 [`OTA/`](OTA/README.md)；UHTP 旧稿留 [`归档/s7/`](归档/s7/README.md)） |
 | M7 协议接入怎么做 | 代码 `shared.protocol.registry`（已落码）+ 设计稿 [`归档/02_parser_registry_design.md`](归档/02_parser_registry_design.md) |
 | 真机用出问题了要修 | [`真机修复prompt_复用.md`](真机修复prompt_复用.md)（填【问题】模板） |
 | 历史决策来龙去脉 | [`归档/`](归档/)（唯一历史桶，口径以 SPEC 为准） |

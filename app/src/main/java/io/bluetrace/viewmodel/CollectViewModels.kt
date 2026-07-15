@@ -3,6 +3,7 @@ package io.bluetrace.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.shared.ble.ConnectionRegistry
+import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.AssignedDevice
 import io.bluetrace.shared.domain.CollectType
 import io.bluetrace.shared.domain.DEFAULT_SUBJECT
@@ -54,6 +55,7 @@ class CollectHomeViewModel(
     private val clock: EpochClock,
     private val zone: TimeZoneProvider,
     private val catalog: SceneCatalog,
+    private val deviceCatalog: DeviceProfileCatalog,
     private val draft: io.bluetrace.shared.domain.CollectDraft,
 ) : ViewModel() {
 
@@ -80,10 +82,11 @@ class CollectHomeViewModel(
                     val effectiveSubject = if (catalog.isAutoDefaultUser(b.scene.subToken)) DEFAULT_SUBJECT else b.subject
                     CollectHomeUiState(
                         currentSubject = effectiveSubject,
-                        // B2A 维护手表（设备控制台专属）不进采集会话：它发的是 B2A 命令/心跳帧，
+                        // 维护控制台专属设备（有控制面，如 S7）不进采集会话：它发的是命令/心跳帧，
                         // MockPacketCodec 解不了只会刷 unparseable 告警 + 产空 CSV 脏会话。
+                        // 识别归 Catalog(去 S7 硬编码): 有控制面 = 维护设备, 排除出采集.
                         connectedDevices = b.connected.filterNot {
-                            io.bluetrace.shared.s7.B2aDetect.matchesAdvertisement(it)
+                            deviceCatalog.identify(it)?.controlPlane != null
                         },
                         scene = b.scene,
                         hardSatisfied = envState.hardSatisfied,

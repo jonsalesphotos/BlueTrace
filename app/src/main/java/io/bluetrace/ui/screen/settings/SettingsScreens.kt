@@ -126,6 +126,23 @@ fun SettingsHomeScreen(
                         trailing = { Switch(checked = useMock, onCheckedChange = ::toggle) },
                     )
                 }
+                item {
+                    // 仅 DEBUG：Nordic BLE 后端切换（重启生效）。开启走 Nordic Kotlin-BLE（第二实现），
+                    // 供 W1.6 真机 A/B；Mock 打开时优先 Mock，本开关不生效（优先级 Mock > Nordic > 自写）。
+                    val ctx = LocalContext.current
+                    var useNordic by remember { mutableStateOf(io.bluetrace.data.android.BleBackendSwitch.useNordic(ctx)) }
+                    fun toggleNordic(on: Boolean) {
+                        useNordic = on
+                        io.bluetrace.data.android.BleBackendSwitch.setUseNordic(ctx, on)
+                    }
+                    ListTileRow(
+                        Icons.Filled.Memory, BT.primary, BT.primaryC,
+                        "使用 Nordic BLE",
+                        "重启后生效 · 开启走 Nordic Kotlin-BLE（A/B 验证）",
+                        onClick = { toggleNordic(!useNordic) },
+                        trailing = { Switch(checked = useNordic, onCheckedChange = ::toggleNordic) },
+                    )
+                }
             }
             item { SectionHeader(stringResource(R.string.settings_sec_about)) }
             item { SettingsNavRow(Icons.Filled.Info, BT.tertiary, BT.tertiaryC, stringResource(R.string.settings_about), stringResource(R.string.settings_about_sub), onAbout) }

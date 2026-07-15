@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlueTrace 通用采集框架化——架构分析与实施计划</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#bluetrace">BlueTrace 通用采集框架化——架构分析与实施计划</a><ul>
+<li><a href="#0-tldr">0. TL;DR</a></li>
+<li><a href="#1">1. 目标与范围</a></li>
+<li><a href="#2">2. 现状勘察</a></li>
+<li><a href="#3-unknown-unknowns">3. 盲区清单（unknown unknowns）</a></li>
+<li><a href="#4-2026-07-07-8-8">4. 决策记录（2026-07-07 采访，8 问 8 答）</a></li>
+<li><a href="#5">5. 三方案与终选</a></li>
+<li><a href="#6">6. 实现计划</a><ul>
+<li><a href="#61-data-model">6.1 数据模型（Data Model）</a></li>
+<li><a href="#62">6.2 接口变更</a></li>
+<li><a href="#63">6.3 状态机</a></li>
+<li><a href="#64">6.4 用户可见行为变化</a></li>
+<li><a href="#65">6.5 风险点</a></li>
+<li><a href="#66">6.6 执行波次</a></li>
+</ul>
+</li>
+<li><a href="#7-explainer">7. Explainer（给零上下文读者）</a></li>
+<li><a href="#8-handoff">8. Handoff（接手人清单）</a></li>
+<li><a href="#9-quiz-8">9. Quiz（自测 8 题）</a></li>
+<li><a href="#acodex">附录 A：外部验证（codex 交叉核对）</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="bluetrace">BlueTrace 通用采集框架化——架构分析与实施计划</h1>
+<blockquote>
+<p>2026-07-07 架构分析会话产出。勘察底稿 = 10 智能体工作流（7 子系统精读 + 平台/协议演进/数据 3 视角批判）。
+决策与执行期笔记的活文档 = <a href="../context/架构优化_实施笔记.md"><code>context/架构优化_实施笔记.md</code></a>；本文是定稿快照（盲区 + 决策 + 计划 + explainer/handoff/quiz）。
+真源口径不变：<code>/SPEC.md</code> ＞ 原型；协议参考 = <a href="../S7B2A/S7协议共识规格.md"><code>S7B2A/S7协议共识规格.md</code></a>。</p>
+</blockquote>
+<h2 id="0-tldr">0. TL;DR</h2>
+<ul>
+<li><strong>目标</strong>：BlueTrace 从"S7 采集 App"演进为<strong>通用 BLE 采集框架</strong>——换项目 = 换协议包，其余零改动。</li>
+<li><strong>现状判定</strong>：注册式架构（02 R1–R3）方向正确但<strong>对主协议线空转</strong>——B2A 没有 Profile，识别/订阅/门控三面硬编码旁路；真正的协议锁不在解析器，而在 <code>DecodedStream</code> 闭合枚举（数据词汇表）与控制台整条线。</li>
+<li><strong>终选方案 = B-lite（D7）</strong>：ProtocolProfile 拆「数据核（ScanSpec/通道表/流表/能力集）+ 行为工厂（解析器/DeviceOps）」，扫描、订阅、UI 门控、存储列全部消费数据核；不做序列化/热下发层（D1 已定发版制）。</li>
+<li><strong>8 项决策全部拍板</strong>（D1–D8，见 §4），执行分 6 个波次（P0 传输地基 → P5 M7 联动，见 §6.6）。</li>
+<li><strong>一条边界必须记住</strong>：D6——<strong>包内时间语义（样本时间戳/seq/间隔）归采集协议定义，App 不介入</strong>。传输层只给包打接收时间标签 + raw hex 原样落盘；协议是否带设备时间戳决定跨设备对齐/丢包核算能力，其后果随协议走，不是 App 技术债。</li>
+<li><strong>可信度背书</strong>：本文的代码事实断言经 codex 独立只读交叉核对（13 条承重断言 11 CONFIRMED / 2 PARTIAL / 0 REFUTED，无一推翻），详见文末 <a href="#附录-a外部验证codex-交叉核对">附录 A</a>。</li>
+</ul>
+<h2 id="1">1. 目标与范围</h2>
+<p>用户提出的 8 条目标（评估一切设计的基准）：</p>
+<ol>
+<li>通用采集框架：换项目 = 换协议解析/处理库，改动文件越少越好（当前锁定 B2A）。</li>
+<li>中间件负责注册协议：UUID、设备名、扫描广播特征等。</li>
+<li>DUT 配置抽离；UI 与解析分离；不支持的功能 Compose 不显示（能力门控）。</li>
+<li>采集/OTA 等 BLE 交互放前台服务，UI 只显示（已确认 = MVVM，缺口在逻辑宿主）。</li>
+<li>扫描模式确认（系统节流/mute——已确认，见盲区 B1）。</li>
+<li>数据解码/打包；存储/导出位置；按时间+MAC 命名；采集人/场景事后可改。</li>
+<li>后期 WLAN：推数据上服务器、获取解析器（验收档位已定 = 发版制，D1）。</li>
+<li>防后台杀 + BLE 长连接完整清单（验收已定 = 息屏长采+自动回连，D5）。</li>
+</ol>
+<p>题外目标（对架构有约束力）：同模式做嵌入式 BLE 智能网关——数据核设计是双栈复用的前提（见盲区 A5）。</p>
+<h2 id="2">2. 现状勘察</h2>
+<div class="fig">
+<svg viewBox="0 0 840 470" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>现状：注册表对主协议线空转，B2A 走三条硬编码旁路</title>
+<desc>左侧 UI/ViewModel 层四个类直接 import shared.s7 旁路（红色箭头）；右侧正规链路 SessionController 到 RegistrySampleDecoder 到 ProtocolRegistry，注册表里只有 HrsProfile 和 MockBleProfile，B2aProfile 缺位（虚线框）；底部 AndroidBleClient 有四处硬编码。</desc>
+<style>
+.t{fill:var(--fg);font-size:12.5px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.a{fill:var(--accent);font-weight:700;}
+.d{fill:var(--danger);font-weight:700;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;rx:6;}
+.miss{fill:none;stroke:var(--danger);stroke-width:1.4;stroke-dasharray:5 4;rx:6;}
+.ln{stroke:var(--muted);stroke-width:1.2;fill:none;}
+.bad{stroke:var(--danger);stroke-width:1.6;fill:none;}
+</style>
+<defs>
+<marker id="ar1" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker>
+<marker id="ar2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--danger)"/></marker>
+</defs>
+<text x="420" y="22" text-anchor="middle" class="t" font-size="14">现状：注册表空转，B2A 三面旁路（红 = 换协议必改的硬编码）</text>
+<!-- UI 层 -->
+<rect x="20" y="44" width="380" height="64" class="bx"/>
+<text x="210" y="66" text-anchor="middle" class="t">UI / ViewModel 层</text>
+<text x="210" y="83" text-anchor="middle" class="s">DeviceScanVM · ConsoleConnectVM · CollectVM · DeviceConsoleVM+Screen</text>
+<text x="210" y="98" text-anchor="middle" class="m d">直接 import shared.s7（S7.CTRL_* 进了 Compose）</text>
+<!-- shared.s7 -->
+<rect x="20" y="150" width="380" height="64" class="bx"/>
+<text x="210" y="172" text-anchor="middle" class="t">shared.s7（协议知识散装）</text>
+<text x="210" y="189" text-anchor="middle" class="m">B2aDetect（识别）· S7Console（354 行无接口）· S7Frame/Messages</text>
+<text x="210" y="204" text-anchor="middle" class="s">S7Console 挂 viewModelScope——切屏即断</text>
+<path class="bad" d="M210,108 L210,146" marker-end="url(#ar2)"/>
+<text x="222" y="130" class="d" font-size="10">旁路 ①</text>
+<!-- 正规链路 -->
+<rect x="440" y="44" width="380" height="46" class="bx"/>
+<text x="630" y="63" text-anchor="middle" class="t">DefaultSessionController（会话编排）</text>
+<text x="630" y="80" text-anchor="middle" class="s">单线程事件循环 · 只认 SampleDecoder 接口</text>
+<rect x="440" y="112" width="380" height="40" class="bx"/>
+<text x="630" y="130" text-anchor="middle" class="t">RegistrySampleDecoder（02 R1 适配器）</text>
+<text x="630" y="145" text-anchor="middle" class="s">按 device.profileId 查表建 DeviceParserHost</text>
+<path class="ln" d="M630,90 L630,108" marker-end="url(#ar1)"/>
+<rect x="440" y="174" width="380" height="66" class="bx"/>
+<text x="630" y="194" text-anchor="middle" class="t">ProtocolRegistry</text>
+<g class="m">
+<rect x="456" y="204" width="105" height="26" class="bx"/><text x="508" y="221" text-anchor="middle">HrsProfile</text>
+<rect x="571" y="204" width="115" height="26" class="bx"/><text x="628" y="221" text-anchor="middle">MockBleProfile</text>
+<rect x="696" y="204" width="110" height="26" class="miss"/><text x="751" y="221" text-anchor="middle" class="d">B2aProfile 缺位</text>
+</g>
+<path class="ln" d="M630,152 L630,170" marker-end="url(#ar1)"/>
+<!-- BleClient -->
+<rect x="20" y="280" width="800" height="88" class="bx"/>
+<text x="420" y="302" text-anchor="middle" class="t">AndroidBleClient（自写裸 GATT，Nordic 仅存在于注释）</text>
+<g class="m d">
+<text x="40" y="326">② 扫描判定硬编码：adv 含 FFE0→S7，180D→HRS（不走 registry.resolve）</text>
+<text x="40" y="344">③ 订阅特征硬编码：B2A TX/RX 优先、否则 HRS 2A37（Profile.notifyChannels 被旁路）</text>
+<text x="40" y="362">④ startScan(null, LOW_LATENCY)＝最坏组合 · BleNotification 不带 characteristicId</text>
+</g>
+<path class="bad" d="M210,214 L210,276" marker-end="url(#ar2)"/>
+<!-- 结论 -->
+<rect x="20" y="392" width="800" height="58" class="bx"/>
+<text x="420" y="414" text-anchor="middle" class="t">今天换一个协议要动 ≥5 处</text>
+<text x="420" y="434" text-anchor="middle" class="m">新 Profile 文件 + AppModule 注册 + 扫描判定 + 订阅选择 + 各 VM 的 B2aDetect 判断（+ Device.kt 常量）</text>
+</svg>
+</div>
+
+<p>7 个子系统的勘察结论（详细 file:line 证据见实施笔记「勘察结论速查」）：</p>
+<table>
+<thead>
+<tr>
+<th>子系统</th>
+<th>现状一句话</th>
+<th>相对目标的核心缺口</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>协议注册层</td>
+<td>骨架（Profile/Registry/ParserHost/Decoder）已落码，设计与"注册中间件"同源</td>
+<td>只覆盖解码面；<code>resolve()</code> 生产零调用；B2A 缺 Profile</td>
+</tr>
+<tr>
+<td>BLE 传输层</td>
+<td>自写裸 GATT 已真机验证；无重连、无 priority、MTU 固定 247</td>
+<td>扫描无过滤+LOW_LATENCY；写无队列；特征 id 不透传</td>
+</tr>
+<tr>
+<td>S7/B2A 协议</td>
+<td>分层清晰（Detect/Frame/Messages/Console/MockWatch）</td>
+<td>整条线绕开注册表；Console 无接口挂 viewModelScope</td>
+</tr>
+<tr>
+<td>UI 层</td>
+<td><strong>已是 MVVM</strong>（StateFlow + Compose 纯渲染）</td>
+<td>协议知识泄漏进 Compose；无能力门控机制；CollectType 闭合枚举直渲</td>
+</tr>
+<tr>
+<td>前台服务/保活</td>
+<td>FGS+START_STICKY+被杀自动收尾，架子完善</td>
+<td>FGS 只传 CONNECTED_DEVICE；无 WakeLock；ROM 引导单薄</td>
+</tr>
+<tr>
+<td>存储/会话</td>
+<td>一会话一文件夹、manifest 原子写、事后编辑齐备</td>
+<td>按 DeviceKind 而非 deviceId 分文件；主键=文件夹名；无版本锚</td>
+</tr>
+<tr>
+<td>规格文档</td>
+<td>SPEC 收敛、02 R4/R5 有蓝图、UWTP 有 registry 同表机制</td>
+<td>M9 服务器线仅一行占位；文档 D2（Nordic）与代码脱节</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-unknown-unknowns">3. 盲区清单（unknown unknowns）</h2>
+<p>用户原始清单之外、会实质改变方案的发现。编号规则：D=数据级（错了数据作废）、A=架构级（错了推倒重来）、X=交互/合规级。</p>
+<p><strong>数据级（🔴 已采数据事后不可修复）</strong></p>
+<ul>
+<li><strong>D1 多 DUT 数据无归属</strong>：3 台 DUT 混写同一 <code>raw/dut.hexlog</code>（按 DeviceKind 分文件），行内无设备标识、CSV 无设备列、<code>DecodedSample</code> 无 deviceId；B2A 有状态多包重组在混流下会跨设备错拼——多 DUT 会话等于白采。→ 决策 D2 修复。</li>
+<li><strong>D2 时间轴无权威</strong>：全链路只有手机墙钟，HRS 的 <code>deviceTsUs</code> 是接收时刻冒充，批包内 N 样本共享同一时戳。→ D6 定分层：包内时间归协议，App 只打接收标签、不反推不校准；<code>deviceTsUs</code> 有无与精度随协议解析结果走。</li>
+<li><strong>D3 MAC 身份无 RPA 后路</strong>：设备 id/命名/登记/重连全锚 MAC，无 bonding；固件开 privacy 即静默断裂。→ 决策 D3（固件承诺 static）。</li>
+<li><strong>D4 droppedPackets 计数点错位</strong>：真实丢包口在 <code>MutableSharedFlow(256, DROP_OLDEST)</code>——<code>tryEmit</code> 恒成功、溢出静默；manifest 计数的 Channel 层几乎不丢，是假安全感。→ P2 补计数。</li>
+<li><strong>D5 会话主键 = 文件夹名</strong>：事后编辑 = 重命名 = 改主键；导出副本/未来服务器去重无稳定键。→ P2 加 sessionUuid。</li>
+<li><strong>D6 hexlog 可重放承诺断裂</strong>：行格式无特征标识且 <code>characteristicId</code> 未透传，多特征协议（B2A 扩展大概率）无法离线重放路由。→ P0 透传 + P2 格式 v2。</li>
+<li><strong>D7 无 schema 版本锚</strong>：<code>profileId</code> 裸字符串、manifest 不记解析器版本——M7 扩展后旧数据被新解析器静默错解。→ P2 版本化（M7 前最后窗口）。</li>
+</ul>
+<p><strong>架构级（🟡 换协议时推倒重来）</strong></p>
+<ul>
+<li><strong>A1 注册表空转</strong>（见图 1）：换协议动 ≥5 处。→ P1 修复。</li>
+<li><strong>A2 数据词汇表闭合</strong>：<code>DecodedStream</code>（7 值含 HR）与 <code>CollectType</code>（6 个采集开关，不含 HR）是两个写死在 domain 的固定枚举——解析器插拔了，"事件能说什么词"没插拔；新传感器流 = 改 domain（枚举）+存储（SessionRecorder 以 DecodedStream 为 CSV writer key）+UI（CollectTypeSheet 枚举直渲）+manifest（sampling 表达）四层。<strong>这是比 UUID 更深的协议锁。</strong>→ D7/P1 开放为流表。</li>
+<li><strong>A3 控制台归属未拍板</strong>：S7Console 无接口、Compose 直传协议常量，OTA 若现在做会长在 viewModelScope 和 S7 专属类型上。→ 决策 D4（DeviceOps 语义层）。</li>
+<li><strong>A4 "服务器下发解析器"与静态注册正面矛盾</strong>：02 设计明文非目标，KMP 堵死动态代码路线。→ 决策 D1 定档"发版制"，矛盾解除。</li>
+<li><strong>A5 网关复用的是设计不是代码</strong>：Linux SBC 可跑 KMP 层；MCU/C 生态只有"协议知识做成数据"才能双栈共享。→ B-lite 数据核即伏笔。</li>
+</ul>
+<p><strong>交互/合规级（🟠）</strong></p>
+<ul>
+<li><strong>X1 扫描三连环</strong>：8.1+ 息屏时无过滤扫描<strong>零结果</strong>；连续 30 分钟降级 opportunistic；5 次/30s 节流多为静默（且 [AndroidBleClient.kt:96] 注释把错误码搞错：5=OUT_OF_HARDWARE_RESOURCES，6 才是 SCANNING_TOO_FREQUENTLY）。<code>startScan(null, LOW_LATENCY)</code> 是最坏组合。→ P0/P1 ScanFilter 化。</li>
+<li><strong>X2 定位开关 OFF = 扫描空列表</strong>：API 31+ 要求权限已授<strong>且</strong>系统定位开关打开；现状只查权限、LOCATION 标 SUGGESTED，全仓无 <code>isLocationEnabled</code>。→ P3 升 HARD+补检查。</li>
+<li><strong>X3 长连接四件套空白</strong>：connectionPriority / 断链发现延迟（按样本流静默判卡死）/ autoConnect 托管回连 / FGS 类型合规（A15 起 dataSync 每日 6h 配额——M9 上传不能走 dataSync 长跑）。→ P0/P3/M9 预警。</li>
+<li><strong>X4 ROM 保活矩阵</strong>：电池优化豁免只是四件之一（MIUI 自启动、上划直杀+onTaskRemoved 未处理、华为启动管理）；CDM 是正规通道但按台关联 UX 成本高。→ P3 专项 + CDM 入 backlog。</li>
+<li><strong>X5 数据生存与合规</strong>：卸载即全灭无提示；导出 zip 明文受试者信息落公共目录。→ 决策 D8 维持明文（内部工具接受，M9 前重议）。</li>
+</ul>
+<h2 id="4-2026-07-07-8-8">4. 决策记录（2026-07-07 采访，8 问 8 答）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>决策</th>
+<th>拍板</th>
+<th>关键推论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>M9"服务器获取解析器"验收档位</td>
+<td><strong>发版接新协议</strong>，服务器只做分发/版本管理</td>
+<td>方向 C（DSL 解释器）出局；数据核仍值得做但不要求可序列化</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>多 DUT 同采</td>
+<td><strong>真需求，按设备分文件</strong></td>
+<td>hexlog/CSV per-device、DecodedSample 加 deviceId、manifest 按设备挂文件——并入格式 v2 一次破格</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>设备身份锚</td>
+<td><strong>固件承诺 static address，App 维持 MAC</strong></td>
+<td>「不开 RPA」写入固件侧冻结项；第三方参考设备残余风险接受</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>控制面归属</td>
+<td><strong>独立 DeviceOps 语义层</strong></td>
+<td>UI 只见 syncTime/pullLog 等语义动作；S7Console 改造为实现；OTA 宿主下沉应用级/FGS</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>长连接验收</td>
+<td><strong>息屏长采 + 断链自动回连</strong></td>
+<td>席位状态机、会话分段+gap、FGS 补 location、WakeLock 评估、ROM 专项必做</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>时间职责分层</td>
+<td><strong>包内时间语义归协议，App 只打接收标签</strong></td>
+<td>App 不反推间隔/不校准设备钟/不排序包内样本；协议带不带时间戳决定跨设备对齐能力，后果随协议走；App 本分=接收标签+raw hex+自身缓冲丢包计数</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>方案方向</td>
+<td><strong>B-lite：数据核先行</strong></td>
+<td>数据核 = 普通 data class；不做 @Serializable/registry_hash（服务器线立项再升级）</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>受试者合规</td>
+<td><strong>维持明文，内部工具接受</strong></td>
+<td>风险自担在案；<strong>M9 开工前必须重议</strong>（最低传输加密+代号化评估）</td>
+</tr>
+</tbody>
+</table>
+<p>遗留三项：<strong>#9 Nordic 替换时机</strong>（本计划推荐续用自写 GATT，与归档评估 D2 口径相左待确认）、#10 S7 功能掩码逐位含义（找固件侧要）、#11 CDM 可选增强（backlog）。</p>
+<h2 id="5">5. 三方案与终选</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>A 静态注册表补全</th>
+<th><strong>B-lite 数据核先行（终选）</strong></th>
+<th>C 描述式 DSL+解释器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Profile 形态</td>
+<td>行为接口补字段</td>
+<td><strong>数据核 + 行为工厂两层</strong></td>
+<td>纯声明式描述文件</td>
+</tr>
+<tr>
+<td>数据词汇表</td>
+<td>闭合枚举 + CUSTOM 逃生舱</td>
+<td><strong>开放流表 StreamDescriptor</strong></td>
+<td>开放（描述文件内）</td>
+</tr>
+<tr>
+<td>换协议改动</td>
+<td>1 包 + DI 一行（但新流改四层）</td>
+<td><strong>1 包 + DI 一行（含新流）</strong></td>
+<td>服务器下发不发版</td>
+</tr>
+<tr>
+<td>抗节流 ScanFilter</td>
+<td>需另加专用机制</td>
+<td><strong>ScanSpec 天然可转</strong></td>
+<td>同 B</td>
+</tr>
+<tr>
+<td>服务器下发</td>
+<td>不可</td>
+<td>配置级可（升级后）</td>
+<td>协议级可</td>
+</tr>
+<tr>
+<td>网关双栈复用</td>
+<td>设计复用</td>
+<td><strong>数据核可为共同真源（升级后）</strong></td>
+<td>描述文件即真源</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>最低</td>
+<td>中</td>
+<td>高一个数量级</td>
+</tr>
+<tr>
+<td>淘汰原因</td>
+<td>"换协议只换库"差最后一公里</td>
+<td>——</td>
+<td>D1 定发版制，无硬需求</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 实现计划</h2>
+<h3 id="61-data-model">6.1 数据模型（Data Model）</h3>
+<div class="fig">
+<svg viewBox="0 0 840 480" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>B-lite 目标架构：协议数据核被扫描/订阅/UI/存储四方消费，行为层只剩解析工厂与 DeviceOps</title>
+<desc>三层结构。顶层四个消费方（扫描器、订阅写路由、UI 能力门控、存储 CSV 列）全部只读协议数据核；中层是 ProtocolProfile v2 数据核（ScanSpec、通道表、流表、能力集四个字段格）；底层是行为层（ChannelParser 工厂与 DeviceOps 实现）与三个协议包（S7/B2A、HRS、Mock），换协议等于新增一个协议包加 DI 注册一行。</desc>
+<style>
+.t2{fill:var(--fg);font-size:12.5px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s2{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m2{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.a2{fill:var(--accent);font-weight:700;}
+.bx2{fill:var(--code);stroke:var(--line);stroke-width:1;rx:6;}
+.core2{fill:var(--code);stroke:var(--accent);stroke-width:1.6;rx:8;}
+.ln2{stroke:var(--muted);stroke-width:1.2;fill:none;}
+</style>
+<defs><marker id="arB" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker></defs>
+<text x="420" y="22" text-anchor="middle" class="t2" font-size="14">B-lite 目标架构：一切消费「数据核」，行为只剩两个工厂</text>
+<g>
+<rect x="20" y="44" width="190" height="52" class="bx2"/>
+<text x="115" y="66" text-anchor="middle" class="t2">扫描器</text>
+<text x="115" y="83" text-anchor="middle" class="s2">ScanSpec → 系统 ScanFilter</text>
+<rect x="225" y="44" width="190" height="52" class="bx2"/>
+<text x="320" y="66" text-anchor="middle" class="t2">订阅 · 写路由</text>
+<text x="320" y="83" text-anchor="middle" class="s2">通道表驱动 GATT 订阅</text>
+<rect x="430" y="44" width="190" height="52" class="bx2"/>
+<text x="525" y="66" text-anchor="middle" class="t2">UI 能力门控</text>
+<text x="525" y="83" text-anchor="middle" class="s2">不支持的不渲染</text>
+<rect x="635" y="44" width="185" height="52" class="bx2"/>
+<text x="727" y="66" text-anchor="middle" class="t2">存储</text>
+<text x="727" y="83" text-anchor="middle" class="s2">CSV 文件与列 = 流表</text>
+</g>
+<path class="ln2" d="M115,140 L115,100" marker-end="url(#arB)"/>
+<path class="ln2" d="M320,140 L320,100" marker-end="url(#arB)"/>
+<path class="ln2" d="M525,140 L525,100" marker-end="url(#arB)"/>
+<path class="ln2" d="M727,140 L727,100" marker-end="url(#arB)"/>
+<rect x="20" y="144" width="800" height="96" class="core2"/>
+<text x="420" y="166" text-anchor="middle" class="t2"><tspan class="a2">ProtocolProfile v2 · 数据核</tspan>　<tspan class="s2">普通 data class，id 带版本 vendor.proto@major</tspan></text>
+<g class="m2">
+<rect x="40" y="180" width="180" height="44" class="bx2"/><text x="130" y="198" text-anchor="middle" class="a2">ScanSpec</text><text x="130" y="214" text-anchor="middle" class="s2">广播服务/名前缀/厂商ID</text>
+<rect x="235" y="180" width="180" height="44" class="bx2"/><text x="325" y="198" text-anchor="middle">通道表 ChannelId</text><text x="325" y="214" text-anchor="middle" class="s2">notify × N + write</text>
+<rect x="430" y="180" width="180" height="44" class="bx2"/><text x="520" y="198" text-anchor="middle" class="a2">流表 StreamDescriptor</text><text x="520" y="214" text-anchor="middle" class="s2">streamId/列/CSV名/默认开关</text>
+<rect x="625" y="180" width="180" height="44" class="bx2"/><text x="715" y="198" text-anchor="middle">能力集 Capability</text><text x="715" y="214" text-anchor="middle" class="s2">框架侧词表</text>
+</g>
+<path class="ln2" d="M220,240 L220,268" marker-end="url(#arB)"/>
+<path class="ln2" d="M620,240 L620,268" marker-end="url(#arB)"/>
+<g>
+<rect x="70" y="272" width="300" height="52" class="bx2"/>
+<text x="220" y="294" text-anchor="middle" class="t2">ChannelParser 工厂（采集面）</text>
+<text x="220" y="311" text-anchor="middle" class="s2">字节 → ProtocolEvent，每设备每通道一实例</text>
+<rect x="470" y="272" width="300" height="52" class="bx2"/>
+<text x="620" y="294" text-anchor="middle" class="t2">DeviceOps 实现（控制面 · D4）</text>
+<text x="620" y="311" text-anchor="middle" class="s2">syncTime / pullLog / reboot / ota…</text>
+</g>
+<path class="ln2" d="M150,382 L150,328" marker-end="url(#arB)"/>
+<path class="ln2" d="M420,382 L420,328" marker-end="url(#arB)"/>
+<path class="ln2" d="M690,382 L690,328" marker-end="url(#arB)"/>
+<g>
+<rect x="40" y="386" width="220" height="52" class="bx2"/>
+<text x="150" y="408" text-anchor="middle" class="t2">S7/B2A 协议包</text>
+<text x="150" y="425" text-anchor="middle" class="s2">P1 落识别面，采集面等 M7</text>
+<rect x="310" y="386" width="220" height="52" class="bx2"/>
+<text x="420" y="408" text-anchor="middle" class="t2">HRS 协议包</text>
+<text x="420" y="425" text-anchor="middle" class="s2">标准心率带（R4 首连）</text>
+<rect x="580" y="386" width="220" height="52" class="bx2"/>
+<text x="690" y="408" text-anchor="middle" class="t2">Mock 协议包</text>
+<text x="690" y="425" text-anchor="middle" class="s2">演示 / UI 回归</text>
+</g>
+<text x="420" y="466" text-anchor="middle" class="m2"><tspan class="a2">换协议 = 新增一个协议包 + DI 注册一行</tspan>　<tspan class="s2">编排层 / UI / 存储零改动</tspan></text>
+</svg>
+</div>
+
+<p><strong>协议数据核（shared.protocol.registry，普通 data class）</strong>：</p>
+<pre><code class="language-kotlin">// id 带版本段: &quot;SKG.S7.B2A@1&quot; —— manifest 记录, 离线重放按版本取解析器(盲区 D7)
+data class ProtocolId(val vendor: String, val proto: String, val major: Int)
+
+// 声明式扫描特征: 可转 Android ScanFilter(硬件过滤 = 抗节流 + 息屏可扫, 盲区 X1)
+data class ScanSpec(
+    val serviceUuids: List&lt;String&gt;,          // 广播 16/128 位服务
+    val namePrefixes: List&lt;String&gt; = emptyList(),
+    val manufacturerId: Int? = null,
+)
+
+// 数据词汇表开放(盲区 A2): 替代 DecodedStream/CollectType 闭合枚举
+data class StreamDescriptor(
+    val streamId: String,                    // &quot;ppg_g&quot; / &quot;acc&quot; / &quot;hr&quot; / 新协议自声明
+    val labelToken: String,                  // UI 文案 token(恒英文, i18n 由 res 层解析)
+    val csvName: String,                     // 落盘文件名段
+    val columns: List&lt;String&gt;,               // CSV 列(不含框架统一的接收时间列 epoch_ms)
+    val defaultEnabled: Boolean,
+    val uiOrder: Int,
+    val colorSlot: Int,                      // 主题色槽位序号, 非硬编码色值
+)
+
+interface ProtocolProfile {                  // v2 = 数据核 + 解析工厂
+    val id: ProtocolId
+    val scanSpec: ScanSpec                   // matches() 保留为默认实现(按 scanSpec 判)
+    val notifyChannels: List&lt;ChannelId&gt;
+    val writeChannel: ChannelId?
+    val streams: List&lt;StreamDescriptor&gt;      // 新增
+    val capabilities: Set&lt;Capability&gt;        // 新增: 框架侧词表(COLLECT/TIME_SYNC/LOG_PULL/OTA/PERSON_RW/...)
+    fun confirmByServices(serviceUuids: List&lt;String&gt;): Boolean
+    fun createParser(channel: ChannelId): ChannelParser
+}
+</code></pre>
+<p><strong>控制面（shared.protocol.ops，D4）</strong>：</p>
+<pre><code class="language-kotlin">interface DeviceOps {                        // UI 只见语义动作, 按 supported 渲染
+    val supported: Set&lt;Capability&gt;
+    suspend fun syncTime(spec: TimeSyncSpec): OpResult
+    suspend fun pullDeviceLog(sink: LogSink): OpResult
+    suspend fun reboot(): OpResult
+    // OTA 后续扩展; 宿主 = 应用级 scope/前台服务, 不挂 viewModelScope
+}
+// DeviceOpsRegistry: ProtocolId -&gt; (BleClient, deviceId) -&gt; DeviceOps
+</code></pre>
+<p><strong>样本与会话（v2 破格，demo 口径直接替换不迁移）</strong>：</p>
+<ul>
+<li><code>DecodedSample</code> v2：加 <code>deviceId: String</code>、<code>streamId: String</code>（替代枚举）。<code>receivedAtMs</code>（App 接收标签）与 <code>deviceTsUs</code>（协议解析出的设备时间戳，协议未定义则空）保持双轨；App 不为 <code>deviceTsUs</code> 造值或反推（D6 分层）。</li>
+<li><code>Manifest</code> v2（schemaVersion=2）：<code>sessionUuid</code>（创建时生成、<strong>永不随编辑/改名变</strong>，盲区 D5）；<code>devices[]</code> 每设备挂 <code>files[]</code>、<code>segments[]</code>（起止+原因）、<code>quality{flowDropped, channelDropped, malformed}</code>（App 自身缓冲丢包，盲区 D4）；<code>profileId</code> 含版本段；<code>parserVersion</code>。subject 字段维持明文（D8）。</li>
+<li>会话文件夹布局 v2（命名 5 段规则不变）：</li>
+</ul>
+<pre><code>主场景_子场景_用户_20260707_143012_A1B2/
+├── session_manifest.json      ← v2: sessionUuid · devices[]/segments[]/quality · parserVersion
+├── raw/
+│   ├── dut_A1B2.hexlog        ← 按设备分文件(D2); 行: &lt;epochMs&gt; &lt;mono&gt; &lt;charUuid16&gt;: HEX
+│   ├── dut_C3D4.hexlog
+│   └── ref_E5F6.hexlog
+├── csv/
+│   ├── A1B2_ppg_g.csv         ← &lt;MAC4&gt;_&lt;streamId&gt;.csv; 列 = 流表声明 + epoch_ms(接收标签) + device_ts(协议解析,可空)
+│   ├── A1B2_acc.csv
+│   └── E5F6_hr.csv
+├── labels.csv
+└── gps.csv
+</code></pre>
+<h3 id="62">6.2 接口变更</h3>
+<table>
+<thead>
+<tr>
+<th>接口</th>
+<th>变更</th>
+<th>消费方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BleClient</code></td>
+<td><code>scan(specs: List&lt;ScanSpec&gt;)</code>；<code>BleNotification</code> 补 <code>characteristicId</code>（通道路由，非时间处理）；<code>write</code> 改挂起返回结果+内部写队列；<code>requestConnectionPriority(level)</code>；重连模式（autoConnect 托管）</td>
+<td>AndroidBleClient / MockBleClient 双实现</td>
+</tr>
+<tr>
+<td><code>ProtocolRegistry</code></td>
+<td>形状不变；<code>resolve()</code> 成为扫描器唯一判定入口（删 AndroidBleClient 硬编码与 B2aDetect 旁路判定）</td>
+<td>扫描器、RegistrySampleDecoder</td>
+</tr>
+<tr>
+<td><code>ConnectionRegistry</code></td>
+<td>席位状态机（见 6.3）；断链≠摘除</td>
+<td>Service、RunViewModel</td>
+</tr>
+<tr>
+<td><code>SessionController</code></td>
+<td>attach/detach/re-attach 事件；per-device recorder 路由</td>
+<td>SessionRecorder</td>
+</tr>
+<tr>
+<td><code>DeviceOpsRegistry</code></td>
+<td>新增（D4）</td>
+<td>DeviceConsoleViewModel（语义化改造）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 状态机</h3>
+<div class="fig">
+<svg viewBox="0 0 840 250" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>连接席位状态机：断链保留席位进入回连中，回连成功开新分段，超时或手动才释放</title>
+<desc>五个状态：已发现、连接中、已连接、回连中、已释放。断链从已连接转回连中并保留席位、关闭当前分段；autoConnect 回连成功转回已连接并开新分段；超时或用户手动从回连中转已释放；正常结束从已连接转已释放。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;rx:14;}
+.hot{fill:var(--code);stroke:var(--accent);stroke-width:1.6;rx:14;}
+.ln{stroke:var(--muted);stroke-width:1.2;fill:none;}
+.wl{stroke:var(--warn);stroke-width:1.6;fill:none;}
+</style>
+<defs>
+<marker id="ar3" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker>
+<marker id="ar4" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--warn)"/></marker>
+</defs>
+<text x="420" y="20" text-anchor="middle" class="t" font-size="13.5">连接席位状态机（D5：断链 ≠ 摘除）</text>
+<rect x="20" y="90" width="130" height="44" class="bx"/><text x="85" y="109" text-anchor="middle" class="t">已发现</text><text x="85" y="125" text-anchor="middle" class="s">扫描命中 Profile</text>
+<rect x="200" y="90" width="130" height="44" class="bx"/><text x="265" y="109" text-anchor="middle" class="t">连接中</text><text x="265" y="125" text-anchor="middle" class="s">15s 超时</text>
+<rect x="380" y="90" width="140" height="44" class="hot"/><text x="450" y="109" text-anchor="middle" class="t">已连接</text><text x="450" y="125" text-anchor="middle" class="s">采集分段进行中</text>
+<rect x="590" y="90" width="140" height="44" class="hot"/><text x="660" y="109" text-anchor="middle" class="t">回连中</text><text x="660" y="125" text-anchor="middle" class="s">autoConnect 托管 · 保席位</text>
+<rect x="380" y="186" width="140" height="44" class="bx"/><text x="450" y="205" text-anchor="middle" class="t">已释放</text><text x="450" y="221" text-anchor="middle" class="s">席位归还限额</text>
+<path class="ln" d="M150,112 L196,112" marker-end="url(#ar3)"/>
+<path class="ln" d="M330,112 L376,112" marker-end="url(#ar3)"/>
+<path class="wl" d="M520,102 L586,102" marker-end="url(#ar4)"/>
+<text x="553" y="94" text-anchor="middle" class="s">断链：关分段（gap 起点）</text>
+<path class="ln" d="M590,124 L524,124" marker-end="url(#ar3)"/>
+<text x="557" y="140" text-anchor="middle" class="s">回连成功：开新分段</text>
+<path class="ln" d="M450,134 L450,182" marker-end="url(#ar3)"/>
+<text x="393" y="162" class="s">结束/手动断开</text>
+<path class="ln" d="M660,134 L660,208 L524,208" marker-end="url(#ar3)"/>
+<text x="668" y="176" class="s">超时/手动移除</text>
+<path class="ln" d="M265,134 L265,208 L376,208" marker-end="url(#ar3)"/>
+<text x="272" y="176" class="s">连接失败</text>
+</svg>
+</div>
+
+<div class="fig">
+<svg viewBox="0 0 840 190" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>会话分段时间轴：断链产生 gap，回连开新分段，manifest 逐段记录</title>
+<desc>横向时间轴上设备 A 的采集经历分段 1、断链 gap、分段 2 三段；下方标注 manifest 的 segments 数组逐段记录起止与原因。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:600;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.s{fill:var(--muted);font-size:10px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.m{fill:var(--fg);font-size:10.5px;font-family:Consolas,monospace;}
+.seg{fill:var(--code);stroke:var(--accent);stroke-width:1.4;}
+.gap{fill:none;stroke:var(--warn);stroke-width:1.4;stroke-dasharray:6 4;}
+.ax{stroke:var(--line);stroke-width:1;}
+</style>
+<text x="420" y="20" text-anchor="middle" class="t" font-size="13.5">会话分段（设备级）：gap 显式入册，数据缺口可回答</text>
+<line x1="40" y1="100" x2="800" y2="100" class="ax"/>
+<rect x="60" y="76" width="280" height="30" class="seg" rx="4"/><text x="200" y="95" text-anchor="middle" class="m">分段 1（attach → 断链）</text>
+<rect x="340" y="76" width="150" height="30" class="gap" rx="4"/><text x="415" y="95" text-anchor="middle" class="s">gap（回连中）</text>
+<rect x="490" y="76" width="270" height="30" class="seg" rx="4"/><text x="625" y="95" text-anchor="middle" class="m">分段 2（re-attach → finalize）</text>
+<text x="60" y="126" class="s">▲ attach</text>
+<text x="316" y="126" class="s">▲ 断链</text>
+<text x="470" y="126" class="s">▲ re-attach</text>
+<text x="726" y="126" class="s">▲ finalize</text>
+<text x="420" y="165" text-anchor="middle" class="m">manifest.devices[i].segments = [{start,end,endReason:"link_lost"}, {start,end,endReason:"finalize"}]</text>
+</svg>
+</div>
+
+<p>OTA（后续，D4 推论）：宿主 = 应用级 scope + 前台服务；<code>IDLE → TRANSFER(priority HIGH + 写队列流控) → VERIFY → APPLY</code>；依赖 P0 的写结果消费——现状 WWR 不消费返回值，OTA 连发必丢。</p>
+<h3 id="64">6.4 用户可见行为变化</h3>
+<ol>
+<li><strong>扫描页</strong>：按注册协议做系统级过滤扫描（保留"显示全部"开关兜底 nRF 模式）；息屏可继续扫；被系统限流时显示提示条（透传 onScanFailed）。</li>
+<li><strong>采集运行页</strong>：断链设备显示"回连中"徽标而非消失；采集类型抽屉由 Profile 流表数据驱动——<strong>协议不支持的流不再出现</strong>。</li>
+<li><strong>控制台</strong>：操作按 <code>DeviceOps.supported</code> 渲染——换协议自动隐藏不支持项；对时/拉日志行为不变。</li>
+<li><strong>会话详情</strong>：显示分段与 gap；质量三计数（流溢出/通道溢出/malformed）。</li>
+<li><strong>权限/环境</strong>：定位升 HARD 并检查系统定位开关；新增 ROM 保活引导页（检测厂商，给自启动/上划加锁/电池优化三步）。</li>
+<li><strong>数据</strong>：文件夹命名 5 段规则不变；事后编辑采集人/场景交互不变（主键改 sessionUuid，用户无感）。</li>
+</ol>
+<h3 id="65">6.5 风险点</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>风险</th>
+<th>处置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>D6 分层</strong>：包内时间归协议——协议若不带时间戳/seq，跨设备对齐/间隔/丢包核算能力受限</td>
+<td>非 App 技术债：App 只打接收标签+raw hex 原样落盘；能力后果随协议设计走，M7 定协议时权衡</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>文件格式 v2 直接替换不迁移（demo 口径，存量真实数据少）</td>
+<td>破格一次到位（sessionUuid/per-device/版本锚同批）</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>续用自写 GATT 与归档评估 D2（选 Nordic）口径相左</td>
+<td>已入 Deviations 待确认；推荐理由：自写版已真机验证，P0 增量小于库迁移+全量回归</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>ROM 保活矩阵不可控（MIUI/华为行为随版本漂移）</td>
+<td>厂商引导 best-effort try-catch；被杀自动收尾作兜底承诺明示用户；真机专项验证</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>D3 残余：第三方参考设备 RPA、未来认证强制 privacy</td>
+<td>Edge Cases 在案；届时走 SN 优先或 bonding</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>A15 dataSync FGS 每日 6h 配额</td>
+<td>M9 上传改 WorkManager/用户发起传输 API，不走 dataSync 长跑</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>B2aProfile 采集面依赖 M7 冻结（外部排期）</td>
+<td>P1 先落识别/通道/控制面；流表+解析器 P5 补全</td>
+</tr>
+</tbody>
+</table>
+<h3 id="66">6.6 执行波次</h3>
+<table>
+<thead>
+<tr>
+<th>波次</th>
+<th>内容</th>
+<th>主要触点</th>
+<th>验收门</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0 传输地基</strong></td>
+<td>characteristicId 透传；写结果消费+写队列；<code>requestConnectionPriority</code>；<code>scan(specs)</code>；通知带单调钟</td>
+<td>BleClient 接口 + Android/Mock 双实现</td>
+<td>gradle 双绿 + Mock 链路回归；<strong>写队列改动须接口契约+Mock 行为+测试同批</strong>（否则只是把 WWR 可靠性问题换位置——codex C 点）</td>
+</tr>
+<tr>
+<td><strong>P1 数据核注册</strong></td>
+<td>Profile v2（ScanSpec/流表/能力集）；<strong>B2aProfile 落码</strong>（识别+通道+能力，采集面留桩）；扫描/订阅消费注册表；删 B2aDetect 旁路判定；<code>DecodedStream→streamId</code> 开放；CollectTypeSheet 等 UI 数据驱动</td>
+<td>registry + AndroidBleClient + domain + 4 个 VM/Screen</td>
+<td>双绿 + 真机扫描/连接冒烟（S7 真表识别）；<strong>ScanSpec→ScanFilter 用完整 128 位 UUID</strong>（<code>0000FFE0-3C17-D293-8E48-14FE2E4DA212</code>，非 SIG base——codex 已验 ScanFilter 支持 128 位过滤）</td>
+</tr>
+<tr>
+<td><strong>P2 文件格式 v2</strong></td>
+<td>sessionUuid；per-device hexlog/CSV；hexlog 行加 charUuid（通道路由）；manifest v2（segments/quality/parserVersion/profileId@major）；SharedFlow 溢出计数；malformed 入 quality</td>
+<td>data 层 + SessionRecorder/Store/Layout</td>
+<td>双绿 + jvmTest 补格式用例 + 真机采集一轮验文件</td>
+</tr>
+<tr>
+<td><strong>P3 长连接保活</strong></td>
+<td>席位状态机；autoConnect 回连；会话分段；FGS 补 location；定位开关 HARD；WakeLock 评估；ROM 引导页+onTaskRemoved；限流提示</td>
+<td>ConnectionRegistry + Service + 权限页</td>
+<td>真机息屏 2h 采集不断 + 断链回连分段正确</td>
+</tr>
+<tr>
+<td><strong>P4 DeviceOps 层</strong></td>
+<td>接口+注册表；S7Console→S7DeviceOps 改造；控制台 VM/Screen 语义化（去 S7.CTRL_* 常量）；OTA 宿主预留</td>
+<td>protocol.ops + 控制台三件</td>
+<td>双绿 + 控制台真机回归（对时/拉日志）</td>
+</tr>
+<tr>
+<td><strong>P5 M7 联动</strong></td>
+<td>B2A 采集扩展冻结后：流表+解析器补全、能力集定稿、全链路真机回归</td>
+<td>S7 协议包</td>
+<td>真实 DUT 采集闭环（M7 验收）</td>
+</tr>
+</tbody>
+</table>
+<p>依赖：P0 → P1 → {P2, P4}；P3 依赖 P0（可与 P2/P4 并行）；P5 外部依赖 M7 冻结。每波收尾按仓库惯例更新 CHANGELOG 与实施笔记。</p>
+<h2 id="7-explainer">7. Explainer（给零上下文读者）</h2>
+<p><strong>这次改造在解决什么？</strong> 把"一个连 S7 手表的采集 App"变成"一个换协议就能换项目的采集框架"。类比操作系统的驱动模型：框架是内核（扫描、连接、会话、落盘、导出，永远不动），每种设备协议是一个"驱动包"。今天的问题是驱动模型只建了一半——注册表存在，但主角 B2A 没注册，识别、订阅、UI 全走后门硬编码。</p>
+<p><strong>为什么核心动作是"把协议知识做成数据"？</strong> 协议包里有两类东西：<strong>数据</strong>（怎么认设备的广播特征、订哪些通道、能产出哪些数据流、支持哪些操作）和<strong>行为</strong>（字节怎么解析）。过去两者混在代码接口里，导致三个消费方拿不到数据：扫描器没法把识别特征交给系统做硬件过滤（于是被节流/息屏扫不到）、UI 没法按能力隐藏不支持的按钮（于是硬编码枚举）、存储没法按协议声明生成 CSV 列（于是闭合枚举锁死词汇表）。B-lite 就是把数据抽成"数据核"，三个消费方全部改喝这口井——行为只剩解析器工厂和 DeviceOps 两个插槽。</p>
+<p><strong>为什么文件格式要一次性破格 v2？</strong> 因为有四个"格式一旦带着数据跑起来就改不动"的缺陷叠在一起：多设备混流（数据无法归属）、主键会漂移（事后编辑改文件夹名）、行格式缺路由信息（多通道无法重放）、无版本锚（协议升级后旧数据被静默错解）。趁真实 B2A 数据还没批量产生，一次补齐成本最低。</p>
+<p><strong>边界在哪？</strong> D6 划清了层：包内时间语义（样本时间戳/seq/间隔）是采集协议的事，App 不介入——传输层只给包打接收时间标签、raw hex 原样落盘，不反推间隔、不校准设备钟、不排序包内样本。协议若带设备时间戳，解析器解进 device_ts 列；若不带，跨设备毫秒级对齐这类能力就受限。这不是 App 的技术债，而是协议设计要不要承担的取舍，M7 定协议时权衡。</p>
+<h2 id="8-handoff">8. Handoff（接手人清单）</h2>
+<ol>
+<li><strong>先读</strong>：本文 §4 决策表 → <a href="../context/架构优化_实施笔记.md"><code>context/架构优化_实施笔记.md</code></a>（活文档，Decisions/Deviations/Edge Cases/Open Questions 持续维护）→ <a href="../context/BlueTrace开发_上下文.md"><code>context/BlueTrace开发_上下文.md</code></a>。</li>
+<li><strong>动手顺序</strong>：严格按 §6.6 波次（P0 是一切的地基，别跳）；每波验收门 = <code>./gradlew :app:assembleDebug</code> + <code>:shared:jvmTest</code> 双绿 + 真机 M2101K9C 冒烟留证据（惯例见上下文文档）。</li>
+<li><strong>别踩的坑</strong>：① P1 删 B2aDetect 旁路时，MockBleClient 里也有一处直连（<code>matchesAdvertisement</code>）；② DeviceParserHost 的多通道路由目前靠单通道兜底掩盖——P0 透传 characteristicId 后先补测试再动 P1；③ hexlog 行格式是对外契约，P2 改格式时同步写一页冻结文档；④ 遗留决策 #9（Nordic）没确认前，别在传输层做大手术之外的"顺手重构"。</li>
+<li><strong>外部依赖</strong>：M7 协议冻结（P5 卡点）、心率带硬件（HRS 真链路 R4）、固件侧 static address 承诺 + 功能掩码文档（#10）。</li>
+<li><strong>验收基线不变</strong>：SPEC ＞ 原型；红线（屏内零说明性副标/语言仅中英/token 恒英文）继续有效。</li>
+</ol>
+<h2 id="9-quiz-8">9. Quiz（自测 8 题）</h2>
+<ol>
+<li>换一个新协议，理想态改哪些文件？现状差在哪三面？</li>
+</ol>
+<details><summary>答案</summary>理想态：新增一个协议包 + DI 注册一行。现状差：扫描识别（AndroidBleClient 硬编码判定）、订阅选择（硬编码 B2A/HRS 特征）、UI 门控（VM 直连 B2aDetect、Compose 直用 S7 常量）三面旁路。</details>
+
+<ol start="2">
+<li>为什么说 <code>DecodedStream</code> 闭合枚举比 UUID 硬编码更深的协议锁？</li>
+</ol>
+<details><summary>答案</summary>解析器可插拔只解决"字节→事件"，但"事件能说什么词"（有哪些数据流）写死在 domain 枚举——新传感器流要连改 domain/存储/UI/manifest 四层。B-lite 用协议声明的流表 StreamDescriptor 开放词汇表。</details>
+
+<ol start="3">
+<li><code>startScan(null, LOW_LATENCY)</code> 为什么是最坏组合？</li>
+</ol>
+<details><summary>答案</summary>无过滤扫描在 Android 8.1+ 息屏直接零结果、连续 30 分钟降级 opportunistic、还最容易触发 5 次/30s 静默节流；带服务 UUID 的 ScanFilter 可硬件 offload，三个问题同时缓解。另注意错误码 6 才是 SCANNING_TOO_FREQUENTLY，5 是资源不足。</details>
+
+<ol start="4">
+<li>断链后席位怎么走？数据上怎么体现？</li>
+</ol>
+<details><summary>答案</summary>D5：断链→回连中（保留席位，autoConnect 托管），当前分段关闭并记 gap；回连成功开新分段；超时/手动才释放席位。manifest.devices[i].segments 逐段记录起止与原因。</details>
+
+<ol start="5">
+<li>为什么 manifest 要加 sessionUuid？现状主键是什么、坏在哪？</li>
+</ol>
+<details><summary>答案</summary>现状 sessionId=文件夹名，事后编辑采集人/场景会重命名文件夹=主键漂移，导出副本/服务器去重全无稳定键。sessionUuid 创建时生成、永不变，folderName 降级为展示。</details>
+
+<ol start="6">
+<li>D6 的职责边界是什么？包内时间戳归谁？</li>
+</ol>
+<details><summary>答案</summary>包内时间语义（样本时间戳/seq/间隔）归采集协议定义，App 不介入。传输层只给包打接收时间标签 receivedAtMs + raw hex 原样落盘；解析层按协议把设备时间戳解进 device_ts 列，协议没定义则空。App 不反推间隔、不校准设备钟、不排序包内样本。跨设备对齐能力取决于协议带不带时间戳，是协议设计决策，后果随协议走。</details>
+
+<ol start="7">
+<li>OTA 为什么不能现在"加个命令"就做？</li>
+</ol>
+<details><summary>答案</summary>三个地基缺口：宿主错（S7Console 挂 viewModelScope 切屏即断，D4 定 DeviceOps+应用级宿主）、WWR 写无流控（写结果不消费，连发大块必丢，P0 补写队列）、未请求 CONNECTION_PRIORITY_HIGH。另有 GATT 服务表缓存问题（OTA 改布局后旧 handle 不失效）。</details>
+
+<ol start="8">
+<li>真正的丢包计数口在哪一级？为什么现在的 droppedPackets 是假安全感？</li>
+</ol>
+<details><summary>答案</summary>在 AndroidBleClient 的 MutableSharedFlow(256, DROP_OLDEST)——tryEmit 在该语义下恒返回 true，溢出静默丢弃无计数；manifest 里计的是下游 Channel.trySend 失败，而落盘卡顿时先满的是上游。P2 给上游补计数并按设备入 quality。</details>
+
+<h2 id="acodex">附录 A：外部验证（codex 交叉核对）</h2>
+<p>2026-07-07，用 codex-cli 0.142.0 只读沙箱<strong>独立读真实代码</strong>交叉核对本文 13 条承重事实断言（每条带 file:line）。目的：确保方案地基不是"看起来对"的推测，而是代码支持的事实。</p>
+<p><strong>结果：11 CONFIRMED / 2 PARTIAL / 0 REFUTED，无一条被推翻。</strong></p>
+<p>两条 PARTIAL 为措辞精度问题、不动结论方向：</p>
+<ul>
+<li><strong>枚举计数</strong>：本文原把 <code>DecodedStream</code>/<code>CollectType</code> 并称"7 值枚举"——实为 <code>CollectType</code> 6 值（采集开关，不含 HR）、<code>DecodedStream</code> 7 值（含 HR）。已在 §3 A2 改正。</li>
+<li><strong>"全仓无"口径</strong>：WakeLock/bonding/connectionPriority 在<strong>生产代码</strong>（.kt/.kts/.xml/.toml）确实零调用，但 Docs 历史/计划文本有命中——严谨表述应为"生产代码无调用"。</li>
+</ul>
+<p>验证还独立确认了三个此前未深挖的实施关键点（已并入实施笔记与 §6.6 波次门）：</p>
+<ol>
+<li><strong>ScanFilter 可过滤 128 位私有 UUID</strong>（P1 抗节流对策成立）——但 B2A 必须用完整 <code>0000FFE0-3C17-D293-8E48-14FE2E4DA212</code>，不可用 SIG base。</li>
+<li><strong>按 deviceId 分文件是六处联动</strong>（sample+decoder+recorder+layout+manifest+测试），非改文件名的小事——印证 P2 定为"格式 v2 一次破格"。</li>
+<li><strong>P0 写队列是最高风险项</strong>——<code>BleClient.write()</code> 返回 <code>Unit</code>、当前只做 WWR 不消费写回调；改动须接口契约+Mock+测试同批，否则只是把可靠性问题换位置。</li>
+</ol>
+<blockquote>
+<p>独立复核不等于背书方案选型（D1–D8 是你的决策）；它只保证"计划所依据的代码现状描述是真的"。方案层面的取舍（尤其 D6 已接受风险、遗留 #9 Nordic）仍需你拍板。</p>
+</blockquote></main>
+</div>
+</body>
+</html>

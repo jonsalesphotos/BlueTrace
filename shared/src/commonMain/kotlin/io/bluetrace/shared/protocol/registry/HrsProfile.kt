@@ -26,9 +26,11 @@ class HrsProfile : ProtocolProfile {
     override fun createParser(channel: ChannelId): ChannelParser = HrsParser()
 
     companion object {
+        // 16-bit 短码注册(W2 短码对齐): BLE 层通知回填的 characteristicId 即 16-bit "2A37"
+        // (AndroidBleClient/NordicBleClient 经 extract16 回填), DeviceParserHost 两侧归一后真正命中本通道.
         val HR_MEASUREMENT = ChannelId(
-            serviceUuid = "0000180d-0000-1000-8000-00805f9b34fb",
-            characteristicUuid = "00002a37-0000-1000-8000-00805f9b34fb",
+            serviceUuid = "180D",
+            characteristicUuid = "2A37",
         )
     }
 }

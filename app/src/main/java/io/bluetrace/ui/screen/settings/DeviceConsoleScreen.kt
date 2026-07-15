@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.s7.S7
 import io.bluetrace.shared.s7.S7DateTime
 import io.bluetrace.shared.s7.S7Person
 import io.bluetrace.shared.util.epochMsToLocalParts
@@ -59,6 +58,7 @@ import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
 import io.bluetrace.viewmodel.ConsoleToast
 import io.bluetrace.viewmodel.ConsoleUiState
+import io.bluetrace.viewmodel.DangerAction
 import io.bluetrace.viewmodel.DangerState
 import io.bluetrace.viewmodel.DeviceConsoleViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -76,7 +76,7 @@ fun DeviceConsoleScreen(
 ) {
     val ui by vm.state.collectAsState()
     val ctx = LocalContext.current
-    var confirm by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (ctrlKey, labelRes)
+    var confirm by remember { mutableStateOf<Pair<DangerAction, Int>?>(null) } // (action, labelRes)
     var editPerson by remember { mutableStateOf(false) }
     var editTime by remember { mutableStateOf(false) }
 
@@ -118,16 +118,19 @@ fun DeviceConsoleScreen(
                 CandidateChips(ui, onPick = { vm.selectDevice(it) })
             }
             ui.error?.let { ErrorBar(it) { vm.clearError() } }
-            IdentitySection(ui, onRefresh = { vm.refreshAll() })
-            TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
-            PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
-            LogSection(ui, onPull = { vm.pullLog() }, onView = onOpenLogs)
-            DangerSection(
-                ui,
-                onFind = { vm.toggleFind() },
-                onDanger = { key, label -> confirm = key to label },
-            )
-            OpLogSection(vm, onExport = { vm.exportOpLog() })
+            // ---- 按分面 null 与否显隐功能块（W6 异构设备靠此隐藏缺失能力；当前 S7 六面全有故全显）----
+            if (ui.hasInfo || ui.hasBattery || ui.hasVendorS7) IdentitySection(ui, onRefresh = { vm.refreshAll() })
+            if (ui.hasTimeSync) TimeSection(ui, onSync = { vm.syncTime() }, onCustom = { editTime = true })
+            if (ui.hasVendorS7) PersonSection(ui, onEdit = { editPerson = true }, onWriteSubject = { vm.writeCurrentSubject() })
+            if (ui.hasLogs) LogSection(ui, onPull = { vm.pullLog() }, onView = onOpenLogs)
+            if (ui.hasPower || ui.hasVendorS7) {
+                DangerSection(
+                    ui,
+                    onFind = { vm.toggleFind() },
+                    onDanger = { action, label -> confirm = action to label },
+                )
+            }
+            if (ui.hasVendorS7) OpLogSection(vm, onExport = { vm.exportOpLog() })
             Spacer(Modifier.navigationBarsPadding().height(8.dp))
         }
     }
@@ -156,7 +159,7 @@ fun DeviceConsoleScreen(
     }
 
     // 危险命令确认
-    confirm?.let { (key, labelRes) ->
+    confirm?.let { (action, labelRes) ->
         val label = stringResource(labelRes)
         AlertDialog(
             onDismissRequest = { confirm = null },
@@ -165,7 +168,7 @@ fun DeviceConsoleScreen(
             confirmButton = {
                 TextButton(onClick = {
                     confirm = null
-                    vm.sendPower(key, labelRes)
+                    vm.sendDanger(action, labelRes)
                 }) { Text(stringResource(R.string.console_confirm), color = BT.error, fontWeight = FontWeight.W700) }
             },
             dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.console_cancel)) } },
@@ -349,19 +352,34 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
             )
         },
     ) {
-        Kv("Model", ui.sn?.devType)
-        Kv("SN", ui.sn?.sn)
-        Kv("MAC", ui.sn?.macHex)
-        Kv("IMEI", ui.sn?.imei)
-        Kv("ICCID", ui.sn?.iccid)
-        Kv("FW", ui.info?.swVer)
-        Kv("Modem", ui.info?.modemVer)
-        Kv("SecBL", ui.info?.secBlVer)
-        Kv("BP", ui.info?.bpVer)
-        Kv("Func", ui.devFunc?.let { "0x" + it.toString(16).uppercase().padStart(8, '0') })
-        Kv("Bond", ui.bondState?.toString())
-        ui.battery?.let {
-            Kv("Battery", stringResource(R.string.console_batt_fmt, it.percent, it.voltageMv, it.capacityMah))
+        // S7 专属型号/SN 段（vendor 面；通用 info 面不含这些）
+        if (ui.hasVendorS7) {
+            Kv("Model", ui.sn?.devType)
+            Kv("SN", ui.sn?.sn)
+            Kv("MAC", ui.sn?.macHex)
+            Kv("IMEI", ui.sn?.imei)
+            Kv("ICCID", ui.sn?.iccid)
+        }
+        // 版本段（通用 info 面：swVer + extras；异构设备只显协议提供的字段）
+        if (ui.hasInfo) {
+            Kv("FW", ui.cmdInfo?.swVer)
+            ui.cmdInfo?.extras?.get("modemVer")?.let { Kv("Modem", it) }
+            ui.cmdInfo?.extras?.get("secBlVer")?.let { Kv("SecBL", it) }
+            ui.cmdInfo?.extras?.get("bpVer")?.let { Kv("BP", it) }
+        }
+        // S7 专属功能掩码/绑定态（vendor 面）
+        if (ui.hasVendorS7) {
+            Kv("Func", ui.devFunc?.let { "0x" + it.toString(16).uppercase().padStart(8, '0') })
+            Kv("Bond", ui.bondState?.toString())
+        }
+        // 电量（通用 battery 面给百分比；S7 vendor 补电压/容量）
+        if (ui.hasBattery) {
+            val detail = ui.batteryDetail
+            if (ui.hasVendorS7 && detail != null) {
+                Kv("Battery", stringResource(R.string.console_batt_fmt, detail.percent, detail.voltageMv, detail.capacityMah))
+            } else {
+                Kv("Battery", ui.batteryPct?.let { "$it%" })
+            }
         }
         Spacer(Modifier.height(4.dp))
         Text(stringResource(R.string.console_byteorder_note), fontSize = 10.sp, color = BT.onSurfaceV)
@@ -371,38 +389,44 @@ private fun IdentitySection(ui: ConsoleUiState, onRefresh: () -> Unit) {
 @Composable
 private fun TimeSection(ui: ConsoleUiState, onSync: () -> Unit, onCustom: () -> Unit) {
     Section(stringResource(R.string.console_sec_time)) {
-        Kv(stringResource(R.string.console_time_device), ui.deviceTime?.display())
-        val drift = ui.driftSec
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.console_time_drift), fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.weight(1f))
-            Text(
-                drift?.let { stringResource(R.string.console_drift_fmt, it) } ?: "—",
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.W700,
-                color = when {
-                    drift == null -> BT.onSurfaceV
-                    drift in -2..2 -> BT.onSurface
-                    else -> BT.warning
-                },
-            )
+        // 设备时间显示 + 偏差 = S7 vendor（通用 timeSync 面只 sync 不回读）
+        if (ui.hasVendorS7) {
+            Kv(stringResource(R.string.console_time_device), ui.deviceTime?.display())
+            val drift = ui.driftSec
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.console_time_drift), fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.weight(1f))
+                Text(
+                    drift?.let { stringResource(R.string.console_drift_fmt, it) } ?: "—",
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.W700,
+                    color = when {
+                        drift == null -> BT.onSurfaceV
+                        drift in -2..2 -> BT.onSurface
+                        else -> BT.warning
+                    },
+                )
+            }
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
         val enabled = ui.busy == null && ui.link == LinkState.CONNECTED
+        // 同步手机时间 = 通用 timeSync 面
         PrimaryButton(
             stringResource(R.string.console_sync_time),
             onClick = onSync,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
         )
-        Spacer(Modifier.height(6.dp))
-        // 自定义对时：可填任意时间 + 时区，测跨时区 / 过零点
-        OutlineBtn(
-            stringResource(R.string.console_custom_time),
-            onClick = onCustom,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = enabled,
-        )
+        // 自定义对时（任意时间 + 时区，测跨时区 / 过零点）= S7 vendor
+        if (ui.hasVendorS7) {
+            Spacer(Modifier.height(6.dp))
+            OutlineBtn(
+                stringResource(R.string.console_custom_time),
+                onClick = onCustom,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+            )
+        }
     }
 }
 
@@ -461,43 +485,52 @@ private fun LogSection(ui: ConsoleUiState, onPull: () -> Unit, onView: () -> Uni
 }
 
 @Composable
-private fun DangerSection(ui: ConsoleUiState, onFind: () -> Unit, onDanger: (Int, Int) -> Unit) {
+private fun DangerSection(ui: ConsoleUiState, onFind: () -> Unit, onDanger: (DangerAction, Int) -> Unit) {
     Section(stringResource(R.string.console_sec_danger)) {
         val enabled = ui.busy == null && ui.link == LinkState.CONNECTED
-        OutlineBtn(
-            stringResource(if (ui.finding) R.string.console_find_stop else R.string.console_find_start),
-            onClick = onFind,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = enabled,
-            color = if (ui.finding) BT.primaryDeep else BT.onSurface,
-        )
-        if (ui.finding) {
-            Spacer(Modifier.height(2.dp))
-            Text(stringResource(R.string.console_find_hint), fontSize = 10.sp, color = BT.onSurfaceV)
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 找表 = S7 vendor
+        if (ui.hasVendorS7) {
             OutlineBtn(
-                stringResource(R.string.console_reboot),
-                onClick = { onDanger(S7.CTRL_RESET, R.string.console_reboot) },
-                modifier = Modifier.weight(1f), enabled = enabled, color = BT.error,
+                stringResource(if (ui.finding) R.string.console_find_stop else R.string.console_find_start),
+                onClick = onFind,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+                color = if (ui.finding) BT.primaryDeep else BT.onSurface,
             )
-            OutlineBtn(
-                stringResource(R.string.console_power_off),
-                onClick = { onDanger(S7.CTRL_POWER_OFF, R.string.console_power_off) },
-                modifier = Modifier.weight(1f), enabled = enabled, color = BT.error,
-            )
+            if (ui.finding) {
+                Spacer(Modifier.height(2.dp))
+                Text(stringResource(R.string.console_find_hint), fontSize = 10.sp, color = BT.onSurfaceV)
+            }
+            Spacer(Modifier.height(6.dp))
         }
-        Spacer(Modifier.height(6.dp))
-        OutlineBtn(
-            stringResource(R.string.console_restore),
-            onClick = { onDanger(S7.CTRL_RESTORE, R.string.console_restore) },
-            modifier = Modifier.fillMaxWidth(), enabled = enabled, color = BT.error,
-        )
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.console_ota), fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.console_ota_deferred), fontSize = 11.sp, color = BT.onSurfaceV)
+        // 重启 / 关机 = 通用 power 面
+        if (ui.hasPower) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlineBtn(
+                    stringResource(R.string.console_reboot),
+                    onClick = { onDanger(DangerAction.REBOOT, R.string.console_reboot) },
+                    modifier = Modifier.weight(1f), enabled = enabled, color = BT.error,
+                )
+                OutlineBtn(
+                    stringResource(R.string.console_power_off),
+                    onClick = { onDanger(DangerAction.POWER_OFF, R.string.console_power_off) },
+                    modifier = Modifier.weight(1f), enabled = enabled, color = BT.error,
+                )
+            }
+        }
+        // 恢复出厂 = S7 vendor（第三电源命令；通用 power 面只有重启/关机）
+        if (ui.hasVendorS7) {
+            Spacer(Modifier.height(6.dp))
+            OutlineBtn(
+                stringResource(R.string.console_restore),
+                onClick = { onDanger(DangerAction.RESTORE, R.string.console_restore) },
+                modifier = Modifier.fillMaxWidth(), enabled = enabled, color = BT.error,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.console_ota), fontSize = 12.sp, color = BT.onSurfaceV, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.console_ota_deferred), fontSize = 11.sp, color = BT.onSurfaceV)
+            }
         }
     }
 }

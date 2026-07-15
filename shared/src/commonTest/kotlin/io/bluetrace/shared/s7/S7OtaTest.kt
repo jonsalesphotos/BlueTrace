@@ -2,6 +2,7 @@ package io.bluetrace.shared.s7
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
+import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
@@ -124,12 +125,12 @@ class S7OtaTest {
         var reqReplyDelayMs: Long = 0
         private val inbound = MutableSharedFlow<BleNotification>(extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         override fun scan(): Flow<List<ScannedDevice>> = emptyFlow()
-        override suspend fun connect(device: ScannedDevice) {}
+        override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {}
         override suspend fun disconnect(deviceId: String) { link.value = LinkState.DISCONNECTED }
         override fun linkState(deviceId: String): StateFlow<LinkState> = link
         override fun negotiatedMtu(deviceId: String): Int = mtu
         override fun notifications(deviceId: String): Flow<BleNotification> = inbound
-        override suspend fun write(deviceId: String, bytes: ByteArray) {
+        override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
             if (link.value != LinkState.CONNECTED) return
             // 单帧 REQ：payload 起于偏移 8，cmd@8/key@9
             val isReq = bytes.size >= 10 && (bytes[8].toInt() and 0xFF) == S7.CMD_FILE_TRANS &&

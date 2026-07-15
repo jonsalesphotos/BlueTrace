@@ -71,7 +71,8 @@ class ExportViewModel(
                     }
                 }
             }
-            _state.value = ExportUiState.Done(if (folders.size == 1) lastPath else "Download/BlueTrace/")
+            // 多夹导出：同一批全落同一 rawdata 日期夹，显示末个成功路径的父目录
+            _state.value = ExportUiState.Done(if (folders.size == 1) lastPath else lastPath.substringBeforeLast('/', "Download/BlueTrace/rawdata"))
         }
     }
 

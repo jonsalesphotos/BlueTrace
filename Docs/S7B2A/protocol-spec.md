@@ -2,8 +2,8 @@
 
 > 整理自 `E:\1\apollo4_watch_s7\Docs\03_BLE与协议`（14 个文件，9 代理并行深读 + 交叉校验，2026-07-02）。
 > 本文是**实现级收敛稿**：只保留写代码必需的事实，按「设备维护控制台」用到的范围裁剪；
-> 全量提取件在 [_raw/](../../归档/s7协议工作底稿/_raw/)（transport/header/manualA/manualB/otaLog/appScan + 三份校验报告）。
-> 完整性结论见 [completeness-audit.md](completeness-audit.md)；实施计划见 [plan.md](../../归档/s7协议工作底稿/plan.md)。
+> 全量提取件在 [_raw/](../归档/s7协议工作底稿/_raw/)（transport/header/manualA/manualB/otaLog/appScan + 三份校验报告）。
+> 完整性结论见 [completeness-audit.md](completeness-audit.md)；实施计划见 [plan.md](../归档/s7协议工作底稿/plan.md)。
 
 ## 1. BLE 传输层（AMDTP 服务）
 

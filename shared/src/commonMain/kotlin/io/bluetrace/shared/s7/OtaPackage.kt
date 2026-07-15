@@ -1,14 +1,18 @@
 package io.bluetrace.shared.s7
 
+import io.bluetrace.shared.device.FwPackage
+
 /**
  * 一个 OTA 升级包 = 有序文件清单（顺序即推送顺序；末文件 STOP 后设备判整包完成）。
  * 采集固件刷入 = 采集 `ota_all`(14 文件) 或最小 `ota_part`(ResData/ResFat/ResCheck/fw.dat)。
  * 见 `Docs/OTA/S7采集OTA_设计.md` §1.1。
+ *
+ * 实现通用 [FwPackage] marker(W4): S7 策略 [S7FirmwareUpdateStrategy] 内 `pkg as? OtaPackage` 受限转型据此.
  */
 data class OtaPackage(
     val moduleId: Int = S7FileTrans.MODULE_OTA,
     val files: List<OtaFile>,
-) {
+) : FwPackage {
     val totalBytes: Long get() = files.sumOf { it.bytes.size.toLong() }
     val fileCount: Int get() = files.size
 }
@@ -36,13 +40,15 @@ data class OtaFile(
     }
 }
 
-/** 推送进度（文件序号 / 已发字节 / 总字节）。 */
+/** 推送进度（文件序号 / 已发字节 / 总字节 / 上传速度）。 */
 data class OtaProgress(
     val fileIdx: Int,
     val fileCount: Int,
     val fileName: String,
     val sentBytes: Long,
     val totalBytes: Long,
+    /** BLE 上传速度（B/s，≥1s 滑动窗口；0=首窗未出数）。 */
+    val bytesPerSec: Long = 0,
 )
 
 /**
@@ -64,7 +70,10 @@ sealed interface OtaResult {
     data class Failed(val reason: OtaFailure) : OtaResult
 }
 
-/** OTA 失败原因。 */
+/**
+ * OTA 失败原因。
+ * 展示统一走 [describe]（哪条指令出错、文件传输错在哪个文件哪个偏移），UI/日志共用。
+ */
 sealed interface OtaFailure {
     /** 未连接 / 链路非 CONNECTED。 */
     data object NotConnected : OtaFailure
@@ -86,10 +95,28 @@ sealed interface OtaFailure {
 
     // ---- 下载后回连阶段（[OtaProvisioner]） ----
 
-    /** 设备自复位后重连失败（多次尝试仍未 CONNECTED）——无法回连查看设备（需人工重连）。 */
+    /** 设备自复位后重连失败（扫描窗口 + 直连重试均未 CONNECTED）——无法回连查看设备（需人工重连）。 */
     data object ReconnectFailed : OtaFailure
     // 注：版本读不到不算失败——回连成功即 [OtaResult.Reconnected]，currentVersion=null 显示"未知"。
 }
 
+/** 人话失败描述：定位到出错指令 / 文件传输失败的文件与字节偏移（UI 结果卡 + 执行日志 + 队列行共用）。 */
+fun OtaFailure.describe(): String = when (this) {
+    OtaFailure.NotConnected -> "设备未连接"
+    is OtaFailure.Timeout -> "指令 $stage 应答超时"
+    is OtaFailure.ReqRejected -> "REQ 被设备拒绝：${reqStatusName(status)}"
+    is OtaFailure.DeviceError -> "指令 $stage 设备返回错误 ${S7.errorName[code] ?: "0x${code.toString(16)}"}"
+    is OtaFailure.SliceFailed -> "文件传输失败：$fileName @ 偏移 $offset（切片重传超限）"
+    is OtaFailure.Malformed -> "指令 $stage 应答格式非法"
+    OtaFailure.ReconnectFailed -> "回连失败（扫描窗口内未连上设备）"
+}
+
+private fun reqStatusName(status: Int): String = when (status) {
+    S7FileTrans.REQ_DISK_FULL -> "DISK_FULL(磁盘满)"
+    S7FileTrans.REQ_BUSY -> "BUSY(设备忙)"
+    S7FileTrans.REQ_MEMORY -> "MEMORY(内存不足)"
+    else -> "0x${status.toString(16)}"
+}
+
 /** OTA 端到端阶段（驱动 UI 文案；[OtaProvisioner.provisionAndReconnect] 的 onPhase 回调）。 */
-enum class OtaPhase { Downloading, WaitingReboot, Reconnecting, ReadingVersion, Done }
+enum class OtaPhase { Downloading, WaitingReboot, Scanning, Reconnecting, ReadingVersion, Done }

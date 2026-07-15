@@ -2,7 +2,7 @@
 
 > 审计对象：`E:\1\apollo4_watch_s7\Docs\03_BLE与协议`（14 文件，约 7300 行 MD/头文件 + 2 个大 HTML）。
 > 方法：6 路并行深读提取 → 头文件×手册交叉校验 + 10 项完整性审计 + 矛盾猎手（9 代理）。
-> 原始报告：[_raw/crossCheck.md](../../归档/s7协议工作底稿/_raw/crossCheck.md)、[_raw/completeness.md](../../归档/s7协议工作底稿/_raw/completeness.md)、[_raw/contradictions.md](../../归档/s7协议工作底稿/_raw/contradictions.md)。
+> 原始报告：[_raw/crossCheck.md](../归档/s7协议工作底稿/_raw/crossCheck.md)、[_raw/completeness.md](../归档/s7协议工作底稿/_raw/completeness.md)、[_raw/contradictions.md](../归档/s7协议工作底稿/_raw/contradictions.md)。
 
 ## 总体判定
 

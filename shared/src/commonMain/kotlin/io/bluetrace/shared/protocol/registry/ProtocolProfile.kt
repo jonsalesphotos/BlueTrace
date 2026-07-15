@@ -1,6 +1,7 @@
 package io.bluetrace.shared.protocol.registry
 
 import io.bluetrace.shared.ble.BleNotification
+import io.bluetrace.shared.ble.extract16
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.ProtocolEvent
 
@@ -66,14 +67,17 @@ class DeviceParserHost(
     val deviceId: String,
     val profile: ProtocolProfile,
 ) {
+    // 通道键两侧统一走 [channelKey] 归一(16-bit 短码大写): profile 注册的 characteristicUuid
+    // 与 BLE 层通知回填的 characteristicId 短码对齐——修掉 W1 交接的"按通道分流从不命中、全靠
+    // single 兜底掩盖"(BLE 层填 16-bit "2A37", 旧注册存 128-bit 全串, parsers[key] 永不命中).
     private val parsers: Map<String, ChannelParser> =
-        profile.notifyChannels.associate { ch -> ch.characteristicUuid.lowercase() to profile.createParser(ch) }
+        profile.notifyChannels.associate { ch -> channelKey(ch.characteristicUuid) to profile.createParser(ch) }
 
     /** 单通道 profile 的兜底解析器: 通知没带特征 id(Mock 后端)或 id 未注册时用它。 */
     private val single: ChannelParser? = parsers.values.singleOrNull()
 
     fun parse(notification: BleNotification): List<ProtocolEvent> {
-        val key = notification.characteristicId?.lowercase()
+        val key = notification.characteristicId?.let { channelKey(it) }
         val parser = (if (key != null) parsers[key] else null) ?: single
             ?: return listOf(
                 ProtocolEvent.Malformed("no parser for channel ${notification.characteristicId} (profile=${profile.id})"),
@@ -84,5 +88,14 @@ class DeviceParserHost(
     /** 断连→重连: 全通道清跨包状态(pktSeq/分片必然中断, 防与新流错拼)。 */
     fun onReconnected() {
         parsers.values.forEach { it.reset() }
+    }
+
+    companion object {
+        /**
+         * 通道键归一: 两侧(profile 注册的 characteristicUuid 与 BLE 层通知的 characteristicId)统一
+         * 抽 16-bit 短码大写(口径同通用 [io.bluetrace.shared.ble.extract16]), 短码对齐真源. extract16
+         * 归一失败(非常规 uuid)时回退整串大写, 仍可稳定比对(至少两侧同规则).
+         */
+        private fun channelKey(uuid: String): String = extract16(uuid) ?: uuid.uppercase()
     }
 }

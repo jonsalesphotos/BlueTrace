@@ -22,6 +22,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 时序：REQ（会话总量，等设备 MMI 授权异步回 12B）→ 逐文件 START/TRANS×N/STOP → 末文件 STOP 即整包完成。
  * 流控：每切片发完（≤17 无响应写）等 9B ack、核对 U32 累加和再发下一切片（**切片内**的逐包背压 = Phase 2 真机项）。
  * 纪律：切片 ack 超时须 < 设备 ~15.36s UI 看门狗（[sliceAckTimeoutMs] 默认 10s 留余量）。
+ *
+ * ⚠️ **中途取消绝不可补发 STOP**（固件审查 2026-07-14，`Docs/OTA/OTA中止_固件行为审查.md`）：
+ * 固件 `B2A_FileTransStopAck` 会删除 61s 收包看门狗定时器且**不清 OTA 标志**——设备既不自复位、
+ * 其他命令又被 OTA 门控丢弃，永久卡传输态。协程取消天然停在切片循环（不发 STOP）即正确行为：
+ * 停发切片 → 固件看门狗 ~61s 超时 → 设备自行 SYS_Reset（复位前主动断链）。
  */
 class S7OtaSession(
     private val ble: BleClient,
@@ -69,12 +74,23 @@ class S7OtaSession(
 
         try {
             val mtu = ble.negotiatedMtu(deviceId)
+            val startedMs = clock.nowMs()
+            var sentTotal = 0L
+            // 上传速度：≥1s 滑动窗口（速度显示 + 逐切片日志用）
+            var winStartMs = startedMs
+            var winStartBytes = 0L
+            var speedBps = 0L
+            fun pctNow(): Int = if (pkg.totalBytes > 0) (sentTotal * 100 / pkg.totalBytes).toInt() else 0
+            fun failWithProgress(reason: OtaFailure): OtaResult {
+                log("FAILED $reason @ 已传 $sentTotal/${pkg.totalBytes} (${pctNow()}%)")
+                return OtaResult.Failed(reason)
+            }
 
             // ---- REQ：报会话总量，等（异步授权）12B ----
             log("TX REQ module=${pkg.moduleId} files=${pkg.fileCount} total=${pkg.totalBytes}")
             ble.write(deviceId, S7FileTrans.encodeReq(pkg.moduleId, pkg.fileCount, pkg.totalBytes))
             val reqMsg = awaitAck(S7FileTrans.KEY_REQ, authorizeTimeoutMs)
-                ?: return@withLock fail(OtaFailure.Timeout("REQ"))
+                ?: return@withLock failWithProgress(OtaFailure.Timeout("REQ"))
             // 真机 REQ 应答字节格式待抓包坐实(BUG-2): 可能为 8B 回显而非 12B(含 sliceMaxSize/offset)。
             // - 可解析为 12B 且**自洽**(moduleId 回显==所发) → 采信 status 判拒 + 采信设备 sliceMax(仍夹本地上限);
             // - 短应答(parse=null) 或 12B 不自洽(如恰是请求回显, byte[1]=isOffset≠moduleId)
@@ -83,7 +99,7 @@ class S7OtaSession(
             // moduleId 自洽门(S1 硬化): 12B 分支不再凭单个未坐实字节硬 abort, 与短应答分支同等保守。
             val req = S7FileTrans.parseReqReply(reqMsg.param)
             if (req != null && req.moduleId == pkg.moduleId && req.status != S7FileTrans.REQ_OK) {
-                return@withLock fail(OtaFailure.ReqRejected(req.status))
+                return@withLock failWithProgress(OtaFailure.ReqRejected(req.status))
             }
             // 切片长: 设备回值(若有)夹到本地分帧容量 (MTU−15)×17 之内。
             // 夹取双重意义: (1)设备回值基准 MTU 大于本地(如本地低报回退 23)时防超固件 17 包/切片硬限;
@@ -94,15 +110,14 @@ class S7OtaSession(
             log("RX REQ ok sliceMax=$sliceMax (dev=${req?.sliceMaxSize ?: "n/a"} localCap=$localCap reqLen=${reqMsg.param.size} offset=${req?.offset ?: 0})")
 
             // ---- 逐文件 START/TRANS×N/STOP ----
-            var sentTotal = 0L
             for ((idx, file) in pkg.files.withIndex()) {
                 val sliceSize = sliceMax.coerceAtMost(if (file.bytes.isEmpty()) 1 else file.bytes.size)
                 log("TX START [$idx] ${file.name} size=${file.bytes.size} type=${file.fileType}")
                 ble.write(deviceId, S7FileTrans.encodeStart(file.name, file.bytes.size.toLong(), sliceSize, file.fileType))
                 val startAck = awaitAck(S7FileTrans.KEY_START, cmdAckTimeoutMs)
-                    ?: return@withLock fail(OtaFailure.Timeout("START:${file.name}"))
+                    ?: return@withLock failWithProgress(OtaFailure.Timeout("START:${file.name}"))
                 if (!S7.commAckOk(startAck.param)) {
-                    return@withLock fail(OtaFailure.DeviceError("START:${file.name}", ackCode(startAck.param)))
+                    return@withLock failWithProgress(OtaFailure.DeviceError("START:${file.name}", ackCode(startAck.param)))
                 }
 
                 var off = 0
@@ -111,21 +126,31 @@ class S7OtaSession(
                     val slice = file.bytes.copyOfRange(off, off + len)
                     val expectSum = S7FileTrans.additiveChecksum(slice)
                     val ok = sendSliceWithRetry(slice, expectSum, mtu, acks) { key, t -> awaitAck(key, t) }
-                    if (!ok) return@withLock fail(OtaFailure.SliceFailed(file.name, off.toLong()))
+                    if (!ok) return@withLock failWithProgress(OtaFailure.SliceFailed(file.name, off.toLong()))
                     off += len
                     sentTotal += len
-                    onProgress(OtaProgress(idx, pkg.fileCount, file.name, sentTotal, pkg.totalBytes))
+                    val now = clock.nowMs()
+                    if (now - winStartMs >= 1000) { // ≥1s 窗口刷新速度
+                        speedBps = (sentTotal - winStartBytes) * 1000 / (now - winStartMs)
+                        winStartMs = now
+                        winStartBytes = sentTotal
+                    }
+                    onProgress(OtaProgress(idx, pkg.fileCount, file.name, sentTotal, pkg.totalBytes, speedBps))
+                    // 逐切片一行（约定：TRANS 前缀行 UI 终端不刷屏、只进落盘执行日志）
+                    log("TRANS [$idx] ${file.name} $off/${file.bytes.size} · 总 $sentTotal/${pkg.totalBytes} ${pctNow()}% · ${speedBps / 1024} KB/s")
                 }
 
                 log("TX STOP [$idx] ${file.name}")
                 ble.write(deviceId, S7FileTrans.encodeStop())
                 val stopAck = awaitAck(S7FileTrans.KEY_STOP, cmdAckTimeoutMs)
-                    ?: return@withLock fail(OtaFailure.Timeout("STOP:${file.name}"))
+                    ?: return@withLock failWithProgress(OtaFailure.Timeout("STOP:${file.name}"))
                 if (!S7.commAckOk(stopAck.param)) {
-                    return@withLock fail(OtaFailure.DeviceError("STOP:${file.name}", ackCode(stopAck.param)))
+                    return@withLock failWithProgress(OtaFailure.DeviceError("STOP:${file.name}", ackCode(stopAck.param)))
                 }
             }
-            log("DONE download ${pkg.fileCount} files ${pkg.totalBytes} bytes → 设备自复位生效")
+            val elapsedMs = (clock.nowMs() - startedMs).coerceAtLeast(1)
+            val avgBps = pkg.totalBytes * 1000 / elapsedMs
+            log("DONE download ${pkg.fileCount} files ${pkg.totalBytes} bytes · 用时 ${elapsedMs / 1000}s · 平均 ${avgBps / 1024} KB/s → 设备自复位生效")
             OtaResult.DoneDownload
         } finally {
             collector.cancel()

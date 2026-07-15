@@ -4,10 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
+import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.B2aDetect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 连接页设备行：是否为受支持的 B2A 设备（不支持则不可连接）。 */
+/** 连接页设备行：是否为控制台可维护的设备（有控制面才可连接；不支持则不可连接）。 */
 data class ConsoleDeviceRow(
     val device: ScannedDevice,
     val link: LinkState,
@@ -35,7 +35,7 @@ data class ConsoleConnectUiState(
 
 /**
  * 控制台内置连接页 VM。
- * - 只对 **受支持的 B2A 手表**运行连接（不支持设备展示为不可连）；
+ * - 只对 **有控制面的设备**运行连接（识别归 [DeviceProfileCatalog]，不支持设备展示为不可连）；
  * - **无名设备不显示**；已连接设备置顶；顺序稳定（不按 RSSI 实时重排，避免跳动难点选）；
  * - 单点即连/断该设备，**不自动断开其它设备**（多设备由控制台选择控制哪台）；
  * - 名称 / 信号强度过滤。
@@ -43,6 +43,7 @@ data class ConsoleConnectUiState(
 class ConsoleConnectViewModel(
     private val ble: BleClient,
     private val registry: ConnectionRegistry,
+    private val catalog: DeviceProfileCatalog,
 ) : ViewModel() {
 
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
@@ -83,7 +84,8 @@ class ConsoleConnectViewModel(
                     ConsoleDeviceRow(
                         device = d,
                         link = link,
-                        supported = B2aDetect.matchesAdvertisement(d),
+                        // 控制台可维护 = 识别到的档案有控制面(S7 有; 参考带/纯数据设备无)——去 S7 硬编码.
+                        supported = catalog.identify(d)?.controlPlane != null,
                         busy = d.id in busy,
                     )
                 }
@@ -107,8 +109,10 @@ class ConsoleConnectViewModel(
             // sample(1s)：扫描回调很密（RSSI 每帧变），节流到最多 1 次/秒，
             // 让列表 ~1 秒才按信号重排一次——既按信号强度排序，又不至跳动到无法点选。
             ble.scan().sample(1000).collect { devices ->
-                _results.value = devices
-                devices.forEach { observeLink(it.id) }
+                // 扫描去识别化: 识别在此投影层经 Catalog 统一打标(supported 判定/参考带过滤据此不变).
+                val annotated = devices.map { catalog.annotate(it) }
+                _results.value = annotated
+                annotated.forEach { observeLink(it.id) }
             }
         }
     }
@@ -128,8 +132,8 @@ class ConsoleConnectViewModel(
     fun toggleConnect(device: ScannedDevice) {
         if (device.id in _busy.value) return
         val connectedNow = registry.isConnected(device.id)
-        // 未连接且不支持 → 不运行连接
-        if (!connectedNow && !B2aDetect.matchesAdvertisement(device)) return
+        // 未连接且无控制面(控制台不可维护) → 不运行连接
+        if (!connectedNow && catalog.identify(device)?.controlPlane == null) return
         _busy.update { it + device.id }
         viewModelScope.launch {
             try {

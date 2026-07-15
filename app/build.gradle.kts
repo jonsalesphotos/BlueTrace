@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "io.bluetrace"
-    compileSdk = 36
+    // Nordic Kotlin-BLE 2.0.0-beta03 的 AAR 元数据硬要求 compileSdk>=37（仅编译期 API 级别，
+    // 与 targetSdk/minSdk 运行时行为无关）。targetSdk 保持 36、minSdk 保持 29 不变。
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.bluetrace"
@@ -38,6 +40,15 @@ android {
     }
 }
 
+// Nordic Kotlin-BLE 2.0.0-beta03 用 Kotlin 2.4.0 编译（其 class + 传递的 kotlin-stdlib 元数据版本 2.4.0）;
+// 本工程编译器 2.2.10 只能读到 2.3.0。跳过元数据版本校验以消费该库（仅 app 模块, 不动 shared 工具链）。
+// W1.6 后若 Nordic 转默认, 应把工程 Kotlin 升到 >=2.4 正式对齐, 届时删除此 flag。
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xskip-metadata-version-check")
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
 
@@ -62,6 +73,10 @@ dependencies {
 
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // Nordic Kotlin-BLE-Library 2.0（BleClient 第二实现 NordicBleClient；DEBUG 三向开关切换，W1.6 真机 A/B 前）。
+    implementation(libs.nordic.ble.client.android)
+    implementation(libs.nordic.ble.environment.android)
 
     implementation(libs.sqldelight.android.driver)
 

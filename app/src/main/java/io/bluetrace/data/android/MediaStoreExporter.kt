@@ -3,7 +3,6 @@ package io.bluetrace.data.android
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import io.bluetrace.R
 import io.bluetrace.shared.data.StorageMonitor
@@ -22,18 +21,28 @@ sealed interface ExportResult {
 }
 
 /**
- * 整会话文件夹经 MediaStore 导出为 zip 到公共 `Download/BlueTrace/`（§6.4），无需任何存储运行时权限。
- * 流程：导出前存储预检 → 插入 IS_PENDING 记录 → openOutputStream 写 zip → 清 IS_PENDING。
+ * 整会话文件夹经 MediaStore 导出为 zip 到公共 `Download/BlueTrace/rawdata/<YYYY-MM-DD>/`
+ * （§6.4；v8 目录树——按**导出日期**归档，工程配置 `export.rawdataByDate=false` 可退回平铺），
+ * 无需任何存储运行时权限。流程：导出前存储预检 → 插入 IS_PENDING 记录 → openOutputStream 写 zip → 清 IS_PENDING。
  */
 class MediaStoreExporter(
     private val context: Context,
     private val storageMonitor: StorageMonitor,
+    private val configStore: ConfigStore,
 ) {
 
     private fun sessionsDir(): File {
         val base = context.getExternalFilesDir(null) ?: context.filesDir
         return File(base, "sessions")
     }
+
+    /** 本次导出的 rawdata 目标子目录（`BlueTrace/rawdata[/<YYYY-MM-DD>]`，日期=导出时本地日）。 */
+    private fun rawdataSubdir(): String =
+        if (configStore.current.export.rawdataByDate) {
+            "${PublicTree.RAWDATA}/${java.time.LocalDate.now()}" // ISO yyyy-MM-dd，locale 无关
+        } else {
+            PublicTree.RAWDATA
+        }
 
     /**
      * @param selectedRelativePaths null=整夹；非空=仅打包这些相对路径（数据C 逐项勾选导出），
@@ -63,13 +72,14 @@ class MediaStoreExporter(
             }
 
             val displayName = if (selectedRelativePaths == null) "$folderName.zip" else "${folderName}_partial.zip"
+            val subdir = rawdataSubdir()
             val resolver = context.contentResolver
             val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, displayName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/zip")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/BlueTrace")
+                    put(MediaStore.Downloads.RELATIVE_PATH, PublicTree.relPath(subdir))
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
             }
@@ -98,7 +108,7 @@ class MediaStoreExporter(
                     values.put(MediaStore.Downloads.IS_PENDING, 0)
                     resolver.update(uri, values, null, null)
                 }
-                ExportResult.Success("Download/BlueTrace/$displayName")
+                ExportResult.Success("${PublicTree.display(subdir)}/$displayName")
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 // 用户取消：删掉 IS_PENDING 悬挂记录（否则 Download 里留永不可见的幽灵文件），取消须继续传播
                 runCatching { resolver.delete(uri, null, null) }
@@ -109,18 +119,19 @@ class MediaStoreExporter(
             }
         }
 
-    /** 应用日志导出到 `Download/BlueTrace/logs/`（设置E）。 */
+    /** 应用日志导出到 `Download/BlueTrace/log/app/`（设置E）。 */
     suspend fun exportLog(content: String, fileName: String): ExportResult =
         exportLogBytes(content.toByteArray(), fileName)
 
-    /** 字节精确导出到公共 `Download/BlueTrace/logs/`（设备固件日志为二进制/ASCII，须字节保真）。 */
+    /** 字节精确导出到公共 `Download/BlueTrace/log/app/`（App 侧运行/操作日志，须字节保真）。 */
     suspend fun exportLogBytes(content: ByteArray, fileName: String): ExportResult = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/BlueTrace/logs")
+            // octet-stream：text/plain 会被 MediaStore 强制补 .txt（.log→.log.txt，同 DeviceLogStore 的坑）
+            put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+            put(MediaStore.Downloads.RELATIVE_PATH, PublicTree.relPath(PublicTree.LOG_APP))
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val uri = resolver.insert(collection, values) ?: return@withContext ExportResult.Error(context.getString(R.string.export_err_log_create))
@@ -133,7 +144,7 @@ class MediaStoreExporter(
             values.clear()
             values.put(MediaStore.Downloads.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
-            ExportResult.Success("Download/BlueTrace/logs/$fileName")
+            ExportResult.Success("${PublicTree.display(PublicTree.LOG_APP)}/$fileName")
         } catch (ce: kotlinx.coroutines.CancellationException) {
             runCatching { resolver.delete(uri, null, null) }
             throw ce

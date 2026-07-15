@@ -2,6 +2,7 @@ package io.bluetrace.shared.s7
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
+import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -47,18 +49,25 @@ class S7OtaProvisionerTest {
         val link = MutableStateFlow(LinkState.CONNECTED)
         var connectCalls = 0
             private set
+
+        /** 注入扫描流（null = emptyFlow，模拟无扫描能力 → provisioner 走直连兜底）。 */
+        var scanFlow: Flow<List<ScannedDevice>>? = null
+
+        /** 逐次连接结果剧本（队列空则回落 [connectSucceeds]）。 */
+        val connectPlan = ArrayDeque<Boolean>()
         private val inbound = MutableSharedFlow<BleNotification>(extraBufferCapacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-        override fun scan(): Flow<List<ScannedDevice>> = emptyFlow()
-        override suspend fun connect(device: ScannedDevice) {
+        override fun scan(): Flow<List<ScannedDevice>> = scanFlow ?: emptyFlow()
+        override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {
             connectCalls++
-            if (connectSucceeds) link.value = LinkState.CONNECTED
+            val succeed = connectPlan.removeFirstOrNull() ?: connectSucceeds
+            if (succeed) link.value = LinkState.CONNECTED
         }
         override suspend fun disconnect(deviceId: String) { link.value = LinkState.DISCONNECTED }
         override fun linkState(deviceId: String): StateFlow<LinkState> = link
         override fun negotiatedMtu(deviceId: String): Int = mtu
         override fun notifications(deviceId: String): Flow<BleNotification> = inbound
-        override suspend fun write(deviceId: String, bytes: ByteArray) {
+        override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
             if (link.value != LinkState.CONNECTED) return
             val reply = watch.handle(bytes)
             scope.launch {
@@ -152,6 +161,75 @@ class S7OtaProvisionerTest {
         val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
         assertEquals("1.2.7.0", assertIs<OtaResult.Reconnected>(result).currentVersion)
         assertEquals(0, ble.connectCalls, "链路未断 → reconnect 首圈短路, 从未真 connect")
+    }
+
+    // ---- 扫描优先回连（2026-07-14：回连保证扫描至少 60s） ----
+
+    /** 有扫描能力时：先扫到目标广播再连接（一次即中），阶段含 Scanning。 */
+    @Test
+    fun reconnect_scansFirst_connectsAfterSighting() = runTest {
+        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
+        val other = device.copy(id = "someone-else")
+        ble.scanFlow = flow {
+            emit(listOf(other)) // 先只有别的设备
+            delay(3_000)
+            emit(listOf(other, device)) // 3s 后目标出现
+            while (true) delay(1_000)
+        }
+        val phases = mutableListOf<OtaPhase>()
+        val prov = OtaProvisioner(newSession(ble), ble, device, readVersion = { "collect-1.0" })
+
+        val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000), onPhase = { phases.add(it) })
+
+        assertEquals("collect-1.0", assertIs<OtaResult.Reconnected>(result).currentVersion)
+        assertEquals(1, ble.connectCalls, "扫到广播后应一次连接命中")
+        assertTrue(OtaPhase.Scanning in phases, "阶段应含 Scanning: $phases")
+    }
+
+    /** 扫描预算硬门：目标始终不出现 + 直连也失败 → 至少扫满 60s（虚拟时钟计时）才判 ReconnectFailed。 */
+    @Test
+    fun reconnect_scanBudget_atLeast60s_beforeFailing() = runTest {
+        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope, connectSucceeds = false)
+        ble.scanFlow = flow {
+            while (true) {
+                delay(1_000)
+                emit(emptyList()) // 持续扫描但目标永不出现
+            }
+        }
+        val prov = OtaProvisioner(
+            newSession(ble), ble, device, readVersion = { "x" },
+            rebootWaitMs = 5_000, reconnectTimeoutMs = 2_000, reconnectAttempts = 3,
+        )
+        val t0 = testScheduler.currentTime
+        val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
+        val elapsed = testScheduler.currentTime - t0
+
+        assertIs<OtaFailure.ReconnectFailed>(assertIs<OtaResult.Failed>(result).reason)
+        assertTrue(elapsed >= 60_000, "扫描预算至少 60s（实际含等复位/兜底 $elapsed ms）")
+        assertEquals(3, ble.connectCalls, "预算耗尽后应走直连兜底 reconnectAttempts 次")
+    }
+
+    /** 扫到广播但首连失败 → 回到扫描等下一次广播，再连成功。 */
+    @Test
+    fun reconnect_connectFailThenRescan_succeedsOnSecondSighting() = runTest {
+        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
+        ble.connectPlan.addAll(listOf(false, true)) // 首连失败, 二连成功
+        ble.scanFlow = flow {
+            delay(500)
+            emit(listOf(device))
+            while (true) delay(1_000)
+        }
+        val prov = OtaProvisioner(
+            newSession(ble), ble, device, readVersion = { "collect-1.0" },
+            reconnectTimeoutMs = 2_000,
+        )
+        val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
+
+        assertEquals("collect-1.0", assertIs<OtaResult.Reconnected>(result).currentVersion)
+        assertEquals(2, ble.connectCalls, "失败后应回到扫描并二次连接")
     }
 
     @Test

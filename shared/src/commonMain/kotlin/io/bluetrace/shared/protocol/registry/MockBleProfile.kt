@@ -30,10 +30,11 @@ class MockBleProfile : ProtocolProfile {
     companion object {
         const val ID = "Mock.BlueTrace.v1"
 
-        /** 假 uuid 占位(Mock 后端通知不带特征 id, 走单通道兜底路由)。 */
+        // 16-bit 短码占位(W2 短码对齐, 口径同 HrsProfile). Mock 后端数据面通知不带特征 id,
+        // 仍走 DeviceParserHost 单通道兜底(single); 此处短码只为两侧注册口径统一, 不参与实际路由.
         val CHANNEL = ChannelId(
-            serviceUuid = "0000feed-0000-1000-8000-00805f9b34fb",
-            characteristicUuid = "0000feed-0001-1000-8000-00805f9b34fb",
+            serviceUuid = "FEED",
+            characteristicUuid = "FEED",
         )
     }
 }

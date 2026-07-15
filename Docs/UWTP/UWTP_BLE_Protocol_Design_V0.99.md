@@ -582,4 +582,4 @@ E6  REPORT_TLV (40B): 10 02 02 36 23 | 05 | A0 7C 4B 6A | FA 00 | 02
 - 前身：[`UHTP_BLE_Protocol_Design_V4.md`](UHTP_BLE_Protocol_Design_V4.md)（骨架来源）
 - 契约草案：[`uwtp_v0.99_draft.proto`](uwtp_v0.99_draft.proto)
 - 示例脚本：[`assets/gen_uwtp_examples.py`](assets/gen_uwtp_examples.py)
-- 现网协议（迁移对象）：[`../归档/s7/S7协议共识规格.md`](../归档/s7/S7协议共识规格.md)；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型
+- 现网协议（迁移对象）：[`../S7B2A/S7协议共识规格.md`](../S7B2A/S7协议共识规格.md)；参照系：Zephyr MCUmgr/SMP img_mgmt、MCUboot 双槽模型
