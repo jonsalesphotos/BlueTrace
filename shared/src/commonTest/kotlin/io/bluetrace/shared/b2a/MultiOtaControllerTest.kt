@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.ble.BleClient
@@ -7,7 +7,7 @@ import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.virtualClock
@@ -29,7 +29,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * [MultiOtaController] 串行编排测试: N 个 [S7MockWatch] 造多设备假 [BleClient], 验证
+ * [MultiOtaController] 串行编排测试: N 个 [B2aMockWatch] 造多设备假 [BleClient], 验证
  * 串行逐台跑完整流程(连接→读版本电量→电量门槛→刷写+等复位+重连+读版本→复读电量→断开),
  * 失败即跳过继续下一台, 电量门槛跳过, 单台重试. 虚拟时钟 + advanceUntilIdle 驱动.
  */
@@ -37,11 +37,11 @@ import kotlin.test.assertTrue
 class MultiOtaControllerTest {
 
     private fun s7(id: String, name: String) =
-        ScannedDevice(id, name, "71:61:48:19:FC:C4", -58, DeviceKind.DUT, PROFILE_S7)
+        ScannedDevice(id, name, "71:61:48:19:FC:C4", -58, DeviceKind.DUT, PROFILE_B2A)
 
-    /** 多设备假 BleClient: 每设备一个 [S7MockWatch]; write→watch.handle→该设备 inbound; 末 STOP 后按注入断链.  */
+    /** 多设备假 BleClient: 每设备一个 [B2aMockWatch]; write→watch.handle→该设备 inbound; 末 STOP 后按注入断链.  */
     private class FakeMultiBle(
-        private val watches: Map<String, S7MockWatch>,
+        private val watches: Map<String, B2aMockWatch>,
         private val clock: EpochClock,
         private val scope: CoroutineScope,
     ) : BleClient {
@@ -51,7 +51,7 @@ class MultiOtaControllerTest {
         }
 
         /** 下行帧捕获(cmd,key 解码后记录): 断言"手动停止发了 CTRL_RESET"用.  */
-        private val txDecoders = watches.keys.associateWith { S7FrameDecoder() }
+        private val txDecoders = watches.keys.associateWith { B2aFrameDecoder() }
         val txCmds = mutableListOf<Triple<String, Int, Int>>()
 
         /** 非空时 disconnect 挂起等放行: 拉长停止善后窗口, 测 stopping 门竞态用. */
@@ -90,7 +90,7 @@ class MultiOtaControllerTest {
     }
 
     private fun pkg() = OtaPackage(
-        files = listOf(OtaFile("fw.dat", ByteArray(3000) { (it * 31).toByte() }, S7FileTrans.FT_FW)),
+        files = listOf(OtaFile("fw.dat", ByteArray(3000) { (it * 31).toByte() }, B2aFileTrans.FT_FW)),
     )
 
     private fun kotlinx.coroutines.test.TestScope.newController(ble: BleClient, lowBatteryPct: Int = 30): MultiOtaController =
@@ -107,8 +107,8 @@ class MultiOtaControllerTest {
     fun batch_processesAllDevices_serially_toDone() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val watches = mapOf(
-            "a" to S7MockWatch(clock).apply { otaRebootAfterComplete = true },
-            "b" to S7MockWatch(clock).apply { otaRebootAfterComplete = true },
+            "a" to B2aMockWatch(clock).apply { otaRebootAfterComplete = true },
+            "b" to B2aMockWatch(clock).apply { otaRebootAfterComplete = true },
         )
         val ble = FakeMultiBle(watches, clock, backgroundScope)
         val ctl = newController(ble)
@@ -132,8 +132,8 @@ class MultiOtaControllerTest {
     fun batch_failedDevice_skips_and_continues() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val watches = mapOf(
-            "a" to S7MockWatch(clock).apply { otaRejectReq = S7FileTrans.REQ_BUSY }, // A: REQ 被拒 → 失败
-            "b" to S7MockWatch(clock).apply { otaRebootAfterComplete = true }, // B: 正常
+            "a" to B2aMockWatch(clock).apply { otaRejectReq = B2aFileTrans.REQ_BUSY }, // A: REQ 被拒 → 失败
+            "b" to B2aMockWatch(clock).apply { otaRebootAfterComplete = true }, // B: 正常
         )
         val ble = FakeMultiBle(watches, clock, backgroundScope)
         val ctl = newController(ble)
@@ -150,7 +150,7 @@ class MultiOtaControllerTest {
     @Test
     fun batch_lowBattery_skips_withoutFlashing() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val watch = S7MockWatch(clock).apply { otaRebootAfterComplete = true } // 电量默认 82
+        val watch = B2aMockWatch(clock).apply { otaRebootAfterComplete = true } // 电量默认 82
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = newController(ble, lowBatteryPct = 90) // 门槛设 90 → 82% 被跳过
         ctl.addDevices(listOf(s7("a", "S7-A")))
@@ -174,8 +174,8 @@ class MultiOtaControllerTest {
     fun stopBatch_midTransfer_marksStopped_skipsReset_disconnects() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         // 大包(多切片)拖慢传输, 保证停止发生在下载中段(phase=Downloading)
-        val bigPkg = OtaPackage(files = listOf(OtaFile("fw.dat", ByteArray(100_000) { (it * 7).toByte() }, S7FileTrans.FT_FW)))
-        val watch = S7MockWatch(clock)
+        val bigPkg = OtaPackage(files = listOf(OtaFile("fw.dat", ByteArray(100_000) { (it * 7).toByte() }, B2aFileTrans.FT_FW)))
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = newController(ble)
         ctl.addDevices(listOf(s7("a", "S7-A")))
@@ -195,8 +195,8 @@ class MultiOtaControllerTest {
         assertEquals("手动停止", item.failReason)
         assertTrue(item.retriable, "手动停止的台子应可重试")
         assertTrue(
-            ble.txCmds.none { it.first == "a" && it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
-            "传输中固件门控吞掉重启指令——不应发送: ${ble.txCmds.filter { it.second == S7.CMD_DEV_CTRL }}",
+            ble.txCmds.none { it.first == "a" && it.second == B2a.CMD_DEV_CTRL && it.third == B2a.CTRL_RESET },
+            "传输中固件门控吞掉重启指令——不应发送: ${ble.txCmds.filter { it.second == B2a.CMD_DEV_CTRL }}",
         )
         assertEquals(false, ctl.running.value)
     }
@@ -205,7 +205,7 @@ class MultiOtaControllerTest {
     @Test
     fun stopBatch_beforeTransfer_sendsReset() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val watch = S7MockWatch(clock)
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = newController(ble)
         ctl.addDevices(listOf(s7("a", "S7-A")))
@@ -221,8 +221,8 @@ class MultiOtaControllerTest {
         withTimeout(10_000) { ble.linkState("a").first { it == LinkState.DISCONNECTED } }
 
         assertTrue(
-            ble.txCmds.any { it.first == "a" && it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
-            "非传输态停止应发送重启指令: ${ble.txCmds.filter { it.second == S7.CMD_DEV_CTRL }}",
+            ble.txCmds.any { it.first == "a" && it.second == B2a.CMD_DEV_CTRL && it.third == B2a.CTRL_RESET },
+            "非传输态停止应发送重启指令: ${ble.txCmds.filter { it.second == B2a.CMD_DEV_CTRL }}",
         )
         assertEquals(false, ctl.running.value)
     }
@@ -230,7 +230,7 @@ class MultiOtaControllerTest {
     @Test
     fun retry_failedDevice_reruns_toDone_afterFix() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val watch = S7MockWatch(clock).apply { otaRejectReq = S7FileTrans.REQ_BUSY }
+        val watch = B2aMockWatch(clock).apply { otaRejectReq = B2aFileTrans.REQ_BUSY }
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = newController(ble)
         ctl.addDevices(listOf(s7("a", "S7-A")))
@@ -253,7 +253,7 @@ class MultiOtaControllerTest {
     @Test
     fun retry_duringStopCleanup_rejected_thenAllowedAfter() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val watch = S7MockWatch(clock)
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = newController(ble)
         ctl.addDevices(listOf(s7("a", "S7-A")))
@@ -295,13 +295,13 @@ class MultiOtaControllerTest {
     fun gate_sharedAcrossInstances_blocksWhileCleanup_releasesAfter() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
-        val watchA = S7MockWatch(clock)
+        val watchA = B2aMockWatch(clock)
         val bleA = FakeMultiBle(mapOf("a" to watchA), clock, backgroundScope)
         val ctlA = MultiOtaController(
             ble = bleA, registry = ConnectionRegistry(bleA, backgroundScope),
             clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
         )
-        val watchB = S7MockWatch(clock).apply { otaRebootAfterComplete = true }
+        val watchB = B2aMockWatch(clock).apply { otaRebootAfterComplete = true }
         val bleB = FakeMultiBle(mapOf("b" to watchB), clock, backgroundScope)
         val ctlB = MultiOtaController(
             ble = bleB, registry = ConnectionRegistry(bleB, backgroundScope),
@@ -334,7 +334,7 @@ class MultiOtaControllerTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
         val foreign = checkNotNull(gate.tryAcquire()) // 另一实例持有租约
-        val watch = S7MockWatch(clock).apply { otaRejectReq = S7FileTrans.REQ_BUSY }
+        val watch = B2aMockWatch(clock).apply { otaRejectReq = B2aFileTrans.REQ_BUSY }
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = MultiOtaController(
             ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
@@ -364,7 +364,7 @@ class MultiOtaControllerTest {
     fun close_duringRun_holdsLeaseUntilCleanupDone_thenReleases() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
-        val watch = S7MockWatch(clock)
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = MultiOtaController(
             ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
@@ -397,7 +397,7 @@ class MultiOtaControllerTest {
     fun stopThenClose_singleCleanup_noDuplicateAbortOrDisconnect() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
-        val watch = S7MockWatch(clock)
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = MultiOtaController(
             ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
@@ -412,7 +412,7 @@ class MultiOtaControllerTest {
         job.join()
         withTimeout(10_000) { gate.owner.first { it == null } } // 等 stop 善后完全结束
 
-        val resets = ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET }
+        val resets = ble.txCmds.count { it.second == B2a.CMD_DEV_CTRL && it.third == B2a.CTRL_RESET }
         assertTrue(resets <= 1, "双善后会重复发 CTRL_RESET: 实发 $resets 次")
         assertTrue(ble.disconnectCount <= 1, "双善后会重复断开: 实发 ${ble.disconnectCount} 次")
         assertEquals(false, gate.busy)
@@ -423,7 +423,7 @@ class MultiOtaControllerTest {
     fun stopAfterNaturalFinish_doesNothing() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
-        val watch = S7MockWatch(clock).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(clock).apply { otaRebootAfterComplete = true }
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         val ctl = MultiOtaController(
             ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
@@ -434,7 +434,7 @@ class MultiOtaControllerTest {
         assertEquals(DeviceOtaStatus.DONE, ctl.queue.value.single().status)
         assertEquals(false, gate.busy)
         val disconnectsBefore = ble.disconnectCount
-        val resetsBefore = ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET }
+        val resetsBefore = ble.txCmds.count { it.second == B2a.CMD_DEV_CTRL && it.third == B2a.CTRL_RESET }
 
         // 另一实例(模拟)取得租约后, 陈旧的 stopBatch 进来: token 已空必败, 不得动设备
         val foreign = checkNotNull(gate.tryAcquire())
@@ -444,7 +444,7 @@ class MultiOtaControllerTest {
         assertEquals(disconnectsBefore, ble.disconnectCount, "败者不得再断开设备")
         assertEquals(
             resetsBefore,
-            ble.txCmds.count { it.second == S7.CMD_DEV_CTRL && it.third == S7.CTRL_RESET },
+            ble.txCmds.count { it.second == B2a.CMD_DEV_CTRL && it.third == B2a.CTRL_RESET },
             "败者不得再发重启指令",
         )
         assertEquals(foreign, gate.owner.value, "败者不得动别人的租约")
@@ -460,7 +460,7 @@ class MultiOtaControllerTest {
     fun frameworkOrder_cancelScopeThenClose_cleanupStillRuns_thenReleases() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val gate = io.bluetrace.shared.device.OtaOperationGate()
-        val watch = S7MockWatch(clock)
+        val watch = B2aMockWatch(clock)
         val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
         // 运行 scope 独立可取消(模拟 viewModelScope); 善后 scope 用 backgroundScope(模拟 app scope 长寿)
         val runScope = kotlinx.coroutines.CoroutineScope(

@@ -1,15 +1,15 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.domain.Sex
 import io.bluetrace.shared.domain.Subject
-import io.bluetrace.shared.s7.S7FrameCodec.readLe16
-import io.bluetrace.shared.s7.S7FrameCodec.writeLe16
+import io.bluetrace.shared.b2a.B2aFrameCodec.readLe16
+import io.bluetrace.shared.b2a.B2aFrameCodec.writeLe16
 
 /**
  * B2A 命令字/子键常量 + 维护命令 payload 编解码（规格：Docs/归档/s7/protocol-spec.md §3–4）。
  * 解析全部带越界防御：长度不符返回 null，不抛异常（线内容不可信）。
  */
-object S7 {
+object B2a {
     // 一级命令字
     const val CMD_BOND = 0x01
     const val CMD_GET = 0x02
@@ -57,7 +57,7 @@ object S7 {
 }
 
 /** 日期时间（GET 响应 / SET 请求同 9B 布局）。SET 的 timezone=0 表示保持设备本地时区。 */
-data class S7DateTime(
+data class B2aDateTime(
     val year: Int,
     val month: Int,
     val day: Int,
@@ -83,9 +83,9 @@ data class S7DateTime(
     fun display(): String = "${pad4(year)}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}:${pad2(second)}"
 
     companion object {
-        fun parse(b: ByteArray): S7DateTime? {
+        fun parse(b: ByteArray): B2aDateTime? {
             if (b.size < 9) return null
-            val dt = S7DateTime(
+            val dt = B2aDateTime(
                 year = readLe16(b, 0),
                 month = b[2].toInt() and 0xFF,
                 day = b[3].toInt() and 0xFF,
@@ -107,16 +107,16 @@ data class S7DateTime(
 }
 
 /** 电量（GET 0x24 响应，10B）。 */
-data class S7Battery(
+data class B2aBattery(
     val capacityMah: Int,
     val voltageMv: Int,
     val percent: Int,
     val chargeStatus: Int,
 ) {
     companion object {
-        fun parse(b: ByteArray): S7Battery? {
+        fun parse(b: ByteArray): B2aBattery? {
             if (b.size < 10) return null
-            return S7Battery(
+            return B2aBattery(
                 capacityMah = readLe16(b, 0),
                 voltageMv = readLe16(b, 2),
                 percent = b[4].toInt() and 0xFF,
@@ -132,7 +132,7 @@ data class S7Battery(
  * 真机实证（2026-07-02，SKG WATCH S7-FCC4）：BleMac[6] 为 **LE 反序** 存储 → 展示时反转；
  * SN/IMEI/ICCID 为 ASCII（尾部可含非打印填充 → 截断）；DevType[5] 可能为二进制码 → 回退 hex 展示。
  */
-data class S7SnInfo(
+data class B2aSnInfo(
     val devType: String,
     val sn: String,
     val macHex: String,
@@ -140,9 +140,9 @@ data class S7SnInfo(
     val iccid: String,
 ) {
     companion object {
-        fun parse(b: ByteArray): S7SnInfo? {
+        fun parse(b: ByteArray): B2aSnInfo? {
             if (b.size < 59) return null
-            return S7SnInfo(
+            return B2aSnInfo(
                 // DevType 恒为 5B 二进制型号码（真机实证 68 39 71 25 81 = 文档 overseas device_type），hex 展示
                 devType = hexStr(b, 0, 5),
                 sn = asciiTrim(b, 5, 12),
@@ -176,7 +176,7 @@ data class S7SnInfo(
 }
 
 /** 设备版本信息（GET 0x21 响应，变长 TLV：swLen+sw | mdLen+md | secLen+sec | reserved(1) | bpLen+bp）。 */
-data class S7DeviceInfo(
+data class B2aDeviceInfo(
     val swVer: String,
     val modemVer: String,
     val secBlVer: String,
@@ -198,7 +198,7 @@ data class S7DeviceInfo(
     }
 
     companion object {
-        fun parse(b: ByteArray): S7DeviceInfo? {
+        fun parse(b: ByteArray): B2aDeviceInfo? {
             var p = 0
             fun seg(): String? {
                 if (p >= b.size) return null
@@ -216,13 +216,13 @@ data class S7DeviceInfo(
             if (p >= b.size) return null
             p += 1 // reserved
             val bp = seg() ?: ""
-            return S7DeviceInfo(sw, md, sec, bp)
+            return B2aDeviceInfo(sw, md, sec, bp)
         }
     }
 }
 
 /** 用户信息（GET 7B / SET 8B）。身高 cm、体重 kg（协议为 u8 整数）。 */
-data class S7Person(
+data class B2aPerson(
     val heightCm: Int,
     val weightKg: Int,
     val gender: Int,
@@ -242,9 +242,9 @@ data class S7Person(
     }
 
     companion object {
-        fun parse(b: ByteArray): S7Person? {
+        fun parse(b: ByteArray): B2aPerson? {
             if (b.size < 7) return null
-            return S7Person(
+            return B2aPerson(
                 heightCm = b[0].toInt() and 0xFF,
                 weightKg = b[1].toInt() and 0xFF,
                 gender = b[2].toInt() and 0xFF,
@@ -257,17 +257,17 @@ data class S7Person(
 }
 
 /** 心跳（IND 0x0C，设备→App，8B：utc(4 LE)+seq(2 LE)+battery(1)+reserved(1)）。 */
-data class S7Heartbeat(
+data class B2aHeartbeat(
     val utcSeconds: Long,
     val seq: Int,
     val batteryPercent: Int,
 ) {
     companion object {
-        fun parse(b: ByteArray): S7Heartbeat? {
+        fun parse(b: ByteArray): B2aHeartbeat? {
             if (b.size < 8) return null
             val utc = (b[0].toLong() and 0xFF) or ((b[1].toLong() and 0xFF) shl 8) or
                 ((b[2].toLong() and 0xFF) shl 16) or ((b[3].toLong() and 0xFF) shl 24)
-            return S7Heartbeat(utc, readLe16(b, 4), b[6].toInt() and 0xFF)
+            return B2aHeartbeat(utc, readLe16(b, 4), b[6].toInt() and 0xFF)
         }
     }
 }
@@ -275,14 +275,14 @@ data class S7Heartbeat(
 /** 字节串 → 空格分隔 hex（操作日志展示；超长截断）。 */
 fun ByteArray.toHexPreview(maxBytes: Int = 24): String {
     val n = size.coerceAtMost(maxBytes)
-    val head = (0 until n).joinToString(" ") { S7SnInfo.hex2(this[it]) }
+    val head = (0 until n).joinToString(" ") { B2aSnInfo.hex2(this[it]) }
     return if (size > maxBytes) "$head …(${size}B)" else head
 }
 
-/** Subject → S7Person 域映射(B3 下沉自 app; 性别编码 0/1/2 语义待实机核对, audit 清单)。 */
-fun Subject.toS7Person(): S7Person {
+/** Subject → B2aPerson 域映射(B3 下沉自 app; 性别编码 0/1/2 语义待实机核对, audit 清单)。 */
+fun Subject.toS7Person(): B2aPerson {
     val parts = birth.split("-")
-    return S7Person(
+    return B2aPerson(
         heightCm = heightCm ?: 170,
         weightKg = (weightKg ?: 65.0).toInt(),
         gender = when (sex) {

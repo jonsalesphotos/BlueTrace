@@ -54,13 +54,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.bluetrace.shared.s7.OtaPhase
+import io.bluetrace.shared.b2a.OtaPhase
 import io.bluetrace.shared.util.formatMb
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
 import io.bluetrace.ui.theme.BT
-import io.bluetrace.shared.s7.DeviceOtaItem
-import io.bluetrace.shared.s7.DeviceOtaStatus
+import io.bluetrace.shared.b2a.DeviceOtaItem
+import io.bluetrace.shared.b2a.DeviceOtaStatus
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -466,5 +466,5 @@ private fun OtaPhase.label(): String = when (this) {
     OtaPhase.Done -> "完成"
 }
 
-private fun frac(p: io.bluetrace.shared.s7.OtaProgress): Float =
+private fun frac(p: io.bluetrace.shared.b2a.OtaProgress): Float =
     if (p.totalBytes > 0) (p.sentBytes.toFloat() / p.totalBytes).coerceIn(0f, 1f) else 0f

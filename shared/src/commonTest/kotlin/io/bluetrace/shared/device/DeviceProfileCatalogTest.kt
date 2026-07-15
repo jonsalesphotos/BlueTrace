@@ -2,10 +2,10 @@ package io.bluetrace.shared.device
 
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.PROFILE_HRS
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.registry.MockBleProfile
-import io.bluetrace.shared.s7.S7DeviceProfile
+import io.bluetrace.shared.b2a.B2aDeviceProfile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,7 +23,7 @@ class DeviceProfileCatalogTest {
     ) = ScannedDevice(id, name, "00:11:22:33:44:55", -50, kind, profileId, adv)
 
     // 真实后端目录: [S7, HRS](顺序即识别优先级)
-    private val realCatalog = DeviceProfileCatalog(listOf(S7DeviceProfile(), HrsDeviceProfile()))
+    private val realCatalog = DeviceProfileCatalog(listOf(B2aDeviceProfile(), HrsDeviceProfile()))
 
     // Mock 后端目录: 唯一 catch-all
     private val mockCatalog = DeviceProfileCatalog(listOf(MockDeviceProfile()))
@@ -33,7 +33,7 @@ class DeviceProfileCatalogTest {
     @Test
     fun `identify S7 by advertised FFE0`() {
         val p = realCatalog.identify(dev(adv = listOf("180A", "FFE0")))
-        assertEquals(PROFILE_S7, p?.profileId)
+        assertEquals(PROFILE_B2A, p?.profileId)
         assertEquals(DeviceKind.DUT, p?.kind)
     }
 
@@ -54,7 +54,7 @@ class DeviceProfileCatalogTest {
     fun `identify order is priority - S7 before HRS when both services present`() {
         // 顺序即优先级: 首个 matches 命中. 同时含 FFE0 与 180D 时 [S7,HRS] 取 S7.
         val p = realCatalog.identify(dev(adv = listOf("180D", "FFE0")))
-        assertEquals(PROFILE_S7, p?.profileId)
+        assertEquals(PROFILE_B2A, p?.profileId)
     }
 
     @Test
@@ -67,7 +67,7 @@ class DeviceProfileCatalogTest {
 
     @Test
     fun `byId looks up by stable id`() {
-        assertEquals(PROFILE_S7, realCatalog.byId(PROFILE_S7)?.profileId)
+        assertEquals(PROFILE_B2A, realCatalog.byId(PROFILE_B2A)?.profileId)
         assertEquals(PROFILE_HRS, realCatalog.byId(PROFILE_HRS)?.profileId)
         assertNull(realCatalog.byId("nope"))
     }
@@ -77,10 +77,10 @@ class DeviceProfileCatalogTest {
     @Test
     fun `toProtocolRegistry collects only non-null dataPlanes (real = HRS, S7 skipped)`() {
         val reg = realCatalog.toProtocolRegistry()
-        // S7.dataPlane=null 被跳过, 只留 HRS(与旧 DI 真实后端 listOf(HrsProfile()) 等价)
+        // B2a.dataPlane=null 被跳过, 只留 HRS(与旧 DI 真实后端 listOf(HrsProfile()) 等价)
         assertEquals(listOf(PROFILE_HRS), reg.all.map { it.id })
         assertEquals(PROFILE_HRS, reg.byId(PROFILE_HRS)?.id)
-        assertNull(reg.byId(PROFILE_S7))
+        assertNull(reg.byId(PROFILE_B2A))
     }
 
     @Test
@@ -93,7 +93,7 @@ class DeviceProfileCatalogTest {
 
     @Test
     fun `confirm default checks discovered services contain gatt service`() {
-        val s7 = S7DeviceProfile()
+        val s7 = B2aDeviceProfile()
         assertTrue(s7.confirm(listOf("180A", "FFE0"))) // 含 FFE0
         assertFalse(s7.confirm(listOf("180A", "180D"))) // 不含 FFE0 -> 识别撤销
 
@@ -115,7 +115,7 @@ class DeviceProfileCatalogTest {
     @Test
     fun `annotate stamps raw S7 device to DUT with profileId`() {
         val a = realCatalog.annotate(dev(adv = listOf("180A", "FFE0")))
-        assertEquals(PROFILE_S7, a.profileId)
+        assertEquals(PROFILE_B2A, a.profileId)
         assertEquals(DeviceKind.DUT, a.kind) // "S7 -> DUT"
     }
 
@@ -133,8 +133,8 @@ class DeviceProfileCatalogTest {
         assertEquals(PROFILE_HRS, ap.profileId)
         assertEquals(DeviceKind.REFERENCE, ap.kind) // 未被 MockDeviceProfile.kind=DUT 覆盖
 
-        val s7 = dev(id = "s7", adv = listOf("FFE0"), kind = DeviceKind.DUT, profileId = PROFILE_S7)
-        assertEquals(PROFILE_S7, mockCatalog.annotate(s7).profileId)
+        val s7 = dev(id = "s7", adv = listOf("FFE0"), kind = DeviceKind.DUT, profileId = PROFILE_B2A)
+        assertEquals(PROFILE_B2A, mockCatalog.annotate(s7).profileId)
     }
 
     @Test

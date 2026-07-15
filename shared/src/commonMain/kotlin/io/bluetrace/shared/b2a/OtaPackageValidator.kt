@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 /** zip 烧录包内一个条目的元信息（名 + 解压后字节数）。[OtaPackageValidator.validate] 的输入。 */
 data class OtaEntryInfo(val name: String, val size: Long)

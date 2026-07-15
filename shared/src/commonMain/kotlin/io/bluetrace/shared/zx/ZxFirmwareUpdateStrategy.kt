@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 
 /**
- * ZX 升级包载体(空 marker, 对照 [io.bluetrace.shared.s7.OtaPackage]): 本协议无真实固件格式,
+ * ZX 升级包载体(空 marker, 对照 [io.bluetrace.shared.b2a.OtaPackage]): 本协议无真实固件格式,
  * 仅供策略类型校验(收错包类型 fail fast, 同 vendor 面手法——受限/语义正确的向下转型).
  */
 class ZxPackage : FwPackage
@@ -23,7 +23,7 @@ class ZxPackage : FwPackage
  * ZX 固件升级策略(W6 异构验收核心判据, 设计 V2 §3.3): 与 S7"下载 -> 等自复位 -> 扫描回连 -> 读版本"
  * 完全相反的重连行为——**设备不复位, 原连接上直接生效**: 假传输进度回调若干次后直接终态 Success,
  * 全程不碰 [BleClient.connect]/[BleClient.disconnect]. 证明"同一设备 ID 自复位回连"是
- * [io.bluetrace.shared.s7.S7FirmwareUpdateStrategy] 的私有假设, 不是
+ * [io.bluetrace.shared.b2a.B2aFirmwareUpdateStrategy] 的私有假设, 不是
  * [io.bluetrace.shared.device.FirmwareUpdateStrategy] 框架契约的一部分.
  */
 class ZxFirmwareUpdateStrategy(

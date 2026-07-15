@@ -7,13 +7,13 @@ import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
-import io.bluetrace.shared.domain.S7_TEST_MAC
+import io.bluetrace.shared.domain.PROFILE_B2A
+import io.bluetrace.shared.domain.TEST_DUT_MAC
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.registry.ProtocolProfile
-import io.bluetrace.shared.s7.S7DeviceControl
-import io.bluetrace.shared.s7.S7DeviceProfile
-import io.bluetrace.shared.s7.S7VendorOps
+import io.bluetrace.shared.b2a.B2aDeviceControl
+import io.bluetrace.shared.b2a.B2aDeviceProfile
+import io.bluetrace.shared.b2a.B2aVendorOps
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.virtualClock
@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
 
 /**
  * DeviceSessionManager 生命周期测试: acquire(gattSpec 激活/复用/identify 空/连接失败/confirm 失败),
- * release(关控制面 + 断链 + 清缓存).fake BleClient/Profile 精确控场 + 一条真 S7Profile x MockBleClient 集成.
+ * release(关控制面 + 断链 + 清缓存).fake BleClient/Profile 精确控场 + 一条真 B2aProfile x MockBleClient 集成.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DeviceSessionManagerTest {
@@ -129,13 +129,13 @@ class DeviceSessionManagerTest {
     @Test
     fun acquire_success_connectsWithGattSpec_andCaches() = runTest {
         val factory = FakeFactory()
-        val profile = FakeProfile(PROFILE_S7, "FFE0", factory)
+        val profile = FakeProfile(PROFILE_B2A, "FFE0", factory)
         val ble = FakeBle().apply { services = listOf("FFE0") }
         val m = manager(DeviceProfileCatalog(listOf(profile)), ble)
 
         val session = m.acquire(dev())
         assertNotNull(session)
-        assertEquals(PROFILE_S7, session.profile.profileId)
+        assertEquals(PROFILE_B2A, session.profile.profileId)
         assertNotNull(session.control)
         assertEquals(profile.gattSpec, ble.lastSpec) // gattSpec 激活: connect 收到 profile.gattSpec
         assertEquals(1, ble.connectCount)
@@ -145,7 +145,7 @@ class DeviceSessionManagerTest {
     @Test
     fun acquire_reusesCachedSession_noSecondConnect() = runTest {
         val ble = FakeBle().apply { services = listOf("FFE0") }
-        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_S7, "FFE0", FakeFactory()))), ble)
+        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_B2A, "FFE0", FakeFactory()))), ble)
         val s1 = m.acquire(dev())
         val s2 = m.acquire(dev())
         assertSame(s1, s2)
@@ -155,7 +155,7 @@ class DeviceSessionManagerTest {
     @Test
     fun acquire_identifyMiss_returnsNull_noConnect() = runTest {
         val ble = FakeBle()
-        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_S7, "FFE0", FakeFactory()))), ble)
+        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_B2A, "FFE0", FakeFactory()))), ble)
         assertNull(m.acquire(dev(adv = listOf("9999")))) // 不匹配 FFE0
         assertEquals(0, ble.connectCount)
     }
@@ -163,7 +163,7 @@ class DeviceSessionManagerTest {
     @Test
     fun acquire_connectFails_returnsNull() = runTest {
         val ble = FakeBle().apply { connectTo = LinkState.DISCONNECTED }
-        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_S7, "FFE0", FakeFactory()))), ble)
+        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_B2A, "FFE0", FakeFactory()))), ble)
         assertNull(m.acquire(dev()))
         assertNull(m.get("d1"))
     }
@@ -171,7 +171,7 @@ class DeviceSessionManagerTest {
     @Test
     fun acquire_confirmFails_disconnectsAndReturnsNull() = runTest {
         val ble = FakeBle().apply { services = listOf("9999") } // 服务表不含 FFE0 -> confirm false
-        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_S7, "FFE0", FakeFactory()))), ble)
+        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_B2A, "FFE0", FakeFactory()))), ble)
         assertNull(m.acquire(dev()))
         assertTrue(ble.disconnectCalls.contains("d1"))
         assertNull(m.get("d1"))
@@ -210,7 +210,7 @@ class DeviceSessionManagerTest {
     fun release_closesControl_disconnects_clearsCache() = runTest {
         val factory = FakeFactory()
         val ble = FakeBle().apply { services = listOf("FFE0") }
-        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_S7, "FFE0", factory))), ble)
+        val m = manager(DeviceProfileCatalog(listOf(FakeProfile(PROFILE_B2A, "FFE0", factory))), ble)
         m.acquire(dev())
         m.release("d1")
         assertTrue(factory.created.single().closed, "control.close() 应被调用")
@@ -218,21 +218,21 @@ class DeviceSessionManagerTest {
         assertNull(m.get("d1"))
     }
 
-    // ---- 集成: 真 S7Profile x MockBleClient(W3 裁定 a 的 Mock 模式等价) ----
+    // ---- 集成: 真 B2aProfile x MockBleClient(W3 裁定 a 的 Mock 模式等价) ----
 
     @Test
     fun acquire_realS7Profile_overMock_yieldsS7Control() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val mock = MockBleClient(clock, backgroundScope)
-        val catalog = DeviceProfileCatalog(listOf(S7DeviceProfile(), MockDeviceProfile()))
+        val catalog = DeviceProfileCatalog(listOf(B2aDeviceProfile(), MockDeviceProfile()))
         val m = DeviceSessionManager(catalog, mock, backgroundScope, clock, TestZone())
-        // roster 的 s7-fcc4(广播含 FFE0) -> S7DeviceProfile 命中 -> confirm(discoveredService16s 含 FFE0) 通过
-        val s7 = ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7, listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"))
+        // roster 的 s7-fcc4(广播含 FFE0) -> B2aDeviceProfile 命中 -> confirm(discoveredService16s 含 FFE0) 通过
+        val s7 = ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", TEST_DUT_MAC, -58, DeviceKind.DUT, PROFILE_B2A, listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"))
         val session = m.acquire(s7)
         assertNotNull(session)
-        assertEquals(PROFILE_S7, session.profile.profileId)
-        assertTrue(session.control is S7DeviceControl, "S7 设备应拿到 S7DeviceControl")
-        assertTrue(session.control?.vendor is S7VendorOps, "vendor 面经通用 DeviceControl 可向下转型 S7VendorOps(W5 UI 路径)")
+        assertEquals(PROFILE_B2A, session.profile.profileId)
+        assertTrue(session.control is B2aDeviceControl, "S7 设备应拿到 B2aDeviceControl")
+        assertTrue(session.control?.vendor is B2aVendorOps, "vendor 面经通用 DeviceControl 可向下转型 B2aVendorOps(W5 UI 路径)")
         m.release("s7-fcc4")
     }
 }

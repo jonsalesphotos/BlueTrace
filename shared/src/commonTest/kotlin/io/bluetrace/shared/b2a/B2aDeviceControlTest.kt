@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.ble.mock.MockBleClient
@@ -6,7 +6,7 @@ import io.bluetrace.shared.device.DeviceCommandException
 import io.bluetrace.shared.device.DeviceCommandFailure
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.virtualClock
 import kotlinx.coroutines.test.TestScope
@@ -18,19 +18,19 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * S7DeviceControl 六面契约测试(仿 S7ConsoleTest: MockBleClient + S7MockWatch 闭环).
- * 验证控制面对 S7Console 的语义映射 + S7CommandException -> DeviceCommandException 失败转换.
+ * B2aDeviceControl 六面契约测试(仿 B2aConsoleTest: MockBleClient + B2aMockWatch 闭环).
+ * 验证控制面对 B2aConsole 的语义映射 + B2aCommandException -> DeviceCommandException 失败转换.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class S7DeviceControlTest {
+class B2aDeviceControlTest {
 
     private fun s7Device() =
-        ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7)
+        ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.TEST_DUT_MAC, -58, DeviceKind.DUT, PROFILE_B2A)
 
-    private fun TestScope.newControl(mock: MockBleClient): Pair<S7Console, S7DeviceControl> {
-        val console = S7Console(mock, "s7-fcc4", backgroundScope, virtualClock { testScheduler.currentTime }, TestZone())
+    private fun TestScope.newControl(mock: MockBleClient): Pair<B2aConsole, B2aDeviceControl> {
+        val console = B2aConsole(mock, "s7-fcc4", backgroundScope, virtualClock { testScheduler.currentTime }, TestZone())
         console.start()
-        return console to S7DeviceControl(console)
+        return console to B2aDeviceControl(console)
     }
 
     @Test
@@ -92,8 +92,8 @@ class S7DeviceControlTest {
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         mock.connect(s7Device())
         val (_, control) = newControl(mock)
-        val vendor = control.vendor // S7DeviceControl.vendor 静态类型即 S7VendorOps(无需转型)
-        val target = S7Person(heightCm = 180, weightKg = 75, gender = 0, birthYear = 1990, birthMonth = 12, birthDay = 31)
+        val vendor = control.vendor // B2aDeviceControl.vendor 静态类型即 B2aVendorOps(无需转型)
+        val target = B2aPerson(heightCm = 180, weightKg = 75, gender = 0, birthYear = 1990, birthMonth = 12, birthDay = 31)
         vendor.setPerson(target)
         assertEquals(target, vendor.getPerson())
     }
@@ -103,7 +103,7 @@ class S7DeviceControlTest {
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         mock.connect(s7Device())
         val (_, control) = newControl(mock)
-        val applied = control.vendor.setDateTime(S7DateTime(2026, 12, 31, 23, 59, 58, week = 1, timezone = -5))
+        val applied = control.vendor.setDateTime(B2aDateTime(2026, 12, 31, 23, 59, 58, week = 1, timezone = -5))
         assertEquals(2026, applied.year)
         assertEquals(12, applied.month)
         assertEquals(31, applied.day)
@@ -113,7 +113,7 @@ class S7DeviceControlTest {
 
     @Test
     fun failure_timeoutConvertedToDeviceCommandException() = runTest {
-        // 不 connect: write 静默丢弃 -> 3s 超时 -> S7CommandException(Timeout) -> DeviceCommandException(Timeout)
+        // 不 connect: write 静默丢弃 -> 3s 超时 -> B2aCommandException(Timeout) -> DeviceCommandException(Timeout)
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         val (_, control) = newControl(mock)
         val ex = assertFailsWith<DeviceCommandException> { control.battery.percent() }
@@ -127,7 +127,7 @@ class S7DeviceControlTest {
         mock.connect(s7Device())
         val (_, control) = newControl(mock)
         val ex = assertFailsWith<DeviceCommandException> {
-            control.vendor.setDateTime(S7DateTime(2026, 13, 1, 0, 0, 0, week = 1, timezone = 0))
+            control.vendor.setDateTime(B2aDateTime(2026, 13, 1, 0, 0, 0, week = 1, timezone = 0))
         }
         val f = ex.failure
         assertTrue(f is DeviceCommandFailure.DeviceError, "应为 DeviceError, 实际 $f")

@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.R
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.s7.S7DateTime
-import io.bluetrace.shared.s7.S7Person
+import io.bluetrace.shared.b2a.B2aDateTime
+import io.bluetrace.shared.b2a.B2aPerson
 import io.bluetrace.shared.util.epochMsToLocalParts
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.OutlineBtn
@@ -637,11 +637,11 @@ private fun Kv(label: String, value: String?) {
 /** 用户信息编辑对话框(可修改后写入设备). 预填设备读回值或缺省.  */
 @Composable
 private fun PersonEditDialog(
-    initial: S7Person?,
+    initial: B2aPerson?,
     onDismiss: () -> Unit,
-    onConfirm: (S7Person) -> Unit,
+    onConfirm: (B2aPerson) -> Unit,
 ) {
-    val base = initial ?: S7Person(heightCm = 170, weightKg = 65, gender = 1, birthYear = 1995, birthMonth = 1, birthDay = 1)
+    val base = initial ?: B2aPerson(heightCm = 170, weightKg = 65, gender = 1, birthYear = 1995, birthMonth = 1, birthDay = 1)
     var height by remember { mutableStateOf(base.heightCm.toString()) }
     var weight by remember { mutableStateOf(base.weightKg.toString()) }
     var gender by remember { mutableStateOf(base.gender) }
@@ -672,7 +672,7 @@ private fun PersonEditDialog(
         confirmButton = {
             TextButton(onClick = {
                 onConfirm(
-                    S7Person(
+                    B2aPerson(
                         heightCm = height.toIntOrNull()?.coerceIn(0, 255) ?: base.heightCm,
                         weightKg = weight.toIntOrNull()?.coerceIn(0, 255) ?: base.weightKg,
                         gender = gender,
@@ -690,10 +690,10 @@ private fun PersonEditDialog(
 /** 自定义对时对话框: 年月日时分秒 + 时区, 写入设备(测跨时区/过零点).  */
 @Composable
 private fun TimeEditDialog(
-    initial: S7DateTime,
-    phoneNow: () -> S7DateTime,
+    initial: B2aDateTime,
+    phoneNow: () -> B2aDateTime,
     onDismiss: () -> Unit,
-    onConfirm: (S7DateTime) -> Unit,
+    onConfirm: (B2aDateTime) -> Unit,
 ) {
     var year by remember { mutableStateOf(initial.year.toString()) }
     var month by remember { mutableStateOf(initial.month.toString()) }
@@ -735,7 +735,7 @@ private fun TimeEditDialog(
         confirmButton = {
             TextButton(onClick = {
                 onConfirm(
-                    S7DateTime(
+                    B2aDateTime(
                         year = year.toIntOrNull()?.coerceIn(2000, 2099) ?: initial.year,
                         month = month.toIntOrNull()?.coerceIn(1, 12) ?: initial.month,
                         day = day.toIntOrNull()?.coerceIn(1, 31) ?: initial.day,

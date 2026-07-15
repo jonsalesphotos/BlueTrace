@@ -23,15 +23,22 @@ object DeviceLimits {
 /** 标准心率带 profile id，写入 manifest device.profileId（§6.2）。 */
 const val PROFILE_HRS = "HeartRate.SIG.0x180D"
 
-/** S7 手表（B2A 协议）profile id —— 设备维护控制台按此识别（Docs/归档/s7）。 */
-const val PROFILE_S7 = "SKG.S7.B2A"
+/**
+ * **B2A 协议** profile id（不是某一款设备的 id）——写入 manifest device.profileId，规格见 `Docs/S7B2A/`。
+ *
+ * **它不是识别判据**：识别锚点是 GATT UUID（广播含 `FFE0` → [io.bluetrace.shared.b2a.B2aDetect]），
+ * 产品名/广播名只用于 UI 展示，会随产品改名。本常量是识别**结果**的稳定标识，跨设备型号复用：
+ * 任何跑 B2A 的设备（不限当前的 SKG S7 一款）识别后都拿到本 id。
+ */
+const val PROFILE_B2A = "SKG.S7.B2A"
 
 /**
- * **测试用** S7 真机 MAC（用户提供，2026-07-02）：Mock 设备与真机联调的目标对象。
- * **不是白名单**——正式识别按广播名前缀 `SKG WATCH S7-`（→ PROFILE_S7），支持任意 S7 手表；
- * 仅测试期用它定位/校验目标设备。广播名后缀 = MAC[1]MAC[0] 的 4 位 hex（spec §1）→ `SKG WATCH S7-FCC4`。
+ * **测试夹具**：手边那台 B2A 真机（SKG WATCH S7-FCC4）的 MAC，Mock 设备与真机联调的目标对象。
+ * **不是白名单、不是判据**——协议识别一律走广播 `FFE0`（见 [io.bluetrace.shared.b2a.B2aDetect]），
+ * 支持任意 B2A 设备；本常量仅测试期用来定位/校验这一台具体设备。
+ * 该表广播名后缀 = MAC[1]MAC[0] 的 4 位 hex（spec §1）→ `SKG WATCH S7-FCC4`。
  */
-const val S7_TEST_MAC = "71:61:48:19:FC:C4"
+const val TEST_DUT_MAC = "71:61:48:19:FC:C4"
 
 /** 扫描发现的设备（一次广播快照）。`id` 为稳定标识（真实端 = MAC/identifier，Mock = 固定串）。 */
 data class ScannedDevice(

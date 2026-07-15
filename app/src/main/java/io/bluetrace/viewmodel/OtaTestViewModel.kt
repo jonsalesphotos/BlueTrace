@@ -16,11 +16,11 @@ import io.bluetrace.shared.device.OtaOperationGate
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.OtaPackage
-import io.bluetrace.shared.s7.OtaPhase
-import io.bluetrace.shared.s7.OtaProgress
-import io.bluetrace.shared.s7.S7Console
-import io.bluetrace.shared.s7.S7FirmwareUpdateStrategy
+import io.bluetrace.shared.b2a.OtaPackage
+import io.bluetrace.shared.b2a.OtaPhase
+import io.bluetrace.shared.b2a.OtaProgress
+import io.bluetrace.shared.b2a.B2aConsole
+import io.bluetrace.shared.b2a.B2aFirmwareUpdateStrategy
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.formatFullStamp
@@ -89,7 +89,7 @@ data class OtaTestUiState(
  * 版本读取只两处(用户约定 2026-07-14): **开始 OTA 前读一次**(进度卡左值)+ **回连后读一次**
  * (升级链内置, 进度卡右值/各轮结果); 平时不自动读. **运行自然结束后自动断开**(手动停止走 [stop] 断开).
  *
- * 刷写编排走 [S7FirmwareUpdateStrategy](W4 唯一入口: 吸收 OtaProvisioner/S7OtaSession 链 + 中止善后
+ * 刷写编排走 [B2aFirmwareUpdateStrategy](W4 唯一入口: 吸收 OtaProvisioner/B2aOtaSession 链 + 中止善后
  * 门控红线在策略内). 选包/校验/连接/版本等信息统一进 [logLines](执行日志), 并**逐行落盘**到
  * `Download/BlueTrace/log/ota/`(每次运行一个文件, 循环模式全量历史不受内存 300 行限制).
  */
@@ -118,7 +118,7 @@ class OtaTestViewModel(
     private var runLog: OtaRunLog? = null // 本次运行的落盘日志(log/ota/)
 
     // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
-    private var currentStrategy: S7FirmwareUpdateStrategy? = null
+    private var currentStrategy: B2aFirmwareUpdateStrategy? = null
 
     /** 一轮运行的善后所有权凭据(语义见 MultiOtaController.RunToken). */
     private class RunToken(val lease: OtaOperationGate.Lease)
@@ -139,7 +139,7 @@ class OtaTestViewModel(
             registry.connected.collect { list ->
                 if (_state.value.running) return@collect
                 // 可刷判定 = 升级能力工厂口径(supportsOtaTool, 见 OtaToolSupport.kt): 只跟踪
-                // 声明 S7FirmwareUpdateFactory 的协议设备(异构策略/无升级面设备被灌 B2A REQ 只会超时).
+                // 声明 B2aFirmwareUpdateFactory 的协议设备(异构策略/无升级面设备被灌 B2A REQ 只会超时).
                 val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.supportsOtaTool(it) }
                 // 黏性: 出现新设备才切换; 断联(target=null)保留旧设备, 链路由 linkJob 更新为 DISCONNECTED
                 if (target != null && target.id != _state.value.device?.id) trackDevice(target)
@@ -310,7 +310,7 @@ class OtaTestViewModel(
         return strategy.run(pkg)
     }
 
-    private fun buildStrategy(device: ScannedDevice, totalBytes: Long) = S7FirmwareUpdateStrategy(
+    private fun buildStrategy(device: ScannedDevice, totalBytes: Long) = B2aFirmwareUpdateStrategy(
         ble, device, viewModelScope, clock, zone,
         abortScope = appScope, // 中止善后须比 VM 长寿("中止并离开"销毁 VM 后仍要发得出重启指令)
         reconnectScanMs = configStore.current.ota.reconnectScanMs,
@@ -327,9 +327,9 @@ class OtaTestViewModel(
         onOtaProgress = { pr -> _state.update { it.copy(progress = pr) } },
     )
 
-    /** 短命 S7Console 读设备软件版本(开始 OTA 前的一次性读点). 失败抛异常(调用侧容错).  */
+    /** 短命 B2aConsole 读设备软件版本(开始 OTA 前的一次性读点). 失败抛异常(调用侧容错).  */
     private suspend fun readDeviceVersion(device: ScannedDevice): String? {
-        val c = S7Console(ble, device.id, viewModelScope, clock, zone)
+        val c = B2aConsole(ble, device.id, viewModelScope, clock, zone)
         c.start()
         return try {
             c.getDeviceInfo().swVer
@@ -339,7 +339,7 @@ class OtaTestViewModel(
     }
 
     /**
-     * 手动停止: 取消运行 → 设备善后(转发 [S7FirmwareUpdateStrategy.abort], 传输态门控/永不 STOP
+     * 手动停止: 取消运行 → 设备善后(转发 [B2aFirmwareUpdateStrategy.abort], 传输态门控/永不 STOP
      * 红线在策略内; 善后结果日志经 onLog 回吐终端)→ 断开本地 GATT.
      * 善后跑 [appScope]——"中止并离开"会立刻销毁本 VM, viewModelScope 上发不出指令.
      *

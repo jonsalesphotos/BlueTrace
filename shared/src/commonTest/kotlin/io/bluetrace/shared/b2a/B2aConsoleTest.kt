@@ -1,10 +1,10 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.ble.mock.MockBleClient
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.virtualClock
 import kotlinx.coroutines.test.advanceTimeBy
@@ -17,13 +17,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class S7ConsoleTest {
+class B2aConsoleTest {
 
     private fun s7Device() =
-        ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7)
+        ScannedDevice("s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.TEST_DUT_MAC, -58, DeviceKind.DUT, PROFILE_B2A)
 
-    private fun kotlinx.coroutines.test.TestScope.newConsole(mock: MockBleClient): S7Console =
-        S7Console(
+    private fun kotlinx.coroutines.test.TestScope.newConsole(mock: MockBleClient): B2aConsole =
+        B2aConsole(
             ble = mock,
             deviceId = "s7-fcc4",
             scope = backgroundScope,
@@ -54,7 +54,7 @@ class S7ConsoleTest {
         val console = newConsole(mock).also { it.start() }
 
         // 过零点边界 23:59:58 + 跨时区 tz=-5
-        val target = S7DateTime(2026, 12, 31, 23, 59, 58, week = 1, timezone = -5)
+        val target = B2aDateTime(2026, 12, 31, 23, 59, 58, week = 1, timezone = -5)
         val applied = console.setDateTime(target)
         assertEquals(2026, applied.year)
         assertEquals(12, applied.month)
@@ -79,7 +79,7 @@ class S7ConsoleTest {
         val sn = console.getSnInfo()
         assertEquals("68 39 71 25 81", sn.devType) // device_type 码 hex 展示
         assertEquals("SN2407FCC4AB", sn.sn)
-        assertEquals(io.bluetrace.shared.domain.S7_TEST_MAC, sn.macHex)
+        assertEquals(io.bluetrace.shared.domain.TEST_DUT_MAC, sn.macHex)
 
         val bat = console.getBattery()
         assertEquals(82, bat.percent)
@@ -95,7 +95,7 @@ class S7ConsoleTest {
         mock.connect(s7Device())
         val console = newConsole(mock).also { it.start() }
 
-        val target = S7Person(heightCm = 180, weightKg = 75, gender = 0, birthYear = 1990, birthMonth = 12, birthDay = 31)
+        val target = B2aPerson(heightCm = 180, weightKg = 75, gender = 0, birthYear = 1990, birthMonth = 12, birthDay = 31)
         console.setPerson(target)
         assertEquals(target, console.getPerson())
     }
@@ -106,7 +106,7 @@ class S7ConsoleTest {
         mock.connect(s7Device())
         val console = newConsole(mock).also { it.start() }
 
-        var lastProgress: S7LogPullProgress? = null
+        var lastProgress: B2aLogPullProgress? = null
         val log = console.pullLog { lastProgress = it }
         val text = log.decodeToString()
         assertTrue(log.size > 2000, "日志应有实际内容，实际 ${log.size}B")
@@ -123,7 +123,7 @@ class S7ConsoleTest {
         mock.connect(s7Device())
         val console = newConsole(mock).also { it.start() }
 
-        val ok = console.sendPowerCommand(S7.CTRL_RESET)
+        val ok = console.sendPowerCommand(B2a.CTRL_RESET)
         assertTrue(ok, "Mock 手表应在 400ms 内断链")
         assertEquals(LinkState.DISCONNECTED, mock.linkState("s7-fcc4").value)
     }
@@ -133,7 +133,7 @@ class S7ConsoleTest {
         // TOCTOU 修复（评审 #4）：链路非 CONNECTED 时拒发，绝不把「本来就断着」判成命令生效
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         val console = newConsole(mock).also { it.start() }
-        assertEquals(false, console.sendPowerCommand(S7.CTRL_RESTORE))
+        assertEquals(false, console.sendPowerCommand(B2a.CTRL_RESTORE))
     }
 
     @Test
@@ -141,8 +141,8 @@ class S7ConsoleTest {
         val mock = MockBleClient(virtualClock { testScheduler.currentTime }, backgroundScope)
         // 不 connect：write 被静默丢弃（真实 GATT 同行为）→ 3s 超时
         val console = newConsole(mock).also { it.start() }
-        val ex = assertFailsWith<S7CommandException> { console.getBattery() }
-        assertEquals(S7Failure.Timeout, ex.failure)
+        val ex = assertFailsWith<B2aCommandException> { console.getBattery() }
+        assertEquals(B2aFailure.Timeout, ex.failure)
     }
 
     @Test

@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.GattSpec
 import io.bluetrace.shared.device.ControlPlaneFactory
@@ -6,7 +6,7 @@ import io.bluetrace.shared.device.DeviceProfile
 import io.bluetrace.shared.device.FirmwareUpdateFactory
 import io.bluetrace.shared.device.ScanSpec
 import io.bluetrace.shared.domain.DeviceKind
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.registry.ProtocolProfile
 
@@ -16,11 +16,11 @@ import io.bluetrace.shared.protocol.registry.ProtocolProfile
  * service FFE0 / notify FFE2(表->App) / write FFE1(App->表, Write Without Response).
  *
  * dataPlane=null: S7 采集协议未冻结(M7), 现网无解码 profile——冻结前真实字节只落 raw HEX(source of truth).
- * controlPlane=[S7ControlPlaneFactory](W3 填充: 包装 S7Console 成六通用面 + S7VendorOps);
- * firmwareUpdate=[S7FirmwareUpdateFactory](W4 填充: 包 OtaProvisioner/S7OtaSession 编排链成通用策略).
+ * controlPlane=[B2aControlPlaneFactory](W3 填充: 包装 B2aConsole 成六通用面 + B2aVendorOps);
+ * firmwareUpdate=[B2aFirmwareUpdateFactory](W4 填充: 包 OtaProvisioner/B2aOtaSession 编排链成通用策略).
  */
-class S7DeviceProfile : DeviceProfile {
-    override val profileId: String = PROFILE_S7
+class B2aDeviceProfile : DeviceProfile {
+    override val profileId: String = PROFILE_B2A
 
     override val scanSpec: ScanSpec = ScanSpec(listOf(B2aDetect.SERVICE_16))
 
@@ -37,6 +37,6 @@ class S7DeviceProfile : DeviceProfile {
     override fun matches(device: ScannedDevice): Boolean = B2aDetect.matchesAdvertisement(device)
 
     override val dataPlane: ProtocolProfile? = null
-    override val controlPlane: ControlPlaneFactory = S7ControlPlaneFactory()
-    override val firmwareUpdate: FirmwareUpdateFactory = S7FirmwareUpdateFactory()
+    override val controlPlane: ControlPlaneFactory = B2aControlPlaneFactory()
+    override val firmwareUpdate: FirmwareUpdateFactory = B2aFirmwareUpdateFactory()
 }

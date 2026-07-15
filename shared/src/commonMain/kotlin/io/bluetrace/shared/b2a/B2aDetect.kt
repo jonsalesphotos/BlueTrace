@@ -1,7 +1,7 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.extract16
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 
 /**
@@ -25,7 +25,7 @@ object B2aDetect {
 
     /** 广播级匹配: Service UUID 表含 FFE0(大小写/128-bit 全串均容忍).  */
     fun matchesAdvertisement(device: ScannedDevice): Boolean =
-        device.profileId == PROFILE_S7 || // Mock/已确认设备直接放行
+        device.profileId == PROFILE_B2A || // Mock/已确认设备直接放行
             device.advertisedServices.any { extract16(it) == SERVICE_16 }
 
     /** 连接后确认: 已发现的特征 UUID 集合须同时含 RX(FFE1) 与 TX(FFE2).  */

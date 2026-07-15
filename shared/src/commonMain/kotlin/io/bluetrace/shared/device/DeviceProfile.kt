@@ -19,7 +19,7 @@ data class ScanSpec(val advertisedService16s: List<String>)
  * W3 已填 controlPlane(控制面工厂); firmwareUpdate 仍空 marker 占位, W4 填充.
  */
 interface DeviceProfile {
-    /** 稳定标识, 与解码侧同一命名空间(PROFILE_S7/PROFILE_HRS 等). */
+    /** 稳定标识, 与解码侧同一命名空间(PROFILE_B2A/PROFILE_HRS 等). */
     val profileId: String
 
     /** 广播识别声明. */

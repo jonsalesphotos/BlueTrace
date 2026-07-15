@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
@@ -59,9 +59,9 @@ data class DeviceOtaItem(
  * 失败/低电即跳过, 继续下一台, 失败/跳过项可手动重试. 串行理由(设备端授权 + 切片看门狗 + 重连风暴)
  * 与流程见 Docs/OTA/S7多设备OTA_设计.md.
  *
- * **W4 瘦身为队列壳**: 排队/电量门槛/重试/取消/日志留本层, 逐台把刷写下沉 [S7FirmwareUpdateStrategy.run]
- * (吸收原 OtaProvisioner/S7OtaSession 编排链), 手动停止善后转发 [S7FirmwareUpdateStrategy.abort]
- * (传输态门控/永不 STOP 红线在策略内). 电量门槛读数仍走短命 [S7Console](`swVer`/`battery.percent`,
+ * **W4 瘦身为队列壳**: 排队/电量门槛/重试/取消/日志留本层, 逐台把刷写下沉 [B2aFirmwareUpdateStrategy.run]
+ * (吸收原 OtaProvisioner/B2aOtaSession 编排链), 手动停止善后转发 [B2aFirmwareUpdateStrategy.abort]
+ * (传输态门控/永不 STOP 红线在策略内). 电量门槛读数仍走短命 [B2aConsole](`swVer`/`battery.percent`,
  * 改动最小; W3 的 DeviceSessionManager 途径引宿主依赖, 暂不引入).
  *
  * 状态经 [queue]/[running] StateFlow + [opLog] SharedFlow 上抛; Android VM / iOS 各做薄壳订阅.
@@ -204,7 +204,7 @@ class MultiOtaController(
     }
 
     /**
-     * 手动停止批量: 取消 → 当前通信中的台子标"手动停止"(可重试)→ 转发 [S7FirmwareUpdateStrategy.abort]
+     * 手动停止批量: 取消 → 当前通信中的台子标"手动停止"(可重试)→ 转发 [B2aFirmwareUpdateStrategy.abort]
      * (传输态门控/永不 STOP 红线在策略内; 链路仍在且非传输态则发 CTRL_RESET 复位回干净状态)→ 断开清退.
      * 善后跑 [abortScope](退屏也能发完).
      *
@@ -299,7 +299,7 @@ class MultiOtaController(
 
         // 策略在设备处理开始即建(轻量, 无副作用): abort() 在连接/读取阶段(未进 FILE_TRANS)也需可达,
         // 细进度经 onOtaPhase/onOtaProgress 塞回队列项(供现有 UI 直接消费 OtaPhase/OtaProgress).
-        val strategy = S7FirmwareUpdateStrategy(
+        val strategy = B2aFirmwareUpdateStrategy(
             ble, device, scope, clock, zone, abortScope,
             reconnectScanMs = reconnectScanMs,
             onLog = { log(it) },
@@ -331,7 +331,7 @@ class MultiOtaController(
             return
         }
 
-        // 4) 刷写 + 等复位 + 扫描回连 + 读版本(下沉 S7FirmwareUpdateStrategy; 细日志经 onLog 回吐, 一条不丢)
+        // 4) 刷写 + 等复位 + 扫描回连 + 读版本(下沉 B2aFirmwareUpdateStrategy; 细日志经 onLog 回吐, 一条不丢)
         updateItem(id) { it.copy(status = DeviceOtaStatus.FLASHING, phase = OtaPhase.Downloading, progress = null) }
         val result = strategy.run(pkg)
 
@@ -368,9 +368,9 @@ class MultiOtaController(
         registry.remove(id)
     }
 
-    /** 短命 S7Console 读版本 + 电量(刷前一次拿全). 抛异常转 null(容错).  */
+    /** 短命 B2aConsole 读版本 + 电量(刷前一次拿全). 抛异常转 null(容错).  */
     private suspend fun readVersionBattery(device: ScannedDevice): Pair<String?, Int?> {
-        val c = S7Console(ble, device.id, scope, clock, zone)
+        val c = B2aConsole(ble, device.id, scope, clock, zone)
         c.start()
         return try {
             val v = runCatchingSuspend { c.getDeviceInfo().swVer }
@@ -381,9 +381,9 @@ class MultiOtaController(
         }
     }
 
-    /** 短命 S7Console 只读电量(刷后复读).  */
+    /** 短命 B2aConsole 只读电量(刷后复读).  */
     private suspend fun readBattery(device: ScannedDevice): Int? {
-        val c = S7Console(ble, device.id, scope, clock, zone)
+        val c = B2aConsole(ble, device.id, scope, clock, zone)
         c.start()
         return try {
             runCatchingSuspend { c.getBattery().percent }

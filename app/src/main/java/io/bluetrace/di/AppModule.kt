@@ -25,7 +25,7 @@ import io.bluetrace.shared.protocol.SampleDecoder
 import io.bluetrace.shared.protocol.registry.MockBleProfile
 import io.bluetrace.shared.protocol.registry.ProtocolRegistry
 import io.bluetrace.shared.protocol.registry.RegistrySampleDecoder
-import io.bluetrace.shared.s7.S7DeviceProfile
+import io.bluetrace.shared.b2a.B2aDeviceProfile
 import io.bluetrace.shared.zx.ZxDeviceProfile
 import io.bluetrace.shared.session.DefaultSessionController
 import io.bluetrace.shared.session.DiagnosticsLog
@@ -118,22 +118,22 @@ val appModule = module {
         }
     }
     // W2 统一识别 + W3 会话宿主: 设备档案目录按后端拼装(识别真源唯一).
-    //   - Mock 后端 = [S7DeviceProfile, ZxDeviceProfile, MockDeviceProfile](W3 裁定 a + W6 异构验收):
-    //     Mock roster 的 S7 设备广播含 FFE0, 由 S7DeviceProfile 命中(与真机同一条识别路径)-> 经会话
+    //   - Mock 后端 = [B2aDeviceProfile, ZxDeviceProfile, MockDeviceProfile](W3 裁定 a + W6 异构验收):
+    //     Mock roster 的 S7 设备广播含 FFE0, 由 B2aDeviceProfile 命中(与真机同一条识别路径)-> 经会话
     //     宿主拿到 S7 控制面; ZX 设备广播含 AA00, 由 ZxDeviceProfile 命中(W6 第二协议, shared/.../zx
     //     包, 与 S7 全维度异构); 其余 Mock 合成设备落 catch-all MockDeviceProfile. 顺序即优先级
     //     (S7/ZX 各按广播精确命中, catch-all 兜底最后).
-    //   - 真实后端 = [S7DeviceProfile, HrsDeviceProfile].
-    // annotate 只对 profileId=null 的原始上报打标; Mock roster 设备已带 profileId, 加 S7Profile/
+    //   - 真实后端 = [B2aDeviceProfile, HrsDeviceProfile].
+    // annotate 只对 profileId=null 的原始上报打标; Mock roster 设备已带 profileId, 加 B2aProfile/
     // ZxProfile 对扫描/解码零影响(两者 dataPlane 均为 null, toProtocolRegistry 仍只收 MockBleProfile).
     single {
         val profiles =
-            if (io.bluetrace.data.android.BleBackendSwitch.useMock(androidContext())) listOf(S7DeviceProfile(), ZxDeviceProfile(), MockDeviceProfile())
-            else listOf(S7DeviceProfile(), HrsDeviceProfile())
+            if (io.bluetrace.data.android.BleBackendSwitch.useMock(androidContext())) listOf(B2aDeviceProfile(), ZxDeviceProfile(), MockDeviceProfile())
+            else listOf(B2aDeviceProfile(), HrsDeviceProfile())
         DeviceProfileCatalog(profiles)
     }
     // 02 R2: 解码侧 ProtocolRegistry 由 Catalog 派生(非空 dataPlane 组装, 识别真源唯一)——
-    // Mock 后端 = [MockBleProfile]; 真实后端 = [HrsProfile](S7.dataPlane=null 跳过, DUT 协议
+    // Mock 后端 = [MockBleProfile]; 真实后端 = [HrsProfile](B2a.dataPlane=null 跳过, DUT 协议
     // 冻结前无 profileId → RegistrySampleDecoder 回退 Mock profile, 解不出真实字节只产 Malformed
     // 诊断(等价旧 unparseable 告警), raw HEX 照常落盘). 解码侧消费接口零改动.
     single<ProtocolRegistry> { get<DeviceProfileCatalog>().toProtocolRegistry() }

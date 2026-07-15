@@ -20,7 +20,7 @@ import kotlinx.coroutines.CoroutineScope
  * W5 交接备注指出的"通用分面读路径"由本协议首次验证, 而非只走 S7 vendor 富信息路径).
  *
  * info/battery/timeSync/power 四面直接返回内存假数据. 本协议无真实设备也无编解码器, 与 S7 包装
- * 真实 [io.bluetrace.shared.s7.S7Console] 的实现形态不同——协议实现内部怎么产出数据是协议私有细节,
+ * 真实 [io.bluetrace.shared.b2a.B2aConsole] 的实现形态不同——协议实现内部怎么产出数据是协议私有细节,
  * 框架([io.bluetrace.shared.device.DeviceControl]/[ControlPlaneFactory])对此零假设.
  *
  * 不经 [BleClient] 做任何真实收发: [io.bluetrace.shared.ble.mock.MockBleClient] 的命令路由是
@@ -64,7 +64,7 @@ class ZxDeviceControl : DeviceControl {
 
 /**
  * ZX 控制面工厂: 挂在 [ZxDeviceProfile.controlPlane]. 签名与
- * [io.bluetrace.shared.s7.S7ControlPlaneFactory] 一致但 [ble]/[deviceId]/[scope]/[clock]/[zone]
+ * [io.bluetrace.shared.b2a.B2aControlPlaneFactory] 一致但 [ble]/[deviceId]/[scope]/[clock]/[zone]
  * 均未使用——证明该工厂签名不偏向任何协议(S7 用得上 ble 做真实收发, ZX 用不上纯内存假数据,
  * 框架侧同一签名两者都能装, 未用到的能力不强加实现负担).
  */

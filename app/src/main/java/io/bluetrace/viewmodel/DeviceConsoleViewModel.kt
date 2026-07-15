@@ -18,14 +18,14 @@ import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.domain.Subject
 import io.bluetrace.shared.domain.SubjectRepository
-import io.bluetrace.shared.s7.S7Battery
-import io.bluetrace.shared.s7.S7DateTime
-import io.bluetrace.shared.s7.S7Heartbeat
-import io.bluetrace.shared.s7.S7OpLine
-import io.bluetrace.shared.s7.S7Person
-import io.bluetrace.shared.s7.S7SnInfo
-import io.bluetrace.shared.s7.S7VendorOps
-import io.bluetrace.shared.s7.toS7Person
+import io.bluetrace.shared.b2a.B2aBattery
+import io.bluetrace.shared.b2a.B2aDateTime
+import io.bluetrace.shared.b2a.B2aHeartbeat
+import io.bluetrace.shared.b2a.B2aOpLine
+import io.bluetrace.shared.b2a.B2aPerson
+import io.bluetrace.shared.b2a.B2aSnInfo
+import io.bluetrace.shared.b2a.B2aVendorOps
+import io.bluetrace.shared.b2a.toS7Person
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.epochMsToLocalParts
@@ -78,22 +78,22 @@ data class ConsoleUiState(
     val hasTimeSync: Boolean = false,
     val hasLogs: Boolean = false,
     val hasPower: Boolean = false,
-    /** vendor 面可转型 S7VendorOps(S7 专属块显隐 + 富信息数据源).  */
+    /** vendor 面可转型 B2aVendorOps(S7 专属块显隐 + 富信息数据源).  */
     val hasVendorS7: Boolean = false,
     // ---- 通用面数据(info/battery 分面)----
     /** 版本信息(swVer=FW, extras 含 modemVer/secBlVer/bpVer).  */
     val cmdInfo: DeviceCmdInfo? = null,
     val batteryPct: Int? = null,
     // ---- S7 vendor 富信息(hasVendorS7 时有)----
-    val sn: S7SnInfo? = null,
+    val sn: B2aSnInfo? = null,
     val devFunc: Long? = null,
     val bondState: Int? = null,
     /** 电压/容量等 S7 电量细节(通用 battery 面只给百分比).  */
-    val batteryDetail: S7Battery? = null,
-    val deviceTime: S7DateTime? = null,
+    val batteryDetail: B2aBattery? = null,
+    val deviceTime: B2aDateTime? = null,
     val driftSec: Long? = null,
-    val person: S7Person? = null,
-    val heartbeat: S7Heartbeat? = null,
+    val person: B2aPerson? = null,
+    val heartbeat: B2aHeartbeat? = null,
     val finding: Boolean = false,
     val logRunning: Boolean = false,
     val logChunks: Int = 0,
@@ -112,7 +112,7 @@ data class ConsoleUiState(
  * 控制走会话宿主 [DeviceSessionManager] 的 [io.bluetrace.shared.device.DeviceControl] 六分面:
  * - 通用块(版本/电量/对时/日志/电源)按分面 null 与否显隐 + 走分面语义操作;
  * - S7 专属块(SN/IMEI 等富信息 / 自定义对时 / 用户信息 / 找表 / 恢复出厂 / 心跳 / 操作日志)经
- *   `control.vendor as? S7VendorOps` 消费——vendor 非 S7 类型则整块不渲染(W6 异构设备);
+ *   `control.vendor as? B2aVendorOps` 消费——vendor 非 S7 类型则整块不渲染(W6 异构设备);
  * - 失败统一按 [DeviceCommandException.failure] 分支展示, **不接触任何 S7 异常类型**.
  *
  * 连接保持(§5.3 退屏不断连): 会话缓存在 app 级宿主; 退屏**不 release**(onCleared 只让 viewModelScope
@@ -140,11 +140,11 @@ class DeviceConsoleViewModel(
     val toasts: SharedFlow<ConsoleToast> = _toasts
 
     /** 操作日志(monospace 面板; 上限 200 行防膨胀).  */
-    val opLines = mutableStateListOf<S7OpLine>()
+    val opLines = mutableStateListOf<B2aOpLine>()
 
     // 当前附着会话的控制面(分面)与 S7 vendor 面(非 S7 则 null).
     private var control: DeviceControl? = null
-    private var vendorS7: S7VendorOps? = null
+    private var vendorS7: B2aVendorOps? = null
     private var attachJob: Job? = null
 
     // 附着代际: teardown 递增. 在飞 op 的取消是异步的(cancel 只打标记), 其 catch/finally 在
@@ -248,7 +248,7 @@ class DeviceConsoleViewModel(
                 return@launch
             }
             val ctl = session.control
-            val v = ctl?.vendor as? S7VendorOps
+            val v = ctl?.vendor as? B2aVendorOps
             control = ctl
             vendorS7 = v
             // 分面存在性 -> 显隐布尔(W6 缺某分面则对应块隐藏)
@@ -377,7 +377,7 @@ class DeviceConsoleViewModel(
     }
 
     /** 自定义对时(S7 vendor): 把用户填的 [dt] 写入设备(测跨时区 / 过零点).  */
-    fun setCustomTime(dt: S7DateTime) = op("setTime") {
+    fun setCustomTime(dt: B2aDateTime) = op("setTime") {
         val v = vendorS7 ?: return@op
         val applied = v.setDateTime(dt)
         _state.update { it.copy(deviceTime = applied, driftSec = v.driftSeconds(applied)) }
@@ -385,9 +385,9 @@ class DeviceConsoleViewModel(
     }
 
     /** 编辑对话框预填: 手机本地时间.  */
-    fun phoneNowDateTime(): S7DateTime {
+    fun phoneNowDateTime(): B2aDateTime {
         val p = epochMsToLocalParts(clock.nowMs(), zone.offsetSeconds())
-        return S7DateTime(p.year, p.month, p.day, p.hour, p.minute, p.second, week = 1, timezone = 0)
+        return B2aDateTime(p.year, p.month, p.day, p.hour, p.minute, p.second, week = 1, timezone = 0)
     }
 
     /** 找表(S7 vendor).  */
@@ -414,7 +414,7 @@ class DeviceConsoleViewModel(
     }
 
     /** 编辑后写入(S7 vendor): UI 表单给出的值直接写设备(用户要求可修改).  */
-    fun writePerson(person: S7Person) = op("writePerson") {
+    fun writePerson(person: B2aPerson) = op("writePerson") {
         val v = vendorS7 ?: return@op
         v.setPerson(person)
         _state.update { it.copy(person = v.getPerson()) }

@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.ScannedDevice

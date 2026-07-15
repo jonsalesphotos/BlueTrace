@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 /**
  * S7 手表 B2A 协议帧信封（规格：Docs/归档/s7/protocol-spec.md §2）。
@@ -10,7 +10,7 @@ package io.bluetrace.shared.s7
  * ```
  * uiCRC = CRC16-CCITT-FALSE，覆盖偏移 8 起 uiLen 字节（不含帧头）。
  */
-object S7Crc {
+object B2aCrc {
     /** CRC16-CCITT-FALSE：poly 0x1021 / init 0xFFFF / 不反转 / xorout 0。 */
     fun crc16CcittFalse(data: ByteArray, offset: Int = 0, length: Int = data.size - offset): Int {
         var crc = 0xFFFF
@@ -26,7 +26,7 @@ object S7Crc {
 }
 
 /** 帧头 ucStatus 位（ENUM_HEAD_STATUS_TYPE）。 */
-object S7Status {
+object B2aStatus {
     const val SUCC = 0x00
     const val FAIL = 0x01
     const val ACK = 0x02
@@ -39,17 +39,17 @@ object S7Status {
 }
 
 /** 一条完整（已重组）的 B2A 消息。 */
-data class S7Message(
+data class B2aMessage(
     val cmd: Int,
     val key: Int,
     val status: Int,
     val param: ByteArray,
 ) {
-    val isFail: Boolean get() = (status and S7Status.FAIL) != 0
+    val isFail: Boolean get() = (status and B2aStatus.FAIL) != 0
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is S7Message) return false
+        if (other !is B2aMessage) return false
         return cmd == other.cmd && key == other.key && status == other.status && param.contentEquals(other.param)
     }
 
@@ -62,7 +62,7 @@ data class S7Message(
     }
 }
 
-object S7FrameCodec {
+object B2aFrameCodec {
     const val SOF = 0xBB
     const val HEAD_LEN = 8
     const val CMD_HEAD_LEN = 4
@@ -73,7 +73,7 @@ object S7FrameCodec {
      */
     fun encodeRequest(cmd: Int, key: Int, param: ByteArray = ByteArray(0), needAck: Boolean = true): ByteArray =
         encodeFrame(
-            status = if (needAck) S7Status.ACK else S7Status.SUCC,
+            status = if (needAck) B2aStatus.ACK else B2aStatus.SUCC,
             index = 0,
             payload = ByteArray(CMD_HEAD_LEN + param.size).also {
                 it[0] = cmd.toByte()
@@ -84,7 +84,7 @@ object S7FrameCodec {
         )
 
     /** 编码设备侧应答/上报帧（Mock 与测试用）。 */
-    fun encodeResponse(cmd: Int, key: Int, param: ByteArray = ByteArray(0), status: Int = S7Status.SUCC): ByteArray =
+    fun encodeResponse(cmd: Int, key: Int, param: ByteArray = ByteArray(0), status: Int = B2aStatus.SUCC): ByteArray =
         encodeFrame(
             status = status,
             index = 0,
@@ -98,7 +98,7 @@ object S7FrameCodec {
 
     /**
      * 下行多包分片（App→表；首个"App→表 多包"场景 = OTA 文件传输切片）。
-     * 把一条逻辑消息 (cmd,key,param) 切成 1..N 帧，[S7FrameDecoder] 可无损重组回同一 [S7Message]：
+     * 把一条逻辑消息 (cmd,key,param) 切成 1..N 帧，[B2aFrameDecoder] 可无损重组回同一 [B2aMessage]：
      * - 首帧 index=0，payload = `[cmd][key][paramLen LE16] + param 首段`，status 置 IS_MULTI_PKT(+多包ID)；
      * - 续帧 index 递增，payload = param 续段；
      * - 末帧另置 MULTI_PKT_END。
@@ -120,7 +120,7 @@ object S7FrameCodec {
         while (true) {
             val take = (param.size - off).coerceAtMost(maxParamPerFrame)
             val isLast = off + take >= param.size
-            val status = S7Status.IS_MULTI_PKT or idBits or (if (isLast) S7Status.MULTI_PKT_END else 0)
+            val status = B2aStatus.IS_MULTI_PKT or idBits or (if (isLast) B2aStatus.MULTI_PKT_END else 0)
             val payload = if (index == 0) {
                 ByteArray(CMD_HEAD_LEN + take).also {
                     it[0] = cmd.toByte()
@@ -145,7 +145,7 @@ object S7FrameCodec {
         out[0] = SOF.toByte()
         out[1] = status.toByte()
         writeLe16(out, 2, payload.size)
-        writeLe16(out, 4, S7Crc.crc16CcittFalse(payload))
+        writeLe16(out, 4, B2aCrc.crc16CcittFalse(payload))
         writeLe16(out, 6, index)
         payload.copyInto(out, HEAD_LEN)
         return out
@@ -162,14 +162,14 @@ object S7FrameCodec {
 
 /**
  * 有状态解码器（每设备每连接一个实例；重连须 [reset]）。
- * 职责：单 notification 内逐帧切分 → CRC 校验 → 多包重组 → 产出 [S7Message]。
+ * 职责：单 notification 内逐帧切分 → CRC 校验 → 多包重组 → 产出 [B2aMessage]。
  *
  * 容错（spec §2）：
  * - **短帧特例**：uiLen < 4（如产测握手 uiLen=3）→ cmd=payload[0]、key=payload[1]、其余为参数；
  * - CRC 失败 / SOF 不符 / 长度越界 → 丢弃该帧起余下字节，计入 [crcErrors]/[frameErrors]，不抛异常；
  * - 多包 ID 不符 → 丢弃整片重组缓冲（协议规定）。
  */
-class S7FrameDecoder {
+class B2aFrameDecoder {
     var crcErrors: Int = 0
         private set
     var frameErrors: Int = 0
@@ -191,25 +191,25 @@ class S7FrameDecoder {
     }
 
     /** 喂一次 notification 的原始字节，返回其中完整消息（0..N 条）。 */
-    fun feed(bytes: ByteArray): List<S7Message> {
-        val out = ArrayList<S7Message>(1)
+    fun feed(bytes: ByteArray): List<B2aMessage> {
+        val out = ArrayList<B2aMessage>(1)
         var pos = 0
-        while (bytes.size - pos >= S7FrameCodec.HEAD_LEN) {
-            if ((bytes[pos].toInt() and 0xFF) != S7FrameCodec.SOF) {
+        while (bytes.size - pos >= B2aFrameCodec.HEAD_LEN) {
+            if ((bytes[pos].toInt() and 0xFF) != B2aFrameCodec.SOF) {
                 frameErrors++
                 return out // 失同步：丢弃余下（协议无转义，无法可靠再同步）
             }
             val status = bytes[pos + 1].toInt() and 0xFF
-            val len = S7FrameCodec.readLe16(bytes, pos + 2)
-            val crc = S7FrameCodec.readLe16(bytes, pos + 4)
-            val index = S7FrameCodec.readLe16(bytes, pos + 6)
-            if (pos + S7FrameCodec.HEAD_LEN + len > bytes.size) {
+            val len = B2aFrameCodec.readLe16(bytes, pos + 2)
+            val crc = B2aFrameCodec.readLe16(bytes, pos + 4)
+            val index = B2aFrameCodec.readLe16(bytes, pos + 6)
+            if (pos + B2aFrameCodec.HEAD_LEN + len > bytes.size) {
                 frameErrors++
                 return out // 长度越界：丢弃余下
             }
-            val payload = bytes.copyOfRange(pos + S7FrameCodec.HEAD_LEN, pos + S7FrameCodec.HEAD_LEN + len)
-            pos += S7FrameCodec.HEAD_LEN + len
-            if (S7Crc.crc16CcittFalse(payload) != crc) {
+            val payload = bytes.copyOfRange(pos + B2aFrameCodec.HEAD_LEN, pos + B2aFrameCodec.HEAD_LEN + len)
+            pos += B2aFrameCodec.HEAD_LEN + len
+            if (B2aCrc.crc16CcittFalse(payload) != crc) {
                 crcErrors++
                 continue // 丢本帧，尝试后续帧（帧边界仍可信）
             }
@@ -219,19 +219,19 @@ class S7FrameDecoder {
         return out
     }
 
-    private fun decodeVerified(status: Int, index: Int, payload: ByteArray): S7Message? {
-        val multi = (status and S7Status.IS_MULTI_PKT) != 0
-        val end = (status and S7Status.MULTI_PKT_END) != 0
+    private fun decodeVerified(status: Int, index: Int, payload: ByteArray): B2aMessage? {
+        val multi = (status and B2aStatus.IS_MULTI_PKT) != 0
+        val end = (status and B2aStatus.MULTI_PKT_END) != 0
         if (!multi && !end) {
             // 单帧不动重组缓冲：设备主动帧（心跳等）与多包上行共用通道、插帧协议合法
             // （固件参考实现对单包直接处理不清缓存）；防泄漏由首片覆盖 + ID/index 不符 reset 保证。
             return singleFrame(status, payload)
         }
         // 多包路径
-        val id = S7Status.multiPktId(status)
+        val id = B2aStatus.multiPktId(status)
         if (index == 0) {
             // 首片：带命令头
-            if (payload.size < S7FrameCodec.CMD_HEAD_LEN) {
+            if (payload.size < B2aFrameCodec.CMD_HEAD_LEN) {
                 frameErrors++
                 return null
             }
@@ -239,8 +239,8 @@ class S7FrameDecoder {
             pendingKey = payload[1].toInt() and 0xFF
             pendingId = id
             pendingNextIndex = 1
-            pendingDeclaredLen = S7FrameCodec.readLe16(payload, 2)
-            pendingParts = arrayListOf(payload.copyOfRange(S7FrameCodec.CMD_HEAD_LEN, payload.size))
+            pendingDeclaredLen = B2aFrameCodec.readLe16(payload, 2)
+            pendingParts = arrayListOf(payload.copyOfRange(B2aFrameCodec.CMD_HEAD_LEN, payload.size))
         } else {
             // 续片：ID 与 index 连续性双校验（spec §2「uiIndex 递增、不符即整片丢弃」）——
             // 中间片丢失/被 CRC 剔除后，禁止把后续片拼成带洞的"成功"消息。
@@ -266,26 +266,26 @@ class S7FrameDecoder {
             p.copyInto(param, off)
             off += p.size
         }
-        val msg = S7Message(pendingCmd, pendingKey, status, param)
+        val msg = B2aMessage(pendingCmd, pendingKey, status, param)
         reset()
         return msg
     }
 
-    private fun singleFrame(status: Int, payload: ByteArray): S7Message? {
+    private fun singleFrame(status: Int, payload: ByteArray): B2aMessage? {
         return when {
-            payload.size >= S7FrameCodec.CMD_HEAD_LEN -> {
-                val declared = S7FrameCodec.readLe16(payload, 2)
-                val avail = payload.size - S7FrameCodec.CMD_HEAD_LEN
+            payload.size >= B2aFrameCodec.CMD_HEAD_LEN -> {
+                val declared = B2aFrameCodec.readLe16(payload, 2)
+                val avail = payload.size - B2aFrameCodec.CMD_HEAD_LEN
                 val take = if (declared in 0..avail) declared else avail // paramLen 与 uiLen 不符时以实际为准
-                S7Message(
+                B2aMessage(
                     cmd = payload[0].toInt() and 0xFF,
                     key = payload[1].toInt() and 0xFF,
                     status = status,
-                    param = payload.copyOfRange(S7FrameCodec.CMD_HEAD_LEN, S7FrameCodec.CMD_HEAD_LEN + take),
+                    param = payload.copyOfRange(B2aFrameCodec.CMD_HEAD_LEN, B2aFrameCodec.CMD_HEAD_LEN + take),
                 )
             }
             // 短帧特例（uiLen<4，产测握手实证）：cmd/key/余下为参数
-            payload.size >= 2 -> S7Message(
+            payload.size >= 2 -> B2aMessage(
                 cmd = payload[0].toInt() and 0xFF,
                 key = payload[1].toInt() and 0xFF,
                 status = status,

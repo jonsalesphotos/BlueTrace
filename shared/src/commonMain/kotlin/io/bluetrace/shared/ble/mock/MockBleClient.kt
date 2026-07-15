@@ -9,10 +9,10 @@ import io.bluetrace.shared.domain.DecodedStream
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_HRS
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.MockPacketCodec
-import io.bluetrace.shared.s7.S7MockWatch
+import io.bluetrace.shared.b2a.B2aMockWatch
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.zx.PROFILE_ZX
 import kotlinx.coroutines.CoroutineScope
@@ -59,20 +59,20 @@ class MockBleClient(
             "ref-h10", "Polar H10", "A0:9E:1A:55:0D:10", -60, DeviceKind.REFERENCE, PROFILE_HRS,
             advertisedServices = listOf("180D"),
         ),
-        // S7 手表(B2A 协议 Mock, 设备维护控制台联调用): MAC 用测试真机地址(S7_TEST_MAC, 非白名单).
+        // S7 手表(B2A 协议 Mock, 设备维护控制台联调用): MAC 用测试真机地址(TEST_DUT_MAC, 非白名单).
         // 广播 UUID 表按真机口径(180A + FFE0/FFE1/FFE2/FFEB)——识别走 DeviceProfileCatalog(S7 档案命中 FFE0),
-        // 名称仅展示; 广播名后缀 = MAC[1]MAC[0] 4 位 hex → FCC4(spec §1). roster 直接带 profileId=PROFILE_S7.
+        // 名称仅展示; 广播名后缀 = MAC[1]MAC[0] 4 位 hex → FCC4(spec §1). roster 直接带 profileId=PROFILE_B2A.
         ScannedDevice(
-            "s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.S7_TEST_MAC, -58, DeviceKind.DUT, PROFILE_S7,
+            "s7-fcc4", "SKG WATCH S7-FCC4", io.bluetrace.shared.domain.TEST_DUT_MAC, -58, DeviceKind.DUT, PROFILE_B2A,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
         ),
-        // 追加两台 S7(多设备 OTA 演示/联调): 各自独立 S7MockWatch(见下 s7Watch(id)), MAC 末 4 位 = 名称后缀.
+        // 追加两台 S7(多设备 OTA 演示/联调): 各自独立 B2aMockWatch(见下 b2aWatch(id)), MAC 末 4 位 = 名称后缀.
         ScannedDevice(
-            "s7-a31b", "SKG WATCH S7-A31B", "71:61:48:19:A3:1B", -60, DeviceKind.DUT, PROFILE_S7,
+            "s7-a31b", "SKG WATCH S7-A31B", "71:61:48:19:A3:1B", -60, DeviceKind.DUT, PROFILE_B2A,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
         ),
         ScannedDevice(
-            "s7-2d90", "SKG WATCH S7-2D90", "71:61:48:19:2D:90", -67, DeviceKind.DUT, PROFILE_S7,
+            "s7-2d90", "SKG WATCH S7-2D90", "71:61:48:19:2D:90", -67, DeviceKind.DUT, PROFILE_B2A,
             advertisedServices = listOf("180A", "FFE0", "FFE1", "FFE2", "FFEB"),
         ),
         // ZX 假协议手表(W6 异构验收 Mock 设备, shared/.../zx 包): 与 S7 全维度异构——服务 AA00(非 FFE0),
@@ -132,7 +132,7 @@ class MockBleClient(
 
     /**
      * Mock 无真实 GATT 发现: 回该 roster 设备预置的广播 service 表(16-bit 短码), 供会话宿主
-     * confirm 二次确认(S7 设备含 FFE0 -> S7Profile.confirm 通过); 未知设备回空.
+     * confirm 二次确认(S7 设备含 FFE0 -> B2aProfile.confirm 通过); 未知设备回空.
      */
     override fun discoveredService16s(deviceId: String): List<String> =
         byId[deviceId]?.advertisedServices?.mapNotNull { extract16(it) } ?: emptyList()
@@ -176,34 +176,34 @@ class MockBleClient(
     /** [BleClient.onAdapterStateChanged]: service 侧只依赖接口, 不再注入 Mock 具体类型.  */
     override fun onAdapterStateChanged(off: Boolean) = setBluetoothOff(off)
 
-    // ---- S7 手表模拟(B2A 协议; 每设备一个 S7MockWatch + inbound, 支持多台联调 / 多设备 OTA 演示)----
-    // 该设备是否走 S7 命令面模拟: roster 的 S7 设备已带 profileId=PROFILE_S7(W5 起按 profileId 判定,
-    // 不再耦合 s7 包的识别工具). S7 应答帧回填的 Notify 通道短码见 [S7_NOTIFY_16](对齐真机口径).
-    private fun isS7(device: ScannedDevice): Boolean = device.profileId == PROFILE_S7
-    private val s7Watches = HashMap<String, S7MockWatch>()
+    // ---- S7 手表模拟(B2A 协议; 每设备一个 B2aMockWatch + inbound, 支持多台联调 / 多设备 OTA 演示)----
+    // 该设备是否走 S7 命令面模拟: roster 的 S7 设备已带 profileId=PROFILE_B2A(W5 起按 profileId 判定,
+    // 不再耦合 s7 包的识别工具). S7 应答帧回填的 Notify 通道短码见 [B2A_NOTIFY_16](对齐真机口径).
+    private fun isB2a(device: ScannedDevice): Boolean = device.profileId == PROFILE_B2A
+    private val s7Watches = HashMap<String, B2aMockWatch>()
     private val s7Inbounds = HashMap<String, MutableSharedFlow<BleNotification>>()
     // 刷后复位=真: OTA 末 STOP 后模拟设备自复位断链 → 上层等复位→重连闭环走通(演示更真, 无 90s 空等)
-    private fun s7Watch(id: String): S7MockWatch = s7Watches.getOrPut(id) { S7MockWatch(clock).apply { otaRebootAfterComplete = true } }
-    private fun s7Inbound(id: String): MutableSharedFlow<BleNotification> =
+    private fun b2aWatch(id: String): B2aMockWatch = s7Watches.getOrPut(id) { B2aMockWatch(clock).apply { otaRebootAfterComplete = true } }
+    private fun b2aInbound(id: String): MutableSharedFlow<BleNotification> =
         s7Inbounds.getOrPut(id) { MutableSharedFlow(extraBufferCapacity = 128, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
 
     /**
-     * 下行写: S7 设备路由到 [S7MockWatch] 生成应答帧(模拟链路时延 40ms/帧);
+     * 下行写: S7 设备路由到 [B2aMockWatch] 生成应答帧(模拟链路时延 40ms/帧);
      * 其余 Mock 设备无命令面, 静默丢弃(与真实 GATT 对未订阅特征写入为 no-op 一致).
      *
      * [char16] 接受即忽略: Mock 单通道(S7 命令面隐含写 FFE1), 无需按特征寻址.
      */
     override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
         val device = byId[deviceId] ?: return
-        if (!isS7(device)) return
+        if (!isB2a(device)) return
         if (link(deviceId).value != LinkState.CONNECTED) return
-        val reply = s7Watch(deviceId).handle(bytes)
+        val reply = b2aWatch(deviceId).handle(bytes)
         scope.launch {
             for (frame in reply.frames) {
                 delay(40)
                 if (link(deviceId).value != LinkState.CONNECTED) break
                 // 应答帧 = B2A 表->App Notify(TX=FFE2): 补填 characteristicId 与真机 AndroidBleClient 口径一致
-                s7Inbound(deviceId).emit(BleNotification(deviceId, clock.nowMs(), frame, S7_NOTIFY_16))
+                b2aInbound(deviceId).emit(BleNotification(deviceId, clock.nowMs(), frame, B2A_NOTIFY_16))
             }
             if (reply.disconnectAfter) {
                 delay(400) // 模拟设备执行关机/重启后 GATT 断开
@@ -216,19 +216,19 @@ class MockBleClient(
     private fun s7Notifications(deviceId: String): Flow<BleNotification> = channelFlow {
         val l = link(deviceId)
         launch {
-            s7Inbound(deviceId).collect { send(it) } // 已按设备分流
+            b2aInbound(deviceId).collect { send(it) } // 已按设备分流
         }
         while (coroutineContext.isActive) {
             delay(30_000)
             if (l.value == LinkState.CONNECTED) {
-                send(BleNotification(deviceId, clock.nowMs(), s7Watch(deviceId).heartbeatFrame(), S7_NOTIFY_16))
+                send(BleNotification(deviceId, clock.nowMs(), b2aWatch(deviceId).heartbeatFrame(), B2A_NOTIFY_16))
             }
         }
     }
 
     override fun notifications(deviceId: String): Flow<BleNotification> {
         val device = byId[deviceId]
-        if (device != null && isS7(device)) {
+        if (device != null && isB2a(device)) {
             return s7Notifications(deviceId)
         }
         return dataNotifications(deviceId)
@@ -295,6 +295,6 @@ class MockBleClient(
 
     private companion object {
         /** S7 Notify 通道短码(表->App, FFE2): 应答/心跳帧回填的 characteristicId, 对齐真机 AndroidBleClient. */
-        const val S7_NOTIFY_16 = "FFE2"
+        const val B2A_NOTIFY_16 = "FFE2"
     }
 }
