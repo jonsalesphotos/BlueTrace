@@ -232,7 +232,7 @@ class DeviceSessionManagerTest {
         assertNotNull(session)
         assertEquals(PROFILE_S7, session.profile.profileId)
         assertTrue(session.control is S7DeviceControl, "S7 设备应拿到 S7DeviceControl")
-        assertTrue(session.control?.vendor is S7VendorOps, "vendor 面经通用 DeviceControl 可向下转型 S7VendorOps(W5 UI 路径)")
+        assertTrue(session.control.vendor is S7VendorOps, "vendor 面经通用 DeviceControl 可向下转型 S7VendorOps(W5 UI 路径)")
         m.release("s7-fcc4")
     }
 }

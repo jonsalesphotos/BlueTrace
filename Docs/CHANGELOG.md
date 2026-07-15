@@ -6,6 +6,14 @@
 
 ---
 
+## [工具链] #24A Kotlin 2.2.10 → 2.4.10 + 删除元数据逃生阀（Nordic 转默认前置之一）— ✅ 2026-07-15
+分支 `task/24a-kotlin-2.4`，自基线 tag `baseline-20260715-abstraction-w6` 开出（与 #25 互不依赖，故不叠分支）。**#24 拆两半：本条 = #24A 工具链升级（可独立完成）；#24B = Nordic 默认翻转，硬前置 #25 真机验收，未做。**
+- **Kotlin `2.2.10` → `2.4.10`**（2.4 线最新稳定；`2.4.20-Beta1` 是 beta 不取。版本表经 `maven-metadata.xml` 权威核实——Maven Central 的 solrsearch API 返回的版本明显陈旧，不可用）。`kotlin` 版本引用同时驱动 kotlin-multiplatform / kotlin-compose（Compose 编译器插件自 2.0 起与 Kotlin 同版本）/ kotlin-serialization 三插件。
+- **删除 `-Xskip-metadata-version-check`**（原在 `app/build.gradle.kts`）——**#24A 的验收点**：删掉逃生阀后 `NordicBleClient` 消费 Nordic beta03（Kotlin 2.4.0 编译）**正常编译通过**，元数据版本正式对齐，逃生阀确认不再需要。
+- **兼容面实测全绿**（未动 AGP 9.2.1 / Gradle 9.4.1 / SQLDelight 2.3.2 / Koin 4.0.4 / coroutines 1.10.2 / serialization 1.8.1，均无需跟随升级）：`shared:jvmTest 216/0` + `app:testDebugUnitTest 9/0` + `assembleDebug`（APK 69.9MB），强制重跑非缓存。
+- **顺带清理 2 处冗余**（撞风格红线"不写没必要的强制类型转换"）：① [`NordicBleClient.toScanned`](../app/src/main/java/io/bluetrace/data/android/NordicBleClient.kt) 的 `peripheral.identifier.toString()` → `peripheral.identifier`（Android 侧 `identifier` 本就是 `String`，库 core-android `Peripheral.kt:238` `override val identifier: String = impl.address`）；② `DeviceSessionManagerTest` 的 `session.control?.vendor` → `.vendor`（上一行 `is S7DeviceControl` 断言已智能转换为非空）。
+- **警告基线对照（实测而非推断）**：`Redundant call of conversion method` 是 **2.4.10 新增诊断**（基线 2.2.10 上不报）；`ExperimentalCoroutinesApi` 未 opt-in（ConnectionRegistryTest）与 `Unnecessary safe call` **基线就有**，非本次升级引入——前者属既有技术债，本轮未动（不扩散 #24A 范围）。
+
 ## [BLE·Nordic·抽象层] D2 裁决恢复：Nordic 双库真机闭环 + 设备抽象层 W1–W6 全过闸（判据达成）+ OTA 屏 UI 一轮 — ✅ 2026-07-14/15
 - **Codex 独立复核 + 修复一轮（2026-07-15，`5687737` 提交后 GPT 全 diff 复核：0 P0 / 6 P1 / 4 P2，全部核实为真并修复；修后 206 tests/0 failures）**：
   ① **连接入口带 gattSpec**——ConsoleConnect/DeviceScan 连接改 `connect(device, catalog.identify(device)?.gattSpec)`（识别过的协议走声明式通道，未识别保留探测兜底；此前 UI 判"支持"、连接却只认 B2A/HRS 探测，新协议必连不上，Mock 忽略 spec 掩盖了问题）；

@@ -142,7 +142,8 @@ class NordicBleClient(
     }
 
     private fun ScanResult.toScanned(): ScannedDevice? {
-        val addr = peripheral.identifier.toString()
+        // identifier 在 Android 侧即 MAC 字符串(库 core-android Peripheral.identifier: String = impl.address).
+        val addr = peripheral.identifier
         // nRF Connect 式全量展示: 无名设备占位名(便于按 MAC 定位目标 / 确认周围广播活性).
         val name = advertisingData.name ?: peripheral.name ?: "(unnamed)"
         val adv = advertisingData.serviceUuids.mapNotNull { extract16(it.toString()) }
