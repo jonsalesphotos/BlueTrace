@@ -84,8 +84,8 @@ class MultiOtaController(
     private val abortScope: CoroutineScope = scope,
     /**
      * app 级 OTA 操作租约(可空=不启用, 供旧测试): 跨实例互斥——本实例的 stopping 门只管自己,
-     * 单/多两屏或退屏重进的新实例靠共享租约挡住"旧善后在飞时开新一轮". 开始 tryAcquire,
-     * 自然结束或善后完全结束 release.
+     * 单/多两屏或退屏重进的新实例靠共享租约挡住"旧善后在飞时开新一轮". 所有权见
+     * [io.bluetrace.shared.device.OtaOperationGate] KDoc(Lease token, 过期释放 no-op).
      */
     private val gate: io.bluetrace.shared.device.OtaOperationGate? = null,
 ) {
@@ -110,6 +110,10 @@ class MultiOtaController(
     // 当前处理台的固件升级策略(processDevice 开始即建): stopBatch 转发 abort() 用.
     // 串行编排下无并发访问; cancelAndJoin 屏障后读有 happens-before.
     private var currentStrategy: FirmwareUpdateStrategy? = null
+
+    // 本轮持有的租约: startBatch/retry 获取, 自然结束 release, stopBatch **显式移交**给善后
+    // (置 null=已移交), close() 兜底释放未移交的(非 stop 取消不得泄漏成永久占用).
+    private var lease: io.bluetrace.shared.device.OtaOperationGate.Lease? = null
 
     // ---- 队列增删(入队不连接)----
 
@@ -143,7 +147,13 @@ class MultiOtaController(
         if (_running.value || _stopping.value) return null
         if (_queue.value.none { it.status == DeviceOtaStatus.QUEUED }) return null
         // 跨实例租约最后取(本地条件全过才占): 占不到=另一实例在运行/善后
-        if (gate != null && !gate.tryAcquire()) return null
+        val l = if (gate != null) gate.tryAcquire() ?: return null else null
+        return launchBatch(pkg, l)
+    }
+
+    /** 批量协程本体(调用方已持租约 [l]): startBatch/retry 的公共尾段. */
+    private fun launchBatch(pkg: OtaPackage, l: io.bluetrace.shared.device.OtaOperationGate.Lease?): Job {
+        lease = l
         val job = scope.launch {
             _running.value = true
             log("===== 开始批量升级 =====")
@@ -169,8 +179,12 @@ class MultiOtaController(
                 log("===== 结束：${summaryLine()} =====")
             } finally {
                 _running.value = false
-                // 自然结束释放租约; 取消(=stopBatch 接管)不释放, 由善后 finally 释放
-                if (isActive) gate?.release()
+                // 自然结束释放租约(带 token: 即便与停止竞态, 过期释放是 no-op 清不掉新持有者);
+                // 取消路径的所有权已由 stopBatch 显式移交善后(lease 置 null), 或由 close() 兜底.
+                if (isActive && l != null) {
+                    gate?.release(l)
+                    if (lease === l) lease = null
+                }
             }
         }
         batchJob = job
@@ -190,6 +204,8 @@ class MultiOtaController(
         val job = batchJob ?: return
         if (!job.isActive || _stopping.value) return
         val strategy = currentStrategy // 快照本轮身份
+        val l = lease // 租约显式移交善后(自然结束若已释放, l 的过期释放是 no-op)
+        lease = null
         _stopping.value = true
         abortScope.launch {
             try {
@@ -212,26 +228,42 @@ class MultiOtaController(
                 }
             } finally {
                 _stopping.value = false
-                gate?.release() // 善后完全结束才释放跨实例租约
+                l?.let { gate?.release(it) } // 善后完全结束才释放; token 保证清不掉别人的租约
             }
         }
     }
 
     /**
      * 单台重试(失败/低电): 重置为待升级; 未在跑则起一轮把它跑掉. 返回新起的批量 Job(在跑中返回 null).
-     * 停止善后期间整体拒绝(**含改队列**——否则善后窗口内项被改成 QUEUED 却没有任务跑, 用户需再点一次).
+     * 拒绝路径**不碰队列**(原子入口): 停止善后期间/跨实例租约被占, 先拒绝再说——否则项被改成
+     * QUEUED 却没有任务跑, 留下"已排队无任务"的假状态.
      */
-    fun retry(id: String, pkg: OtaPackage): Job? {
-        if (_stopping.value) return null
-        _queue.update { cur -> cur.map { if (it.device.id == id && it.retriable) it.resetToQueued() else it } }
-        return if (!_running.value) startBatch(pkg) else null
+    fun retry(id: String, pkg: OtaPackage): Job? = retryInternal(pkg) { cur ->
+        cur.map { if (it.device.id == id && it.retriable) it.resetToQueued() else it }
     }
 
-    /** 重试全部失败/低电项. 返回新起的批量 Job(在跑中返回 null). 停止善后期间整体拒绝(同 [retry]).  */
-    fun retryAllFailed(pkg: OtaPackage): Job? {
+    /** 重试全部失败/低电项. 返回新起的批量 Job(在跑中返回 null). 拒绝路径不碰队列(同 [retry]).  */
+    fun retryAllFailed(pkg: OtaPackage): Job? = retryInternal(pkg) { cur ->
+        cur.map { if (it.retriable) it.resetToQueued() else it }
+    }
+
+    /** 重试原子入口: 先过全部门槛(stopping/租约)再改队列再启动——任一步拒绝都不留队列副作用. */
+    private fun retryInternal(pkg: OtaPackage, requeue: (List<DeviceOtaItem>) -> List<DeviceOtaItem>): Job? {
         if (_stopping.value) return null
-        _queue.update { cur -> cur.map { if (it.retriable) it.resetToQueued() else it } }
-        return if (!_running.value) startBatch(pkg) else null
+        if (_running.value) {
+            // 在跑中: 改队列即可, 当前批的串行循环会自然消费新 QUEUED 项(沿用既有语义)
+            _queue.update(requeue)
+            return null
+        }
+        // 未在跑: 需要起新一轮 -> **先抢租约再改队列**(抢不到不碰队列)
+        val l = if (gate != null) gate.tryAcquire() ?: return null else null
+        _queue.update(requeue)
+        if (_queue.value.none { it.status == DeviceOtaStatus.QUEUED }) {
+            // 没有可重试项(id 不存在/不可重试): 归还租约, 不启动
+            l?.let { gate?.release(it) }
+            return null
+        }
+        return launchBatch(pkg, l)
     }
 
     /** 汇总一行.  */
@@ -362,6 +394,12 @@ class MultiOtaController(
 
     fun close() {
         batchJob?.cancel()
+        // 非 stop 路径的取消(VM onCleared 等): 兜底释放未移交的租约——
+        // 取消的协程 finally 里 isActive=false 不会释放, 又没有 stop 善后接管, 不兜底=永久占用.
+        lease?.let { l ->
+            gate?.release(l)
+            lease = null
+        }
     }
 
     private fun log(text: String) {

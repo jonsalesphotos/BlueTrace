@@ -77,8 +77,9 @@ data class OtaTestUiState(
     val loopMode: Boolean get() = packages.size == 2
     val canStart: Boolean get() = packages.isNotEmpty() && connected && !running && !stopping && !gateBusy
     val canAdd: Boolean get() = packages.size < 2 && !running
-    val canReconnect: Boolean get() = device != null && !connected && link != LinkState.CONNECTING && !running
-    val canDisconnect: Boolean get() = connected && !running
+    // 链路操作也吃 stopping/gateBusy: 善后期间重连会被旧善后(尽力 RESET+断开)再次打断, 属静默抖动
+    val canReconnect: Boolean get() = device != null && !connected && link != LinkState.CONNECTING && !running && !stopping && !gateBusy
+    val canDisconnect: Boolean get() = connected && !running && !stopping
 }
 
 /**
@@ -119,6 +120,10 @@ class OtaTestViewModel(
     // 当前运行的升级策略(start 即建): stop() 转发 abort() 用(传输态门控由策略内部自持).
     private var currentStrategy: S7FirmwareUpdateStrategy? = null
 
+    // 本轮持有的租约: start 获取, 自然结束 release, stop **显式移交**给善后(置 null=已移交),
+    // onCleared 兜底释放未移交的(非 stop 取消不得泄漏成永久占用).
+    private var lease: OtaOperationGate.Lease? = null
+
     // 本轮下载平均速度计时(onOtaPhase 回调驱动: 进 Downloading 记起点, 离开时结算).
     private var downloadStartMs = 0L
     private var lastAvgBps: Long? = null
@@ -136,7 +141,7 @@ class OtaTestViewModel(
             }
         }
         // app 级租约占用态透传(另一模式/旧实例的运行或善后在飞 -> 本屏开始入口禁用)
-        viewModelScope.launch { gate.busy.collect { b -> _state.update { it.copy(gateBusy = b) } } }
+        viewModelScope.launch { gate.owner.collect { o -> _state.update { it.copy(gateBusy = o != null) } } }
     }
 
     private fun trackDevice(target: ScannedDevice) {
@@ -216,10 +221,12 @@ class OtaTestViewModel(
         if (!st.canStart) return
         val device = st.device ?: return
         // 跨实例租约(app 级): 另一模式/退屏重进前的旧实例, 其运行或停止善后在飞时不得开新一轮
-        if (!gate.tryAcquire()) {
+        val l = gate.tryAcquire()
+        if (l == null) {
             log("已有 OTA 运行或停止善后在飞（另一模式/上次未完成），稍后再试")
             return
         }
+        lease = l
         val pkgs = loadedPkgs.toList()
         val loop = pkgs.size == 2
         closeRunLog() // 上一次自然结束后未关的句柄
@@ -277,7 +284,10 @@ class OtaTestViewModel(
                 _state.update { it.copy(running = false) }
                 if (isActive) {
                     closeRunLog() // 手动停止(取消)路径由 stop() 善后完再关, 别在这抢先截断
-                    gate.release() // 自然结束释放租约; 取消(=stop 接管)由善后 finally 释放
+                    // 自然结束释放租约(带 token, 与停止竞态时过期释放是 no-op 清不掉新持有者);
+                    // 取消路径所有权已由 stop 移交善后, 或由 onCleared 兜底
+                    gate.release(l)
+                    if (lease === l) lease = null
                 }
             }
         }
@@ -337,6 +347,8 @@ class OtaTestViewModel(
         val job = runJob
         val strategy = currentStrategy
         val snapLog = runLog
+        val l = lease // 租约显式移交善后(自然结束若已释放, 过期释放是 no-op)
+        lease = null
         log("已手动中断") // 落盘要赶在移交前; 之后的善后行只进屏幕终端(runLog 已移交, 不与新一轮抢句柄)
         runLog = null // 移交所有权给善后(start() 的 closeRunLog 不再碰它)
         _state.update { it.copy(stopping = true) }
@@ -356,7 +368,7 @@ class OtaTestViewModel(
                 snapLog?.close()
             } finally {
                 _state.update { it.copy(stopping = false) }
-                gate.release() // 善后完全结束才释放跨实例租约
+                l?.let { gate.release(it) } // 善后完全结束才释放; token 保证清不掉别人的租约
             }
         }
     }
@@ -398,5 +410,11 @@ class OtaTestViewModel(
     override fun onCleared() {
         runJob?.cancel()
         closeRunLog()
+        // 非 stop 路径的 VM 销毁(导航栈清理/系统回收): 兜底释放未移交的租约——
+        // 取消的协程 finally 里 isActive=false 不会释放, 又没有 stop 善后接管, 不兜底=永久占用.
+        lease?.let { l ->
+            gate.release(l)
+            lease = null
+        }
     }
 }

@@ -319,6 +319,55 @@ class MultiOtaControllerTest {
         val jobB = checkNotNull(ctlB.startBatch(pkg())) { "善后结束后另一实例应可开始" }
         jobB.join()
         assertEquals(DeviceOtaStatus.DONE, ctlB.queue.value.single().status)
-        assertEquals(false, gate.busy.value, "自然结束应释放租约")
+        assertEquals(false, gate.busy, "自然结束应释放租约")
+    }
+
+    /** 跨实例租约被占时 retry **不得改队列**(原子入口): 拒绝路径零副作用, 不留"已排队无任务". */
+    @Test
+    fun retry_whenGateHeldElsewhere_doesNotTouchQueue() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val foreign = checkNotNull(gate.tryAcquire()) // 另一实例持有租约
+        val watch = S7MockWatch(clock).apply { otaRejectReq = S7FileTrans.REQ_BUSY }
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = MultiOtaController(
+            ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+        // 造一个 FAILED 项(直接标: 用私有流程太绕, 借 retry 语义只认 retriable)
+        // 先释放租约让首轮跑出 FAILED, 再重新占住模拟"别处在飞"
+        gate.release(foreign)
+        ctl.startBatch(pkg())?.join()
+        assertEquals(DeviceOtaStatus.FAILED, ctl.queue.value.single().status)
+        val foreign2 = checkNotNull(gate.tryAcquire())
+
+        assertEquals(null, ctl.retry("a", pkg()), "租约被占应拒绝")
+        assertEquals(
+            DeviceOtaStatus.FAILED, ctl.queue.value.single().status,
+            "拒绝路径不得把项改成 QUEUED",
+        )
+        gate.release(foreign2)
+    }
+
+    /** 非 stop 路径的取消(VM onCleared -> close): 兜底释放租约, 不得泄漏成永久占用. */
+    @Test
+    fun close_duringRun_releasesLease_noPermanentBusy() = runTest {
+        val clock = virtualClock { testScheduler.currentTime }
+        val gate = io.bluetrace.shared.device.OtaOperationGate()
+        val watch = S7MockWatch(clock)
+        val ble = FakeMultiBle(mapOf("a" to watch), clock, backgroundScope)
+        val ctl = MultiOtaController(
+            ble = ble, registry = ConnectionRegistry(ble, backgroundScope),
+            clock = clock, zone = TestZone(), scope = backgroundScope, gate = gate,
+        )
+        ctl.addDevices(listOf(s7("a", "S7-A")))
+        val job = checkNotNull(ctl.startBatch(pkg()))
+        withTimeout(10_000) { ctl.queue.first { q -> q.any { it.status != DeviceOtaStatus.QUEUED } } }
+        assertTrue(gate.busy)
+
+        ctl.close() // 直接取消(非 stopBatch): 协程 finally isActive=false 不释放, 靠 close 兜底
+        job.join()
+        assertEquals(false, gate.busy, "close 必须兜底释放租约, 否则重进后永远无法开始")
     }
 }

@@ -109,8 +109,8 @@ class MultiOtaViewModel(
     private var runLog: OtaRunLog? = null // 本次批量的落盘日志(log/ota/)
 
     val state: StateFlow<MultiOtaUiState> =
-        combine(controller.queue, controller.running, controller.stopping, gate.busy, _pkg) { queue, running, stopping, gateBusy, pkg ->
-            MultiOtaUiState(pkg = pkg, queue = queue, running = running, stopping = stopping, gateBusy = gateBusy)
+        combine(controller.queue, controller.running, controller.stopping, gate.owner, _pkg) { queue, running, stopping, owner, pkg ->
+            MultiOtaUiState(pkg = pkg, queue = queue, running = running, stopping = stopping, gateBusy = owner != null)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MultiOtaUiState())
 
     // ---- 扫描添加表(只入队, 不连接)----
@@ -246,7 +246,7 @@ class MultiOtaViewModel(
         // 前置守卫与编排核同条件(含 stopping 门): 落盘文件须在 startBatch **之前**打开——viewModelScope 是
         // Main.immediate, startBatch 内协程会立即跑到首个挂起点, 头几行日志经 collector
         // 同步镜像进 log(), 晚开文件就丢头(真机实证).
-        if (controller.running.value || controller.stopping.value || gate.busy.value ||
+        if (controller.running.value || controller.stopping.value || gate.busy ||
             controller.queue.value.none { it.status == DeviceOtaStatus.QUEUED }
         ) {
             return
