@@ -35,6 +35,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import no.nordicsemi.kotlin.ble.client.RemoteCharacteristic
 import no.nordicsemi.kotlin.ble.client.RemoteService
 import no.nordicsemi.kotlin.ble.client.RemoteServices
+import no.nordicsemi.kotlin.ble.client.ServicesChanged
+import no.nordicsemi.kotlin.ble.client.internal.OperationMutex
 import no.nordicsemi.kotlin.ble.client.android.CentralManager
 import no.nordicsemi.kotlin.ble.client.android.Peripheral
 import no.nordicsemi.kotlin.ble.client.android.ScanResult
@@ -362,16 +364,56 @@ class NordicBleClient(
     private fun teardown(id: String, peripheral: Peripheral, connScope: CoroutineScope) {
         conns.remove(id)
         discoveredServices16.remove(id)
-        // [Mutex 卡死修 2026-07-15] 断开在前/connScope.cancel 在后(且同协程串行):
-        // 取消订阅 collect 会让库发 CCC disable 写, 若链路仍在, 该写在库内**全局 OperationMutex**
-        // 上等一个可能永不到来的写回调——挂死后同进程一切后续 GATT 操作(含新连接的服务发现)
-        // 排队永不执行(真机实证: 断开→重连 Discovering 超时 3/4 复现, 仅杀进程可解).
-        // 物理断链后再取消, 收尾写直接短路(未连接)不占锁.
+        // [断开序 2026-07-15] 断开在前/connScope.cancel 在后(且同协程串行): 物理断链后再取消订阅域,
+        // 收尾的 CCC disable 写直接短路(未连接)不占锁.
+        // 注: 本换序当初是按"取消订阅的 CCC 写泄漏全局锁"这一**已被证伪的**假设做的(故换序后仍复现),
+        // 真根因见 [sweepGhostServiceDiscoveryLock]. 换序本身仍是无害且合理的收尾姿势, 予以保留.
         scope.launch {
             disconnectBounded(peripheral, id)
             connScope.cancel()
         }
+        // 幽灵锁清扫独立成协程: **不可**串在 disconnectBounded 之后——后者实证可能永不返回
+        // (见本类 [disconnectBounded] KDoc), 串行会让清扫永远等不到执行.
+        scope.launch {
+            delay(GHOST_LOCK_SWEEP_DELAY)
+            sweepGhostServiceDiscoveryLock(id)
+        }
         link(id).value = LinkState.DISCONNECTED
+    }
+
+    /**
+     * **[#25 规避] 清扫库内"幽灵服务发现锁"**——把"全进程永久瘫痪(仅开关蓝牙可解)"降级为"本次连接失败, 可重试".
+     *
+     * ## 为什么需要(根因, beta03 源码坐实; 详见 `Docs/设计/Nordic重连挂死_根因分析.md`)
+     * 库 `Peripheral.discoverServices()`(client-core Peripheral.kt:495-512)是全库**唯一**用裸
+     * `OperationMutex.lock(ServicesChanged)` 而非自带 finally 的 `withLock` 的地方, 且:
+     * - 先置 `_services = Discovering`(:509), 再调 `impl.discoverServices(uuids)`(:510)——
+     *   **返回值被丢弃**, 而其实现 `gatt?.discoverServices() ?: false`(client-android
+     *   NativeExecutor.kt:139)在原生拒绝启动发现时返回 false;
+     * - 一旦返回 false, 回调永不到达 => `ServicesDiscovered`/`ServiceDiscoveryFailed` 两条解锁路径全灭;
+     * - 第三条解锁路径 `invalidateServices()`(:354-364)只在**断链事件到达**时经 handleDisconnection 跑,
+     *   原生栈已卡住时该事件同样不来.
+     * 结果: **全进程唯一的那把静态 Mutex** 被永久持有. 库内其余一切 GATT 操作(读/写/MTU/PHY/优先级)
+     * 都走 `withLock(owner=null)` 排在它后面 => 此后任何设备的任何 GATT 操作永久挂起.
+     * 本项目实测的"重试必挂""仅杀进程可解"即此.
+     *
+     * ## 为什么这样清扫是安全的(以及边界)
+     * owner token 是 `data object ServicesChanged`——全进程唯一实例, 被所有 peripheral 共用, 故
+     * 任何一方都能 unlock 任何一方的锁(库自身在 :411/:466 就是这么干的, owner 校验形同虚设).
+     * 我们只在**自己 teardown 之后**清扫, 且给 [GHOST_LOCK_SWEEP_DELAY] 宽限期让库自身的
+     * `invalidateServices` 先有机会正常解锁——真到了这一步还持锁, 基本可判定是幽灵.
+     * **边界**: 若此刻恰有另一台设备的服务发现**正常在飞**, 本清扫会提前解掉它的锁, 使发现期间的
+     * GATT 串行保证失效. 本项目设备会话本就串行(DeviceSessionManager 单 Mutex; 多设备 OTA 逐台),
+     * 并发发现不成立, 故接受此风险——代价一侧是"整个 App 蓝牙功能瘫痪到用户手动开关蓝牙为止".
+     *
+     * 上游修好(检查 discoverServices 返回值 + 裸 lock 补 finally)后本方法应整体删除;
+     * [NordicOperationMutexPinTest] 是对应的跳闸丝.
+     */
+    private fun sweepGhostServiceDiscoveryLock(id: String) {
+        if (!OperationMutex.holdsLock(ServicesChanged)) return
+        runCatching { OperationMutex.unlock(ServicesChanged) }
+            .onSuccess { Log.w(TAG, "swept ghost service-discovery lock after teardown $id") }
+            .onFailure { Log.w(TAG, "ghost lock sweep failed $id: ${it.message}") }
     }
 
     /** 限时断开(NonCancellable 内 3s 上限, 语义见 [teardown] KDoc); 超时/异常均不外抛.  */
@@ -489,6 +531,11 @@ class NordicBleClient(
         private val SUBSCRIBE_TIMEOUT = 5.seconds
         /** 断开等待硬上限(Bug2, 见 [teardown]): 库内断链 await 可无限挂起, 超时放弃等待但收尾必达.  */
         private val DISCONNECT_TIMEOUT = 3.seconds
+        /**
+         * 幽灵锁清扫宽限期(见 [sweepGhostServiceDiscoveryLock]): 给库自身的 invalidateServices
+         * (走断链事件)先解锁的机会, 到点仍持锁才判定为幽灵. 取 DISCONNECT_TIMEOUT 同量级略宽.
+         */
+        private val GHOST_LOCK_SWEEP_DELAY = 4.seconds
         /** MTU 收敛轮询(见 [awaitMtuConverged]): 正常在首轮/一两轮内命中, 超时仅边角.  */
         private val MTU_CONVERGE_TIMEOUT = 2.seconds
         private const val MTU_POLL_MS = 50L

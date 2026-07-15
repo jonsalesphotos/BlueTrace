@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nordic 重连挂死 · 根因分析（#25）</title>
+<style>
+:root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
+        --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9da7b1; --line:#30363d; --bg:#0d1117; --code:#161b22;
+          --accent:#4493f8; --warn:#d29922; --danger:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  line-height:1.75; font-size:15px; }
+.layout { display:flex; max-width:1280px; margin:0 auto; }
+nav.toc { width:300px; flex:none; position:sticky; top:0; align-self:flex-start;
+  max-height:100vh; overflow-y:auto; padding:24px 8px 24px 20px; font-size:13px;
+  border-right:1px solid var(--line); }
+nav.toc .toctitle { font-weight:600; margin-bottom:8px; color:var(--muted); }
+nav.toc ul { list-style:none; padding-left:14px; margin:4px 0; }
+nav.toc > ul { padding-left:0; }
+nav.toc a { color:var(--muted); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { flex:1; min-width:0; padding:32px 40px 80px; }
+h1 { font-size:26px; border-bottom:2px solid var(--line); padding-bottom:10px; }
+h2 { font-size:20px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:2.2em; }
+h3 { font-size:16.5px; margin-top:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","JetBrains Mono",monospace; font-size:0.92em;
+  background:var(--code); padding:1px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--code); white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--code) 45%, transparent); }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent);
+  background:var(--code); color:var(--muted); border-radius:0 8px 8px 0; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px solid var(--line); margin:2em 0; }
+strong { font-weight:600; }
+.fig { margin:18px 0; }
+.fig svg { max-width:100%; height:auto; }
+@media (max-width: 900px) { nav.toc { display:none; } main { padding:20px 16px 60px; } }
+@media print { nav.toc { display:none; } body { font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc"><div class="toctitle">目录</div><div class="toc">
+<div class="toc">
+<ul>
+<li><a href="#nordic-25">Nordic 重连服务发现挂死 · 根因分析（任务 #25）</a><ul>
+<li><a href="#_1">结论（前置）</a></li>
+<li><a href="#_2">三个原假设的判决</a></li>
+<li><a href="#_3">根因链</a></li>
+<li><a href="#beta03-sources-jar">源码证据（beta03 sources jar，逐条可核）</a></li>
+<li><a href="#_4">可执行证据</a></li>
+<li><a href="#_5">尚未闭环：触发器的原生成因（需真机）</a></li>
+<li><a href="#_6">已落规避（本分支）</a></li>
+<li><a href="#_7">验收标准（真机，需用户在场）</a></li>
+<li><a href="#issue">上游 issue 草稿（待用户过目后提交）</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+</div>
+</nav>
+<main><h1 id="nordic-25">Nordic 重连服务发现挂死 · 根因分析（任务 #25）</h1>
+<blockquote>
+<p>2026-07-15 · 分支 <code>task/25-nordic-reconnect-hang</code> · 库版本锁定 <strong>Kotlin-BLE-Library 2.0.0-beta03</strong>
+证据基础 = Maven Central 官方 sources jar（<code>client-core</code> / <code>client-android</code> / <code>client-core-android</code>）逐行核对 + 可执行测试 <a href="../../app/src/test/java/io/bluetrace/data/android/NordicOperationMutexPinTest.kt"><code>NordicOperationMutexPinTest</code></a>。
+现象与两轮缓解的历史记录见 <a href="../context/设备指令抽象层_执行笔记.md"><code>context/设备指令抽象层_执行笔记.md</code></a> 2026-07-15 条。</p>
+</blockquote>
+<h2 id="_1">结论（前置）</h2>
+<p><strong>这是库缺陷，不是我们的用法问题</strong>，且是<strong>两个 bug 叠在同一段三行代码里</strong>：</p>
+<ol>
+<li><strong>触发器</strong> —— 库把 <code>gatt.discoverServices()</code> 的 <strong><code>false</code> 返回值直接丢弃</strong>。原生层拒绝启动发现时，库已把状态置成 <code>Discovering</code>，此后回调永不到达，状态<strong>永久停在 Discovering</strong>。这就是我们观测到的"服务发现挂 10s 超时"。</li>
+<li><strong>放大器</strong> —— 那次挂住的发现，<strong>持有全进程唯一的一把静态 Mutex 且永不释放</strong>。库内其余一切 GATT 操作（读/写/MTU/PHY/连接优先级）都排在它后面 =&gt; 此后<strong>任何设备的任何 GATT 操作永久挂起</strong>。这就是"重试必挂""仅杀进程可解"。</li>
+</ol>
+<p>一次普通的发现失败，被库的全局锁设计放大成<strong>全进程蓝牙功能永久瘫痪</strong>。</p>
+<p><strong>我们此前的头号假设（"取消订阅的 CCC 写在全局锁上泄漏"）已被证伪</strong>，这解释了为什么按该假设做的"断开换序"缓解<strong>换序后仍复现</strong>。</p>
+<h2 id="_2">三个原假设的判决</h2>
+<table>
+<thead>
+<tr>
+<th>原假设（W1.5 / 2026-07-15 备案）</th>
+<th>判决</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OperationMutex</code> 是全局单例</td>
+<td>✅ <strong>坐实</strong></td>
+<td><code>object OperationMutex</code> + 单个 <code>private val lock</code>（<code>OperationMutex.kt</code>）；javap 见 <code>public static final INSTANCE</code> + <code>private static final Mutex lock</code>。注释原文即"只允许一个 BLE 操作并发执行"</td>
+</tr>
+<tr>
+<td>取消订阅触发的 CCC disable 写泄漏全局锁</td>
+<td>❌ <strong>推翻</strong></td>
+<td>写/读/订阅全走 <code>OperationMutex.withLock</code>，即 kotlinx <code>Mutex.withLock</code>，<strong>自带 try/finally</strong>；测试对照组证明取消后锁正常释放</td>
+</tr>
+<tr>
+<td><code>serviceDiscoveryRequested</code> / <code>servicesDiscovered</code> 闩在主动断开后不复位</td>
+<td>❌ <strong>推翻</strong></td>
+<td><code>servicesDiscovered</code> 在 <code>invalidateServices()</code> 中复位（Peripheral.kt:357）；<code>serviceDiscoveryRequested</code> 是<strong>故意</strong>不复位，库注释写明"用于重连时让既有观察者拿到服务"（:365-369）——设计如此，非缺陷</td>
+</tr>
+<tr>
+<td>——</td>
+<td>✅ <strong>真凶（新）</strong></td>
+<td>服务发现是全库<strong>唯一</strong>用裸 <code>lock()</code>（无 finally）的地方，且<strong>丢弃 <code>discoverServices()</code> 的 false 返回值</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">根因链</h2>
+<div class="fig">
+<svg viewBox="0 0 840 400" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
+<title>Nordic beta03 服务发现全局锁泄漏链</title>
+<desc>服务发现在异步协程中用裸 lock 取得全进程唯一的 OperationMutex，随后调用返回 false 被丢弃的原生发现；三条解锁路径全部依赖永不到达的事件，锁被永久持有，导致全进程 GATT 操作排队。</desc>
+<style>
+.t{fill:var(--fg);font-size:12px;font-weight:700;font-family:Consolas,monospace;}
+.s{fill:var(--muted);font-size:10.5px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.h{fill:var(--muted);font-size:11px;font-weight:700;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
+.bx{fill:var(--code);stroke:var(--line);stroke-width:1;}
+.bad{fill:var(--code);stroke:var(--danger);stroke-width:1.5;}
+.d{fill:var(--danger);font-size:12px;font-weight:700;font-family:Consolas,monospace;}
+</style>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+</defs>
+<rect x="20" y="14" width="800" height="32" rx="3" class="bx"/>
+<text x="420" y="35" text-anchor="middle" class="t">OperationMutex = object + 单个 static Mutex —— 全进程共用一把</text>
+
+<rect x="20" y="72" width="360" height="46" rx="3" class="bx"/>
+<text x="200" y="92" text-anchor="middle" class="t">discoverServices()  Peripheral.kt:495</text>
+<text x="200" y="109" text-anchor="middle" class="s">servicesDiscovered = true（同步置位）</text>
+
+<rect x="20" y="134" width="360" height="46" rx="3" class="bad"/>
+<text x="200" y="154" text-anchor="middle" class="d">lock(ServicesChanged)  :504</text>
+<text x="200" y="171" text-anchor="middle" class="s">裸 lock —— 全库唯一无 try/finally 处</text>
+
+<rect x="20" y="196" width="360" height="46" rx="3" class="bad"/>
+<text x="200" y="216" text-anchor="middle" class="d">impl.discoverServices()  :510</text>
+<text x="200" y="233" text-anchor="middle" class="s">返回 false 被丢弃（NativeExecutor.kt:139）</text>
+
+<rect x="20" y="258" width="360" height="46" rx="3" class="bad"/>
+<text x="200" y="278" text-anchor="middle" class="d">_services = Discovering  :509</text>
+<text x="200" y="295" text-anchor="middle" class="s">回调永不到达 —— 状态永久停此</text>
+
+<line x1="200" y1="118" x2="200" y2="132" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="200" y1="180" x2="200" y2="194" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="200" y1="242" x2="200" y2="256" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="200" y1="304" x2="200" y2="326" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<text x="430" y="64" class="h">解锁只有三条路 —— 全部依赖事件到达</text>
+<rect x="430" y="72" width="390" height="46" rx="3" class="bx"/>
+<text x="444" y="92" class="t">× ServicesDiscovered → unlock  :411</text>
+<text x="444" y="109" class="s">回调不来</text>
+<rect x="430" y="134" width="390" height="46" rx="3" class="bx"/>
+<text x="444" y="154" class="t">× ServiceDiscoveryFailed → unlock  :466</text>
+<text x="444" y="171" class="s">回调不来</text>
+<rect x="430" y="196" width="390" height="46" rx="3" class="bx"/>
+<text x="444" y="216" class="t">× invalidateServices() → unlock  :360</text>
+<text x="444" y="233" class="s">依赖断链事件；原生栈已卡则同样不来</text>
+<rect x="430" y="258" width="390" height="46" rx="3" class="bx"/>
+<text x="444" y="278" class="t">其余 GATT 操作 withLock(owner=null)</text>
+<text x="444" y="295" class="s">读 / 写 / MTU / PHY / 优先级 —— 全部排队</text>
+
+<rect x="20" y="326" width="800" height="48" rx="3" class="bad"/>
+<text x="420" y="346" text-anchor="middle" class="d">锁被永久持有 → 全进程任何设备的任何 GATT 操作永久挂起</text>
+<text x="420" y="364" text-anchor="middle" class="s">与实测"重试必挂""仅杀进程可解"吻合</text>
+</svg>
+</div>
+
+<h2 id="beta03-sources-jar">源码证据（beta03 sources jar，逐条可核）</h2>
+<p><strong>触发器 —— 返回值被丢弃</strong></p>
+<ul>
+<li><code>client-core</code> <code>Peripheral.kt:201</code> 接口声明：<code>suspend fun discoverServices(uuids: List&lt;Uuid&gt;): Boolean</code>（<strong>有返回值</strong>）</li>
+<li><code>client-android</code> <code>NativeExecutor.kt:139-142</code> 实现：<code>return gatt?.discoverServices() ?: false</code> —— 原生拒绝启动发现、或 gatt 已被 close 时返回 <code>false</code></li>
+<li><code>client-core</code> <code>Peripheral.kt:510</code> 调用点：<code>impl.discoverServices(uuids)</code> —— <strong>返回值被丢弃，没有任何 if/check</strong></li>
+</ul>
+<p><code>BluetoothGatt.discoverServices()</code> 返回 false 是 Android 的既定契约（发现无法启动时）。库无视它 =&gt; 无回调 =&gt; 状态卡死。</p>
+<p><strong>放大器 —— 裸 lock 无 finally</strong></p>
+<pre><code class="language-kotlin">// client-core Peripheral.kt:495-512（原文节选）
+private fun discoverServices(uuids: List&lt;Uuid&gt;) {
+    if (!servicesDiscovered) {
+        servicesDiscovered = true          // 同步置位
+        scope.launch {                     // 锁在异步协程里才拿
+            try {
+                OperationMutex.lock(ServicesChanged)   // 裸 lock —— 无 finally
+            } catch (e: IllegalStateException) {
+                logger?.warn(Layer.GATT, e)            // 吞掉后继续无锁裸奔
+            }
+            logger?.trace(Layer.GATT) { &quot;Discovering services&quot; }
+            _services.update { RemoteServices.Discovering }
+            impl.discoverServices(uuids)   // 返回值丢弃; 之后一切靠回调事件解锁
+        }
+    }
+}
+</code></pre>
+<p>三条解锁路径：<code>ServicesDiscovered</code>(:411) / <code>ServiceDiscoveryFailed</code>(:466) / <code>invalidateServices()</code>(:354-364，经断链事件)。<strong>全部依赖事件到达</strong>，无超时、无 finally、无兜底。</p>
+<p><strong>owner 语义形同虚设</strong></p>
+<p>owner token 是 <code>GattEvent.kt:88</code> 的 <code>data object ServicesChanged</code> —— 全进程唯一实例，被所有 peripheral 共用。后果：
+- 第二台设备发现时 <code>lock(ServicesChanged)</code> 因 owner 相同<strong>直接抛 <code>IllegalStateException</code></strong>（kotlinx <code>Mutex</code> 契约），库 catch 后<strong>不持锁继续执行发现</strong>，串行保证在此失效；
+- 任一设备的解锁事件可解掉另一台设备持有的锁。</p>
+<p><strong>为什么能确定"锁不是挂 Discovering 的原因，而是后果"</strong></p>
+<p>除服务发现外，全库 GATT 操作均用 <code>withLock(owner = null)</code>（<code>BaseRemoteCharacteristic.kt:173/223</code>、<code>core-android Peripheral.kt:479/522/599/636/701/743</code> 等）。我们真机日志中重连的 <strong>MTU 协商成功（mtu=247）</strong>，而 MTU 请求正是走 <code>withLock</code>（<code>core-android Peripheral.kt:599</code>）—— 这证明<strong>那一刻锁是空闲的</strong>。所以顺序是：发现失败 → 制造幽灵锁 → 后续全挂。</p>
+<h2 id="_4">可执行证据</h2>
+<p><a href="../../app/src/test/java/io/bluetrace/data/android/NordicOperationMutexPinTest.kt"><code>NordicOperationMutexPinTest</code></a>（app JVM 单测，<strong>不需要真机/蓝牙</strong>，3 例全绿）直接驱动库的真实 <code>OperationMutex</code>：</p>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>钉死的行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operationMutex_isProcessWide_notPerPeripheral</code></td>
+<td>设备 B 的操作被设备 A 的锁挡住 =&gt; 锁是全进程一把，不是 per-peripheral/per-CentralManager</td>
+</tr>
+<tr>
+<td><code>rawLock_leaksForever_whenHolderCancelled</code></td>
+<td>裸 <code>lock()</code> 的持有者被取消后<strong>锁仍被持有</strong>；对照组证明 <code>withLock</code> 路径取消后正常释放（=证伪 CCC 写假设）</td>
+</tr>
+<tr>
+<td><code>ownerToken_isSharedSingleton_soAnyoneCanUnlockAnyone</code></td>
+<td>同 owner 二次 lock 抛 ISE（库吞掉后无锁裸奔）；任一方可解他方的锁</td>
+</tr>
+</tbody>
+</table>
+<p>它同时是<strong>跳闸丝</strong>：将来升 Nordic 版本时若本测试失败，说明上游改了行为，届时可评估撤掉本项目侧规避。</p>
+<h2 id="_5">尚未闭环：触发器的原生成因（需真机）</h2>
+<p>已证明的是"<strong>一旦</strong>原生 <code>discoverServices()</code> 返回 false，库必然永久卡死并瘫痪全进程"。但<strong>原生层为何在主动断开后的重连中返回 false</strong>，仍需真机对照实验确认。候选：</p>
+<ul>
+<li>主动断开路径只调 <code>gatt.disconnect()</code> <strong>不调 <code>gatt.close()</code></strong>（<code>NativeExecutor.kt:266-274</code>；<code>close()</code> 才两者都调，:276-295）—— client interface 未释放；</li>
+<li><code>connect()</code> 会在 connectGatt 前 close 旧 gatt（:129-136），但<strong>未等断链完成</strong>即 close+重连，是 Android 上的已知竞态温床；</li>
+<li>反复挂死后"force-stop 首连也挂、需开关蓝牙"表明<strong>系统栈自身</strong>已脏（进程级锁无法解释这一层）——指向原生 GATT client 资源泄漏。</li>
+</ul>
+<p><strong>需真机的三组对照</strong>（沿用既定计划）：① 不取消订阅；② 物理断链后取消订阅；③ 新建 Peripheral/CentralManager 后回连。</p>
+<h2 id="_6">已落规避（本分支）</h2>
+<p><a href="../../app/src/main/java/io/bluetrace/data/android/NordicBleClient.kt"><code>NordicBleClient.sweepGhostServiceDiscoveryLock</code></a> —— teardown 后经宽限期（4s，让库自身 <code>invalidateServices</code> 先有机会）检查 <code>OperationMutex.holdsLock(ServicesChanged)</code>，仍持锁即判定幽灵并强制 <code>unlock</code>。</p>
+<ul>
+<li><strong>收益</strong>：把"全进程永久瘫痪（仅开关蓝牙可解）"降级为"本次连接失败，可立即重试"。<strong>不修触发器</strong>，只拆放大器。</li>
+<li><strong>实现要点</strong>：清扫<strong>独立成协程</strong>，不可串在 <code>disconnectBounded</code> 之后——后者实证可能永不返回，串行会让清扫永远等不到执行。</li>
+<li><strong>边界（已接受）</strong>：若此刻恰有另一台设备的发现正常在飞，会提前解掉它的锁，使发现期间的 GATT 串行保证失效。本项目设备会话本就串行（DeviceSessionManager 单 Mutex、多设备 OTA 逐台），并发发现不成立；代价一侧是整个 App 蓝牙瘫痪到用户手动开关蓝牙，故接受。</li>
+<li><strong>状态</strong>：⏳ <strong>真机未验</strong>，需随下条验收一并跑。</li>
+</ul>
+<h2 id="_7">验收标准（真机，需用户在场）</h2>
+<ol>
+<li>同一真机主动断开 → 原进程回连 <strong>≥50 次</strong>：<code>Discovering</code> 挂死 <strong>0 次</strong>、无需开关蓝牙；</li>
+<li>OTA 后复位回连红线继续通过（既有 W1.6 记分卡不回归）；</li>
+<li>若规避生效但仍偶发单次发现失败（触发器未修），需确认失败可被上层 provisioner 的 60s 预算自然重试救回。</li>
+</ol>
+<p><strong>在上述验收通过前，Nordic 不得转默认（#24B 的硬前置）。</strong> 上游 v2 仍标 Beta，亦支持此判断。</p>
+<h2 id="issue">上游 issue 草稿（待用户过目后提交）</h2>
+<p>草稿见本文档同目录 <a href="Nordic重连挂死_issue草稿.md"><code>Nordic重连挂死_issue草稿.md</code></a>。要点：两个 bug 同处三行、给出最小修复建议、附纯 JVM 可复现测试。</p></main>
+</div>
+</body>
+</html>
