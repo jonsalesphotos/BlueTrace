@@ -41,6 +41,7 @@ sealed interface Route {
     @Serializable data object ConsoleLogList : Route // 设备日志列表（手动选一条查看）
     @Serializable data class ConsoleLogView(val fileName: String) : Route // 设备日志查看页
     @Serializable data object OtaTest : Route // DEBUG：OTA 测试（选烧录包→校验→循环刷入）
+    @Serializable data object UwtpTest : Route // DEBUG：UWTP 传输（离线文件上传联调，v0.2-draft）
     @Serializable data object About : Route
     @Serializable data object Appearance : Route // 外观：亮/暗/跟随系统（§8）
     @Serializable data object Language : Route // 语言：中/英单选，无跟随系统（设置H）

@@ -1,0 +1,20 @@
+// UWTP v0.2-draft 公共消息（DRAFT / Registered-Draft——字段号 v1.0 前可调，调整须六项同步）
+// 真源分层: PB 字段编号与类型的唯一真源 = 本 .proto; 文档只展示不另行维护。
+// 契约: 所有响应 field 1 = uint32 error_code (省略即 0=OK, 不检查 Presence)。
+syntax = "proto3";
+
+package uwtp.common;
+
+// RAW Schema 引用: 设备支持集合由 CTRL INFO 携带, 会话实际选择由 LIVE_START_RSP 携带。
+// 字段语义来自 STATE/SCHEMA 审查结论 04/28 (channel_mask 位表 / source_profile 注册表见工作稿 §7/§11)。
+message RawSchemaRef {
+  uint32 schema_id = 1;
+  uint32 schema_rev = 2;
+  uint32 source_profile = 3;   // 0x0000 STANDARD_RAW / 0x0101 GOODIX_HR_RAW / 0x0102 GOODIX_SPO2_RAW
+  uint64 channel_mask = 4;     // 原始通道位表 (bit0 ACC ... bit8 PPG_G ...)
+}
+
+// 最小错误响应编码结构: 只是编码工具, 不是独立 wire 消息身份 (工作稿 §6.4)。
+message MinimalErrorRsp {
+  uint32 error_code = 1;
+}

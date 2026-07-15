@@ -1,0 +1,92 @@
+// UWTP v0.2-draft TRANSFER 域 (main_type=0x11)——DRAFT
+// opcode: 0x02 OBJECT_LIST / 0x03 BEGIN / 0x04 DATA (二进制前缀, 不在本文件) / 0x05 ACK
+//         0x06 FINISH / 0x07 ABORT / 0x09 DELETE_OBJECT / 0x10 TRANSFER_ERROR_EVENT
+//         0x01 留空 / 0x08 原 STATUS 撤销 / 0x7E 保留。
+// DATA 前缀 (非 PB): transfer_id u32 LE + offset u32 LE [+ frame_crc32 u32 LE] + data[]。
+syntax = "proto3";
+
+package uwtp.transfer;
+
+// ---- OBJECT_LIST (0x02): cursor 分页, 分页按编码后实际大小组包 ----
+message ObjectListReq {
+  uint32 cursor = 1;             // 0 = 从头
+}
+
+message ObjectEntry {
+  uint32 file_id = 1;            // = session_id, 单调不复用
+  uint32 size = 2;
+  uint32 start_utc = 3;
+  uint32 flags = 4;              // COMPLETE / RECOVERED 等, 值表待专项⑤
+  fixed64 object_token = 5;      // 不透明对象版本指纹 (D-10), App 只保存/回显/比较
+}
+
+message ObjectListRsp {
+  uint32 error_code = 1;
+  repeated ObjectEntry objects = 2;
+  uint32 next_cursor = 3;        // 0 = 已到末尾
+}
+
+// ---- BEGIN (0x03): 建立连接域事务 ----
+message TransferBeginReq {
+  uint32 file_id = 1;
+  uint32 start_offset = 2;       // 续传起点 (App 记录的已收连续偏移)
+  uint32 crc_mode = 3;           // 0 = OFF, 1 = 每 DATA 帧带 frame_crc32
+  uint32 ack_every_n = 4;        // 窗口大小 (帧数); 样本值非冻结数值 (P0 实测后定)
+  fixed64 object_token = 5;      // 0 = 首次/不校验; 非 0 且与当前对象不符 -> OBJECT_CHANGED
+  uint32 object_size = 6;        // 同上, 辅助校验; 0 = 不校验
+}
+
+message TransferBeginRsp {
+  uint32 error_code = 1;
+  uint32 transfer_id = 2;          // 连接内事务世代号, 每次 BEGIN 新值, 断连即清
+  uint32 total_size = 3;
+  fixed64 object_token = 4;        // 权威指纹, App 持久化供续传
+  uint32 accepted_offset = 5;      // 设备实际采用的起始偏移 (D-11: 配置类响应回显 effective)
+  uint32 accepted_crc_mode = 6;    // 设备实际采用的 CRC 模式 (可降级, 如请求 1 回 0)
+  uint32 accepted_ack_every_n = 7; // 设备实际采用的窗口帧数
+  uint32 max_data_len = 8;         // 单 DATA 帧数据区上限 = uwtp_payload_max - 前缀
+}
+
+// ---- ACK (0x05, feedback): 累计确认 ----
+message TransferAck {
+  uint32 transfer_id = 1;
+  uint32 next_expected_offset = 2;
+}
+
+// ---- FINISH (0x06): App 收口 ----
+message TransferFinishReq {
+  uint32 transfer_id = 1;
+}
+
+message TransferFinishRsp {
+  uint32 error_code = 1;
+  // 对象级完整性字段 (普通资源整体 CRC32/Hash) 待专项⑤; COL2 复用内容自带校验。
+}
+
+// ---- ABORT (0x07): 仅 App 主动取消; ABORT_RSP = 静止屏障 ----
+message TransferAbortReq {
+  uint32 transfer_id = 1;
+}
+
+message TransferAbortRsp {
+  uint32 error_code = 1;
+}
+
+// ---- DELETE_OBJECT (0x09): 单删/批删同一身份 ----
+message TransferDeleteReq {
+  repeated uint32 file_ids = 1;
+}
+
+message TransferDeleteRsp {
+  uint32 error_code = 1;
+  uint32 deleted_count = 2;
+}
+
+// ---- TRANSFER_ERROR_EVENT (0x10, event): 仅错误通知 (D-9/P-4 + D-10) ----
+// App 只接受当前活动 transfer_id 的事件; 旧事务事件静默丢弃并计数。
+// 正常结束不发事件 (App 凭 total_size 判断)。
+message TransferErrorEvent {
+  uint32 error_code = 1;         // 取值映射待专项⑤ (OQ-11)
+  uint32 transfer_id = 2;
+  uint32 last_valid_offset = 3;  // 设备确认仍有效的连续对象偏移
+}

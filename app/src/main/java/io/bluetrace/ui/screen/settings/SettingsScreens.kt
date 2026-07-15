@@ -77,6 +77,7 @@ fun SettingsHomeScreen(
     onLog: () -> Unit, onDeviceMaint: () -> Unit, onAbout: () -> Unit,
     onAppearance: () -> Unit, onLanguage: () -> Unit,
     onOtaTest: () -> Unit = {},
+    onUwtpTest: () -> Unit = {},
 ) {
     // 通用分区两行的副标 = 当前值（主题模式 / 语言名），随偏好实时更新；非说明性副标（red-line #1）。
     val prefs = koinInject<AppPreferences>()
@@ -108,6 +109,8 @@ fun SettingsHomeScreen(
             if (io.bluetrace.BuildConfig.DEBUG) {
                 // 仅 DEBUG：OTA 固件（选烧录包→连接设备→刷入/循环），与设备维护同级
                 item { SettingsNavRow(Icons.Filled.Memory, BT.primary, BT.primaryC, "OTA 固件", "刷入烧录包 · DEBUG", onOtaTest) }
+                // 仅 DEBUG：UWTP 传输（S7 离线文件上传联调，v0.2-draft 客户端）
+                item { SettingsNavRow(Icons.Filled.Memory, BT.tertiary, BT.tertiaryC, "UWTP 传输", "离线文件上传联调 · DEBUG", onUwtpTest) }
             }
             if (io.bluetrace.BuildConfig.DEBUG) {
                 item {
