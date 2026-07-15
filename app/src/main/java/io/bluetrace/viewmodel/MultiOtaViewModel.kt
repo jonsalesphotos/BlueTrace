@@ -12,7 +12,6 @@ import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.DeviceKind
-import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.s7.DeviceOtaItem
 import io.bluetrace.shared.s7.DeviceOtaStatus
@@ -120,7 +119,7 @@ class MultiOtaViewModel(
                 .map { d ->
                     ScanRow(
                         device = d,
-                        supported = isS7(d),
+                        supported = catalog.supportsOtaTool(d),
                         inQueue = d.id in queueIds,
                         selected = d.id in selected,
                     )
@@ -207,23 +206,21 @@ class MultiOtaViewModel(
         _scanOpen.value = false
     }
 
-    /**
-     * 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console 读版本电量), 只放行 S7——泛化到
-     * firmwareUpdate != null 会让异构协议设备(如 ZX)入队后被灌 S7 命令. 展示(rows)/选择(toggle)/
-     * 确认入队(confirm)三处统一走本判定, 防状态陈旧或绕过展示层直调. 通用 OTA 分派属后续任务.
-     */
-    private fun isS7(d: ScannedDevice): Boolean = catalog.identify(d)?.profileId == PROFILE_S7
+    // 可刷判定 = 协议 UUID 口径(supportsOtaTool, 见 OtaToolSupport.kt): 本屏执行链绑定 B2A 指令集,
+    // 判定不用设备名/档案名(名称会变, UUID 才是协议稳定标识). 泛化到 firmwareUpdate != null 会让
+    // 异构协议设备(如 ZX)入队后被灌 B2A 命令. 展示(rows)/选择(toggle)/确认入队(confirm)三处
+    // 统一走本判定, 防状态陈旧或绕过展示层直调.
 
     fun toggleScanSelect(id: String) {
         val d = _scanResults.value.firstOrNull { it.id == id } ?: return
-        if (!isS7(d)) return // 非 S7 不可选(与行展示同口径)
+        if (!catalog.supportsOtaTool(d)) return // 非 B2A 协议不可选(与行展示同口径)
         if (controller.queue.value.any { it.device.id == id }) return // 已在队列不可选
         _scanSelected.update { if (id in it) it - id else it + id }
     }
 
     fun confirmScanAdd() {
         val sel = _scanSelected.value
-        val toAdd = _scanResults.value.filter { it.id in sel && isS7(it) }
+        val toAdd = _scanResults.value.filter { it.id in sel && catalog.supportsOtaTool(it) }
         if (toAdd.isNotEmpty()) {
             controller.addDevices(toAdd)
             log("加入队列 ${toAdd.size} 台")

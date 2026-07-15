@@ -14,7 +14,6 @@ import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.device.FwUpdateResult
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.s7.OtaPackage
 import io.bluetrace.shared.s7.OtaPhase
@@ -125,9 +124,10 @@ class OtaTestViewModel(
         viewModelScope.launch {
             registry.connected.collect { list ->
                 if (_state.value.running) return@collect
-                // 本屏是 S7 专属工具(S7 zip loader/S7 策略/S7Console): 只跟踪识别为 S7 的设备——
-                // 异构协议设备(如 ZX)被灌 S7 REQ 只会超时, 通用 OTA 分派属后续任务.
-                val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.identify(it)?.profileId == PROFILE_S7 }
+                // 可刷判定 = 协议 UUID 口径(supportsOtaTool, 见 OtaToolSupport.kt): 本工具链绑定
+                // B2A 指令集, 异构协议设备被灌 B2A REQ 只会超时——只跟踪 B2A 协议设备.
+                // 判定不用设备名/档案名(名称会变, GATT 服务 UUID 才是协议稳定标识).
+                val target = list.firstOrNull { it.kind != DeviceKind.REFERENCE && catalog.supportsOtaTool(it) }
                 // 黏性: 出现新设备才切换; 断联(target=null)保留旧设备, 链路由 linkJob 更新为 DISCONNECTED
                 if (target != null && target.id != _state.value.device?.id) trackDevice(target)
             }
