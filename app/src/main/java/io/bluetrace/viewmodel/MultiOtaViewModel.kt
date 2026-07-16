@@ -14,12 +14,12 @@ import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.device.OtaOperationGate
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.DeviceOtaItem
-import io.bluetrace.shared.s7.DeviceOtaStatus
-import io.bluetrace.shared.s7.MultiOtaController
-import io.bluetrace.shared.s7.OtaFile
-import io.bluetrace.shared.s7.OtaPackage
-import io.bluetrace.shared.s7.S7FileTrans
+import io.bluetrace.shared.b2a.DeviceOtaItem
+import io.bluetrace.shared.b2a.DeviceOtaStatus
+import io.bluetrace.shared.b2a.MultiOtaController
+import io.bluetrace.shared.b2a.OtaFile
+import io.bluetrace.shared.b2a.OtaPackage
+import io.bluetrace.shared.b2a.B2aFileTrans
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import io.bluetrace.shared.util.formatFullStamp
@@ -187,8 +187,8 @@ class MultiOtaViewModel(
         }
         val pkg = OtaPackage(
             files = listOf(
-                OtaFile("ResData.dat", ByteArray(4096) { (it * 7).toByte() }, S7FileTrans.FT_FW),
-                OtaFile("fw.dat", ByteArray(3000) { (it * 31 + 5).toByte() }, S7FileTrans.FT_FW),
+                OtaFile("ResData.dat", ByteArray(4096) { (it * 7).toByte() }, B2aFileTrans.FT_FW),
+                OtaFile("fw.dat", ByteArray(3000) { (it * 31 + 5).toByte() }, B2aFileTrans.FT_FW),
             ),
         )
         loadedPkg = pkg

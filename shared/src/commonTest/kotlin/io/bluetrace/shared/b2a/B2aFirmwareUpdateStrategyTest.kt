@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.TestZone
 import io.bluetrace.shared.ble.BleClient
@@ -34,12 +34,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * [S7FirmwareUpdateStrategy] 策略皮测试(W4): run 成功链 + 细->粗阶段映射 + FwPackage fail fast +
+ * [B2aFirmwareUpdateStrategy] 策略皮测试(W4): run 成功链 + 细->粗阶段映射 + FwPackage fail fast +
  * **abort 固件门控红线**(传输中不发 CTRL_RESET / 非传输态发 / 未连接跳过).
- * 编排链本身(下载/回连)的行为由 S7OtaTest/S7OtaProvisionerTest 覆盖, 本文件只测策略层的映射与门控传导.
+ * 编排链本身(下载/回连)的行为由 B2aOtaTest/B2aOtaProvisionerTest 覆盖, 本文件只测策略层的映射与门控传导.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class S7FirmwareUpdateStrategyTest {
+class B2aFirmwareUpdateStrategyTest {
 
     private val device = ScannedDevice(
         id = "s7-fcc4", name = "SKG WATCH S7-FCC4", address = "71:61:48:19:FC:C4",
@@ -51,13 +51,13 @@ class S7FirmwareUpdateStrategyTest {
      * run 会挂在等 REQ ack(传输态已置), 精确模拟"传输中手动停止"的取消窗口.
      */
     private class FakeBle(
-        val watch: S7MockWatch,
+        val watch: B2aMockWatch,
         private val clock: EpochClock,
         private val scope: CoroutineScope,
         var silent: Boolean = false,
     ) : BleClient {
         val link = MutableStateFlow(LinkState.CONNECTED)
-        private val txDecoder = S7FrameDecoder()
+        private val txDecoder = B2aFrameDecoder()
 
         /** 下行命令捕获 (cmd, key): 断言 CTRL_RESET 是否发出用. */
         val txCmds = mutableListOf<Pair<Int, Int>>()
@@ -88,14 +88,14 @@ class S7FirmwareUpdateStrategyTest {
     }
 
     private fun pkg(size: Int = 6000) = OtaPackage(
-        files = listOf(OtaFile("fw.dat", ByteArray(size) { (it * 31).toByte() }, S7FileTrans.FT_FW)),
+        files = listOf(OtaFile("fw.dat", ByteArray(size) { (it * 31).toByte() }, B2aFileTrans.FT_FW)),
     )
 
     private fun TestScope.strategy(
         ble: BleClient,
         onPhase: (OtaPhase) -> Unit = {},
         onLog: (String) -> Unit = {},
-    ) = S7FirmwareUpdateStrategy(
+    ) = B2aFirmwareUpdateStrategy(
         ble, device, backgroundScope, virtualClock { testScheduler.currentTime }, TestZone(),
         abortScope = backgroundScope,
         reconnectScanMs = 1_000, // 无扫描流场景尽快落直连兜底
@@ -108,7 +108,7 @@ class S7FirmwareUpdateStrategyTest {
     @Test
     fun run_fullChain_success_coarsePhaseMapping_detailPassthrough() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val watch = S7MockWatch(clock).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(clock).apply { otaRebootAfterComplete = true }
         val ble = FakeBle(watch, clock, backgroundScope)
         val fw = mutableListOf<FwUpdateProgress>()
         val s = strategy(ble)
@@ -133,7 +133,7 @@ class S7FirmwareUpdateStrategyTest {
     @Test
     fun run_wrongPackageType_failsFast_noBleTouch() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val ble = FakeBle(S7MockWatch(clock), clock, backgroundScope)
+        val ble = FakeBle(B2aMockWatch(clock), clock, backgroundScope)
         val s = strategy(ble)
 
         val r = s.run(object : FwPackage {})
@@ -149,7 +149,7 @@ class S7FirmwareUpdateStrategyTest {
     fun abort_midTransfer_skipsReset_firmwareGate() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         // silent: REQ 发出后无 ack, run 挂在下载链中(otaTransferActive 已置 true)——传输中手动停止的真实窗口
-        val ble = FakeBle(S7MockWatch(clock), clock, backgroundScope, silent = true)
+        val ble = FakeBle(B2aMockWatch(clock), clock, backgroundScope, silent = true)
         val phase = MutableStateFlow<OtaPhase?>(null)
         val s = strategy(ble, onPhase = { phase.value = it })
 
@@ -160,7 +160,7 @@ class S7FirmwareUpdateStrategyTest {
         s.abort()
 
         assertTrue(
-            ble.txCmds.none { it.first == S7.CMD_DEV_CTRL && it.second == S7.CTRL_RESET },
+            ble.txCmds.none { it.first == B2a.CMD_DEV_CTRL && it.second == B2a.CTRL_RESET },
             "传输中固件 OTA 门控吞重启指令——不应发送: ${ble.txCmds}",
         )
     }
@@ -169,13 +169,13 @@ class S7FirmwareUpdateStrategyTest {
     fun abort_notTransferring_connected_sendsReset() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         // silent: RESET 电源类固件本就不回包(以断链为旁证); 不断链 -> 观测窗靠虚拟时钟跳过, 返 false 不影响断言
-        val ble = FakeBle(S7MockWatch(clock), clock, backgroundScope, silent = true)
+        val ble = FakeBle(B2aMockWatch(clock), clock, backgroundScope, silent = true)
         val s = strategy(ble)
 
         s.abort() // run 未跑: otaTransferActive=false 初始值, link=CONNECTED -> 应发
 
         assertTrue(
-            ble.txCmds.any { it.first == S7.CMD_DEV_CTRL && it.second == S7.CTRL_RESET },
+            ble.txCmds.any { it.first == B2a.CMD_DEV_CTRL && it.second == B2a.CTRL_RESET },
             "非传输态且连接中应发送重启指令: ${ble.txCmds}",
         )
     }
@@ -183,7 +183,7 @@ class S7FirmwareUpdateStrategyTest {
     @Test
     fun abort_notConnected_skips() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
-        val ble = FakeBle(S7MockWatch(clock), clock, backgroundScope)
+        val ble = FakeBle(B2aMockWatch(clock), clock, backgroundScope)
         ble.link.value = LinkState.DISCONNECTED
         val logs = mutableListOf<String>()
         val s = strategy(ble, onLog = { logs.add(it) })

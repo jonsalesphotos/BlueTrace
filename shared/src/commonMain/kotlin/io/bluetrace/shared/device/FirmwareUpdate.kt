@@ -8,7 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 
 /**
  * 固件升级面通用类型(设计 V2 §3.3): 通用层只看得到粗粒度阶段 + 进度 + 终态.
- * 包解析/校验/传输/Bootloader 切换/重连/验证全在协议实现内(S7 见 [io.bluetrace.shared.s7.S7FirmwareUpdateStrategy]).
+ * 包解析/校验/传输/Bootloader 切换/重连/验证全在协议实现内(S7 见 [io.bluetrace.shared.b2a.B2aFirmwareUpdateStrategy]).
  */
 
 /** 粗粒度升级阶段(通用). 各协议的细阶段(如 S7 的扫描回连)映射到此 + 细文案塞 [FwUpdateProgress.detail]. */
@@ -36,7 +36,7 @@ sealed interface FwUpdateResult {
 }
 
 /**
- * 升级包载体(空 marker): 包类型协议自定(S7 的 [io.bluetrace.shared.s7.OtaPackage] 实现本接口).
+ * 升级包载体(空 marker): 包类型协议自定(S7 的 [io.bluetrace.shared.b2a.OtaPackage] 实现本接口).
  * 策略内 `pkg as? XxxPackage ?: return Failed(...)` 属受限/语义正确的向下转型(同 vendor 面手法):
  * 某协议策略只可能收该协议 loader 产出的包, 收错=编程错误. 具体包字段**不上移**通用层.
  */

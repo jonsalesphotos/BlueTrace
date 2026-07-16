@@ -9,7 +9,7 @@ import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.protocol.registry.ProtocolProfile
 
 /**
- * ZX(假协议)稳定标识: 与解码侧同一命名空间口径(对照 [io.bluetrace.shared.domain.PROFILE_S7]/
+ * ZX(假协议)稳定标识: 与解码侧同一命名空间口径(对照 [io.bluetrace.shared.domain.PROFILE_B2A]/
  * [io.bluetrace.shared.domain.PROFILE_HRS]), 但本协议不进解码侧(dataPlane=null), 常量只供识别/
  * roster 打标使用, 故不放 domain 包(W6 验收判据: 新增协议不改框架, domain 也在框架面内).
  */

@@ -3,12 +3,12 @@ package io.bluetrace.data.android
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import io.bluetrace.shared.s7.OtaEntryInfo
-import io.bluetrace.shared.s7.OtaFile
-import io.bluetrace.shared.s7.OtaPackage
-import io.bluetrace.shared.s7.OtaPackageValidation
-import io.bluetrace.shared.s7.OtaPackageValidator
-import io.bluetrace.shared.s7.S7FileTrans
+import io.bluetrace.shared.b2a.OtaEntryInfo
+import io.bluetrace.shared.b2a.OtaFile
+import io.bluetrace.shared.b2a.OtaPackage
+import io.bluetrace.shared.b2a.OtaPackageValidation
+import io.bluetrace.shared.b2a.OtaPackageValidator
+import io.bluetrace.shared.b2a.B2aFileTrans
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.zip.ZipInputStream
@@ -42,7 +42,7 @@ class OtaZipLoader(private val context: Context) {
                         if (!entry.isDirectory) {
                             val base = entry.name.substringAfterLast('/') // 只取文件名（zip 条目可能带目录前缀）
                             val bytes = zip.readBytes()
-                            if (base.isNotEmpty()) files.add(OtaFile(base, bytes, S7FileTrans.FT_FW))
+                            if (base.isNotEmpty()) files.add(OtaFile(base, bytes, B2aFileTrans.FT_FW))
                         }
                         zip.closeEntry()
                         entry = zip.nextEntry

@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.LinkState
@@ -38,10 +38,10 @@ object OtaAbort {
     ): Boolean? {
         if (otaTransferActive) return null // 固件 OTA 门控: 传输中发了也被丢弃, 不发
         if (ble.linkState(deviceId).value != LinkState.CONNECTED) return null
-        val console = S7Console(ble, deviceId, scope, clock, zone)
+        val console = B2aConsole(ble, deviceId, scope, clock, zone)
         console.start()
         return try {
-            console.sendPowerCommand(S7.CTRL_RESET)
+            console.sendPowerCommand(B2a.CTRL_RESET)
         } catch (c: CancellationException) {
             throw c
         } catch (e: Exception) {

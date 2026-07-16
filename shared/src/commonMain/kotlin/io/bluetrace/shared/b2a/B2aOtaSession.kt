@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.domain.LinkState
@@ -16,7 +16,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * S7 采集固件 OTA 推送会话(独占长事务; 每已连接设备一个实例).
  *
- * 设计见 `Docs/OTA/S7采集OTA_设计.md`. 仿 [S7Console.pullLog] 的独占事务范式(自建 ack 通道 + 空闲超时),
+ * 设计见 `Docs/OTA/S7采集OTA_设计.md`. 仿 [B2aConsole.pullLog] 的独占事务范式(自建 ack 通道 + 空闲超时),
  * **不复用** 3s 单飞 `request()`——TRANS 数据片只写不回, 每切片才回 9B ack, REQ 授权异步.
  *
  * 时序: REQ(会话总量, 等设备 MMI 授权异步回 12B)→ 逐文件 START/TRANS×N/STOP → 末文件 STOP 即整包完成.
@@ -28,7 +28,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 其他命令又被 OTA 门控丢弃, 永久卡传输态. 协程取消天然停在切片循环(不发 STOP)即正确行为:
  * 停发切片 → 固件看门狗 ~61s 超时 → 设备自行 SYS_Reset(复位前主动断链).
  */
-class S7OtaSession(
+class B2aOtaSession(
     private val ble: BleClient,
     val deviceId: String,
     private val scope: CoroutineScope,
@@ -53,17 +53,17 @@ class S7OtaSession(
     suspend fun provision(pkg: OtaPackage, onProgress: (OtaProgress) -> Unit = {}): OtaResult = mutex.withLock {
         if (ble.linkState(deviceId).value != LinkState.CONNECTED) return@withLock fail(OtaFailure.NotConnected)
 
-        val decoder = S7FrameDecoder()
-        val acks = Channel<S7Message>(capacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val decoder = B2aFrameDecoder()
+        val acks = Channel<B2aMessage>(capacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         val collector = scope.launch {
             ble.notifications(deviceId).collect { n ->
                 for (m in decoder.feed(n.rawBytes)) {
-                    if (m.cmd == S7.CMD_FILE_TRANS) acks.trySend(m)
+                    if (m.cmd == B2a.CMD_FILE_TRANS) acks.trySend(m)
                 }
             }
         }
 
-        suspend fun awaitAck(key: Int, timeoutMs: Long): S7Message? = withTimeoutOrNull(timeoutMs) {
+        suspend fun awaitAck(key: Int, timeoutMs: Long): B2aMessage? = withTimeoutOrNull(timeoutMs) {
             while (true) {
                 val m = acks.receive()
                 if (m.key == key) return@withTimeoutOrNull m
@@ -88,8 +88,8 @@ class S7OtaSession(
 
             // ---- REQ: 报会话总量, 等(异步授权)12B ----
             log("TX REQ module=${pkg.moduleId} files=${pkg.fileCount} total=${pkg.totalBytes}")
-            ble.write(deviceId, S7FileTrans.encodeReq(pkg.moduleId, pkg.fileCount, pkg.totalBytes))
-            val reqMsg = awaitAck(S7FileTrans.KEY_REQ, authorizeTimeoutMs)
+            ble.write(deviceId, B2aFileTrans.encodeReq(pkg.moduleId, pkg.fileCount, pkg.totalBytes))
+            val reqMsg = awaitAck(B2aFileTrans.KEY_REQ, authorizeTimeoutMs)
                 ?: return@withLock failWithProgress(OtaFailure.Timeout("REQ"))
             // 真机 REQ 应答字节格式待抓包坐实(BUG-2): 可能为 8B 回显而非 12B(含 sliceMaxSize/offset).
             // - 可解析为 12B 且**自洽**(moduleId 回显==所发) → 采信 status 判拒 + 采信设备 sliceMax(仍夹本地上限);
@@ -97,14 +97,14 @@ class S7OtaSession(
             //   → 无法可靠判 status, attended 下按"已授权"继续, sliceMax 用本地算值;
             //   真·拒绝(如 disk_full)会在随后 START ack 暴露 → 优雅降级为后段失败, 不静默挂起, 也不误 abort.
             // moduleId 自洽门(S1 硬化): 12B 分支不再凭单个未坐实字节硬 abort, 与短应答分支同等保守.
-            val req = S7FileTrans.parseReqReply(reqMsg.param)
-            if (req != null && req.moduleId == pkg.moduleId && req.status != S7FileTrans.REQ_OK) {
+            val req = B2aFileTrans.parseReqReply(reqMsg.param)
+            if (req != null && req.moduleId == pkg.moduleId && req.status != B2aFileTrans.REQ_OK) {
                 return@withLock failWithProgress(OtaFailure.ReqRejected(req.status))
             }
             // 切片长: 设备回值(若有)夹到本地分帧容量 (MTU−15)×17 之内.
             // 夹取双重意义: (1)设备回值基准 MTU 大于本地(如本地低报回退 23)时防超固件 17 包/切片硬限;
             // (2)设备不回 sliceMax(短应答)时 localCap 作权威——与官方 App 自算口径一致(golden 日志).
-            val localCap = S7FileTrans.defaultSliceMaxSize(mtu)
+            val localCap = B2aFileTrans.defaultSliceMaxSize(mtu)
             val deviceSlice = req?.sliceMaxSize ?: 0
             val sliceMax = (if (deviceSlice > 0) deviceSlice else localCap).coerceAtMost(localCap).coerceAtLeast(1)
             log("RX REQ ok sliceMax=$sliceMax (dev=${req?.sliceMaxSize ?: "n/a"} localCap=$localCap reqLen=${reqMsg.param.size} offset=${req?.offset ?: 0})")
@@ -113,10 +113,10 @@ class S7OtaSession(
             for ((idx, file) in pkg.files.withIndex()) {
                 val sliceSize = sliceMax.coerceAtMost(if (file.bytes.isEmpty()) 1 else file.bytes.size)
                 log("TX START [$idx] ${file.name} size=${file.bytes.size} type=${file.fileType}")
-                ble.write(deviceId, S7FileTrans.encodeStart(file.name, file.bytes.size.toLong(), sliceSize, file.fileType))
-                val startAck = awaitAck(S7FileTrans.KEY_START, cmdAckTimeoutMs)
+                ble.write(deviceId, B2aFileTrans.encodeStart(file.name, file.bytes.size.toLong(), sliceSize, file.fileType))
+                val startAck = awaitAck(B2aFileTrans.KEY_START, cmdAckTimeoutMs)
                     ?: return@withLock failWithProgress(OtaFailure.Timeout("START:${file.name}"))
-                if (!S7.commAckOk(startAck.param)) {
+                if (!B2a.commAckOk(startAck.param)) {
                     return@withLock failWithProgress(OtaFailure.DeviceError("START:${file.name}", ackCode(startAck.param)))
                 }
 
@@ -124,7 +124,7 @@ class S7OtaSession(
                 while (off < file.bytes.size) {
                     val len = sliceMax.coerceAtMost(file.bytes.size - off)
                     val slice = file.bytes.copyOfRange(off, off + len)
-                    val expectSum = S7FileTrans.additiveChecksum(slice)
+                    val expectSum = B2aFileTrans.additiveChecksum(slice)
                     val ok = sendSliceWithRetry(slice, expectSum, mtu, acks) { key, t -> awaitAck(key, t) }
                     if (!ok) return@withLock failWithProgress(OtaFailure.SliceFailed(file.name, off.toLong()))
                     off += len
@@ -141,10 +141,10 @@ class S7OtaSession(
                 }
 
                 log("TX STOP [$idx] ${file.name}")
-                ble.write(deviceId, S7FileTrans.encodeStop())
-                val stopAck = awaitAck(S7FileTrans.KEY_STOP, cmdAckTimeoutMs)
+                ble.write(deviceId, B2aFileTrans.encodeStop())
+                val stopAck = awaitAck(B2aFileTrans.KEY_STOP, cmdAckTimeoutMs)
                     ?: return@withLock failWithProgress(OtaFailure.Timeout("STOP:${file.name}"))
-                if (!S7.commAckOk(stopAck.param)) {
+                if (!B2a.commAckOk(stopAck.param)) {
                     return@withLock failWithProgress(OtaFailure.DeviceError("STOP:${file.name}", ackCode(stopAck.param)))
                 }
             }
@@ -163,8 +163,8 @@ class S7OtaSession(
         slice: ByteArray,
         expectSum: Long,
         mtu: Int,
-        acks: Channel<S7Message>,
-        await: suspend (Int, Long) -> S7Message?,
+        acks: Channel<B2aMessage>,
+        await: suspend (Int, Long) -> B2aMessage?,
     ): Boolean {
         repeat(maxSliceRetries) { attempt ->
             // 每次发送前清残留 ack(含首发): TRANS ack 无 seq/offset, 全同 key, 相邻等长等和切片
@@ -172,13 +172,13 @@ class S7OtaSession(
             // 残余的"真·迟到 ack 落在本切片 await 窗口内"竞态需真机 ack 语义(recvLen 是否累计)才能根治
             // →Phase 2 硬化(见 implementation-notes). Mock 恒即时回, 此路径不发生.
             while (acks.tryReceive().isSuccess) { /* drain stale */ }
-            for (frame in S7FileTrans.encodeSlice(slice, mtu)) ble.write(deviceId, frame)
-            val ackMsg = await(S7FileTrans.KEY_TRANS, sliceAckTimeoutMs)
+            for (frame in B2aFileTrans.encodeSlice(slice, mtu)) ble.write(deviceId, frame)
+            val ackMsg = await(B2aFileTrans.KEY_TRANS, sliceAckTimeoutMs)
             if (ackMsg == null) {
                 log("slice ack TIMEOUT (attempt ${attempt + 1})")
                 return@repeat
             }
-            val ack = S7FileTrans.parseDataAck(ackMsg.param)
+            val ack = B2aFileTrans.parseDataAck(ackMsg.param)
             if (ack != null && ack.ok && ack.recvLen == slice.size.toLong() && ack.checkSum == expectSum) return true
             log("slice ack mismatch st=${ack?.status} recv=${ack?.recvLen}/${slice.size} sum=${ack?.checkSum}/$expectSum (attempt ${attempt + 1})")
         }

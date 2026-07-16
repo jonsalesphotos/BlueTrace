@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 /**
  * B2A FILE_TRANS（Cmd `0x0F`）· OTA 文件传输协议编解码。
@@ -14,7 +14,7 @@ package io.bluetrace.shared.s7
  * 每帧 param 须预留 **3B ATT 写头**（opcode 1 + handle 2）：线上帧 = 8B B2A头+4B命令头+param ≤ MTU−3。
  * 曾用 MTU−12（=235）会让首帧上链 247B → ATT PDU 250B > MTU → Android 写被拒、首切片即挂（BUG-1）。
  */
-object S7FileTrans {
+object B2aFileTrans {
     // 子命令（ENUM_B2A_FILE_TRANS_KEY_TYPE，ble2appEx.h:453-458）
     const val KEY_START = 0x01
     const val KEY_TRANS = 0x02
@@ -47,7 +47,7 @@ object S7FileTrans {
      * golden 日志：MTU 247 → 232（`FiTransReqFoMMI ParamPktLen:232`）。
      */
     fun maxParamPerFrame(mtu: Int): Int =
-        (mtu - ATT_HEADER - S7FrameCodec.HEAD_LEN - S7FrameCodec.CMD_HEAD_LEN).coerceAtLeast(1)
+        (mtu - ATT_HEADER - B2aFrameCodec.HEAD_LEN - B2aFrameCodec.CMD_HEAD_LEN).coerceAtLeast(1)
 
     /** 本地 sliceMaxSize 推算 = (MTU−15)×17（MTU 247 → 3944，与设备回值一致；短应答时作权威）。 */
     fun defaultSliceMaxSize(mtu: Int): Int = maxParamPerFrame(mtu) * SLICE_PACKET_CNT
@@ -83,7 +83,7 @@ object S7FileTrans {
         p[2] = fileCount.toByte()
         p[3] = 0
         le32(totalSize).copyInto(p, 4)
-        return S7FrameCodec.encodeRequest(S7.CMD_FILE_TRANS, KEY_REQ, p)
+        return B2aFrameCodec.encodeRequest(B2a.CMD_FILE_TRANS, KEY_REQ, p)
     }
 
     /**
@@ -99,23 +99,23 @@ object S7FileTrans {
         le32(sliceSize.toLong()).copyInto(p, 8)
         p[12] = fileType.toByte()
         p[13] = 0 // zipFlag：一律明文整文件
-        S7FrameCodec.writeLe16(p, 14, nameBytes.size)
+        B2aFrameCodec.writeLe16(p, 14, nameBytes.size)
         nameBytes.copyInto(p, 16)
-        return S7FrameCodec.encodeRequest(S7.CMD_FILE_TRANS, KEY_START, p)
+        return B2aFrameCodec.encodeRequest(B2a.CMD_FILE_TRANS, KEY_START, p)
     }
 
     /** STOP：无 payload；设备内部 idx++，末文件即整包完成。 */
-    fun encodeStop(): ByteArray = S7FrameCodec.encodeRequest(S7.CMD_FILE_TRANS, KEY_STOP)
+    fun encodeStop(): ByteArray = B2aFrameCodec.encodeRequest(B2a.CMD_FILE_TRANS, KEY_STOP)
 
     /** OFFSET：查询断点续传偏移（应答 4B offset）。 */
-    fun encodeOffsetQuery(): ByteArray = S7FrameCodec.encodeRequest(S7.CMD_FILE_TRANS, KEY_OFFSET)
+    fun encodeOffsetQuery(): ByteArray = B2aFrameCodec.encodeRequest(B2a.CMD_FILE_TRANS, KEY_OFFSET)
 
     /**
      * TRANS：一切片 = 一条多包消息（cmd=0x0F,key=TRANS,param=slice），切成 1..17 帧。
      * @param mtu 协商 MTU，决定每帧 param 段上限。
      */
     fun encodeSlice(slice: ByteArray, mtu: Int, multiPktId: Int = 0): List<ByteArray> =
-        S7FrameCodec.encodeMultiPacket(S7.CMD_FILE_TRANS, KEY_TRANS, slice, maxParamPerFrame(mtu), multiPktId)
+        B2aFrameCodec.encodeMultiPacket(B2a.CMD_FILE_TRANS, KEY_TRANS, slice, maxParamPerFrame(mtu), multiPktId)
 
     // ---- 解析（表→App 应答） ----
 
@@ -132,7 +132,7 @@ object S7FileTrans {
     /**
      * REQ 的 12B 应答：`[0]status [1]moduleId [2]fileCount [3]currFileIdx [4-7]sliceMaxSize LE [8-11]offset LE`。
      * ⚠️ 真机应答真实字节格式待抓包坐实（BUG-2；golden 日志设备侧只见 8B 内部记录、非上链 TX 帧）——
-     * 短于 12B 返 null，会话据此走"按已授权继续、sliceMax 用本地算值"的防御分支（见 [S7OtaSession]）。
+     * 短于 12B 返 null，会话据此走"按已授权继续、sliceMax 用本地算值"的防御分支（见 [B2aOtaSession]）。
      */
     fun parseReqReply(param: ByteArray): OtaReqReply? {
         if (param.size < 12) return null
@@ -159,7 +159,7 @@ object S7FileTrans {
         p[3] = reply.currFileIdx.toByte()
         le32(reply.sliceMaxSize.toLong()).copyInto(p, 4)
         le32(reply.offset).copyInto(p, 8)
-        return S7FrameCodec.encodeResponse(S7.CMD_FILE_TRANS, KEY_REQ, p)
+        return B2aFrameCodec.encodeResponse(B2a.CMD_FILE_TRANS, KEY_REQ, p)
     }
 
     fun encodeDataAck(ack: OtaDataAck): ByteArray {
@@ -167,14 +167,14 @@ object S7FileTrans {
         le32(ack.recvLen).copyInto(p, 0)
         le32(ack.checkSum).copyInto(p, 4)
         p[8] = ack.status.toByte()
-        return S7FrameCodec.encodeResponse(S7.CMD_FILE_TRANS, KEY_TRANS, p)
+        return B2aFrameCodec.encodeResponse(B2a.CMD_FILE_TRANS, KEY_TRANS, p)
     }
 
     fun encodeCommAck(key: Int, code: Int): ByteArray =
-        S7FrameCodec.encodeResponse(S7.CMD_FILE_TRANS, key, byteArrayOf(code.toByte()))
+        B2aFrameCodec.encodeResponse(B2a.CMD_FILE_TRANS, key, byteArrayOf(code.toByte()))
 
     fun encodeOffsetReply(offset: Long): ByteArray =
-        S7FrameCodec.encodeResponse(S7.CMD_FILE_TRANS, KEY_OFFSET, le32(offset))
+        B2aFrameCodec.encodeResponse(B2a.CMD_FILE_TRANS, KEY_OFFSET, le32(offset))
 }
 
 /** REQ 的 12B 应答（等设备端 MMI 授权后异步返回）。 */
@@ -193,5 +193,5 @@ data class OtaDataAck(
     val checkSum: Long,
     val status: Int,
 ) {
-    val ok: Boolean get() = status == S7Status.SUCC
+    val ok: Boolean get() = status == B2aStatus.SUCC
 }

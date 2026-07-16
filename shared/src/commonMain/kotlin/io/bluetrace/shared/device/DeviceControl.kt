@@ -18,7 +18,7 @@ data class DeviceCmdInfo(
 
 /**
  * 一次控制命令的失败原因(通用层, **零协议码表依赖**):
- * [DeviceError.codeName] 在**协议实现构造异常时**解析(S7 = S7.errorName[code]), 通用层不认识任何具体码.
+ * [DeviceError.codeName] 在**协议实现构造异常时**解析(S7 = B2a.errorName[code]), 通用层不认识任何具体码.
  */
 sealed interface DeviceCommandFailure {
     /** 超时: 命令发出后未在期限内收到应答. */
@@ -72,7 +72,7 @@ interface PowerOps {
 
 /**
  * 厂商扩展面(空 marker): 通用层不认识其内容; UI 的厂商专属块经 `vendor as? XxxVendorOps` 消费——
- * 受限,语义正确的向下转型, 只发生在本就是该协议专属的 UI 块内(S7 见 `S7VendorOps`).
+ * 受限,语义正确的向下转型, 只发生在本就是该协议专属的 UI 块内(S7 见 `B2aVendorOps`).
  */
 interface VendorOps
 

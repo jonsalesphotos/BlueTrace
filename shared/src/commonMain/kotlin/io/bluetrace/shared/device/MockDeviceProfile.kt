@@ -9,7 +9,7 @@ import io.bluetrace.shared.protocol.registry.ProtocolProfile
 /**
  * Mock 线协议设备档案(兜底, 对照 [MockBleProfile] 的识别口径). [matches] 恒真——只注册进 Mock
  * 后端目录, 作为唯一档案兜住 roster 全部设备. 无法从广播区分 DUT/REFERENCE, kind=DUT(plain Mock
- * DUT 现状); roster 预置 kind/profileId 的设备(Polar H10=REFERENCE/PROFILE_HRS, S7 Mock=DUT/PROFILE_S7)
+ * DUT 现状); roster 预置 kind/profileId 的设备(Polar H10=REFERENCE/PROFILE_HRS, S7 Mock=DUT/PROFILE_B2A)
  * 由 [DeviceProfileCatalog.annotate] 的"已带身份不覆盖"守卫保住, 不被本 catch-all 压平.
  *
  * dataPlane=现有 [MockBleProfile](原样挂入). gattSpec 为占位(Mock 无真实 GATT, 连接走

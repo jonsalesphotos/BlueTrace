@@ -2,11 +2,11 @@ package io.bluetrace.viewmodel
 
 import io.bluetrace.shared.device.DeviceProfileCatalog
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.S7FirmwareUpdateFactory
+import io.bluetrace.shared.b2a.B2aFirmwareUpdateFactory
 
 /**
  * OTA 工具链(单/多设备屏)的可刷判定: 识别到的档案声明的升级工厂 == 本工具执行链所用的实现
- * ([S7FirmwareUpdateFactory], 编译期类型符号).
+ * ([B2aFirmwareUpdateFactory], 编译期类型符号).
  *
  * 判据演进(两次修正, 语义按序收紧):
  * 1. 不锚产品名/档案名(profileId 等字符串): 名称是会变的——"S7" 只是当前型号, 未来跑同一
@@ -18,4 +18,4 @@ import io.bluetrace.shared.s7.S7FirmwareUpdateFactory
  * 通用 OTA 按 profile.firmwareUpdate 分派(执行链不再硬编码 S7 策略)属后续任务, 见任务清单.
  */
 internal fun DeviceProfileCatalog.supportsOtaTool(device: ScannedDevice): Boolean =
-    identify(device)?.firmwareUpdate is S7FirmwareUpdateFactory
+    identify(device)?.firmwareUpdate is B2aFirmwareUpdateFactory

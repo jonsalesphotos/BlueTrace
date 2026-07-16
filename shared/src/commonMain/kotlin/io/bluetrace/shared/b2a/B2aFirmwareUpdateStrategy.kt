@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.device.FirmwareUpdateFactory
@@ -16,20 +16,20 @@ import kotlinx.coroutines.launch
 /**
  * S7 采集固件升级策略(设计 V2 §3.3): 把现有 S7 OTA 编排整链包成通用 [FirmwareUpdateStrategy].
  *
- * **本类只做类型皮 + 映射层**——真机验证过的编排逻辑原样保留在 [OtaProvisioner]/[S7OtaSession]/[OtaAbort]
+ * **本类只做类型皮 + 映射层**——真机验证过的编排逻辑原样保留在 [OtaProvisioner]/[B2aOtaSession]/[OtaAbort]
  * (一行不改), 本类构造它们并做:
  * - [run]: 委托 [OtaProvisioner.provisionAndReconnect](下载/等自复位/扫描优先回连 60s 预算/读版本),
  *   细 [OtaPhase]->粗 [FwUpdatePhase] 映射, 细文案塞 [FwUpdateProgress.detail], 终态 [OtaResult]->[FwUpdateResult];
  * - [abort]: 委托 [OtaAbort.rebootAfterManualStop], 传输态由本类内部 [otaTransferActive] 自持.
  *
  * "同一设备 ID 自复位回连"从此是 **S7 策略的私有假设**(Bootloader 换地址/换服务/需激活命令/双分区确认的
- * 设备各写各的策略). 版本读法(短命 [S7Console].getDeviceInfo().swVer)也内迁本策略私有.
+ * 设备各写各的策略). 版本读法(短命 [B2aConsole].getDeviceInfo().swVer)也内迁本策略私有.
  *
  * [onOtaPhase]/[onOtaProgress]: S7 细粒度进度观察(消费方=多设备队列壳把 OtaPhase/OtaProgress 塞回队列项供
  * 现有 UI 直接消费). 通用工厂 [FirmwareUpdateFactory] 不带这两个(OtaPhase/OtaProgress 是 S7 专属类型),
  * 只能经本构造注入; 通用消费方走 [run] 的 [FwUpdateProgress] 回调.
  */
-class S7FirmwareUpdateStrategy(
+class B2aFirmwareUpdateStrategy(
     private val ble: BleClient,
     private val device: ScannedDevice,
     /** 升级链 scope(session 收帧 collector / 读版本会话). */
@@ -64,7 +64,7 @@ class S7FirmwareUpdateStrategy(
         val otaPkg = pkg as? OtaPackage
             ?: return FwUpdateResult.Failed("非 S7 OTA 包(FwPackage 类型不符)", 0)
 
-        val session = S7OtaSession(ble, device.id, scope, clock)
+        val session = B2aOtaSession(ble, device.id, scope, clock)
         val provisioner = OtaProvisioner(
             session, ble, device,
             readVersion = { readVersionOnce() },
@@ -123,9 +123,9 @@ class S7FirmwareUpdateStrategy(
         )
     }
 
-    /** 短命 [S7Console] 读软件版本(注入给 [OtaProvisioner] 重连后读版本; 失败抛, provisioner 侧容错转 null). */
+    /** 短命 [B2aConsole] 读软件版本(注入给 [OtaProvisioner] 重连后读版本; 失败抛, provisioner 侧容错转 null). */
     private suspend fun readVersionOnce(): String? {
-        val c = S7Console(ble, device.id, scope, clock, zone)
+        val c = B2aConsole(ble, device.id, scope, clock, zone)
         c.start()
         return try {
             c.getDeviceInfo().swVer
@@ -162,11 +162,11 @@ class S7FirmwareUpdateStrategy(
 }
 
 /**
- * S7 固件升级面工厂(设计 V2 §3.3, 对称 W3 的 [S7ControlPlaneFactory]): 挂在 [S7DeviceProfile.firmwareUpdate].
+ * S7 固件升级面工厂(设计 V2 §3.3, 对称 W3 的 [B2aControlPlaneFactory]): 挂在 [B2aDeviceProfile.firmwareUpdate].
  * 造无 S7 细进度观察(onOtaPhase/onOtaProgress 默认丢弃)的策略, 供**通用消费方**(走 [FwUpdateProgress]).
- * 需 S7 细进度的消费方(多设备队列壳)直接构造 [S7FirmwareUpdateStrategy] 注入那两个回调.
+ * 需 S7 细进度的消费方(多设备队列壳)直接构造 [B2aFirmwareUpdateStrategy] 注入那两个回调.
  */
-class S7FirmwareUpdateFactory : FirmwareUpdateFactory {
+class B2aFirmwareUpdateFactory : FirmwareUpdateFactory {
     override fun create(
         ble: BleClient,
         device: ScannedDevice,
@@ -177,7 +177,7 @@ class S7FirmwareUpdateFactory : FirmwareUpdateFactory {
         reconnectScanMs: Long,
         onLog: (String) -> Unit,
     ): FirmwareUpdateStrategy =
-        S7FirmwareUpdateStrategy(
+        B2aFirmwareUpdateStrategy(
             ble, device, scope, clock, zone, abortScope,
             reconnectScanMs = reconnectScanMs,
             onLog = onLog,

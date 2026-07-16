@@ -15,10 +15,10 @@ import io.bluetrace.shared.device.FwUpdateResult
 import io.bluetrace.shared.device.MockDeviceProfile
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
-import io.bluetrace.shared.s7.S7DeviceProfile
-import io.bluetrace.shared.s7.S7VendorOps
+import io.bluetrace.shared.b2a.B2aDeviceProfile
+import io.bluetrace.shared.b2a.B2aVendorOps
 import io.bluetrace.shared.virtualClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,15 +56,15 @@ class Protocol2AcceptanceTest {
 
     @Test
     fun identify_ZX_and_S7_fromSameCatalog_noCrossContamination() {
-        val catalog = DeviceProfileCatalog(listOf(S7DeviceProfile(), ZxDeviceProfile(), MockDeviceProfile()))
+        val catalog = DeviceProfileCatalog(listOf(B2aDeviceProfile(), ZxDeviceProfile(), MockDeviceProfile()))
 
         val zxHit = catalog.identify(dev(adv = listOf("AA00")))
         assertIs<ZxDeviceProfile>(zxHit) // AA00 广播应命中 ZxDeviceProfile
         assertEquals(PROFILE_ZX, zxHit.profileId)
 
         val s7Hit = catalog.identify(dev(adv = listOf("180A", "FFE0")))
-        assertIs<S7DeviceProfile>(s7Hit) // FFE0 广播应仍命中 S7DeviceProfile, 不被 ZX 抢先/误伤
-        assertEquals(PROFILE_S7, s7Hit.profileId)
+        assertIs<B2aDeviceProfile>(s7Hit) // FFE0 广播应仍命中 B2aDeviceProfile, 不被 ZX 抢先/误伤
+        assertEquals(PROFILE_B2A, s7Hit.profileId)
     }
 
     // ---- 2. 会话 + 分面: 真 MockBleClient(roster 含 zx-9001) 走 DeviceSessionManager ----
@@ -73,7 +73,7 @@ class Protocol2AcceptanceTest {
     fun acquire_ZX_overMockBleClient_missingLogsAndVendor_genericFacetsLiveEndToEnd() = runTest {
         val clock = virtualClock { testScheduler.currentTime }
         val mock = MockBleClient(clock, backgroundScope)
-        val catalog = DeviceProfileCatalog(listOf(S7DeviceProfile(), ZxDeviceProfile(), MockDeviceProfile()))
+        val catalog = DeviceProfileCatalog(listOf(B2aDeviceProfile(), ZxDeviceProfile(), MockDeviceProfile()))
         val m = DeviceSessionManager(catalog, mock, backgroundScope, clock, TestZone())
 
         // roster 的 zx-9001(广播含 AA00) -> ZxDeviceProfile 命中 -> confirm(discoveredService16s 含 AA00) 通过
@@ -170,7 +170,7 @@ class Protocol2AcceptanceTest {
         val hasTimeSync = ctl.timeSync != null
         val hasLogs = ctl.logs != null
         val hasPower = ctl.power != null
-        val hasVendorS7 = (ctl.vendor as? S7VendorOps) != null
+        val hasVendorS7 = (ctl.vendor as? B2aVendorOps) != null
 
         assertTrue(hasInfo, "版本块应显示")
         assertTrue(hasBattery, "电量块应显示")

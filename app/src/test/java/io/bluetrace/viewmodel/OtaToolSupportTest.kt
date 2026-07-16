@@ -10,8 +10,8 @@ import io.bluetrace.shared.device.ScanSpec
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.protocol.registry.ProtocolProfile
-import io.bluetrace.shared.s7.S7DeviceProfile
-import io.bluetrace.shared.s7.S7FirmwareUpdateFactory
+import io.bluetrace.shared.b2a.B2aDeviceProfile
+import io.bluetrace.shared.b2a.B2aFirmwareUpdateFactory
 import io.bluetrace.shared.util.EpochClock
 import io.bluetrace.shared.util.TimeZoneProvider
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [supportsOtaTool] 判据测试: 锚**升级能力工厂类型**(S7FirmwareUpdateFactory)——
+ * [supportsOtaTool] 判据测试: 锚**升级能力工厂类型**(B2aFirmwareUpdateFactory)——
  * 不锚产品名(名称会变), 也不只锚服务 UUID(同 FFE0 但 firmwareUpdate=null/异构策略的
  * 未来档案不具备本工具执行链的编排语义, 必须拒绝).
  */
@@ -56,7 +56,7 @@ class OtaToolSupportTest {
 
     @Test
     fun s7Profile_supported() {
-        val catalog = DeviceProfileCatalog(listOf(S7DeviceProfile()))
+        val catalog = DeviceProfileCatalog(listOf(B2aDeviceProfile()))
         assertTrue("S7 档案(挂 S7 工厂)应放行", catalog.supportsOtaTool(dev(adv = listOf("FFE0"))))
     }
 
@@ -74,7 +74,7 @@ class OtaToolSupportTest {
 
     @Test
     fun unrecognizedDevice_rejected() {
-        val catalog = DeviceProfileCatalog(listOf(S7DeviceProfile()))
+        val catalog = DeviceProfileCatalog(listOf(B2aDeviceProfile()))
         assertFalse("识别不到档案: 拒绝", catalog.supportsOtaTool(dev(adv = listOf("9999"))))
     }
 }

@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.device.FwPackage
 
@@ -7,10 +7,10 @@ import io.bluetrace.shared.device.FwPackage
  * 采集固件刷入 = 采集 `ota_all`(14 文件) 或最小 `ota_part`(ResData/ResFat/ResCheck/fw.dat).
  * 见 `Docs/OTA/S7采集OTA_设计.md` §1.1.
  *
- * 实现通用 [FwPackage] marker(W4): S7 策略 [S7FirmwareUpdateStrategy] 内 `pkg as? OtaPackage` 受限转型据此.
+ * 实现通用 [FwPackage] marker(W4): S7 策略 [B2aFirmwareUpdateStrategy] 内 `pkg as? OtaPackage` 受限转型据此.
  */
 data class OtaPackage(
-    val moduleId: Int = S7FileTrans.MODULE_OTA,
+    val moduleId: Int = B2aFileTrans.MODULE_OTA,
     val files: List<OtaFile>,
 ) : FwPackage {
     val totalBytes: Long get() = files.sumOf { it.bytes.size.toLong() }
@@ -53,7 +53,7 @@ data class OtaProgress(
 
 /**
  * OTA 结果.
- * - [DoneDownload]: 末文件 STOP 收讫(下载阶段成功, [S7OtaSession.provision] 的终态); 生效未确认.
+ * - [DoneDownload]: 末文件 STOP 收讫(下载阶段成功, [B2aOtaSession.provision] 的终态); 生效未确认.
  * - [Reconnected]: 下载后设备自复位 → 重连成功, 读到当前版本([OtaProvisioner] 的终态).
  * - [Failed]: 下载失败或重连失败.
  */
@@ -105,16 +105,16 @@ fun OtaFailure.describe(): String = when (this) {
     OtaFailure.NotConnected -> "设备未连接"
     is OtaFailure.Timeout -> "指令 $stage 应答超时"
     is OtaFailure.ReqRejected -> "REQ 被设备拒绝：${reqStatusName(status)}"
-    is OtaFailure.DeviceError -> "指令 $stage 设备返回错误 ${S7.errorName[code] ?: "0x${code.toString(16)}"}"
+    is OtaFailure.DeviceError -> "指令 $stage 设备返回错误 ${B2a.errorName[code] ?: "0x${code.toString(16)}"}"
     is OtaFailure.SliceFailed -> "文件传输失败：$fileName @ 偏移 $offset（切片重传超限）"
     is OtaFailure.Malformed -> "指令 $stage 应答格式非法"
     OtaFailure.ReconnectFailed -> "回连失败（扫描窗口内未连上设备）"
 }
 
 private fun reqStatusName(status: Int): String = when (status) {
-    S7FileTrans.REQ_DISK_FULL -> "DISK_FULL(磁盘满)"
-    S7FileTrans.REQ_BUSY -> "BUSY(设备忙)"
-    S7FileTrans.REQ_MEMORY -> "MEMORY(内存不足)"
+    B2aFileTrans.REQ_DISK_FULL -> "DISK_FULL(磁盘满)"
+    B2aFileTrans.REQ_BUSY -> "BUSY(设备忙)"
+    B2aFileTrans.REQ_MEMORY -> "MEMORY(内存不足)"
     else -> "0x${status.toString(16)}"
 }
 

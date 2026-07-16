@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.bluetrace.shared.domain.LinkState
-import io.bluetrace.shared.s7.OtaPhase
+import io.bluetrace.shared.b2a.OtaPhase
 import io.bluetrace.ui.components.BtTopBar
 import io.bluetrace.ui.components.PrimaryButton
 import io.bluetrace.ui.components.StatusPill
@@ -317,7 +317,7 @@ private fun ProgressCard(ui: OtaTestUiState) {
 
 /** 错误详情卡: 最近一次失败的出错指令 / 文件传输失败位置(含失败瞬间的传输进度).  */
 @Composable
-private fun ErrorCard(lastError: String, progressAtFailure: io.bluetrace.shared.s7.OtaProgress?) {
+private fun ErrorCard(lastError: String, progressAtFailure: io.bluetrace.shared.b2a.OtaProgress?) {
     Surface(color = BT.errorC, shape = RoundedCornerShape(BT.radius), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
             Text("失败详情", fontSize = 12.sp, fontWeight = FontWeight.W800, color = BT.error)

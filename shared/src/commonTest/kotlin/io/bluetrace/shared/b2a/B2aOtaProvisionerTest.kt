@@ -1,4 +1,4 @@
-package io.bluetrace.shared.s7
+package io.bluetrace.shared.b2a
 
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.ble.BleNotification
@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
  * Mock 手表 `otaRebootAfterComplete=true` 在末 STOP 后随 ack 断链, 模拟设备自复位.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class S7OtaProvisionerTest {
+class B2aOtaProvisionerTest {
 
     private val device = ScannedDevice(
         id = "s7-fcc4", name = "SKG WATCH S7-FCC4", address = "71:61:48:19:FC:C4",
@@ -39,7 +39,7 @@ class S7OtaProvisionerTest {
 
     /** 直连 Mock 手表 + 可控重连的 BleClient: write→watch.handle→异步回 notify; 末 STOP 后按注入断链.  */
     private class FakeProvBle(
-        val watch: S7MockWatch,
+        val watch: B2aMockWatch,
         private val clock: EpochClock,
         private val scope: CoroutineScope,
         /** connect() 是否置 CONNECTED(false = 模拟设备开不回来, 测重连失败).  */
@@ -84,15 +84,15 @@ class S7OtaProvisionerTest {
     }
 
     private fun pkg(vararg files: Pair<String, Int>) = OtaPackage(
-        files = files.map { (name, size) -> OtaFile(name, ByteArray(size) { (it * 31 + name.length).toByte() }, S7FileTrans.FT_FW) },
+        files = files.map { (name, size) -> OtaFile(name, ByteArray(size) { (it * 31 + name.length).toByte() }, B2aFileTrans.FT_FW) },
     )
 
-    private fun kotlinx.coroutines.test.TestScope.newSession(ble: BleClient): S7OtaSession =
-        S7OtaSession(ble, "s7-fcc4", backgroundScope, virtualClock { testScheduler.currentTime })
+    private fun kotlinx.coroutines.test.TestScope.newSession(ble: BleClient): B2aOtaSession =
+        B2aOtaSession(ble, "s7-fcc4", backgroundScope, virtualClock { testScheduler.currentTime })
 
     @Test
     fun provisionAndReconnect_reboots_reconnects_readsCurrentVersion() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         val prov = OtaProvisioner(newSession(ble), ble, device, readVersion = { "collect-1.0" })
         val phases = mutableListOf<OtaPhase>()
@@ -111,7 +111,7 @@ class S7OtaProvisionerTest {
 
     @Test
     fun provisionAndReconnect_failsWhenReconnectNeverSucceeds() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope, connectSucceeds = false)
         val prov = OtaProvisioner(
             newSession(ble), ble, device, readVersion = { "x" },
@@ -125,7 +125,7 @@ class S7OtaProvisionerTest {
     /** 版本读不到不算失败: 重连成功即 Reconnected, currentVersion=null(UI 显示"未知").  */
     @Test
     fun provisionAndReconnect_versionUnreadable_yieldsReconnectedNull() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         val prov = OtaProvisioner(newSession(ble), ble, device, readVersion = { null }) // 恒读不到
         val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
@@ -133,17 +133,17 @@ class S7OtaProvisionerTest {
     }
 
     /**
-     * A 修复守护: 生产 readVersion(=S7Console.getDeviceInfo) 超时是 **抛异常** 非返 null →
+     * A 修复守护: 生产 readVersion(=B2aConsole.getDeviceInfo) 超时是 **抛异常** 非返 null →
      * 本层须容错(转 null 重试)而非抛穿 → 终态 Reconnected(null), 不异常穿透.
      */
     @Test
     fun provisionAndReconnect_versionReadThrows_yieldsReconnectedNull_notPropagated() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         var reads = 0
         val prov = OtaProvisioner(
             newSession(ble), ble, device,
-            readVersion = { reads++; throw S7CommandException(S7Failure.Timeout) }, // 仿 getDeviceInfo 超时抛
+            readVersion = { reads++; throw B2aCommandException(B2aFailure.Timeout) }, // 仿 getDeviceInfo 超时抛
             versionReadRetries = 3,
         )
         // A 修复前此调用会异常穿透(测试直接失败); 修复后容错为 Reconnected(null)
@@ -155,7 +155,7 @@ class S7OtaProvisionerTest {
     /** 设备未断链(OTA 静默没触发复位)时仍能重连+读到当前版本; reconnect 首圈短路 connectCalls==0.  */
     @Test
     fun provisionAndReconnect_noReboot_readsStaleVersion() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }) // 不断链
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }) // 不断链
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         val prov = OtaProvisioner(newSession(ble), ble, device, readVersion = { "1.2.7.0" }, rebootWaitMs = 2_000)
         val result = prov.provisionAndReconnect(pkg("fw.dat" to 3000))
@@ -168,7 +168,7 @@ class S7OtaProvisionerTest {
     /** 有扫描能力时: 先扫到目标广播再连接(一次即中), 阶段含 Scanning.  */
     @Test
     fun reconnect_scansFirst_connectsAfterSighting() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         val other = device.copy(id = "someone-else")
         ble.scanFlow = flow {
@@ -190,7 +190,7 @@ class S7OtaProvisionerTest {
     /** 扫描预算硬门: 目标始终不出现 + 直连也失败 → 至少扫满 60s(虚拟时钟计时)才判 ReconnectFailed.  */
     @Test
     fun reconnect_scanBudget_atLeast60s_beforeFailing() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope, connectSucceeds = false)
         ble.scanFlow = flow {
             while (true) {
@@ -214,7 +214,7 @@ class S7OtaProvisionerTest {
     /** 扫到广播但首连失败 → 回到扫描等下一次广播, 再连成功.  */
     @Test
     fun reconnect_connectFailThenRescan_succeedsOnSecondSighting() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRebootAfterComplete = true }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         ble.connectPlan.addAll(listOf(false, true)) // 首连失败, 二连成功
         ble.scanFlow = flow {
@@ -234,13 +234,13 @@ class S7OtaProvisionerTest {
 
     @Test
     fun provisionAndReconnect_passesThroughDownloadFailure() = runTest {
-        val watch = S7MockWatch(virtualClock { testScheduler.currentTime }).apply { otaRejectReq = S7FileTrans.REQ_BUSY }
+        val watch = B2aMockWatch(virtualClock { testScheduler.currentTime }).apply { otaRejectReq = B2aFileTrans.REQ_BUSY }
         val ble = FakeProvBle(watch, virtualClock { testScheduler.currentTime }, backgroundScope)
         var versionRead = false
         val prov = OtaProvisioner(newSession(ble), ble, device, readVersion = { versionRead = true; "x" })
         val result = prov.provisionAndReconnect(pkg("fw.dat" to 100))
         // 下载阶段(REQ 被拒)直接透传, 不进重连/读版本
-        assertEquals(OtaFailure.ReqRejected(S7FileTrans.REQ_BUSY), assertIs<OtaResult.Failed>(result).reason)
+        assertEquals(OtaFailure.ReqRejected(B2aFileTrans.REQ_BUSY), assertIs<OtaResult.Failed>(result).reason)
         assertTrue(!versionRead, "下载失败不应进读版本阶段")
     }
 }

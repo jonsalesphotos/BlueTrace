@@ -4,7 +4,7 @@ import io.bluetrace.shared.ble.BleNotification
 import io.bluetrace.shared.domain.DeviceKind
 import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.PROFILE_HRS
-import io.bluetrace.shared.domain.PROFILE_S7
+import io.bluetrace.shared.domain.PROFILE_B2A
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.virtualClock
 import kotlinx.coroutines.launch
@@ -20,7 +20,7 @@ class MockBleClientTest {
 
     private fun dut() = ScannedDevice("dut-0427", "BT-DUT-0427", "C4:7B:8D:0A:04:27", -52, DeviceKind.DUT)
     private fun s7() = ScannedDevice(
-        "s7-fcc4", "SKG WATCH S7-FCC4", "AA:BB:CC:DD:FC:C4", -58, DeviceKind.DUT, PROFILE_S7,
+        "s7-fcc4", "SKG WATCH S7-FCC4", "AA:BB:CC:DD:FC:C4", -58, DeviceKind.DUT, PROFILE_B2A,
         advertisedServices = listOf("FFE0"),
     )
 
