@@ -11,6 +11,8 @@ import io.bluetrace.shared.domain.LinkState
 import io.bluetrace.shared.domain.ScannedDevice
 import io.bluetrace.shared.util.EpochClock
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.CancellationException
@@ -29,14 +31,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 // ---- Nordic Kotlin-BLE-Library 2.0(隔离面: 全部 Nordic import 收在本文件——BleClient 的唯一 Nordic 依赖点)----
 import no.nordicsemi.kotlin.ble.client.RemoteCharacteristic
 import no.nordicsemi.kotlin.ble.client.RemoteService
 import no.nordicsemi.kotlin.ble.client.RemoteServices
-import no.nordicsemi.kotlin.ble.client.ServicesChanged
-import no.nordicsemi.kotlin.ble.client.internal.OperationMutex
 import no.nordicsemi.kotlin.ble.client.android.CentralManager
 import no.nordicsemi.kotlin.ble.client.android.Peripheral
 import no.nordicsemi.kotlin.ble.client.android.ScanResult
@@ -83,17 +85,52 @@ class NordicBleClient(
     private val scope: CoroutineScope,
 ) : BleClient {
 
-    // 首次使用时创建(避免在 DI 构造期做 Android 工作): NativeAndroidEnvironment 桥接 Context + 注册蓝牙状态广播.
-    // isNeverForLocationFlagSet=false: 本工程 manifest 的 BLUETOOTH_SCAN 未声明 neverForLocation(定位是真实数据源, D-3).
-    private val centralManager by lazy {
-        CentralManager.Factory.native(
-            NativeAndroidEnvironment.getInstance(context, isNeverForLocationFlagSet = false),
-            scope,
-        )
+    /**
+     * **一"代" BLE 栈**: 独立 CentralManager + 独立子域 + 本代自己的 Peripheral/连接表.
+     *
+     * ## 为什么必须分代(#25 真机取证结论, 2026-07-15)
+     * 库把 Peripheral 按 MAC 缓存复用(`CentralManagerImpl.managedPeripherals`), 而 Peripheral 内的
+     * `NativeExecutor.gatt` 是**可变字段**: 新连接会把它替换成新的 BluetoothGatt. 一旦某代的服务发现
+     * 挂死(库丢弃 `gatt.discoverServices()` 的 false 返回值, 见 [disconnectBounded] KDoc), 就同时留下:
+     * - **幽灵锁**: 发现用裸 `OperationMutex.lock(ServicesChanged)` 且无 finally, 全进程锁被永久持有;
+     * - **闩锁死**: `servicesDiscovered` 只在断链事件到达时经 invalidateServices 复位, 链路没真断则永不复位
+     *   => 该 Peripheral 上 `services()` 永远 no-op(真机实测 lastState=**Unknown**), 即"永远连不上";
+     * - **陈旧 disconnect**: 它已进库内且堵在全局锁前, **不可取消**(库内 `withContext(NonCancellable)`).
+     * 曾试过"直接 unlock 幽灵锁"放行它——**真机证伪**: 陈旧 disconnect 恢复后读的是**当前**的 gatt
+     * (已被新一代替换), 于是**断掉新一代连接**. 故在 App 调用点做代际检查无效: 旧调用早已进库.
+     * 证据 = `Docs/真机证据/nordic25_20260715/ghost_lock_repro.log`.
+     *
+     * ## 为什么"取消本代 scope"是唯一正解(beta03 源码逐条核实)
+     * - `CentralManagerImpl.internalScope` 派生自**我们传入的 scope**; 每个 peripheral 建立时挂了
+     *   `.onCompletion { newPeripheral.forceClose() }.launchIn(internalScope)` => **取消本代 scope
+     *   即触发全部 peripheral 的 forceClose**;
+     * - 反之 `CentralManager.close()` 只做 `isOpen=false; closeJob.cancel()`, **不触发** 上述 forceClose 链,
+     *   故不能只调 close() 就当完事;
+     * - `forceClose() -> close() -> gattEventCollector.cancel() -> onCompletion -> close()` 再进一次
+     *   (此时 collector 已 null, elvis 生效)-> `handleDisconnection()`(=> `invalidateServices()`:
+     *   **闩复位** + **库自己合法释放幽灵锁**) + `serviceDiscoveryRequested=false` + `impl.close()`
+     *   (= `gatt.disconnect()` + `gatt.close()`, **真正释放原生 GATT**);
+     * - **全链零 `OperationMutex`** —— 这正是它能在幽灵锁在手时仍然生效的原因.
+     * 上游修好后本机制可整体撤除.
+     */
+    private class ManagerGen(
+        val id: Long,
+        /** 本代专属域: 取消它 => 库 forceClose 全部 peripheral(见类 KDoc).  */
+        val scope: CoroutineScope,
+        val manager: CentralManager,
+    ) {
+        /** 本代的连接表(不与其它代共用: 跨代复用正是 #25 的病根).  */
+        val conns = ConcurrentHashMap<String, Conn>()
+        /** 本代发现的 16-bit 短码服务表.  */
+        val services16 = ConcurrentHashMap<String, List<String>>()
+        /** 退役标记(CAS 门): 置位后本代不再接受新连接.  */
+        val retiring = AtomicBoolean(false)
     }
 
     /** 单连接持有的通道句柄(探测/spec 两路径统一).  */
     private class Conn(
+        /** 所属代 id: 一切回调/清理据此校验, 陈旧代零动作退出(不得改写新代状态).  */
+        val gen: Long,
         val peripheral: Peripheral,
         /** 本连接的订阅/状态观测子域: disconnect / 被动断链时整体取消.  */
         val scope: CoroutineScope,
@@ -105,12 +142,66 @@ class NordicBleClient(
         val writeType: WriteType,
     )
 
-    private val conns = ConcurrentHashMap<String, Conn>()
+    private val genSeq = AtomicLong(0)
+    private val genLock = Mutex()
+    /** 当前代(首次使用时建, 避免在 DI 构造期做 Android 工作).  */
+    @Volatile private var gen: ManagerGen? = null
+
     private val links = ConcurrentHashMap<String, MutableStateFlow<LinkState>>()
-    // 设备级持久通知流(与连接生命周期解耦: 订阅可先于 connect——console attach 早于连接完成)
+    // 设备级持久通知流(与连接生命周期解耦: 订阅可先于 connect——console attach 早于连接完成).
+    // **跨代存活**: 它只是 App 侧的数据通道, 与库对象无关; 换代不该让上层的订阅断掉.
     private val notifyFlows = ConcurrentHashMap<String, MutableSharedFlow<BleNotification>>()
-    // 连接后发现的 16-bit 短码服务表(会话宿主 confirm 二次确认用; 断连清理).
-    private val discoveredServices16 = ConcurrentHashMap<String, List<String>>()
+
+    /** 取当前代; 无则建. 退役中的代不会被返回(调用方拿到的永远是可用代).  */
+    private suspend fun currentGen(): ManagerGen = genLock.withLock { ensureGenLocked() }
+
+    private fun ensureGenLocked(): ManagerGen {
+        gen?.let { if (!it.retiring.get()) return it }
+        val id = genSeq.incrementAndGet()
+        // 本代专属子域: 父 = app scope(SupervisorJob 隔离, 本代崩不影响 app 域).
+        val genScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+        // isNeverForLocationFlagSet=false: 本工程 manifest 的 BLUETOOTH_SCAN 未声明 neverForLocation(定位是真实数据源, D-3).
+        val mgr = CentralManager.Factory.native(
+            NativeAndroidEnvironment.getInstance(context, isNeverForLocationFlagSet = false),
+            genScope,
+        )
+        return ManagerGen(id, genScope, mgr).also {
+            gen = it
+            Log.d(TAG, "manager gen $id created")
+        }
+    }
+
+    /**
+     * **退役一代并重建**: 服务发现挂死/幽灵锁场景的唯一出路(见 [ManagerGen] KDoc).
+     *
+     * CAS 保证同一代只退役一次(多台设备同时超时不会重建多次); 取消本代 scope => 库 forceClose
+     * 全部 peripheral(真正 `gatt.close()` + 闩复位 + 幽灵锁由库自身释放), 随后立刻建新代.
+     * 本代的 conns/services16 整表丢弃, links 收敛 DISCONNECTED(notifyFlows 跨代保留).
+     */
+    private suspend fun retireGen(g: ManagerGen, reason: String) {
+        if (!g.retiring.compareAndSet(false, true)) return // 败者零动作退出
+        Log.w(TAG, "retiring manager gen ${g.id}: $reason")
+        g.conns.clear()
+        g.services16.clear()
+        // 取消本代域 -> 库 forceClose 链(gatt.close + 闩复位 + 幽灵锁释放), 全程不碰 OperationMutex.
+        g.scope.cancel(CancellationException("manager gen ${g.id} retired: $reason"))
+        runCatching { g.manager.close() } // 尽力而为: close() 本身不做 forceClose, 但置 isOpen=false 防误用
+        // **收敛一切未断开的链路**(不能只收敛 g.conns): 发现超时发生在 conns 登记**之前**(登记在订阅完成后),
+        // 此时 conns 为空而 link 停在 CONNECTING —— 漏收敛会让 connect() 首行的
+        // `if (l.value == CONNECTED || CONNECTING) return` 短路掉之后**每一次**连接请求, 即"永远连不上".
+        // (2026-07-15 真机第二轮实证: "0 link(s) dropped" 即此坑. )
+        // 本代退役 = 其全部 peripheral 被 forceClose, 故任何非 DISCONNECTED 的链路都已不成立.
+        var dropped = 0
+        links.forEach { (id, flow) ->
+            if (flow.value != LinkState.DISCONNECTED) {
+                flow.value = LinkState.DISCONNECTED
+                dropped++
+                Log.d(TAG, "gen ${g.id} retire: link $id -> DISCONNECTED")
+            }
+        }
+        genLock.withLock { if (gen === g) ensureGenLocked() }
+        Log.d(TAG, "manager gen ${g.id} retired, $dropped link(s) dropped")
+    }
 
     private fun link(id: String): MutableStateFlow<LinkState> =
         links.getOrPut(id) { MutableStateFlow(LinkState.DISCONNECTED) }
@@ -126,8 +217,10 @@ class NordicBleClient(
         emit(emptyList())
         val found = LinkedHashMap<String, ScannedDevice>()
         try {
+            // 每次开扫取当代 manager: 换代后旧 manager 的 scan 会随其 scope 取消而结束(冷流, 上层重开即用新代).
+            val g = currentGen()
             // scan() 默认无过滤 + INFINITE 超时: 累积去重, 上游取消 -> 冷流取消 -> 底层停扫.
-            centralManager.scan().collect { sr ->
+            g.manager.scan().collect { sr ->
                 val dev = sr.toScanned() ?: return@collect
                 if (found.size < 5) {
                     Log.d(TAG, "scanResult ${dev.name} ${dev.address} rssi=${dev.rssi} adv=${dev.advertisedServices}")
@@ -166,15 +259,18 @@ class NordicBleClient(
     override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {
         val l = link(device.id)
         if (l.value == LinkState.CONNECTED || l.value == LinkState.CONNECTING) return
-        val peripheral = centralManager.getPeripheralById(device.id) ?: run {
+        // 取当代: 退役中的代拿不到(见 [currentGen]), 故新连接永远建在可用代上.
+        val g = currentGen()
+        val peripheral = g.manager.getPeripheralById(device.id) ?: run {
             Log.w(TAG, "connect: unknown peripheral ${device.id}")
             l.value = LinkState.DISCONNECTED
             return
         }
         l.value = LinkState.CONNECTING
-        Log.d(TAG, "connect start ${device.id} spec=${spec?.serviceUuid16 ?: "probe"}")
+        Log.d(TAG, "connect start ${device.id} spec=${spec?.serviceUuid16 ?: "probe"} gen=${g.id}")
 
-        val connScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+        // 连接子域挂**本代**域下: 代退役 => 本域随之取消(不必逐个 teardown).
+        val connScope = CoroutineScope(g.scope.coroutineContext + SupervisorJob(g.scope.coroutineContext[Job]))
         try {
             // [OTA 复位回连修-1] 连接前注册 services 观察——库设计的重连姿势(源码注释原文:
             // "This is useful when the peripheral reconnects but the services observer was already set."):
@@ -183,7 +279,7 @@ class NordicBleClient(
             // 故**每次连接前都必须重新注册**——manager 缓存 getOrPut 同 id 永远同实例, 复用实例全靠此姿势复活.
             val servicesFlow = peripheral.services()
 
-            centralManager.connect(peripheral, CentralManager.ConnectionOptions.Direct(timeout = CONNECT_TIMEOUT))
+            g.manager.connect(peripheral, CentralManager.ConnectionOptions.Direct(timeout = CONNECT_TIMEOUT))
             // MTU: Nordic 2.0 只提供 requestHighestValueLength(请求 517); 设备侧协商收敛到其上限(S7 预期 247).
             // 该调用挂起到 MtuChanged 事件(库源码证据见 [awaitMtuConverged]); 失败非致命(轮询兜底后沿用现值).
             try {
@@ -217,28 +313,39 @@ class NordicBleClient(
             val discovered = when (settled) {
                 is RemoteServices.Discovered -> settled
                 is RemoteServices.Failed -> {
+                    // 库正常发出的失败事件: 它自己已解锁并复位闩(invalidateServices), 本代仍健康, 不必换代.
                     Log.w(TAG, "services discovery FAILED ${device.id}: ${settled.reason}")
-                    null
+                    teardown(device.id, peripheral, connScope, g)
+                    return
                 }
                 else -> {
-                    Log.w(TAG, "services discovery timeout ${device.id}, lastState=${servicesFlow.value}")
-                    null
+                    // **超时 = 本代已被污染, 唯一出路是整代退役重建**(见 [ManagerGen] KDoc):
+                    // - lastState=Discovering: 发现已发出但回调永不来(库丢弃 discoverServices() 的 false 返回值)
+                    //   => 幽灵锁被永久持有 + 闩锁死;
+                    // - lastState=Unknown: 发现根本没启动 => 闩已锁死(前一次污染的遗留).
+                    // 两种末态都不可能靠本代自愈: 库无公开 API 能复位 Peripheral, 且 disconnect() 要抢的正是
+                    // 那把被占死的锁. 退役会 forceClose 本代全部 peripheral(真 gatt.close + 闩复位 +
+                    // 库自身释放幽灵锁), 全程不碰 OperationMutex.
+                    Log.w(TAG, "services discovery timeout ${device.id}, lastState=${servicesFlow.value}, gen=${g.id}")
+                    // 不走 teardown: 本代的 disconnect() 会堵在幽灵锁上(真机实证), 且陈旧调用一旦进库便不可取消,
+                    // 解锁放行它反而会断掉新一代连接. 直接整代退役.
+                    connScope.cancel()
+                    // 退役丢 **app 域**: 本方法跑在调用方协程里(连接页 VM 的 viewModelScope), 调用方随时可能
+                    // 被销毁取消; 换代做到一半被取消会留下"旧代已退役、新代没建起来"的空档.
+                    scope.launch { retireGen(g, "service discovery ${servicesFlow.value} on ${device.id}") }
+                    return
                 }
-            }
-            if (discovered == null) {
-                teardown(device.id, peripheral, connScope)
-                return
             }
             val services = discovered.services
             Log.d(TAG, "services ${device.id}: ${services.map { extract16(it.uuid.toString()) }}")
             // 存 16-bit 短码服务表(会话宿主 confirm 二次确认用).
-            discoveredServices16[device.id] = services.mapNotNull { extract16(it.uuid.toString()) }
+            g.services16[device.id] = services.mapNotNull { extract16(it.uuid.toString()) }
 
             // 通道定位(spec 声明式 / 现状探测 B2A->HRS)——与 AndroidBleClient.onServicesDiscovered 逐条对齐.
             val plan = resolveChannels(services, spec)
             if (plan == null || plan.notify.isEmpty()) {
                 Log.w(TAG, "no usable channel ${device.id} (spec=${spec != null})")
-                teardown(device.id, peripheral, connScope)
+                teardown(device.id, peripheral, connScope, g)
                 return
             }
 
@@ -271,13 +378,20 @@ class NordicBleClient(
             val ready = withTimeoutOrNull(SUBSCRIBE_TIMEOUT) { allReady.await() } ?: false
             if (!ready) {
                 Log.w(TAG, "notify subscribe not ready ${device.id}")
-                teardown(device.id, peripheral, connScope)
+                teardown(device.id, peripheral, connScope, g)
                 return
             }
 
-            conns[device.id] = Conn(peripheral, connScope, plan.writeChar, plan.writeChars, plan.writeType)
+            val conn = Conn(g.id, peripheral, connScope, plan.writeChar, plan.writeChars, plan.writeType)
+            // 代际守卫: 若在订阅期间本代已退役, 不得把连接登记进(已废弃的)表, 也不得发布 CONNECTED.
+            if (g.retiring.get()) {
+                Log.w(TAG, "gen ${g.id} retired during connect ${device.id}, dropping")
+                connScope.cancel()
+                return
+            }
+            g.conns[device.id] = conn
             l.value = LinkState.CONNECTED
-            Log.d(TAG, "CONNECTED ${device.id}")
+            Log.d(TAG, "CONNECTED ${device.id} gen=${g.id}")
             // 被动断链观测(设备自复位 / OTA 重启 / 蓝牙关): state 转 Disconnected -> 收敛 DISCONNECTED + 清理;
             // 不自动重连(同 v1 AndroidBleClient——断了就 DISCONNECTED). 置于 CONNECTED 之后启动:
             // StateFlow 现值若已 Disconnected(连上瞬断), 首个 emission 即触发清理, 不会被后置的 CONNECTED 覆盖.
@@ -285,10 +399,13 @@ class NordicBleClient(
                 peripheral.state.collect { st ->
                     when (st) {
                         is ConnectionState.Disconnected, ConnectionState.Disconnecting -> {
-                            Log.d(TAG, "state=$st -> DISCONNECTED ${device.id}")
-                            l.value = LinkState.DISCONNECTED
-                            conns.remove(device.id)
-                            discoveredServices16.remove(device.id)
+                            Log.d(TAG, "state=$st -> DISCONNECTED ${device.id} gen=${g.id}")
+                            // **代际保护**: 只在"本 Conn 仍是当前登记者"时清理/发布——晚到的旧代回调
+                            // 不得清掉新代的连接表或把新代的 CONNECTED 打成 DISCONNECTED(#25 跨代污染).
+                            if (g.conns.remove(device.id, conn)) {
+                                l.value = LinkState.DISCONNECTED
+                                g.services16.remove(device.id)
+                            }
                             connScope.cancel()
                         }
                         else -> Unit
@@ -298,12 +415,12 @@ class NordicBleClient(
         } catch (e: CancellationException) {
             // 调用方协程取消(连接页返回销毁 VM 等): 必须释放底层连接, 否则幽灵连接占死设备(真机踩过, 见 AndroidBleClient).
             Log.d(TAG, "connect cancelled ${device.id}, releasing")
-            teardown(device.id, peripheral, connScope)
+            teardown(device.id, peripheral, connScope, g)
             throw e
         } catch (e: Exception) {
             // 连接失败不抛业务异常(BleClient 契约): 收敛 DISCONNECTED, 由调用方观测 + 超时兜底.
             Log.w(TAG, "connect failed ${device.id}: ${e.message}")
-            teardown(device.id, peripheral, connScope)
+            teardown(device.id, peripheral, connScope, g)
         }
     }
 
@@ -358,82 +475,80 @@ class NordicBleClient(
      * 后的 teardown)`withTimeoutOrNull(3s)` 的取消**切不掉** disconnect() 内部的清理挂起——body 不结束
      * withTimeoutOrNull 就不返回(结构化并发), 连"timed out"日志都打不出, teardown 挂死 -> connect()
      * 永不返回 -> 调用方 busy 永挂(连接页按钮冻结在"连接中"/无法重试).
-     * 故断开改 **fire-and-forget**(丢 app 级 [scope]): 收尾(conns/link/服务表)必达优先, 底层断开
-     * 尽力而为; 挂死的断开协程待系统 supervision timeout 的断链事件到来自行完结.
+     * 故断开改 **fire-and-forget**(丢**本代**域): 收尾(conns/link/服务表)必达优先, 底层断开
+     * 尽力而为; 挂死的断开协程随本代退役时的 scope 取消一并了结(不再泄漏到 app 域).
+     *
+     * **[#25 失败实验存档 2026-07-15]** 此处曾加"幽灵锁清扫"(teardown+4s 后直接
+     * `OperationMutex.unlock(ServicesChanged)`), **真机验证证伪, 已撤除**——它解的是锁, 放出来的却是
+     * 一个**陈旧且已进入库内部**的 disconnect: 库的 `NativeExecutor.gatt` 是可变字段, 新一代连接会把它
+     * 替换掉, 而陈旧 disconnect 恢复执行时读的是**当前**的 gatt => **断掉新一代连接**(真机实测:
+     * Gen1 disconnect 堵锁 -> Gen2 建立 -> sweep 解锁 -> Gen2 被断). 故"在 App 调用点做代际检查"无效:
+     * 旧调用早已进库. 证据 = `Docs/真机证据/nordic25_20260715/ghost_lock_repro.log`(样本 5).
+     * 正解是**不让 Peripheral 跨代复用**(见 [ManagerGen]), 而非去动库的全局锁.
      */
-    private fun teardown(id: String, peripheral: Peripheral, connScope: CoroutineScope) {
-        conns.remove(id)
-        discoveredServices16.remove(id)
+    private fun teardown(id: String, peripheral: Peripheral, connScope: CoroutineScope, g: ManagerGen) {
+        // 代际保护: 只清本代自己的登记; 退役中的代整表已被丢弃, 这里再动也不影响新代.
+        g.conns.remove(id)
+        g.services16.remove(id)
+        // **[#25 断开看门狗]** 真机第三轮实证: 用户在服务发现进行中返回 -> connect 协程取消 -> 走本方法 ->
+        // `peripheral.disconnect()` 堵死在幽灵锁上**永不返回**(日志只见 "disconnect enter" 无 "done",
+        // dumpsys 证实 GATT 一直活着) => 表停广播, 扫不到, 且**换代从不触发**(旧实现只在"发现超时"分支
+        // 换代, 而取消路径根本走不到那里).
+        // 故不再按路径猜: **任何** disconnect 卡住即整代退役. 看门狗必须跑在 **app 域**而非本代域——
+        // retireGen 要取消本代域, 若看门狗自己在本代域里会被一并取消, 换代做到一半就没了.
+        // 正常路径无副作用: 真机实测锁空闲时 disconnect 仅 1-4ms 完成, 看门狗静默退出.
         // [断开序 2026-07-15] 断开在前/connScope.cancel 在后(且同协程串行): 物理断链后再取消订阅域,
         // 收尾的 CCC disable 写直接短路(未连接)不占锁.
-        // 注: 本换序当初是按"取消订阅的 CCC 写泄漏全局锁"这一**已被证伪的**假设做的(故换序后仍复现),
-        // 真根因见 [sweepGhostServiceDiscoveryLock]. 换序本身仍是无害且合理的收尾姿势, 予以保留.
-        scope.launch {
+        // 注: 本换序当初是按"取消订阅的 CCC 写泄漏全局锁"这一**已被证伪的**假设做的(故换序后仍复现);
+        // 换序本身仍是无害且合理的收尾姿势, 予以保留.
+        // 丢**本代**域而非 app 域: 本代退役时这些可能堵在幽灵锁上的断开协程会被一并取消, 不留残骸.
+        val job = g.scope.launch {
             disconnectBounded(peripheral, id)
             connScope.cancel()
         }
-        // 幽灵锁清扫独立成协程: **不可**串在 disconnectBounded 之后——后者实证可能永不返回
-        // (见本类 [disconnectBounded] KDoc), 串行会让清扫永远等不到执行.
         scope.launch {
-            delay(GHOST_LOCK_SWEEP_DELAY)
-            sweepGhostServiceDiscoveryLock(id)
+            // job.join() 是可取消挂起 => withTimeoutOrNull 切得掉它(区别于 disconnectBounded 内部那层:
+            // 库的 NonCancellable body 切不掉, 故不能靠它自报超时).
+            if (withTimeoutOrNull(DISCONNECT_STUCK_TIMEOUT) { job.join() } == null) {
+                Log.w(TAG, "disconnect stuck >$DISCONNECT_STUCK_TIMEOUT on $id -> retiring gen ${g.id}")
+                retireGen(g, "disconnect stuck on $id")
+            }
         }
         link(id).value = LinkState.DISCONNECTED
     }
 
     /**
-     * **[#25 规避] 清扫库内"幽灵服务发现锁"**——把"全进程永久瘫痪(仅开关蓝牙可解)"降级为"本次连接失败, 可重试".
+     * 限时断开(NonCancellable 内 3s 上限, 语义见 [teardown] KDoc); 超时/异常均不外抛.
      *
-     * ## 为什么需要(根因, beta03 源码坐实; 详见 `Docs/设计/Nordic重连挂死_根因分析.md`)
-     * 库 `Peripheral.discoverServices()`(client-core Peripheral.kt:495-512)是全库**唯一**用裸
-     * `OperationMutex.lock(ServicesChanged)` 而非自带 finally 的 `withLock` 的地方, 且:
-     * - 先置 `_services = Discovering`(:509), 再调 `impl.discoverServices(uuids)`(:510)——
-     *   **返回值被丢弃**, 而其实现 `gatt?.discoverServices() ?: false`(client-android
-     *   NativeExecutor.kt:139)在原生拒绝启动发现时返回 false;
-     * - 一旦返回 false, 回调永不到达 => `ServicesDiscovered`/`ServiceDiscoveryFailed` 两条解锁路径全灭;
-     * - 第三条解锁路径 `invalidateServices()`(:354-364)只在**断链事件到达**时经 handleDisconnection 跑,
-     *   原生栈已卡住时该事件同样不来.
-     * 结果: **全进程唯一的那把静态 Mutex** 被永久持有. 库内其余一切 GATT 操作(读/写/MTU/PHY/优先级)
-     * 都走 `withLock(owner=null)` 排在它后面 => 此后任何设备的任何 GATT 操作永久挂起.
-     * 本项目实测的"重试必挂""仅杀进程可解"即此.
-     *
-     * ## 为什么这样清扫是安全的(以及边界)
-     * owner token 是 `data object ServicesChanged`——全进程唯一实例, 被所有 peripheral 共用, 故
-     * 任何一方都能 unlock 任何一方的锁(库自身在 :411/:466 就是这么干的, owner 校验形同虚设).
-     * 我们只在**自己 teardown 之后**清扫, 且给 [GHOST_LOCK_SWEEP_DELAY] 宽限期让库自身的
-     * `invalidateServices` 先有机会正常解锁——真到了这一步还持锁, 基本可判定是幽灵.
-     * **边界**: 若此刻恰有另一台设备的服务发现**正常在飞**, 本清扫会提前解掉它的锁, 使发现期间的
-     * GATT 串行保证失效. 本项目设备会话本就串行(DeviceSessionManager 单 Mutex; 多设备 OTA 逐台),
-     * 并发发现不成立, 故接受此风险——代价一侧是"整个 App 蓝牙功能瘫痪到用户手动开关蓝牙为止".
-     *
-     * 上游修好(检查 discoverServices 返回值 + 裸 lock 补 finally)后本方法应整体删除;
-     * [NordicOperationMutexPinTest] 是对应的跳闸丝.
+     * **[#25 取证]** 这里的进入/完成日志是判读"物理连接到底有没有释放"的唯一依据:
+     * 库的 `Peripheral.disconnect()` **第一件事就是 `OperationMutex.withLock`**(全进程锁),
+     * 幽灵锁在手时它连函数体都进不去 => `impl.disconnect()`/`close()` 永不执行 => GATT 从未释放
+     * (表仍连着 -> 停广播 -> 扫不到), 而本类 teardown 已同步宣告 DISCONNECTED —— App 状态与物理现实分叉.
+     * 判读: `enter` 后毫秒级 `done` = 锁空闲, 正常; 只见 `enter` 不见 `done` = 卡在全局锁上.
+     * 注: DISCONNECT_TIMEOUT 对本挂起**无效**(库内 `withContext(NonCancellable)`, 外层取消切不掉,
+     * "3s 超时"只是 3s 时发出取消信号) —— 真机实证超时日志在锁释放后才打出(4.0s 而非 3.0s),
+     * 见 `Docs/真机证据/nordic25_20260715/ghost_lock_repro.log` 样本 1.
      */
-    private fun sweepGhostServiceDiscoveryLock(id: String) {
-        if (!OperationMutex.holdsLock(ServicesChanged)) return
-        runCatching { OperationMutex.unlock(ServicesChanged) }
-            .onSuccess { Log.w(TAG, "swept ghost service-discovery lock after teardown $id") }
-            .onFailure { Log.w(TAG, "ghost lock sweep failed $id: ${it.message}") }
-    }
-
-    /** 限时断开(NonCancellable 内 3s 上限, 语义见 [teardown] KDoc); 超时/异常均不外抛.  */
     private suspend fun disconnectBounded(peripheral: Peripheral, id: String) {
         withContext(NonCancellable) {
-            withTimeoutOrNull(DISCONNECT_TIMEOUT) { runCatching { peripheral.disconnect() } }
-                ?: Log.w(TAG, "disconnect timed out (>$DISCONNECT_TIMEOUT), abandon link $id")
+            Log.d(TAG, "disconnect enter $id")
+            val r = withTimeoutOrNull(DISCONNECT_TIMEOUT) { runCatching { peripheral.disconnect() } }
+            if (r == null) Log.w(TAG, "disconnect timed out (>$DISCONNECT_TIMEOUT), abandon link $id")
+            else Log.d(TAG, "disconnect done $id")
         }
     }
 
     override suspend fun disconnect(deviceId: String) {
         // 同 [teardown]: 断开 fire-and-forget(调用方不被库内挂起拖死)+ 断链后才取消订阅域
-        // (Mutex 卡死修: 取消触发的 CCC 收尾写不得先于物理断链, 语义见 teardown 注释).
-        conns.remove(deviceId)?.let { c ->
-            scope.launch {
+        // (取消触发的 CCC 收尾写不得先于物理断链, 语义见 teardown 注释).
+        val g = gen // 只操作当代; 旧代的连接已随其退役被 forceClose, 无需(也不该)在此处理.
+        g?.conns?.remove(deviceId)?.let { c ->
+            g.scope.launch {
                 disconnectBounded(c.peripheral, deviceId)
                 c.scope.cancel()
             }
         }
-        discoveredServices16.remove(deviceId)
+        g?.services16?.remove(deviceId)
         link(deviceId).value = LinkState.DISCONNECTED
     }
 
@@ -442,7 +557,8 @@ class NordicBleClient(
     override fun notifications(deviceId: String): Flow<BleNotification> = notifyFlow(deviceId)
 
     /** 连接后发现的 16-bit 短码服务表(会话宿主 confirm 用); 未连接/未发现回空. */
-    override fun discoveredService16s(deviceId: String): List<String> = discoveredServices16[deviceId] ?: emptyList()
+    override fun discoveredService16s(deviceId: String): List<String> =
+        gen?.services16?.get(deviceId) ?: emptyList()
 
     /**
      * 已协商 MTU(观测): Nordic 2.0 无直取 MTU 的 API, 由 maximumWriteValueLength(WITHOUT_RESPONSE)+3 反推
@@ -450,7 +566,7 @@ class NordicBleClient(
      * 返回原始协商 MTU(如 247); 未连接/未协商回 23. 连接期间 MTU 收敛由 [awaitMtuConverged] 保证.
      */
     override fun negotiatedMtu(deviceId: String): Int =
-        conns[deviceId]?.let { peripheralMtu(it.peripheral) } ?: ATT_MTU_DEFAULT
+        gen?.conns?.get(deviceId)?.let { peripheralMtu(it.peripheral) } ?: ATT_MTU_DEFAULT
 
     /** 直接从 peripheral 反推原始 MTU(不经 conns——连接流程中 Conn 尚未入表时亦可读); 未连接/异常回 23.  */
     private fun peripheralMtu(peripheral: Peripheral): Int =
@@ -484,7 +600,8 @@ class NordicBleClient(
     }
 
     override suspend fun write(deviceId: String, bytes: ByteArray, char16: String?) {
-        val conn = conns[deviceId] ?: return
+        // 只写当代连接: 旧代的 Conn 早已随退役 forceClose, 对其写入必然失败(且不该发生).
+        val conn = gen?.conns?.get(deviceId) ?: return
         // char16=null 写默认写特征(现状); 否则按 16-bit 短码寻址, 查无静默丢弃(同"未连接静默丢弃"契约).
         val ch = if (char16 == null) {
             conn.writeChar ?: return
@@ -532,10 +649,10 @@ class NordicBleClient(
         /** 断开等待硬上限(Bug2, 见 [teardown]): 库内断链 await 可无限挂起, 超时放弃等待但收尾必达.  */
         private val DISCONNECT_TIMEOUT = 3.seconds
         /**
-         * 幽灵锁清扫宽限期(见 [sweepGhostServiceDiscoveryLock]): 给库自身的 invalidateServices
-         * (走断链事件)先解锁的机会, 到点仍持锁才判定为幽灵. 取 DISCONNECT_TIMEOUT 同量级略宽.
+         * 断开"卡死"判定阈值(见 [teardown] 的看门狗): 超过即判定堵在库内全局锁上, 触发整代退役.
+         * 取略大于 [DISCONNECT_TIMEOUT] —— 健康路径真机实测 1-4ms 完成, 留足余量不误伤.
          */
-        private val GHOST_LOCK_SWEEP_DELAY = 4.seconds
+        private val DISCONNECT_STUCK_TIMEOUT = 4.seconds
         /** MTU 收敛轮询(见 [awaitMtuConverged]): 正常在首轮/一两轮内命中, 超时仅边角.  */
         private val MTU_CONVERGE_TIMEOUT = 2.seconds
         private const val MTU_POLL_MS = 50L

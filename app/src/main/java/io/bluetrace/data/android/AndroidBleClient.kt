@@ -188,10 +188,24 @@ class AndroidBleClient(
 
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) conns[device.id]?.mtu = mtu
-                safe { gatt.discoverServices() }
+                // [#25 A/B 观测] 与 Nordic fork 同格式, 使两后端可逐项对照(见 NordicBleClient 的 DISC_* 日志).
+                // 判"Android 是否接受发现请求" —— 自写路径此前完全无日志, A/B 在本侧是瞎的.
+                val started = safe { gatt.discoverServices() }
+                android.util.Log.w(
+                    "BtNordicFork",
+                    "DISC_REQUEST dev=${device.id} gattId=${System.identityHashCode(gatt)} " +
+                        "started=$started ts=${System.currentTimeMillis()} backend=selfwritten",
+                )
             }
 
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                android.util.Log.w(
+                    "BtNordicFork",
+                    "DISC_CALLBACK dev=${device.id} gattId=${System.identityHashCode(gatt)} " +
+                        "kind=${if (status == BluetoothGatt.GATT_SUCCESS) "DISCOVERED" else "FAILED_STATUS"} " +
+                        "status=$status services=${gatt.services.size} subs=n/a tryEmit=n/a " +
+                        "ts=${System.currentTimeMillis()} backend=selfwritten",
+                )
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     conn.ready.complete(false)
                     return
