@@ -24,6 +24,17 @@
 - 一键复算(任意 shell):
   `grep "backend=selfwritten" ab_selfwritten.log | grep -c DISC_REQUEST` 与逐 gattId 配对 CALLBACK。
 
+## 观测补丁归档 — `nordic_observation.patch`
+
+> 2026-07-16 归档。产出本目录日志的观测 fork 源目录(`E:\_nordic_fork`)已在归档后删除,
+> **此 patch 是观测代码的唯一存续副本**(task/25 分支只封存了复合构建接线, 不含这 3 个文件的 diff)。
+
+- **基线**: 官方 [NordicSemiconductor/Kotlin-BLE-Library](https://github.com/NordicSemiconductor/Kotlin-BLE-Library) tag `2.0.0-beta03` = commit `78843bffcf5e2a6ba7469b08fda2243ded90a110`(删除前以 `git tag --points-at HEAD` 复核)。
+- **内容**: 3 文件 +38/-4, 全部为只读观测日志(行为逐字不变), 即三观测点本体: `NativeExecutor.kt`(1/3 `DISC_REQUEST`) / `NativeGattCallback.kt`(2/3 `DISC_CALLBACK`, 含 `subs`/`tryEmit` 字段) / `Peripheral.kt`(3/3 `DISC_CONSUMED`)。
+- **校验**: SHA-256 = `ed330638e72adff57f74def5f3177bedc8a4d6f9c5250ecacbba35575d973291`, 91 行, LF 行尾(根 `.gitattributes` 已钉 `*.patch -text` 免行尾转换, 任何平台 checkout 后均可直接复算)。
+- **完整性**: 删除源目录前在其工作区通过 `git apply --check -R` = patch 与当时未提交的观测修改逐字节一致。
+- **复现**: clone 官方库 → `git checkout 78843bffcf5e` → `git apply nordic_observation.patch` → 按 `origin/task/25-nordic-reconnect-hang` 的复合构建接线(`-Pbluetrace.nordicFork=true`)接入本仓, 即可重跑三层观测。
+
 ## 已知局限
 - 两段混一文件、Nordic 行混入自写文件 —— 属实验现场纪律问题, 结论经 backend 标记过滤后成立,
   但**审计链不如分文件干净**; 后续实验按"每 run 独立文件 + runId 头行"执行(UWTP 真机验收门已含此要求)。

@@ -1,0 +1,91 @@
+diff --git a/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeExecutor.kt b/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeExecutor.kt
+index e80ae6ba..896abb08 100644
+--- a/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeExecutor.kt
++++ b/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeExecutor.kt
+@@ -138,7 +138,16 @@ internal class NativeExecutor(
+ 
+     override suspend fun discoverServices(uuids: List<Uuid>): Boolean {
+         logger?.d(Layer.GATT) { "gatt.discoverServices()" }
+-        return gatt?.discoverServices() ?: false
++        // [OBSERVE-ONLY FORK · BlueTrace #25] 观测点 1/3: 请求是否被 Android 接受.
++        // 行为与上游逐字相同(返回值不变), 只是把上游丢弃的 started 记下来.
++        val g = gatt
++        val started = g?.discoverServices() ?: false
++        android.util.Log.w(
++            "BtNordicFork",
++            "DISC_REQUEST dev=$identifier gattId=${g?.let { System.identityHashCode(it) } ?: -1} " +
++                "started=$started ts=${System.currentTimeMillis()}",
++        )
++        return started
+     }
+ 
+     override suspend fun createBond(): Boolean {
+diff --git a/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeGattCallback.kt b/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeGattCallback.kt
+index b47b3c59..85ef1166 100644
+--- a/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeGattCallback.kt
++++ b/client-android/src/main/java/no/nordicsemi/kotlin/ble/client/android/internal/NativeGattCallback.kt
+@@ -107,9 +107,23 @@ internal class NativeGattCallback(
+ 
+     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+         logger?.debug(Layer.GATT) { "onServicesDiscovered(status=$status)" }
++        // [OBSERVE-ONLY FORK · BlueTrace #25] 观测点 2/3: 原生回调是否到达 + 事件是否真被投递.
++        // **关键**: _events 是 MutableSharedFlow(replay=0). replay=0 且无订阅者时, tryEmit 会返回
++        // **true** 但值被直接丢弃(kotlinx 既定行为) => "tryEmit=true" 不等于"有人收到".
++        // 故必须同时记 subscriptionCount: subs=0 且 tryEmit=true 即事件静默丢失的铁证.
++        // 事件只投一次: 保存 tryEmit 返回值后再记, 绝不为打日志重复投递(会改变行为).
++        fun observe(what: String, emitted: Boolean, size: Int) {
++            android.util.Log.w(
++                "BtNordicFork",
++                "DISC_CALLBACK dev=${gatt.device?.address} gattId=${System.identityHashCode(gatt)} " +
++                    "kind=$what status=$status services=$size " +
++                    "subs=${_events.subscriptionCount.value} tryEmit=$emitted ts=${System.currentTimeMillis()}",
++            )
++        }
+         isServiceDiscoveryComplete = true
+         if (status != BluetoothGatt.GATT_SUCCESS) {
+-            _events.tryEmit(ServiceDiscoveryFailed(RemoteServices.Failed.Reason.Unknown(status)))
++            val e = _events.tryEmit(ServiceDiscoveryFailed(RemoteServices.Failed.Reason.Unknown(status)))
++            observe("FAILED_STATUS", e, 0)
+             return
+         }
+         // Expect status to be GATT_SUCCESS (0) and at least 2 services:
+@@ -118,7 +132,8 @@ internal class NativeGattCallback(
+         val services = gatt.services
+         if (services.size < 2) {
+             logger?.warn(Layer.GATT) { "Services discovery returned ${services.size} services (>= 2 expected)" }
+-            _events.tryEmit(ServiceDiscoveryFailed(RemoteServices.Failed.Reason.EmptyResult))
++            val e = _events.tryEmit(ServiceDiscoveryFailed(RemoteServices.Failed.Reason.EmptyResult))
++            observe("FAILED_EMPTY", e, services.size)
+             return
+         }
+         val remoteServices = services
+@@ -128,7 +143,8 @@ internal class NativeGattCallback(
+             .filter { it.type == BluetoothGattService.SERVICE_TYPE_PRIMARY }
+             // Map each primary BluetoothGattService to NativeRemoteService.
+             .map { NativeRemoteService(gatt, it, events) }
+-        _events.tryEmit(ServicesDiscovered(remoteServices))
++        val emitted = _events.tryEmit(ServicesDiscovered(remoteServices))
++        observe("DISCOVERED", emitted, remoteServices.size)
+     }
+ 
+     override fun onServiceChanged(gatt: BluetoothGatt) {
+diff --git a/client-core/src/main/java/no/nordicsemi/kotlin/ble/client/Peripheral.kt b/client-core/src/main/java/no/nordicsemi/kotlin/ble/client/Peripheral.kt
+index a5714069..829b6089 100644
+--- a/client-core/src/main/java/no/nordicsemi/kotlin/ble/client/Peripheral.kt
++++ b/client-core/src/main/java/no/nordicsemi/kotlin/ble/client/Peripheral.kt
+@@ -406,6 +406,15 @@ abstract class Peripheral<ID: Any, EX: Peripheral.Executor<ID>>(
+             }
+ 
+             is ServicesDiscovered -> {
++                // [OBSERVE-ONLY FORK · BlueTrace #25] 观测点 3/3: Nordic 的 Peripheral 是否**消费**了事件.
++                // 本处即"状态由 Discovering 走向成功 + 释放全局锁"的唯一入口: 有 DISC_CALLBACK 却无本行
++                // = 事件在 SharedFlow 管道里丢了(订阅者缺席/collector 被取消), 而非设备不应答.
++                // client-core 是纯 JVM 模块(publish.jvm), 用不了 android.util.Log; Android 会把
++                // System.out 重定向进 logcat(tag=System.out), 故用 println.
++                println(
++                    "BtNordicFork DISC_CONSUMED dev=$identifier services=${event.services.size} " +
++                        "ts=${System.currentTimeMillis()}",
++                )
+                 try {
+                     // Unlocks the lock locked in `discoverServices` below.
+                     OperationMutex.unlock(ServicesChanged)

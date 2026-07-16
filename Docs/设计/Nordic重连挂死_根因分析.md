@@ -11,7 +11,7 @@
 - **A/B 判决（同机同表同栈，hold 模式=连接后 12s 不取消）**：自写 `AndroidBleClient` **4 个 GATT 连接实例 4/4 收到回调、0 挂死**（8 行请求，每实例经两次 onMtuChanged 各发一次——不得记作 8 个独立样本）；Nordic beta03 7 次请求 **3 挂死（43%）**，且唯一一次取消发生在全部挂死**之后**——排除"取消致回调不来"。四层分层观测（fork 加 `DISC_REQUEST`/`DISC_CALLBACK`/`DISC_CONSUMED` 三观测点）判决：Framework 从未拒绝（`started=false` 0 次）；**丢失发生在 `gatt.discoverServices()` 返回 true 与原生回调之间，且只在 Nordic 侧**；SharedFlow 事件管道清白（`subs>=1`、`tryEmit=true`、CALLBACK 与 CONSUMED 数量恒等）。时序相关性：3/3 挂死均为 **MTU 协商落在发现在飞期间**（库自身注释即警告并发 GATT 操作会丢回调）——只报相关性，未证机制。
 - **用户拍板（2026-07-16）**：**自写 AndroidBleClient 继续默认；Nordic 保留为可选实验后端（不删除）；#24B（转默认）无限期暂停**。将来若重启转默认：补 Nordic 连接槽 + 上游/fork 修复 + 固定 MAC 50 次连接/断开与 OTA 回归。
 - **上游 issue 已提交**：[NordicSemiconductor/Kotlin-BLE-Library#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337)（英文全量证据版；本仓 [`Nordic重连挂死_issue草稿.md`](Nordic重连挂死_issue草稿.md) 为其底稿）。
-- **实验代码封存**：sweep（已证伪）、ManagerGen 代际、断开看门狗、观测 fork 接线全部封存在 `origin/task/25-nordic-reconnect-hang`（**不合 main**——代际方案有三条已确认的所有权竞态，修复方案=完整连接槽状态机，留待将来转默认时做）；观测 fork 本体在 `E:\_nordic_fork`（官方 tag beta03 + 3 处只读日志）。
+- **实验代码封存**：sweep（已证伪）、ManagerGen 代际、断开看门狗、观测 fork 接线全部封存在 `origin/task/25-nordic-reconnect-hang`（**不合 main**——代际方案有三条已确认的所有权竞态，修复方案=完整连接槽状态机，留待将来转默认时做）；观测 fork 本体已归档为 [`../真机证据/nordic25_20260716/nordic_observation.patch`](../真机证据/nordic25_20260716/nordic_observation.patch)（基线 = 官方 tag beta03 = `78843bf`，3 处只读日志；SHA-256 与复现步骤见[同目录 README](../真机证据/nordic25_20260716/README.md)，源目录已于归档后删除）。
 - **连带发现（比库缺陷更深的自家架构病）**：**孤儿连接**——9 处连接入口全跑 `viewModelScope`，退屏腰斩 connect 后物理连接无人持有（设备停广播 → 五个页面同时看不见、断不开）。修法 = `BleConnectionCoordinator`（app 级连接事务宿主，与后端无关），提交 1+2 已入 main（两个扫描→连接页接线，断开入事务槽/Disconnecting 状态机）。
 
 ## 结论（前置）

@@ -1,0 +1,2 @@
+# patch 是逐字节校验的证据资产(SHA-256 记录在其同目录 README): 禁止行尾转换, checkout 恒为原始 LF
+*.patch -text

@@ -157,5 +157,5 @@ Happy to open a PR, and to share the observation-only patch and raw logs.
 ## 提交前要做的事（给我们自己看，不进 issue 正文）
 
 - [ ] 把三层日志的最小片段贴进 Evidence（或附 gist）：`Docs/真机证据/nordic25_20260716/hold_nordic.log` 与 `ab_selfwritten.log`
-- [ ] 观测补丁本身可作为 gist/PR 附上：`E:\_nordic_fork` 的 3 个文件 diff（相对官方 tag，仅日志）
+- [ ] 观测补丁本身可作为 gist/PR 附上：[`../真机证据/nordic25_20260716/nordic_observation.patch`](../真机证据/nordic25_20260716/nordic_observation.patch)（相对官方 tag beta03 的 3 文件 diff，仅日志；SHA-256 见同目录 README）
 - [ ] 如维护者要 HCI snoop，再补（本轮未做）
