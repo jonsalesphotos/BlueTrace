@@ -6,6 +6,13 @@
 
 ---
 
+## [BLE·身份] Coordinator 接线(提交 2) · 身份只认 MAC · PROFILE_B2A 值正名 — ✅ 2026-07-16
+UWTP 开工前的三项收口(用户指定顺序)。真机全部 NOT_RUN(等 UWTP 联调窗口一并验)。
+- **连接事务宿主接线(提交 2/2)**：ConsoleConnect/DeviceScan 两个扫描→连接页(孤儿主产地)改为向 [`BleConnectionCoordinator`](../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleConnectionCoordinator.kt) 提交意图——退屏不再腰斩事务，`connect→确认→registry.add` 原子提交，VM 不再写 registry；ConsoleConnect 的 busy 改由 `coordinator.attempts` 派生(**重建 VM 后在飞事务依旧显示"连接中"**)。Coordinator 硬化三处：意图提交 NonCancellable(启动事务+登记槽原子)、**disconnect 事务移入 app 域**(点断开后立刻退屏也必须完成——"断开路径上的孤儿"回归闸测试新增)、单设备视图表 CAS getOrPut(commonMain 无 ConcurrentHashMap)。其余 7 处入口(OTA 两屏/控制台/SessionManager/OtaProvisioner)随 UWTP 阶段 B 与 #27 二阶段统一。
+- **身份只认 MAC**([`Mac.kt`](../shared/src/commonMain/kotlin/io/bluetrace/shared/domain/Mac.kt))：`ScannedDevice.id` 真实端契约 = **规范化大写 hex12 无分隔**(normalizeMac，解析失败丢弃不猜)；`address` 保留平台冒号串(展示+平台 API——`getRemoteDevice`/`getPeripheralById` 均要求冒号格式，两处消费点已切换，**此为唯一行为敏感点**)；名称只展示不作判据；Mock 合成 id 为测试夹具豁免。会话文件名后四位取自 address 自带过滤不受影响；manifest `AssignedDevice.deviceId` 新会话起为 hex12(历史冒号值只读展示，不迁移)。MacTest 4 例。
+- **`PROFILE_B2A` 值**：`"SKG.S7.B2A"` → `"B2A.0xFFE0"`(形制对齐 PROFILE_HRS；厂商/设备名退出架构标识；独立提交可回退；全库字面量仅定义处 1 个，其余全走常量)。
+- 验收：shared **229/0**(=Coordinator 接线前 224 + 断开孤儿闸 1 + MacTest 4) + app **12/0**(9 + 捞回的 NordicOperationMutexPinTest 3) + assembleDebug；`git diff --check` 过。
+
 ## [BLE·终局] #25 收口：Nordic 不转默认（拍板）· 孤儿连接根除立项 · Coordinator 提交 1 · issue #337 — ✅ 2026-07-16
 一天半的 #25 深挖收官。**用户拍板：自写 `AndroidBleClient` 继续默认；Nordic 保留为可选实验后端（不删除）；#24B（转默认）无限期暂停**——将来若重启：补 Nordic 连接槽 + 上游/fork 修复 + 固定 MAC 50 次连接/断开与 OTA 回归。
 - **三轮真机规避实验（全封存 `origin/task/25-nordic-reconnect-hang`，不合 main）**：① sweep 直接解锁幽灵锁 → **真机证伪撤除**（放行的是陈旧且不可取消的 disconnect，库内 `NativeExecutor.gatt` 是可变字段，它读到**新一代**连接的 gatt 并将其断开——dumpsys `Local Host Terminated` 坐实跨代杀连接）；② ManagerGen 代际退役 + ③ 断开看门狗 → 机制成立（换代后新代连续健康、物理 GATT 真释放、无需开关蓝牙），但独立复核确认**三条所有权竞态**（全局 links 扫荡打新代 / 陈旧 teardown 覆盖新代 link / retiring 检查与登记发布非原子=幻影 CONNECTED），修复方案=完整连接槽状态机（早登记+对称看门狗+token 仲裁三者不可拆），留待将来转默认时做。
