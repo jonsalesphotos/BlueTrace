@@ -40,7 +40,13 @@ const val PROFILE_B2A = "SKG.S7.B2A"
  */
 const val TEST_DUT_MAC = "71:61:48:19:FC:C4"
 
-/** 扫描发现的设备（一次广播快照）。`id` 为稳定标识（真实端 = MAC/identifier，Mock = 固定串）。 */
+/**
+ * 扫描发现的设备（一次广播快照）。
+ *
+ * `id` = 稳定身份键（**真实端契约 = 规范化 MAC，大写 12 位 hex 无分隔**，见 [normalizeMac]；
+ * Mock = 合成固定串，测试夹具豁免）。`address` = 平台原始冒号串，只用于**展示**与平台 API
+ * （`getRemoteDevice`/`getPeripheralById` 要求冒号格式）。名称只用于展示，不得作身份/识别判据。
+ */
 data class ScannedDevice(
     val id: String,
     val name: String,

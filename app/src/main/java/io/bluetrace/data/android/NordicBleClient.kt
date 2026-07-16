@@ -143,7 +143,9 @@ class NordicBleClient(
 
     private fun ScanResult.toScanned(): ScannedDevice? {
         // identifier 在 Android 侧即 MAC 字符串(库 core-android Peripheral.identifier: String = impl.address).
-        val addr = peripheral.identifier
+        // 身份只认 MAC(2026-07-16 硬约束): id = 规范化大写 hex12; 解析失败即丢弃该结果, 不猜.
+        val raw = peripheral.identifier
+        val addr = io.bluetrace.shared.domain.normalizeMac(raw) ?: return null
         // nRF Connect 式全量展示: 无名设备占位名(便于按 MAC 定位目标 / 确认周围广播活性).
         val name = advertisingData.name ?: peripheral.name ?: "(unnamed)"
         val adv = advertisingData.serviceUuids.mapNotNull { extract16(it.toString()) }
@@ -152,7 +154,7 @@ class NordicBleClient(
         return ScannedDevice(
             id = addr,
             name = name,
-            address = addr,
+            address = raw, // 展示/平台 API 用原始冒号串(getPeripheralById 要求冒号格式)
             rssi = rssi,
             kind = DeviceKind.DUT,
             profileId = null,
@@ -165,7 +167,7 @@ class NordicBleClient(
     override suspend fun connect(device: ScannedDevice, spec: GattSpec?) {
         val l = link(device.id)
         if (l.value == LinkState.CONNECTED || l.value == LinkState.CONNECTING) return
-        val peripheral = centralManager.getPeripheralById(device.id) ?: run {
+        val peripheral = centralManager.getPeripheralById(device.address) ?: run { // 库要求冒号格式; id 是规范化 hex12
             Log.w(TAG, "connect: unknown peripheral ${device.id}")
             l.value = LinkState.DISCONNECTED
             return

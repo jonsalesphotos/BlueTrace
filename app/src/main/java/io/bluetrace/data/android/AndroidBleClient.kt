@@ -133,7 +133,9 @@ class AndroidBleClient(
 
     @SuppressLint("MissingPermission")
     private fun ScanResult.toScanned(): ScannedDevice? = try {
-        val addr = device?.address ?: return null
+        val raw = device?.address ?: return null
+        // 身份只认 MAC(2026-07-16 硬约束): id = 规范化大写 hex12(键稳定); 解析失败即丢弃该结果, 不猜.
+        val addr = io.bluetrace.shared.domain.normalizeMac(raw) ?: return null
         // nRF Connect 式全量展示: 无名设备用占位名(便于确认周围广播活性, 按 MAC 定位目标)
         val name = scanRecord?.deviceName ?: device?.name ?: "(unnamed)"
         val adv = scanRecord?.serviceUuids?.mapNotNull { extract16(it.uuid.toString()) } ?: emptyList()
@@ -142,7 +144,7 @@ class AndroidBleClient(
         ScannedDevice(
             id = addr,
             name = name,
-            address = addr,
+            address = raw, // 展示/平台 API 用原始冒号串(getRemoteDevice 要求冒号格式)
             rssi = rssi,
             kind = DeviceKind.DUT,
             profileId = null,
@@ -159,7 +161,7 @@ class AndroidBleClient(
         val l = link(device.id)
         if (l.value == LinkState.CONNECTED || l.value == LinkState.CONNECTING) return
         val btDevice = try {
-            adapter?.getRemoteDevice(device.id)
+            adapter?.getRemoteDevice(device.address) // 平台要求冒号格式; id 是规范化 hex12
         } catch (e: IllegalArgumentException) {
             null
         } ?: run {
