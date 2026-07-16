@@ -40,15 +40,6 @@ android {
     }
 }
 
-// Nordic Kotlin-BLE 2.0.0-beta03 用 Kotlin 2.4.0 编译（其 class + 传递的 kotlin-stdlib 元数据版本 2.4.0）;
-// 本工程编译器 2.2.10 只能读到 2.3.0。跳过元数据版本校验以消费该库（仅 app 模块, 不动 shared 工具链）。
-// W1.6 后若 Nordic 转默认, 应把工程 Kotlin 升到 >=2.4 正式对齐, 届时删除此 flag。
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xskip-metadata-version-check")
-    }
-}
-
 dependencies {
     implementation(project(":shared"))
 

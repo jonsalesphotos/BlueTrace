@@ -1,6 +1,9 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.2.10"
+# Kotlin 2.4.10（2.4 线最新稳定；2.4.20-Beta1 是 beta 不取）——#24A 升级，2026-07-15。
+# 动因：Nordic Kotlin-BLE 2.0.0-beta03 用 Kotlin 2.4.0 编译，元数据版本高于旧工程编译器可读上限，
+# 此前靠 app 模块的 -Xskip-metadata-version-check 逃生阀消费；升到 >=2.4 后该 flag 已删除（正式对齐）。
+kotlin = "2.4.10"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
