@@ -10,6 +10,8 @@ Desktop.ini
 
 # Logs
 *.log
+# 真机证据日志是仓库资产, 不受上一行全局忽略约束(曾因此被静默挡在库外, 提交信息误报"已入库")
+!Docs/真机证据/**/*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

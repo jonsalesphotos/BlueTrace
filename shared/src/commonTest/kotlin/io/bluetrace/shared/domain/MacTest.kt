@@ -6,7 +6,7 @@ import kotlin.test.assertNull
 
 /**
  * MAC 身份规则(2026-07-16 硬约束)的规范化/格式化测试:
- * 内部规范形 = 大写 hex12 无分隔; 显示才用冒号; 解析失败返回 null(不猜)。
+ * 内部规范形 = 大写 hex12 无分隔; 显示才用冒号; 解析失败返回 null(不猜).
  */
 class MacTest {
 

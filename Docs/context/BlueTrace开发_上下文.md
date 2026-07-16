@@ -14,7 +14,7 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 - **设备抽象层 W1-W6 全过闸**（判据达成：新增协议=一个协议包+一行注册，ZX 假协议验收）+ Codex 七轮收口（OTA 两级所有权模型）——已推 main。
 - **BLE 后端终局（2026-07-16 拍板）**：自写 `AndroidBleClient` 继续默认；Nordic 保留为可选实验后端；**#24B 转默认无限期暂停**（A/B：自写 hold 0 挂死 vs Nordic 43% 挂死；根因=库丢弃 `discoverServices()` false 返回值+裸 lock 泄漏全进程锁，上游 issue [#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337) 已提；实验代码封存 `origin/task/25-nordic-reconnect-hang`）。#24A（Kotlin 2.4.10+删逃生阀）已完成合入。
 - **协议正名一阶段已落**：`shared.s7`→`shared.b2a`、`S7Xxx`→`B2aXxx`（27 类型，零逻辑）；架构命名不得含产品名（B2A=协议正式名，zqdata 已废弃）。
-- **孤儿连接立项**（9 处连接入口跑 viewModelScope 的生命周期错配，五页同时失明）：修法=`BleConnectionCoordinator`（app 级连接事务宿主），**提交 1 已合 main，提交 2 接线进行中**；随后=身份只认 MAC（规范化大写 hex12）+ `PROFILE_B2A` 值改 `B2A.0xFFE0`。
+- **孤儿连接立项**（9 处连接入口跑 viewModelScope 的生命周期错配，五页同时失明）：修法=`BleConnectionCoordinator`（app 级连接事务宿主），**提交 1+2 已合 main**（两个扫描→连接页已接线，断开亦入事务槽/状态机 Disconnecting；OTA 两屏/控制台等 7 处入口随 UWTP 阶段 B 与 #27 二阶段统一）；身份只认 MAC（`Mac.kt`，id=规范化大写 hex12，address 冒号串喂平台 API）与 `PROFILE_B2A="B2A.0xFFE0"` 均已落码。
 - **后续主线 = UWTP v0.2 线**（用户已给完整说明书：协议实验室 + FW-only OTA；固件基线 `apollo4_watch_s7@f480d804`；分支 `feat/uwtp-v02-client` 已 rebase 到最新 main，280 tests 绿；**等用户说"开工"**，真机/串口/装 APK 联调需另行授权）。
 
 

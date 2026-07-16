@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 连接页设备行: 是否为控制台可维护的设备(有控制面才可连接; 不支持则不可连接).  */
+/** 连接页设备行: 是否为控制台可维护的设备(有控制面才可连接; 不支持则不可连接). */
 data class ConsoleDeviceRow(
     val device: ScannedDevice,
     val link: LinkState,
@@ -67,7 +67,14 @@ class ConsoleConnectViewModel(
             registry.connected,
             // busy 源自 coordinator 的意图状态(而非 VM 自持集合): 换页面/重建 VM 后在飞事务依旧显示"连接中".
             combine(_scanning, coordinator.attempts, _query, _rssi) { scanning, attempts, q, rssi ->
-                Ctl(scanning, attempts.filterValues { it == BleConnectionCoordinator.Attempt.Connecting }.keys, q, rssi)
+                Ctl(
+                    scanning,
+                    // busy = 连接中或断开中(断开也是事务, 期间按钮同样要禁用, 防重复断开/交叉连接).
+                    attempts.filterValues {
+                        it == BleConnectionCoordinator.Attempt.Connecting || it == BleConnectionCoordinator.Attempt.Disconnecting
+                    }.keys,
+                    q, rssi,
+                )
             },
         ) { results, links, connected, ctl ->
             val scanning = ctl.scanning
@@ -80,9 +87,9 @@ class ConsoleConnectViewModel(
             val merged = results + connected.filter { it.id !in resultIds && it.kind != DeviceKind.REFERENCE }
 
             val rows = merged.asSequence()
-                // 无名/参考过滤 —— 已连接设备**豁免**(始终显示)
+                // 无名/参考过滤 -- 已连接设备**豁免**(始终显示)
                 .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)" && it.kind != DeviceKind.REFERENCE) }
-                // RSSI 过滤 —— 已连接设备豁免(信号弱也不隐藏)
+                // RSSI 过滤 -- 已连接设备豁免(信号弱也不隐藏)
                 .filter { it.id in connectedIds || it.rssi >= rssi }
                 .filter { query.isBlank() || it.name.contains(query, true) || it.address.contains(query, true) }
                 .map { d ->
@@ -90,7 +97,7 @@ class ConsoleConnectViewModel(
                     ConsoleDeviceRow(
                         device = d,
                         link = link,
-                        // 控制台可维护 = 识别到的档案有控制面(S7 有; 参考带/纯数据设备无)——去 S7 硬编码.
+                        // 控制台可维护 = 识别到的档案有控制面(S7 有; 参考带/纯数据设备无)--去 S7 硬编码.
                         supported = catalog.identify(d)?.controlPlane != null,
                         busy = d.id in busy,
                     )
@@ -113,7 +120,7 @@ class ConsoleConnectViewModel(
         _results.value = emptyList()
         scanJob = viewModelScope.launch {
             // sample(1s): 扫描回调很密(RSSI 每帧变), 节流到最多 1 次/秒,
-            // 让列表 ~1 秒才按信号重排一次——既按信号强度排序, 又不至跳动到无法点选.
+            // 让列表 ~1 秒才按信号重排一次--既按信号强度排序, 又不至跳动到无法点选.
             ble.scan().sample(1000).collect { devices ->
                 // 扫描去识别化: 识别在此投影层经 Catalog 统一打标(supported 判定/参考带过滤据此不变).
                 val annotated = devices.map { catalog.annotate(it) }
@@ -140,9 +147,9 @@ class ConsoleConnectViewModel(
      * 不支持的设备直接忽略(不运行连接).
      *
      * **连接/断开是 app 级事务([BleConnectionCoordinator]), 本 VM 只提交意图并观察**:
-     * 页面返回/VM 销毁不会腰斩事务(孤儿连接修复, 2026-07-16 真机实证——正是本页"点连接后
+     * 页面返回/VM 销毁不会腰斩事务(孤儿连接修复, 2026-07-16 真机实证--正是本页"点连接后
      * 未确认即返回"的场景); `connect -> 确认 CONNECTED -> registry.add` 由事务原子提交,
-     * 本 VM 不再碰 registry 写入; 重复点击由 coordinator 幂等挡掉。
+     * 本 VM 不再碰 registry 写入; 重复点击由 coordinator 幂等挡掉.
      */
     fun toggleConnect(device: ScannedDevice) {
         if (coordinator.isBusy(device.id)) return

@@ -89,7 +89,7 @@ strong { font-weight:600; }
 <h2 id="_1">结论（前置）</h2>
 <p><strong>这是库缺陷，不是我们的用法问题</strong>，且是<strong>两个 bug 叠在同一段三行代码里</strong>：</p>
 <ol>
-<li><strong>触发器</strong> —— 库把 <code>gatt.discoverServices()</code> 的 <strong><code>false</code> 返回值直接丢弃</strong>。原生层拒绝启动发现时，库已把状态置成 <code>Discovering</code>，此后回调永不到达，状态<strong>永久停在 Discovering</strong>。这就是我们观测到的"服务发现挂 10s 超时"。</li>
+<li><strong>触发器</strong> —— 库把 <code>gatt.discoverServices()</code> 的 <strong><code>false</code> 返回值直接丢弃</strong>。原生层拒绝启动发现时，库已把状态置成 <code>Discovering</code>，此后回调永不到达，状态<strong>永久停在 Discovering</strong>。~~这就是我们观测到的"服务发现挂 10s 超时"~~〔⚠️ 07-16 勘误：分层观测显示全部取样挂死 <code>started=true</code>（Framework 从未拒绝），<strong>本次超时的实测触发不是 false 返回</strong>，而是"返回 true 后原生回调丢失"（与 MTU 重叠强相关，见终局节）。false 丢弃仍是真实的库代码缺陷（issue #337 缺陷 1），只是与本次实测触发解耦〕。</li>
 <li><strong>放大器</strong> —— 那次挂住的发现，<strong>持有全进程唯一的一把静态 Mutex 且永不释放</strong>。库内其余一切 GATT 操作（读/写/MTU/PHY/连接优先级）都排在它后面 =&gt; 此后<strong>任何设备的任何 GATT 操作永久挂起</strong>。这就是"重试必挂""仅杀进程可解"。</li>
 </ol>
 <p>一次普通的发现失败，被库的全局锁设计放大成<strong>全进程蓝牙功能永久瘫痪</strong>。</p>

@@ -27,9 +27,9 @@ data class DeviceRowUi(
     val device: ScannedDevice,
     val link: LinkState,
     val disabled: Boolean, // 达上限且未连 → 不可点
-    /** 已识别目标: 有控制面的手表 或 参考心率带; 用于排序置顶与打标.  */
+    /** 已识别目标: 有控制面的手表 或 参考心率带; 用于排序置顶与打标. */
     val recognized: Boolean = false,
-    /** 有控制面 → 可作维护控制台目标(区别于参考带); 沿用字段名 b2a(UI 徽章).  */
+    /** 有控制面 → 可作维护控制台目标(区别于参考带); 沿用字段名 b2a(UI 徽章). */
     val b2a: Boolean = false,
 )
 
@@ -45,7 +45,7 @@ data class DeviceScanUiState(
     val atDutLimit: Boolean = false,
 )
 
-/** 设备连接(设备A/B/C): 扫描 + 扁平列表 + 限额 + RSSI 过滤 + 60s 自停(§5.3).  */
+/** 设备连接(设备A/B/C): 扫描 + 扁平列表 + 限额 + RSSI 过滤 + 60s 自停(§5.3). */
 class DeviceScanViewModel(
     private val bleClient: BleClient,
     private val registry: ConnectionRegistry,
@@ -84,9 +84,9 @@ class DeviceScanViewModel(
             // 已连接设备常在连接后**停止广播** → 从扫描结果消失; 并回来, 保证始终可见并置顶
             val merged = raw.results + connected.filter { it.id !in resultIds }
             val rows = merged
-                // 隐藏无名设备(命名设备才展示)—— 已连接设备**豁免**(始终显示)
+                // 隐藏无名设备(命名设备才展示)-- 已连接设备**豁免**(始终显示)
                 .filter { it.id in connectedIds || (it.name.isNotBlank() && it.name != "(unnamed)") }
-                // RSSI 过滤 —— 已连接设备豁免
+                // RSSI 过滤 -- 已连接设备豁免
                 .filter { it.id in connectedIds || it.rssi >= raw.rssi }
                 .filter { raw.query.isBlank() || it.name.contains(raw.query, true) || it.address.contains(raw.query, true) }
                 .map { dev ->
@@ -133,7 +133,7 @@ class DeviceScanViewModel(
         }
         scanJob = viewModelScope.launch {
             // sample(1s): 扫描回调很密(RSSI 每帧变), 节流到最多 1 次/秒,
-            // 让列表 ~1 秒才按信号重排一次——防跳动, 可稳定点选(与控制台页一致).
+            // 让列表 ~1 秒才按信号重排一次--防跳动, 可稳定点选(与控制台页一致).
             bleClient.scan().sample(1000).collect { devices ->
                 // 扫描去识别化: client 只上报原始广播(profileId=null/kind=DUT), 识别在此投影层
                 // 经 Catalog 统一打标(Mock roster 预置身份由 annotate 守卫保留).
@@ -154,15 +154,16 @@ class DeviceScanViewModel(
     fun setQuery(value: String) { _query.value = value }
 
     /**
-     * 单击: 未连→连接(限额内); 已连→断开。
+     * 单击: 未连→连接(限额内); 已连→断开.
      *
      * **连接/断开是 app 级事务([BleConnectionCoordinator]), 本 VM 只提交意图并观察**:
-     * 页面返回/VM 销毁不会腰斩事务 —— 旧实现跑 viewModelScope, 退屏取消 connect 后物理连接
-     * 无人持有(孤儿: 设备停广播, 全 App 看不见也断不开, 2026-07-16 真机实证)。
+     * 页面返回/VM 销毁不会腰斩事务 -- 旧实现跑 viewModelScope, 退屏取消 connect 后物理连接
+     * 无人持有(孤儿: 设备停广播, 全 App 看不见也断不开, 2026-07-16 真机实证).
      * `connect -> 确认 CONNECTED -> registry.add` 由事务原子提交, 本 VM 不再碰 registry 写入;
-     * viewModelScope.launch 只是提交意图的载体, 意图提交本身不可取消(Coordinator 内 NonCancellable)。
+     * viewModelScope.launch 只是提交意图的载体, 意图提交本身不可取消(Coordinator 内 NonCancellable).
      */
     fun toggleConnect(device: ScannedDevice) {
+        if (coordinator.isBusy(device.id)) return // 在飞事务(连接中/断开中)期间拒绝重入
         if (registry.isConnected(device.id)) {
             viewModelScope.launch { coordinator.disconnect(device.id) }
         } else {

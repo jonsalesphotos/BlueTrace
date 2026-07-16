@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -23,15 +24,15 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * [BleConnectionCoordinator] 的所有权与生命周期测试。
+ * [BleConnectionCoordinator] 的所有权与生命周期测试.
  *
  * 每条对应一项验收(2026-07-16 复核意见给定):
- * - [vmCancel_doesNotCancelConnectTransaction] —— **VM 取消等待不会取消 app 级连接任务**(本类存在的理由);
- * - [connectAndRegistryAdd_areOneTransaction] —— connect -> 确认 -> registry.add 同一事务, 不存在"连上但没登记"(孤儿第二类产地);
- * - [eachToken_settlesAtMostOnce] —— 每个 token 最多执行一次善后(陈旧事务零动作退出);
- * - [staleTransaction_mustNotTouchNewOne] —— 旧清理不能删除新连接;
- * - [disconnect_publishesIdleOnlyAfterUnderlyingDisconnectReturns] —— 底层断开返回前不谎报已断开;
- * - [connect_isIdempotentWhileInFlight] —— 在飞期间重复提交不重复发起。
+ * - [vmCancel_doesNotCancelConnectTransaction] -- **VM 取消等待不会取消 app 级连接任务**(本类存在的理由);
+ * - [connectAndRegistryAdd_areOneTransaction] -- connect -> 确认 -> registry.add 同一事务, 不存在"连上但没登记"(孤儿第二类产地);
+ * - [eachToken_settlesAtMostOnce] -- 每个 token 最多执行一次善后(陈旧事务零动作退出);
+ * - [staleTransaction_mustNotTouchNewOne] -- 旧清理不能删除新连接;
+ * - [disconnect_publishesIdleOnlyAfterUnderlyingDisconnectReturns] -- 底层断开返回前不谎报已断开;
+ * - [connect_isIdempotentWhileInFlight] -- 在飞期间重复提交不重复发起.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BleConnectionCoordinatorTest {
@@ -77,9 +78,9 @@ class BleConnectionCoordinatorTest {
     }
 
     /**
-     * app 级域用**共享虚拟时钟的独立 scope**, 不用 backgroundScope ——
-     * 本仓已记录的测试坑: `advanceUntilIdle()` **不跑 backgroundScope 任务**(只推进到"无前台任务"即返回)。
-     * 独立 scope 亦更贴真: 生产里 app scope 本就与调用方无父子关系(这正是本类的要点)。
+     * app 级域用**共享虚拟时钟的独立 scope**, 不用 backgroundScope --
+     * 本仓已记录的测试坑: `advanceUntilIdle()` **不跑 backgroundScope 任务**(只推进到"无前台任务"即返回).
+     * 独立 scope 亦更贴真: 生产里 app scope 本就与调用方无父子关系(这正是本类的要点).
      */
     private fun TestScope.coordinator(ble: FakeBle): Triple<BleConnectionCoordinator, ConnectionRegistry, CoroutineScope> {
         val appScope = CoroutineScope(StandardTestDispatcher(testScheduler) + Job())
@@ -88,8 +89,8 @@ class BleConnectionCoordinatorTest {
     }
 
     /**
-     * **本类存在的理由**: 页面销毁 => viewModelScope 取消 => 此前 `connect()` 被腰斩、物理连接成孤儿。
-     * 现在页面只是观察者, 它的域取消**不得**影响 app 级事务。
+     * **本类存在的理由**: 页面销毁 => viewModelScope 取消 => 此前 `connect()` 被腰斩/物理连接成孤儿.
+     * 现在页面只是观察者, 它的域取消**不得**影响 app 级事务.
      */
     @Test
     fun vmCancel_doesNotCancelConnectTransaction() = runTest {
@@ -165,8 +166,8 @@ class BleConnectionCoordinatorTest {
     }
 
     /**
-     * **底层断开返回前不发布 Idle** —— 谎报"已断开"而物理仍连, 正是孤儿难以察觉的根源
-     * (真机实证: NordicBleClient.disconnect 在 conns 无该 id 时 ?.let 短路, 一个字节不发却仍置 DISCONNECTED)。
+     * **底层断开返回前不发布 Idle** -- 谎报"已断开"而物理仍连, 正是孤儿难以察觉的根源
+     * (真机实证: NordicBleClient.disconnect 在 conns 无该 id 时 ?.let 短路, 一个字节不发却仍置 DISCONNECTED).
      */
     @Test
     fun disconnect_publishesIdleOnlyAfterUnderlyingDisconnectReturns() = runTest {
@@ -218,7 +219,7 @@ class BleConnectionCoordinatorTest {
     }
 
     /**
-     * 旧清理不能删除新连接: 断开后立刻重连, 旧事务的收尾不得把新事务的槽/状态抹掉。
+     * 旧清理不能删除新连接: 断开后立刻重连, 旧事务的收尾不得把新事务的槽/状态抹掉.
      */
     @Test
     fun staleTransaction_mustNotTouchNewOne() = runTest {
@@ -260,9 +261,9 @@ class BleConnectionCoordinatorTest {
     }
 
     /**
-     * **断开路径上的孤儿(回归闸)**: 用户点「断开」后立刻退屏 => 调用方协程被取消。
-     * 断开事务必须照常完成(底层 disconnect + registry 摘除 + Idle) —— 它跑在 app 域,
-     * 调用方的挂起点只是可取消的 join。与 connect 腰斩同族, 真机实证过。
+     * **断开路径上的孤儿(回归闸)**: 用户点'断开'后立刻退屏 => 调用方协程被取消.
+     * 断开事务必须照常完成(底层 disconnect + registry 摘除 + Idle) -- 它跑在 app 域,
+     * 调用方的挂起点只是可取消的 join. 与 connect 腰斩同族, 真机实证过.
      */
     @Test
     fun callerCancelledDuringDisconnect_transactionStillCompletes() = runTest {
@@ -292,6 +293,86 @@ class BleConnectionCoordinatorTest {
             "**调用方被取消, 断开事务仍须完成并发布 Idle**",
         )
         assertFalse(reg.isConnected("d1"), "registry 摘除必达")
+        appScope.cancel()
+    }
+
+    /**
+     * **快速返回竞态(复核高危 1 的回归闸)**: client 的 connect 走"已连接"等短路路径瞬间返回时,
+     * 事务不得把槽卡死. 用 Unconfined 调度器让事务体在 start() 处**急切跑完** -- 旧实现
+     * (先 launch 后 putSlot)会把已结束的 Job 塞进槽, 槽永不释放/状态永卡 Connecting;
+     * 现实现 LAZY 启动(先登记槽再 start)保证 finally 的 takeSlot 必然看得到槽.
+     */
+    @Test
+    fun fastReturningConnect_doesNotStrandSlot() = runTest {
+        val ble = FakeBle().apply { connectGate.complete(Unit) } // connect 立即返回
+        val appScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val reg = ConnectionRegistry(ble, appScope)
+        val coord = BleConnectionCoordinator(ble, reg, appScope)
+
+        launch { coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+
+        assertFalse(coord.isBusy("d1"), "**快速返回的事务不得把槽卡死**(旧实现在此永久 busy)")
+        assertEquals(BleConnectionCoordinator.Attempt.Connected, coord.state("d1").value)
+        assertTrue(reg.isConnected("d1"))
+        appScope.cancel()
+    }
+
+    /** 断开是事务(复核高危 2): 断开进行中, 新 connect 必须被拒 -- 不得与断开交叉. */
+    @Test
+    fun connectRejected_whileDisconnecting() = runTest {
+        val ble = FakeBle()
+        val (coord, _, appScope) = coordinator(ble)
+        launch { coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+        ble.connectGate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        val gate = CompletableDeferred<Unit>()
+        ble.disconnectGate = gate
+        launch { coord.disconnect("d1") }
+        testScheduler.advanceUntilIdle()
+        assertEquals(
+            BleConnectionCoordinator.Attempt.Disconnecting, coord.state("d1").value,
+            "断开期间状态应为 Disconnecting(供 UI 禁用按钮)",
+        )
+        assertTrue(coord.isBusy("d1"), "断开事务占槽")
+
+        var accepted = true
+        launch { accepted = coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+        assertFalse(accepted, "**断开进行中的 connect 必须被拒**")
+        assertEquals(1, ble.connectStarted, "不得发起第二次底层 connect")
+
+        gate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+        assertEquals(BleConnectionCoordinator.Attempt.Idle, coord.state("d1").value)
+        assertFalse(coord.isBusy("d1"))
+        appScope.cancel()
+    }
+
+    /** 断开幂等: 断开进行中再点断开 = 等同一事务, 底层 disconnect 只发一次. */
+    @Test
+    fun doubleDisconnect_joinsSameTransaction() = runTest {
+        val ble = FakeBle()
+        val (coord, _, appScope) = coordinator(ble)
+        launch { coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+        ble.connectGate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        val gate = CompletableDeferred<Unit>()
+        ble.disconnectGate = gate
+        val d1 = launch { coord.disconnect("d1") }
+        testScheduler.advanceUntilIdle()
+        val d2 = launch { coord.disconnect("d1") }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, ble.disconnectCalls.count { it == "d1" }, "**底层 disconnect 只发一次**")
+
+        gate.complete(Unit)
+        d1.join(); d2.join()
+        assertEquals(BleConnectionCoordinator.Attempt.Idle, coord.state("d1").value)
         appScope.cancel()
     }
 }

@@ -6,10 +6,20 @@
 
 ---
 
+## [修复] Coordinator 两处高危竞态 + 复核问题清账（Codex 复核 6 条全修）— ✅ 2026-07-16
+上一条三项收口经独立复核判"部分通过"，6 条问题逐一核实为真并修复；本条落地后方视为闭环。
+- **高·快速返回竞态**：`connect()` 原先"先 launch 后 putSlot"——client 走"已连接"等短路路径时事务可能在入槽前整个跑完，finally 的 takeSlot 扑空，随后**已结束的 Job 被塞进槽 => 槽永不释放、状态永卡 Connecting/busy**（NonCancellable 管不住调度顺序）。修 = `CoroutineStart.LAZY`：**先登记槽、再 `job.start()`**；回归闸 `fastReturningConnect_doesNotStrandSlot`（Unconfined 调度器令事务体急切跑完，旧实现在此必卡）。
+- **高·断开不在状态机**：disconnect 原先不占槽不发状态——断开执行期间按钮重新可用，可重复断开或与新连接交叉。修 = 断开**也是事务**：占槽（`TxnKind.DISCONNECT`）+ 新增 `Attempt.Disconnecting`，期间 `connect` 被拒、重复 `disconnect` 幂等等待同一事务（底层只发一次）；两 VM busy 改为 `Connecting || Disconnecting` 派生，DeviceScan 补 `isBusy` 重入闸。回归闸 2 条（断开中 connect 被拒 / 双断开合一事务）。
+- **中·文档矛盾清账**：根因分析"结论(前置)"的触发器断言与终局观测矛盾——补勘误（全部取样挂死 `started=true`，**false 丢弃是真实库缺陷但非本次实测触发**，实测丢失在返回 true 之后、与 MTU 重叠强相关）；issue 草稿头改"已提交 #337"；上下文"提交 2 进行中"改已完成；通用 OTA 设计 Open Questions 两条过期项勘误（profileId 值已落 `B2A.0xFFE0`；**RAW 通用包读取层经用户收回暂缓**）。两份 html 重生成。
+- **中·CHANGELOG manifest 误报**：上一条声称 manifest `deviceId` 改 hex12——实际**落盘模型 `ManifestDevice` 无 deviceId 字段**（address/name/profileId），已就地勘误。
+- **中·证据与跳闸丝结构性缺口**：`.gitignore` 增 `!Docs/真机证据/**/*.log` 例外（此前 `*.log` 全局忽略把证据**静默**挡在库外，靠 add -f 只救存量）；`NordicOperationMutexPinTest` 两处 `while` 自旋补 `yield()`（无挂起点则 `withTimeoutOrNull` 切不断——**跳闸丝要失败不要卡死**）；[`真机证据/nordic25_20260716/README.md`](真机证据/nordic25_20260716/README.md) 补审计说明（`ab_selfwritten.log` 混两段、须按 `backend=selfwritten` 标记切段复算 8/0，Nordic 7/3 可直接复算；声明样本量为定位性而非统计验收）。
+- **低·契约与风格**：`normalizeMac` 的 `Char.isDigit()` 改显式 `'0'..'9'`（Unicode 数字不合 hex 契约）；今日新增注释全角标点批量转半角（8 文件 123 行）。
+- 验收：shared **232/0**（+3 竞态回归闸）+ app 12/0 + assembleDebug；真机 NOT_RUN。
+
 ## [BLE·身份] Coordinator 接线(提交 2) · 身份只认 MAC · PROFILE_B2A 值正名 — ✅ 2026-07-16
 UWTP 开工前的三项收口(用户指定顺序)。真机全部 NOT_RUN(等 UWTP 联调窗口一并验)。
 - **连接事务宿主接线(提交 2/2)**：ConsoleConnect/DeviceScan 两个扫描→连接页(孤儿主产地)改为向 [`BleConnectionCoordinator`](../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleConnectionCoordinator.kt) 提交意图——退屏不再腰斩事务，`connect→确认→registry.add` 原子提交，VM 不再写 registry；ConsoleConnect 的 busy 改由 `coordinator.attempts` 派生(**重建 VM 后在飞事务依旧显示"连接中"**)。Coordinator 硬化三处：意图提交 NonCancellable(启动事务+登记槽原子)、**disconnect 事务移入 app 域**(点断开后立刻退屏也必须完成——"断开路径上的孤儿"回归闸测试新增)、单设备视图表 CAS getOrPut(commonMain 无 ConcurrentHashMap)。其余 7 处入口(OTA 两屏/控制台/SessionManager/OtaProvisioner)随 UWTP 阶段 B 与 #27 二阶段统一。
-- **身份只认 MAC**([`Mac.kt`](../shared/src/commonMain/kotlin/io/bluetrace/shared/domain/Mac.kt))：`ScannedDevice.id` 真实端契约 = **规范化大写 hex12 无分隔**(normalizeMac，解析失败丢弃不猜)；`address` 保留平台冒号串(展示+平台 API——`getRemoteDevice`/`getPeripheralById` 均要求冒号格式，两处消费点已切换，**此为唯一行为敏感点**)；名称只展示不作判据；Mock 合成 id 为测试夹具豁免。会话文件名后四位取自 address 自带过滤不受影响；manifest `AssignedDevice.deviceId` 新会话起为 hex12(历史冒号值只读展示，不迁移)。MacTest 4 例。
+- **身份只认 MAC**([`Mac.kt`](../shared/src/commonMain/kotlin/io/bluetrace/shared/domain/Mac.kt))：`ScannedDevice.id` 真实端契约 = **规范化大写 hex12 无分隔**(normalizeMac，解析失败丢弃不猜)；`address` 保留平台冒号串(展示+平台 API——`getRemoteDevice`/`getPeripheralById` 均要求冒号格式，两处消费点已切换，**此为唯一行为敏感点**)；名称只展示不作判据；Mock 合成 id 为测试夹具豁免。会话文件名后四位取自 address 自带过滤不受影响；~~manifest `AssignedDevice.deviceId` 新会话起为 hex12~~〔⚠️ 复核勘误：**落盘模型 `ManifestDevice` 只存 address/name/profileId，没有 deviceId 字段**（`AssignedDevice` 是内存态配置类）——MAC 改制影响的是**运行时**身份键，manifest 实际变化只有 profileId 新值〕。MacTest 4 例。
 - **`PROFILE_B2A` 值**：`"SKG.S7.B2A"` → `"B2A.0xFFE0"`(形制对齐 PROFILE_HRS；厂商/设备名退出架构标识；独立提交可回退；全库字面量仅定义处 1 个，其余全走常量)。
 - 验收：shared **229/0**(=Coordinator 接线前 224 + 断开孤儿闸 1 + MacTest 4) + app **12/0**(9 + 捞回的 NordicOperationMutexPinTest 3) + assembleDebug；`git diff --check` 过。
 

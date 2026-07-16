@@ -267,8 +267,8 @@ interface FwPackageLoader { fun load(entries: List&lt;RawFwEntry&gt;): FwPackage
 </table>
 <h2 id="open-questions">Open Questions</h2>
 <ol>
-<li><strong><code>PROFILE_B2A</code> 的值</strong> <code>"SKG.S7.B2A"</code> 是否改为 <code>"B2A.SKG.0xFFE0"</code>（对齐 <code>PROFILE_HRS = "HeartRate.SIG.0x180D"</code> 的"协议.组织.UUID"惯例，并把 UUID 锚进标识）？<strong>代价</strong>：写进 manifest 的历史会话数据不再匹配（demo 阶段惯例是"直接替换不做迁移"，故成本低）。<strong>倾向：改</strong>，但作为独立可回退提交。</li>
-<li><code>RawPackageReader</code> 的非 zip 分支（单 <code>.bin</code> 当单条目）现在就要，还是等真有此类协议？<strong>倾向：接口留位，实现先 zip + 单文件兜底</strong>（成本近乎为零）。</li>
+<li>~~<strong><code>PROFILE_B2A</code> 的值</strong>~~〔✅ 2026-07-16 已落：定为 <code>"B2A.0xFFE0"</code>（厂商与设备名全部退出，比本节旧提案更彻底），独立提交可回退〕 ~~<code>"SKG.S7.B2A"</code> 是否改为 <code>"B2A.SKG.0xFFE0"</code>~~（对齐 <code>PROFILE_HRS = "HeartRate.SIG.0x180D"</code> 的"协议.组织.UUID"惯例，并把 UUID 锚进标识）？<strong>代价</strong>：写进 manifest 的历史会话数据不再匹配（demo 阶段惯例是"直接替换不做迁移"，故成本低）。<strong>倾向：改</strong>，但作为独立可回退提交。</li>
+<li>~~<code>RawPackageReader</code> 的非 zip 分支~~〔⛔ 2026-07-16 用户收回：<strong>RAW/通用包读取层暂缓设计</strong>，现阶段保持既有 B2A 包加载逻辑，不提前冻结未知需求——本文四阶段中涉 <code>RawFwEntry</code> 的部分随之冻结〕</li>
 <li>中止文案（现 UI 硬编码"会向设备发送重启指令使其复位"，对 ZX 是错的）：给策略加 <code>abortHint: String?</code>，还是文案一律中性、协议细节移进 <code>detail</code>/日志？<strong>倾向：后者</strong>，不为一句文案动通用接口。</li>
 </ol></main>
 </div>

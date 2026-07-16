@@ -186,6 +186,6 @@ interface FwPackageLoader { fun load(entries: List<RawFwEntry>): FwPackage }  //
 
 ## Open Questions
 
-1. **`PROFILE_B2A` 的值** `"SKG.S7.B2A"` 是否改为 `"B2A.SKG.0xFFE0"`（对齐 `PROFILE_HRS = "HeartRate.SIG.0x180D"` 的"协议.组织.UUID"惯例，并把 UUID 锚进标识）？**代价**：写进 manifest 的历史会话数据不再匹配（demo 阶段惯例是"直接替换不做迁移"，故成本低）。**倾向：改**，但作为独立可回退提交。
-2. `RawPackageReader` 的非 zip 分支（单 `.bin` 当单条目）现在就要，还是等真有此类协议？**倾向：接口留位，实现先 zip + 单文件兜底**（成本近乎为零）。
+1. ~~**`PROFILE_B2A` 的值**~~〔✅ 2026-07-16 已落：定为 `"B2A.0xFFE0"`（厂商与设备名全部退出，比本节旧提案更彻底），独立提交可回退〕 ~~`"SKG.S7.B2A"` 是否改为 `"B2A.SKG.0xFFE0"`~~（对齐 `PROFILE_HRS = "HeartRate.SIG.0x180D"` 的"协议.组织.UUID"惯例，并把 UUID 锚进标识）？**代价**：写进 manifest 的历史会话数据不再匹配（demo 阶段惯例是"直接替换不做迁移"，故成本低）。**倾向：改**，但作为独立可回退提交。
+2. ~~`RawPackageReader` 的非 zip 分支~~〔⛔ 2026-07-16 用户收回：**RAW/通用包读取层暂缓设计**，现阶段保持既有 B2A 包加载逻辑，不提前冻结未知需求——本文四阶段中涉 `RawFwEntry` 的部分随之冻结〕
 3. 中止文案（现 UI 硬编码"会向设备发送重启指令使其复位"，对 ZX 是错的）：给策略加 `abortHint: String?`，还是文案一律中性、协议细节移进 `detail`/日志？**倾向：后者**，不为一句文案动通用接口。
