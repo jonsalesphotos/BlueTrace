@@ -5,7 +5,7 @@
 > 根因分析：[`Nordic重连挂死_根因分析.md`](Nordic重连挂死_根因分析.md)；真机证据：[`../真机证据/nordic25_20260716/`](../真机证据/nordic25_20260716/)
 >
 > **状态：已提交 —— [NordicSemiconductor/Kotlin-BLE-Library#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337)（2026-07-16，经用户逐段过目后授权，以用户 GitHub 身份提交）。本文自此为底稿留档。**
-> **待发订正评论**（A/B 表自写侧口径：8 请求实为 4 连接实例 4/4，Nordic 7/3 不变）——文本备于 `_rt_shots/issue_comment.md`，gh 提交被权限层拦截，待用户放行或自行粘贴。
+> **订正评论已发**（2026-07-16，用户放行后以其身份发布）：[issuecomment-4991693289](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337#issuecomment-4991693289)——A/B 表自写侧口径 8 请求实为 4 连接实例 4/4，Nordic 7/3 不变。
 > v2 相对 v1 的升级：v1 只有源码推理；v2 有 **只观测 fork 的三层日志** + **同机同栈的 A/B 对照**（自写 GATT 客户端 8 次 0 挂死 vs 本库 7 次 3 挂死）+ dumpsys 系统层佐证。这是维护者能直接采信的材料。
 >
 > 正文用英文（上游为国际项目），保持可直接粘贴。
