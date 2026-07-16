@@ -2,6 +2,7 @@ package io.bluetrace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.bluetrace.shared.ble.BleConnectionCoordinator
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.device.DeviceProfileCatalog
@@ -44,12 +45,14 @@ class ConsoleConnectViewModel(
     private val ble: BleClient,
     private val registry: ConnectionRegistry,
     private val catalog: DeviceProfileCatalog,
+    /** app 级连接事务宿主: 连接/断开经它提交, 退屏不腰斩(孤儿连接修复, 2026-07-16). */
+    private val coordinator: BleConnectionCoordinator,
 ) : ViewModel() {
 
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
     private val _links = MutableStateFlow<Map<String, LinkState>>(emptyMap())
     private val _scanning = MutableStateFlow(false)
-    private val _busy = MutableStateFlow<Set<String>>(emptySet())
+
     private val _query = MutableStateFlow("")
     private val _rssi = MutableStateFlow(ScanDefaults.RSSI_THRESHOLD)
     private val observed = mutableSetOf<String>()
@@ -62,7 +65,10 @@ class ConsoleConnectViewModel(
             _results,
             _links,
             registry.connected,
-            combine(_scanning, _busy, _query, _rssi) { scanning, busy, q, rssi -> Ctl(scanning, busy, q, rssi) },
+            // busy 源自 coordinator 的意图状态(而非 VM 自持集合): 换页面/重建 VM 后在飞事务依旧显示"连接中".
+            combine(_scanning, coordinator.attempts, _query, _rssi) { scanning, attempts, q, rssi ->
+                Ctl(scanning, attempts.filterValues { it == BleConnectionCoordinator.Attempt.Connecting }.keys, q, rssi)
+            },
         ) { results, links, connected, ctl ->
             val scanning = ctl.scanning
             val busy = ctl.busy
@@ -129,26 +135,28 @@ class ConsoleConnectViewModel(
      * 单点即连/断该设备. **不自动断开其它设备**(除非明确点已连设备断开);
      * 不支持的设备直接忽略(不运行连接).
      */
+    /**
+     * 单点即连/断该设备. **不自动断开其它设备**(除非明确点已连设备断开);
+     * 不支持的设备直接忽略(不运行连接).
+     *
+     * **连接/断开是 app 级事务([BleConnectionCoordinator]), 本 VM 只提交意图并观察**:
+     * 页面返回/VM 销毁不会腰斩事务(孤儿连接修复, 2026-07-16 真机实证——正是本页"点连接后
+     * 未确认即返回"的场景); `connect -> 确认 CONNECTED -> registry.add` 由事务原子提交,
+     * 本 VM 不再碰 registry 写入; 重复点击由 coordinator 幂等挡掉。
+     */
     fun toggleConnect(device: ScannedDevice) {
-        if (device.id in _busy.value) return
+        if (coordinator.isBusy(device.id)) return
         val connectedNow = registry.isConnected(device.id)
         // 未连接且无控制面(控制台不可维护) → 不运行连接
         if (!connectedNow && catalog.identify(device)?.controlPlane == null) return
-        _busy.update { it + device.id }
         viewModelScope.launch {
-            try {
-                if (connectedNow) {
-                    ble.disconnect(device.id)
-                    registry.remove(device.id)
-                } else {
-                    observeLink(device.id)
-                    // 识别到档案则走其 gattSpec 声明式通道(新协议只认 spec, 探测只认 B2A/HRS);
-                    // 未识别设备保留探测兜底(spec=null).
-                    ble.connect(device, catalog.identify(device)?.gattSpec)
-                    if (ble.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
-                }
-            } finally {
-                _busy.update { it - device.id }
+            if (connectedNow) {
+                coordinator.disconnect(device.id)
+            } else {
+                observeLink(device.id)
+                // 识别到档案则走其 gattSpec 声明式通道(新协议只认 spec, 探测只认 B2A/HRS);
+                // 未识别设备保留探测兜底(spec=null).
+                coordinator.connect(device, catalog.identify(device)?.gattSpec)
             }
         }
     }

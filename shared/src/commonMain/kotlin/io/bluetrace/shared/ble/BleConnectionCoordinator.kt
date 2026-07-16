@@ -76,12 +76,29 @@ class BleConnectionCoordinator(
     /** 只保护"建事务"这一步的原子性(检查已有 + 建新); 清理走 CAS 不占锁. */
     private val startLock = Mutex()
 
-    /** 某设备的连接意图状态(页面观察它, 而不是自持 busy 布尔). */
+    /**
+     * 全部设备的意图状态快照(响应式)。页面把它并进自己的 combine 派生 busy/行状态,
+     * 不再自持 busy 布尔 —— 于是**换页面/重建 VM 后在飞事务依旧可见**(旧方案 _busy 随 VM 消亡,
+     * 新实例进来看不到"连接中", 正是孤儿难察觉的一环)。
+     */
+    val attempts: StateFlow<Map<String, Attempt>> = states.asStateFlow()
+
+    /** 某设备的连接意图状态(单设备观察口; 与 [attempts] 同源). */
     fun state(deviceId: String): StateFlow<Attempt> = statesView(deviceId)
 
-    private val views = mutableMapOf<String, MutableStateFlow<Attempt>>()
-    private fun statesView(id: String): MutableStateFlow<Attempt> =
-        views.getOrPut(id) { MutableStateFlow(states.value[id] ?: Attempt.Idle) }
+    /**
+     * 单设备视图表: CAS getOrPut —— publish 在 app 域多线程跑, 普通 mutableMap 的 getOrPut
+     * 有丢更新竞态(commonMain 无 ConcurrentHashMap/synchronized 可用, 故用 StateFlow CAS)。
+     */
+    private val views = MutableStateFlow<Map<String, MutableStateFlow<Attempt>>>(emptyMap())
+    private fun statesView(id: String): MutableStateFlow<Attempt> {
+        while (true) {
+            val cur = views.value
+            cur[id]?.let { return it }
+            val created = MutableStateFlow(states.value[id] ?: Attempt.Idle)
+            if (views.compareAndSet(cur, cur + (id to created))) return created
+        }
+    }
 
     private fun publish(id: String, s: Attempt) {
         states.update { it + (id to s) }
@@ -92,53 +109,66 @@ class BleConnectionCoordinator(
     fun isBusy(deviceId: String): Boolean = slots.value.containsKey(deviceId)
 
     /**
-     * **提交连接意图**(立即返回, 不挂起调用方).
+     * **提交连接意图**(立即返回, 不挂起调用方)。
      *
      * 幂等: 同一设备已有在飞事务时直接返回 false, 不重复发起。
      * 事务跑在 app 域 —— **调用方(页面)销毁不会取消它**。
+     * 提交本身包在 NonCancellable 里: "启动事务 + 登记槽"必须原子——若调用方恰在 launch 与
+     * putSlot 之间被取消, 会留下"事务在跑但无槽"的怪胎(finally 的 CAS 永远失败, 状态卡 Connecting)。
      *
-     * @return true = 已受理并新建事务; false = 已有在飞事务(或已连接), 未做任何事。
+     * @return true = 已受理并新建事务; false = 已有在飞事务, 未做任何事。
      */
-    suspend fun connect(device: ScannedDevice, spec: GattSpec? = null): Boolean = startLock.withLock {
-        if (slots.value.containsKey(device.id)) return@withLock false
-        val token = tokenSeq.updateAndGet { it + 1 }
-        publish(device.id, Attempt.Connecting)
-        val job = scope.launch {
-            var ok = false
-            try {
-                ble.connect(device, spec)
-                // connect 与 registry.add 属**同一事务**: 此前二者是两条独立语句, 恢复点被取消即漏登记
-                // (= 孤儿的第二类产地)。这里页面已无法取消我们, 故不存在那个窗口。
-                ok = ble.linkState(device.id).value == LinkState.CONNECTED
-                if (ok) registry.add(device)
-            } finally {
-                // 善后与状态发布**只有 CAS 赢家**能做: 显式 disconnect 可能已接管本事务(见 [disconnect])。
-                withContext(NonCancellable) {
-                    if (takeSlot(device.id, token)) {
-                        publish(device.id, if (ok) Attempt.Connected else Attempt.Failed("connect failed"))
+    suspend fun connect(device: ScannedDevice, spec: GattSpec? = null): Boolean =
+        withContext(NonCancellable) {
+            startLock.withLock {
+                if (slots.value.containsKey(device.id)) return@withLock false
+                val token = tokenSeq.updateAndGet { it + 1 }
+                publish(device.id, Attempt.Connecting)
+                val job = scope.launch {
+                    var ok = false
+                    try {
+                        ble.connect(device, spec)
+                        // connect 与 registry.add 属**同一事务**: 此前二者是两条独立语句, 恢复点被取消
+                        // 即漏登记(= 孤儿的第二类产地)。这里页面已无法取消我们, 故不存在那个窗口。
+                        ok = ble.linkState(device.id).value == LinkState.CONNECTED
+                        if (ok) registry.add(device)
+                    } finally {
+                        // 善后与状态发布**只有 CAS 赢家**能做: 显式 disconnect 可能已接管本事务。
+                        withContext(NonCancellable) {
+                            if (takeSlot(device.id, token)) {
+                                publish(device.id, if (ok) Attempt.Connected else Attempt.Failed("connect failed"))
+                            }
+                        }
                     }
                 }
+                putSlot(device.id, Txn(token, device, job))
+                true
             }
         }
-        putSlot(device.id, Txn(token, device, job))
-        true
-    }
 
     /**
      * **显式断开**: 唯一允许取消在飞事务的入口。
      *
      * 语义: 取消尝试 -> 等它完全结束 -> 底层断开 -> 摘除 registry -> 发布 Idle。
      * **在底层断开真正返回之前不发布 Idle** —— 谎报"已断开"正是孤儿难以察觉的原因之一。
+     *
+     * 断开事务同样跑在 **app 域**: 用户点「断开」后立刻退屏(viewModelScope 取消)时, 断开必须
+     * 照常完成 —— 否则就是"断开路径上的孤儿"(与 connect 腰斩同族, 真机实证过)。
+     * 调用方的挂起点只是 join(可取消); 取消它不影响事务本身。
      */
     suspend fun disconnect(deviceId: String) {
-        val txn = takeSlotAny(deviceId)
-        withContext(NonCancellable) {
-            // 先取消并**等待**在飞事务收尾, 再动底层: 否则 connect 与 disconnect 会在 BleClient 内部打架。
-            txn?.job?.cancelAndJoin()
-            ble.disconnect(deviceId)
-            registry.remove(deviceId)
-            publish(deviceId, Attempt.Idle)
-        }
+        scope.launch {
+            val txn = takeSlotAny(deviceId)
+            try {
+                // 先取消并**等待**在飞事务收尾, 再动底层: 否则 connect 与 disconnect 在 BleClient 内打架。
+                txn?.job?.cancelAndJoin()
+                ble.disconnect(deviceId)
+            } finally {
+                // 底层断开抛异常也不得漏善后: registry 摘除与终态发布必达。
+                registry.remove(deviceId)
+                publish(deviceId, Attempt.Idle)
+            }
+        }.join()
     }
 
     // ---- 槽的 CAS 原语 ----

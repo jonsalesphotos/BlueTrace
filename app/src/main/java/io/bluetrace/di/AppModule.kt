@@ -159,6 +159,9 @@ val appModule = module {
     // ---- app 级状态 / 仓库 ----
     // B2: 事件驱动登记表(订阅 linkState 自动清退被动断连), 下沉 shared 供 iOS 复用
     single { ConnectionRegistry(get(), get()) }
+    // app 级连接事务宿主(孤儿连接修复, 2026-07-16): 连接/断开事务跑 app scope, 页面只提交意图;
+    // 详见 shared/ble/BleConnectionCoordinator.kt KDoc 与 Docs/设计/Nordic重连挂死_根因分析.md 终局节.
+    single { io.bluetrace.shared.ble.BleConnectionCoordinator(get(), get(), get()) }
     // W3 设备会话宿主(app 级): 每设备一份会话生命周期(identify -> connect(gattSpec) -> confirm -> 控制面).
     // 长事务不落 viewModelScope(挂 app 级 CoroutineScope). 运行时消费方(VM/UI)W5 接; 现无消费方.
     single { DeviceSessionManager(get(), get(), get(), get(), get()) }
@@ -188,7 +191,7 @@ val appModule = module {
     viewModelOf(::ExportViewModel)
     viewModel { (folder: String) -> SessionDetailViewModel(folder, get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get()) }
-    viewModel { io.bluetrace.viewmodel.ConsoleConnectViewModel(get(), get(), get()) }
+    viewModel { io.bluetrace.viewmodel.ConsoleConnectViewModel(get(), get(), get(), get()) }
     // 设备维护(DUT)控制台: DeviceSessionManager 首个运行时消费方(W5); 控制走 DeviceControl 六分面.
     // 固件日志 → Download/BlueTrace/log/firmware/, 操作日志 → log/app/
     viewModel {

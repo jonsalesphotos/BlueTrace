@@ -258,4 +258,40 @@ class BleConnectionCoordinatorTest {
         assertEquals(BleConnectionCoordinator.Attempt.Idle, coord.state("ghost").value)
         appScope.cancel()
     }
+
+    /**
+     * **断开路径上的孤儿(回归闸)**: 用户点「断开」后立刻退屏 => 调用方协程被取消。
+     * 断开事务必须照常完成(底层 disconnect + registry 摘除 + Idle) —— 它跑在 app 域,
+     * 调用方的挂起点只是可取消的 join。与 connect 腰斩同族, 真机实证过。
+     */
+    @Test
+    fun callerCancelledDuringDisconnect_transactionStillCompletes() = runTest {
+        val ble = FakeBle()
+        val (coord, reg, appScope) = coordinator(ble)
+        launch { coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+        ble.connectGate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+        assertTrue(reg.isConnected("d1"))
+
+        // 底层断开卡住, 模拟"断开进行中用户退屏".
+        val gate = CompletableDeferred<Unit>()
+        ble.disconnectGate = gate
+        val vmScope = CoroutineScope(StandardTestDispatcher(testScheduler) + Job())
+        vmScope.launch { coord.disconnect("d1") }
+        testScheduler.advanceUntilIdle()
+        assertTrue(ble.disconnectCalls.contains("d1"), "断开应已发起")
+
+        vmScope.cancel() // 退屏
+        testScheduler.advanceUntilIdle()
+        gate.complete(Unit) // 底层断开这才完成
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(
+            BleConnectionCoordinator.Attempt.Idle, coord.state("d1").value,
+            "**调用方被取消, 断开事务仍须完成并发布 Idle**",
+        )
+        assertFalse(reg.isConnected("d1"), "registry 摘除必达")
+        appScope.cancel()
+    }
 }

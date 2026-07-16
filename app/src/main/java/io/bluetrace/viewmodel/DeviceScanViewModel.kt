@@ -2,6 +2,7 @@ package io.bluetrace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.bluetrace.shared.ble.BleConnectionCoordinator
 import io.bluetrace.shared.ble.ConnectionRegistry
 import io.bluetrace.shared.ble.BleClient
 import io.bluetrace.shared.device.DeviceProfileCatalog
@@ -49,6 +50,8 @@ class DeviceScanViewModel(
     private val bleClient: BleClient,
     private val registry: ConnectionRegistry,
     private val catalog: DeviceProfileCatalog,
+    /** app 级连接事务宿主: 连接/断开经它提交, 退屏不腰斩(孤儿连接修复, 2026-07-16). */
+    private val coordinator: BleConnectionCoordinator,
 ) : ViewModel() {
 
     private val _results = MutableStateFlow<List<ScannedDevice>>(emptyList())
@@ -150,22 +153,25 @@ class DeviceScanViewModel(
     fun setRssiThreshold(value: Int) { _rssi.value = value }
     fun setQuery(value: String) { _query.value = value }
 
-    /** 单击: 未连→连接(限额内); 已连→断开.  */
+    /**
+     * 单击: 未连→连接(限额内); 已连→断开。
+     *
+     * **连接/断开是 app 级事务([BleConnectionCoordinator]), 本 VM 只提交意图并观察**:
+     * 页面返回/VM 销毁不会腰斩事务 —— 旧实现跑 viewModelScope, 退屏取消 connect 后物理连接
+     * 无人持有(孤儿: 设备停广播, 全 App 看不见也断不开, 2026-07-16 真机实证)。
+     * `connect -> 确认 CONNECTED -> registry.add` 由事务原子提交, 本 VM 不再碰 registry 写入;
+     * viewModelScope.launch 只是提交意图的载体, 意图提交本身不可取消(Coordinator 内 NonCancellable)。
+     */
     fun toggleConnect(device: ScannedDevice) {
         if (registry.isConnected(device.id)) {
-            viewModelScope.launch {
-                bleClient.disconnect(device.id)
-                registry.remove(device.id)
-            }
+            viewModelScope.launch { coordinator.disconnect(device.id) }
         } else {
             if (!registry.canConnect(device.kind)) return
             observeLink(device.id)
             viewModelScope.launch {
-                // 先连后入册: 真实 BLE 连接可失败/超时, 失败不得留下幽灵"已连接"条目.
                 // 识别到档案则走其 gattSpec 声明式通道(新协议只认 spec, 探测只认 B2A/HRS);
                 // 未识别设备保留探测兜底(spec=null).
-                bleClient.connect(device, catalog.identify(device)?.gattSpec)
-                if (bleClient.linkState(device.id).value == LinkState.CONNECTED) registry.add(device)
+                coordinator.connect(device, catalog.identify(device)?.gattSpec)
             }
         }
     }
