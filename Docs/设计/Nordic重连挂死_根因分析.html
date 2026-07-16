@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nordic 重连挂死 · 根因分析（#25）</title>
+<title>Nordic 重连挂死 · 根因分析(#25)</title>
 <style>
 :root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
         --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
@@ -60,9 +60,9 @@ strong { font-weight:600; }
 <li><a href="#_3">根因链</a></li>
 <li><a href="#beta03-sources-jar">源码证据（beta03 sources jar，逐条可核）</a></li>
 <li><a href="#_4">可执行证据</a></li>
-<li><a href="#_5">尚未闭环：触发器的原生成因（需真机）</a></li>
+<li><a href="#07-16-07-15-false-return-true-false-return">尚未闭环：触发器的原生成因（需真机）〔⚠️ 07-16 注：本章按 07-15 的 false-return 假设展开；分层观测后已知实测触发是 "true 后回调丢失"，本章的 false-return 分析降级为代码缺陷分析而非本次实测成因——保留原文供追溯〕</a></li>
 <li><a href="#2026-07-16-disconnect-gatt">~~已落规避（本分支）~~〔⚠️ 2026-07-16 真机证伪已撤除，见文首「终局」——解锁放行的是陈旧且不可取消的 disconnect，它读到新一代的 gatt 并将其断开〕</a></li>
-<li><a href="#_6">验收标准（真机，需用户在场）</a></li>
+<li><a href="#_5">验收标准（真机，需用户在场）</a></li>
 <li><a href="#issue">上游 issue（已提交）</a></li>
 </ul>
 </li>
@@ -84,7 +84,7 @@ strong { font-weight:600; }
 <li><strong>用户拍板（2026-07-16）</strong>：<strong>自写 AndroidBleClient 继续默认；Nordic 保留为可选实验后端（不删除）；#24B（转默认）无限期暂停</strong>。将来若重启转默认：补 Nordic 连接槽 + 上游/fork 修复 + 固定 MAC 50 次连接/断开与 OTA 回归。</li>
 <li><strong>上游 issue 已提交</strong>：<a href="https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337">NordicSemiconductor/Kotlin-BLE-Library#337</a>（英文全量证据版；本仓 <a href="Nordic重连挂死_issue草稿.md"><code>Nordic重连挂死_issue草稿.md</code></a> 为其底稿）。</li>
 <li><strong>实验代码封存</strong>：sweep（已证伪）、ManagerGen 代际、断开看门狗、观测 fork 接线全部封存在 <code>origin/task/25-nordic-reconnect-hang</code>（<strong>不合 main</strong>——代际方案有三条已确认的所有权竞态，修复方案=完整连接槽状态机，留待将来转默认时做）；观测 fork 本体在 <code>E:\_nordic_fork</code>（官方 tag beta03 + 3 处只读日志）。</li>
-<li><strong>连带发现（比库缺陷更深的自家架构病）</strong>：<strong>孤儿连接</strong>——9 处连接入口全跑 <code>viewModelScope</code>，退屏腰斩 connect 后物理连接无人持有（设备停广播 → 五个页面同时看不见、断不开）。修法 = <code>BleConnectionCoordinator</code>（app 级连接事务宿主，与后端无关），提交 1 已入 main。</li>
+<li><strong>连带发现（比库缺陷更深的自家架构病）</strong>：<strong>孤儿连接</strong>——9 处连接入口全跑 <code>viewModelScope</code>，退屏腰斩 connect 后物理连接无人持有（设备停广播 → 五个页面同时看不见、断不开）。修法 = <code>BleConnectionCoordinator</code>（app 级连接事务宿主，与后端无关），提交 1+2 已入 main（两个扫描→连接页接线，断开入事务槽/Disconnecting 状态机）。</li>
 </ul>
 <h2 id="_1">结论（前置）</h2>
 <p><strong>这是库缺陷，不是我们的用法问题</strong>，且是<strong>两个 bug 叠在同一段三行代码里</strong>：</p>
@@ -121,8 +121,8 @@ strong { font-weight:600; }
 </tr>
 <tr>
 <td>——</td>
-<td>✅ <strong>真凶（新）</strong></td>
-<td>服务发现是全库<strong>唯一</strong>用裸 <code>lock()</code>（无 finally）的地方，且<strong>丢弃 <code>discoverServices()</code> 的 false 返回值</strong></td>
+<td>✅ <strong>库缺陷坐实（07-16 勘误口径）</strong></td>
+<td>服务发现是全库<strong>唯一</strong>用裸 <code>lock()</code>（无 finally）的地方，且<strong>丢弃 <code>discoverServices()</code> 的 false 返回值</strong>——两者均为真实代码缺陷（issue #337 缺陷 1/2）。但<strong>本次实测触发不是 false 返回</strong>（分层观测：全部取样挂死 <code>started=true</code>），实测丢失发生在返回 true 与原生回调之间（与 MTU 重叠强相关，见终局节）；裸 lock 放大器则与实测完全吻合</td>
 </tr>
 </tbody>
 </table>
@@ -244,7 +244,7 @@ private fun discoverServices(uuids: List&lt;Uuid&gt;) {
 </tbody>
 </table>
 <p>它同时是<strong>跳闸丝</strong>：将来升 Nordic 版本时若本测试失败，说明上游改了行为，届时可评估撤掉本项目侧规避。</p>
-<h2 id="_5">尚未闭环：触发器的原生成因（需真机）</h2>
+<h2 id="07-16-07-15-false-return-true-false-return">尚未闭环：触发器的原生成因（需真机）〔⚠️ 07-16 注：本章按 07-15 的 false-return 假设展开；分层观测后已知实测触发是 "true 后回调丢失"，本章的 false-return 分析降级为<strong>代码缺陷分析</strong>而非本次实测成因——保留原文供追溯〕</h2>
 <p>已证明的是"<strong>一旦</strong>原生 <code>discoverServices()</code> 返回 false，库必然永久卡死并瘫痪全进程"。但<strong>原生层为何在主动断开后的重连中返回 false</strong>，仍需真机对照实验确认。候选：</p>
 <ul>
 <li>主动断开路径只调 <code>gatt.disconnect()</code> <strong>不调 <code>gatt.close()</code></strong>（<code>NativeExecutor.kt:266-274</code>；<code>close()</code> 才两者都调，:276-295）—— client interface 未释放；</li>
@@ -260,7 +260,7 @@ private fun discoverServices(uuids: List&lt;Uuid&gt;) {
 <li><strong>边界（已接受）</strong>：若此刻恰有另一台设备的发现正常在飞，会提前解掉它的锁，使发现期间的 GATT 串行保证失效。本项目设备会话本就串行（DeviceSessionManager 单 Mutex、多设备 OTA 逐台），并发发现不成立；代价一侧是整个 App 蓝牙瘫痪到用户手动开关蓝牙，故接受。</li>
 <li><strong>状态</strong>：⏳ <strong>真机未验</strong>，需随下条验收一并跑。</li>
 </ul>
-<h2 id="_6">验收标准（真机，需用户在场）</h2>
+<h2 id="_5">验收标准（真机，需用户在场）</h2>
 <ol>
 <li>同一真机主动断开 → 原进程回连 <strong>≥50 次</strong>：<code>Discovering</code> 挂死 <strong>0 次</strong>、无需开关蓝牙；</li>
 <li>OTA 后复位回连红线继续通过（既有 W1.6 记分卡不回归）；</li>

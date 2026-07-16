@@ -53,7 +53,14 @@ interface BleClient {
      */
     suspend fun connect(device: ScannedDevice, spec: GattSpec? = null)
 
-    /** 断开(再点断开 / 退出不调用——连接后台保持, §5.3).  */
+    /**
+     * 断开(再点断开 / 退出不调用--连接后台保持, §5.3); 无连接时为空操作.
+     *
+     * **契约**: 实现应**挂起直到底层断开动作完成**(至少已向平台发出且本端资源已释放)——上层
+     * (BleConnectionCoordinator)以"本方法返回"作为发布 Idle 的依据; 返回过早 = 谎报已断开.
+     * 做不到该语义的实现**必须在自身 KDoc 显式声明**(现状: AndroidBleClient 满足——同步
+     * gatt.disconnect()+close(); NordicBleClient **不满足**, fire-and-forget, 见其 KDoc).
+     */
     suspend fun disconnect(deviceId: String)
 
     /** 每设备连接状态流(扫描行徽章 + 运行设备卡"重连中").  */

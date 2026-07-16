@@ -1,4 +1,4 @@
-# Nordic 上游 issue 草稿（v2 · 待用户过目后由用户提交）
+# Nordic 上游 issue 底稿（v2 · 已提交 [#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337)，本文留档）
 
 > 目标仓库：<https://github.com/NordicSemiconductor/Kotlin-BLE-Library>
 > 版本：2.0.0-beta03（commit `78843bf`，即官方 tag）

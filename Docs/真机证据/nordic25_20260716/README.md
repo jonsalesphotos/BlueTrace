@@ -17,9 +17,10 @@
 - **归属标记**: 自写侧 `DISC_REQUEST` 行带 `backend=selfwritten` 尾标; 无该尾标的 DISC_* 行是**混入的
   Nordic 段残留**(当时后台 logcat 未及时更换), 复算自写指标时**必须按此标记过滤**。
 - **段 1(cancel 压测, ~16:45:04–16:48:2x)**: 取消路径的无回调是**预期**(取消即拆 GATT), 不计入挂死口径。
-- **段 2(hold, 16:49:40–16:52:11)**: `backend=selfwritten` 的 `DISC_REQUEST` 共 **8** 行(4 台次 x 2 次请求
-  ——自写实现每连接经 onMtuChanged 触发一次发现, 部分连接有两次 MTU 回调故两次请求), 全部有配对
-  `DISC_CALLBACK` => **0 挂死**。
+- **段 2(hold, 16:49:40–16:52:11)**: `backend=selfwritten` 的 `DISC_REQUEST` 共 **8** 行, 但只覆盖
+  **4 个 gattId**(每连接因两次 onMtuChanged 发两次请求), `DISC_CALLBACK` 共 **4** 行(每 gattId 一次)。
+  **正确口径**: **4 个连接/GATT 实例 4/4 均收到回调, 0 挂死**——不得表述为"8 个独立成功样本"
+  (逐请求配对有 4 行请求无自己的回调, 那是同 gattId 双请求共享一次回调的实现噪声, 非挂死)。
 - 一键复算(任意 shell):
   `grep "backend=selfwritten" ab_selfwritten.log | grep -c DISC_REQUEST` 与逐 gattId 配对 CALLBACK。
 

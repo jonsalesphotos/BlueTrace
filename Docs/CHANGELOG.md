@@ -6,10 +6,18 @@
 
 ---
 
+## [修复] Coordinator 结算原子化 + Nordic 断开契约边界 + 三轮复核清账 — ✅ 2026-07-16
+第三轮复核再判"暂不通过"，4 条问题全核实为真并修；UWTP rebase 继续押后至本条验收。
+- **高·结算竞态**：`takeSlot`（删槽）与 `publish`（发终态）之间存在窗口——旧连接结算删槽后、发布前，新 disconnect 可插入跑完并发布 Idle，旧事务随后才发布 Connected ⇒ **状态 Connected 而物理已断开/registry 已删**（断开侧对称）。startLock 此前只护创建不护结算。修 = **结算（校验 token+发布终态+释放槽）与创建共用 startLock**；配套把 `job.start()` 移出锁外（急切调度器下事务体在 start() 内同步跑完，其 finally 抢同一把锁会自死锁）。新增回归闸 `settlement_terminalStatesNeverInterleave`（状态序列不变量：不得出现 Idle 后未经新事务直接 Connected 的终态倒挂；原多线程窗口单线程虚拟调度无法重现，锁内原子化使其结构性不存在）。
+- **中·Nordic 断开契约缺口**：`NordicBleClient.disconnect` 是 fire-and-forget（挂等会被幽灵锁拖死，task/25 实证）——Coordinator 的"Idle 只在底层断开返回后发布"在 Nordic 上**只是名义时序**。按用户拍板（Nordic=实验后端不投入根治）走**契约标注**而非修复：[`BleClient.disconnect`](../shared/src/commonMain/kotlin/io/bluetrace/shared/ble/BleClient.kt) KDoc 立契约（应挂起到断开完成，做不到必须自声明）；`NordicBleClient.disconnect` KDoc 显式声明不满足及后果；Coordinator KDoc 边界节补该条。**"后端无关"的断开时序保证自此只对默认自写后端成立**。
+- **中·文档矛盾（第二轮漏改处）**：根因分析判决表"真凶（新）"行、"尚未闭环"章节头、终局节"提交 1"——全部按 07-16 勘误口径重写（false 丢弃 = 真实代码缺陷但**非本次实测触发**；实测丢失在返回 true 之后）；issue 底稿 **H1 标题行**改"已提交 #337"；通用 OTA 设计一阶段正文两处旧值残留勘误；上下文改为"落差以 git 实测为准，开工前需再 rebase"（此前"已 rebase 到最新"在 main 前进后即失真，我报的落后 7 也错——实为落后 6 领先 2）。
+- **中·A/B 口径**：自写 hold 段 8 行 `DISC_REQUEST` 只覆盖 **4 个 gattId**（每连接两次 onMtuChanged 发两次请求），`DISC_CALLBACK` 4 行——**正确口径 = 4 个连接实例 4/4 收到回调、0 挂死**，不得称"8 个独立成功样本"；证据 README 已按此改写（Nordic 7/3 可直接复算不变）。注：issue #337 表格中 "8 | 0" 的请求计数口径偏差未同步修正——**对外评论属发布动作，待用户决定是否补充**。
+- 验收：shared **233/0**（+1 终态闸）+ app 12/0 + assembleDebug + `git diff --check`；真机 NOT_RUN。
+
 ## [修复] Coordinator 两处高危竞态 + 复核问题清账（Codex 复核 6 条全修）— ✅ 2026-07-16
 上一条三项收口经独立复核判"部分通过"，6 条问题逐一核实为真并修复；本条落地后方视为闭环。
 - **高·快速返回竞态**：`connect()` 原先"先 launch 后 putSlot"——client 走"已连接"等短路路径时事务可能在入槽前整个跑完，finally 的 takeSlot 扑空，随后**已结束的 Job 被塞进槽 => 槽永不释放、状态永卡 Connecting/busy**（NonCancellable 管不住调度顺序）。修 = `CoroutineStart.LAZY`：**先登记槽、再 `job.start()`**；回归闸 `fastReturningConnect_doesNotStrandSlot`（Unconfined 调度器令事务体急切跑完，旧实现在此必卡）。
-- **高·断开不在状态机**：disconnect 原先不占槽不发状态——断开执行期间按钮重新可用，可重复断开或与新连接交叉。修 = 断开**也是事务**：占槽（`TxnKind.DISCONNECT`）+ 新增 `Attempt.Disconnecting`，期间 `connect` 被拒、重复 `disconnect` 幂等等待同一事务（底层只发一次）；两 VM busy 改为 `Connecting || Disconnecting` 派生，DeviceScan 补 `isBusy` 重入闸。回归闸 2 条（断开中 connect 被拒 / 双断开合一事务）。
+- **高·断开不在状态机**：disconnect 原先不占槽不发状态——断开执行期间按钮重新可用，可重复断开或与新连接交叉。修 = 断开**也是事务**：占槽（`TxnKind.DISCONNECT`）+ 新增 `Attempt.Disconnecting`，期间 `connect` 被拒、重复 `disconnect` 幂等等待同一事务（底层只发一次）；~~两 VM busy 改为派生~~〔勘误：**仅 ConsoleConnect 的 busy 由 `attempts` 派生**（Connecting||Disconnecting）；DeviceScan 只加了 `isBusy` 点击重入闸，其行状态仍由 linkState/registry 驱动〕。回归闸 2 条（断开中 connect 被拒 / 双断开合一事务）。
 - **中·文档矛盾清账**：根因分析"结论(前置)"的触发器断言与终局观测矛盾——补勘误（全部取样挂死 `started=true`，**false 丢弃是真实库缺陷但非本次实测触发**，实测丢失在返回 true 之后、与 MTU 重叠强相关）；issue 草稿头改"已提交 #337"；上下文"提交 2 进行中"改已完成；通用 OTA 设计 Open Questions 两条过期项勘误（profileId 值已落 `B2A.0xFFE0`；**RAW 通用包读取层经用户收回暂缓**）。两份 html 重生成。
 - **中·CHANGELOG manifest 误报**：上一条声称 manifest `deviceId` 改 hex12——实际**落盘模型 `ManifestDevice` 无 deviceId 字段**（address/name/profileId），已就地勘误。
 - **中·证据与跳闸丝结构性缺口**：`.gitignore` 增 `!Docs/真机证据/**/*.log` 例外（此前 `*.log` 全局忽略把证据**静默**挡在库外，靠 add -f 只救存量）；`NordicOperationMutexPinTest` 两处 `while` 自旋补 `yield()`（无挂起点则 `withTimeoutOrNull` 切不断——**跳闸丝要失败不要卡死**）；[`真机证据/nordic25_20260716/README.md`](真机证据/nordic25_20260716/README.md) 补审计说明（`ab_selfwritten.log` 混两段、须按 `backend=selfwritten` 标记切段复算 8/0，Nordic 7/3 可直接复算；声明样本量为定位性而非统计验收）。

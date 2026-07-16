@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>通用 OTA 分派 · 设计 v2（#27）</title>
+<title>通用 OTA 分派 · 设计 v2(#27)</title>
 <style>
 :root { --fg:#24292f; --muted:#57606a; --line:#d0d7de; --bg:#ffffff; --code:#f6f8fa;
         --accent:#0969da; --warn:#9a6700; --danger:#cf222e; }
@@ -150,10 +150,10 @@ strong { font-weight:600; }
 
 <h2 id="_2">一阶段 · 协议正名（✅ 已落码）</h2>
 <p><code>shared.s7</code> → <code>shared.b2a</code>；<code>S7Xxx</code> → <code>B2aXxx</code>（27 个类型）；<code>object S7</code> → <code>object B2a</code>；<code>PROFILE_S7</code> → <code>PROFILE_B2A</code>；<code>S7_TEST_MAC</code> → <code>TEST_DUT_MAC</code>（它指一台物理测试设备、不是协议，故取中性角色名）。FFE0/FFE1/FFE2 继续作为 GATT 识别与通道声明。</p>
-<p><strong>严格保护未动</strong>（改了即行为/事实变化）：<code>"SKG.S7.B2A"</code>（<code>PROFILE_B2A</code> 的值，写进 manifest 的运行时数据）、<code>"SKG WATCH S7-FCC4"</code>（真实广播名，设备事实）、<code>"s7-fcc4"</code>（Mock roster 设备 id）。</p>
+<p><strong>严格保护未动</strong>（改了即行为/事实变化）：~~<code>"SKG.S7.B2A"</code>（<code>PROFILE_B2A</code> 的值）~~〔✅ 07-16 已另行改为 <code>"B2A.0xFFE0"</code>，独立提交〕、<code>"SKG WATCH S7-FCC4"</code>（真实广播名，设备事实）、<code>"s7-fcc4"</code>（Mock roster 设备 id）。</p>
 <p><strong>顺带勘误</strong>：<code>Device.kt</code> 原 KDoc 称"正式识别按广播名前缀 <code>SKG WATCH S7-</code>"——与实际代码矛盾（<code>B2aDetect.matchesAdvertisement</code> 按广播 FFE0 判定），已改写为"profileId 是识别<strong>结果</strong>的稳定标识而非判据；识别锚点是 GATT UUID；产品名只用于 UI 展示"。</p>
 <p>零行为改动的证明：216/0 + 9/0 + 33 个测试类，与基线逐条相同。</p>
-<p><strong>遗留待决</strong>：<code>PROFILE_B2A</code> 的<strong>值</strong>仍是 <code>"SKG.S7.B2A"</code>（含厂商+产品名）。对照既有惯例 <code>PROFILE_HRS = "HeartRate.SIG.0x180D"</code>（协议.组织.UUID），它应当是 <code>"B2A.SKG.0xFFE0"</code>。但<strong>改值 = 改写进 manifest 的数据</strong>，不属于"纯搬迁"，故单独立项（见 Open Questions 1）。</p>
+<p>~~<strong>遗留待决</strong>：<code>PROFILE_B2A</code> 的值~~〔✅ 07-16 已落：<code>"B2A.0xFFE0"</code>（比本节旧提案 <code>B2A.SKG.0xFFE0</code> 更彻底——厂商也退出），独立提交 <code>2aa0c14</code> 可回退〕</p>
 <h2 id="_3">二阶段 · 真正分离批量编排与协议</h2>
 <p><code>MultiOtaController</code> 移出 <code>b2a</code> 包 → 通用 OTA 包（如 <code>shared/device/ota/</code>），<strong>只保留软件职责</strong>：队列与状态、批次开始/停止/重试、<code>OtaOperationGate</code> 与所有权（Lease/RunToken）模型、失败记录与日志、逐台调度。</p>
 <p><strong>它不再引用</strong>：<code>B2aConsole</code>、<code>B2aFirmwareUpdateStrategy</code>、<code>OtaPackage</code>、<code>FFE0/FFE1/FFE2</code>、任何产品或协议名。</p>

@@ -79,13 +79,13 @@
 
 `shared.s7` → `shared.b2a`；`S7Xxx` → `B2aXxx`（27 个类型）；`object S7` → `object B2a`；`PROFILE_S7` → `PROFILE_B2A`；`S7_TEST_MAC` → `TEST_DUT_MAC`（它指一台物理测试设备、不是协议，故取中性角色名）。FFE0/FFE1/FFE2 继续作为 GATT 识别与通道声明。
 
-**严格保护未动**（改了即行为/事实变化）：`"SKG.S7.B2A"`（`PROFILE_B2A` 的值，写进 manifest 的运行时数据）、`"SKG WATCH S7-FCC4"`（真实广播名，设备事实）、`"s7-fcc4"`（Mock roster 设备 id）。
+**严格保护未动**（改了即行为/事实变化）：~~`"SKG.S7.B2A"`（`PROFILE_B2A` 的值）~~〔✅ 07-16 已另行改为 `"B2A.0xFFE0"`，独立提交〕、`"SKG WATCH S7-FCC4"`（真实广播名，设备事实）、`"s7-fcc4"`（Mock roster 设备 id）。
 
 **顺带勘误**：`Device.kt` 原 KDoc 称"正式识别按广播名前缀 `SKG WATCH S7-`"——与实际代码矛盾（`B2aDetect.matchesAdvertisement` 按广播 FFE0 判定），已改写为"profileId 是识别**结果**的稳定标识而非判据；识别锚点是 GATT UUID；产品名只用于 UI 展示"。
 
 零行为改动的证明：216/0 + 9/0 + 33 个测试类，与基线逐条相同。
 
-**遗留待决**：`PROFILE_B2A` 的**值**仍是 `"SKG.S7.B2A"`（含厂商+产品名）。对照既有惯例 `PROFILE_HRS = "HeartRate.SIG.0x180D"`（协议.组织.UUID），它应当是 `"B2A.SKG.0xFFE0"`。但**改值 = 改写进 manifest 的数据**，不属于"纯搬迁"，故单独立项（见 Open Questions 1）。
+~~**遗留待决**：`PROFILE_B2A` 的值~~〔✅ 07-16 已落：`"B2A.0xFFE0"`（比本节旧提案 `B2A.SKG.0xFFE0` 更彻底——厂商也退出），独立提交 `2aa0c14` 可回退〕
 
 ## 二阶段 · 真正分离批量编排与协议
 

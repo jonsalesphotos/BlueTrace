@@ -47,7 +47,10 @@ import kotlinx.coroutines.withContext
  *   (自写后端 connectGatt 后立即入表; Nordic 直到订阅完成才入表, 那 30s 窗口的孤儿属 Nordic 侧缺陷,
  *   须由其自身的连接槽解决, 见 `Docs/设计/Nordic重连挂死_根因分析.md`);
  * - **不**把 [ConnectionRegistry] 变成"全部物理链路的真相源" -- registry 是**用户连接列表**,
- *   OTA 的临时回连等内部链路本就不该进; 故本类只服务"用户发起的连接"这一类意图.
+ *   OTA 的临时回连等内部链路本就不该进; 故本类只服务"用户发起的连接"这一类意图;
+ * - **"Idle 只在底层断开返回后发布"的强度取决于后端履约**: [BleClient.disconnect] 契约要求挂起到
+ *   断开完成——自写 AndroidBleClient 满足; **Nordic 实验后端不满足**(fire-and-forget, 其 KDoc 有
+ *   声明), 在 Nordic 上该时序仅为名义. 本类不为实验后端加特判(用户拍板 Nordic 不再投入根治).
  */
 class BleConnectionCoordinator(
     private val ble: BleClient,
@@ -128,15 +131,15 @@ class BleConnectionCoordinator(
      */
     suspend fun connect(device: ScannedDevice, spec: GattSpec? = null): Boolean =
         withContext(NonCancellable) {
-            startLock.withLock {
-                if (slots.value.containsKey(device.id)) return@withLock false
+            val job = startLock.withLock {
+                if (slots.value.containsKey(device.id)) return@withLock null
                 val token = tokenSeq.updateAndGet { it + 1 }
                 publish(device.id, Attempt.Connecting)
                 // **LAZY 启动**: 必须"先登记槽, 再放行事务". 若先 launch 后 putSlot, 快速返回的
                 // connect(如 client 的"已连接"短路)可能在 putSlot 之前整个跑完--finally 的 takeSlot
                 // 找不到槽零动作, 随后外层把**已结束**的 Job 塞进槽 => 槽永不释放, 状态永卡
                 // Connecting/busy(复核发现的第一个高危竞态; NonCancellable 管不住调度顺序).
-                val job = scope.launch(start = CoroutineStart.LAZY) {
+                val j = scope.launch(start = CoroutineStart.LAZY) {
                     var ok = false
                     try {
                         ble.connect(device, spec)
@@ -145,18 +148,26 @@ class BleConnectionCoordinator(
                         ok = ble.linkState(device.id).value == LinkState.CONNECTED
                         if (ok) registry.add(device)
                     } finally {
-                        // 善后与状态发布**只有 CAS 赢家**能做: 显式 disconnect 可能已接管本事务.
+                        // **结算(校验 token + 发布终态 + 释放槽)与事务创建共用 startLock**:
+                        // 若只用 CAS 先删槽再发布, "删槽"与"发布"之间新的 disconnect 可插入并跑完
+                        // (发布 Idle), 旧事务随后才发布 Connected => 状态 Connected 而物理已断开/
+                        // registry 已删(复核发现的结算竞态). 锁内原子化后该窗口结构性不存在.
                         withContext(NonCancellable) {
-                            if (takeSlot(device.id, token)) {
-                                publish(device.id, if (ok) Attempt.Connected else Attempt.Failed("connect failed"))
+                            startLock.withLock {
+                                if (takeSlot(device.id, token)) {
+                                    publish(device.id, if (ok) Attempt.Connected else Attempt.Failed("connect failed"))
+                                }
                             }
                         }
                     }
                 }
-                putSlot(device.id, Txn(token, TxnKind.CONNECT, job))
-                job.start()
-                true
-            }
+                putSlot(device.id, Txn(token, TxnKind.CONNECT, j))
+                j
+            } ?: return@withContext false
+            // start() 在锁外: 急切调度器(如 Unconfined)下事务体会在 start() 内同步跑完,
+            // 其 finally 要抢同一把 startLock--若创建时仍持锁即自死锁. 槽已登记, 出锁 start 无竞态.
+            job.start()
+            true
         }
 
     /**
@@ -184,19 +195,26 @@ class BleConnectionCoordinator(
                 val j = scope.launch(start = CoroutineStart.LAZY) {
                     try {
                         // 先取消并**等待**在飞事务收尾, 再动底层: 否则 connect 与 disconnect 在 BleClient 内打架.
+                        // (被取消连接事务的 finally 会抢 startLock 结算--本协程此刻不持锁, 无死锁.)
                         taken?.job?.cancelAndJoin()
                         ble.disconnect(deviceId)
                     } finally {
-                        // 底层断开抛异常也不得漏善后: registry 摘除与终态发布必达.
+                        // 结算入 startLock, 与 connect 侧对称: 否则"删断开槽"与"发布 Idle"之间
+                        // 新 connect 可插入, 旧 Idle 随后覆盖新事务的 Connecting/Connected.
+                        // registry 摘除与终态发布在锁内必达(断开槽无人可抢, takeSlot 恒赢).
                         withContext(NonCancellable) {
-                            registry.remove(deviceId)
-                            if (takeSlot(deviceId, token)) publish(deviceId, Attempt.Idle)
+                            startLock.withLock {
+                                registry.remove(deviceId)
+                                if (takeSlot(deviceId, token)) publish(deviceId, Attempt.Idle)
+                            }
                         }
                     }
                 }
                 putSlot(deviceId, Txn(token, TxnKind.DISCONNECT, j))
-                j.start()
                 j
+            }.also {
+                // start() 在锁外(理由同 connect); 对已在跑的既有断开事务, start() 是无害 no-op.
+                it.start()
             }
         }
         job.join()

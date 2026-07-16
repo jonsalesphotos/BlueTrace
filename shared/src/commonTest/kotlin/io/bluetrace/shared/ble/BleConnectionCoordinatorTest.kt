@@ -375,4 +375,40 @@ class BleConnectionCoordinatorTest {
         assertEquals(BleConnectionCoordinator.Attempt.Idle, coord.state("d1").value)
         appScope.cancel()
     }
+
+    /**
+     * **终态结算原子性(复核第三轮高危的回归闸)**: 结算(校验 token+发布终态+释放槽)与创建共用
+     * startLock 后, "旧事务终态覆盖新事务状态"在结构上不可能. 单线程虚拟调度无法重现原多线程
+     * 窗口(takeSlot 与 publish 之间), 本测试钉的是可观测不变量: 状态序列不得出现
+     * "Idle 之后未经 Connecting 直接变 Connected"的终态倒挂, 且快连快断的终局恒为 Idle.
+     */
+    @Test
+    fun settlement_terminalStatesNeverInterleave() = runTest {
+        val ble = FakeBle().apply { connectGate.complete(Unit) } // 连接立即完成
+        val appScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val reg = ConnectionRegistry(ble, appScope)
+        val coord = BleConnectionCoordinator(ble, reg, appScope)
+
+        val seq = mutableListOf<BleConnectionCoordinator.Attempt>()
+        val collector = appScope.launch { coord.state("d1").collect { seq.add(it) } }
+
+        launch { coord.connect(dev()) }
+        testScheduler.advanceUntilIdle()
+        launch { coord.disconnect("d1") }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(BleConnectionCoordinator.Attempt.Idle, seq.last(), "快连快断的终局恒为 Idle")
+        for (i in 1 until seq.size) {
+            val prev = seq[i - 1]
+            val cur = seq[i]
+            assertFalse(
+                prev == BleConnectionCoordinator.Attempt.Idle && cur == BleConnectionCoordinator.Attempt.Connected,
+                "**终态倒挂**: Idle 之后未经新事务直接出现 Connected(旧结算覆盖新状态), 序列=$seq",
+            )
+        }
+        assertFalse(coord.isBusy("d1"))
+        assertFalse(reg.isConnected("d1"))
+        collector.cancel()
+        appScope.cancel()
+    }
 }

@@ -385,6 +385,14 @@ class NordicBleClient(
         }
     }
 
+    /**
+     * **不满足 [BleClient.disconnect] 的"挂起到断开完成"契约**(实验后端边界, 2026-07-16 复核确认):
+     * 底层断开是 fire-and-forget(库内 disconnect 可被幽灵锁堵死, 挂等会把调用方拖死——task/25 实证),
+     * 本方法立即返回. 后果: BleConnectionCoordinator 的 Disconnecting->Idle 在本后端只是**名义时序**,
+     * Idle 发布时物理断开可能仍在进行. 该语义缺口属 Nordic 实验后端已知边界, 不再投入根治
+     * (用户 2026-07-16 拍板: 自写为默认后端; 若将来重启 #24B 转默认, 须先补 Nordic 连接槽, 见
+     * origin/task/25-nordic-reconnect-hang 与 Docs/设计/Nordic重连挂死_根因分析.md 终局节).
+     */
     override suspend fun disconnect(deviceId: String) {
         // 同 [teardown]: 断开 fire-and-forget(调用方不被库内挂起拖死)+ 断链后才取消订阅域
         // (Mutex 卡死修: 取消触发的 CCC 收尾写不得先于物理断链, 语义见 teardown 注释).
