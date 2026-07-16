@@ -1,8 +1,14 @@
 // UWTP v0.2-draft TRANSFER 域 (main_type=0x11)——DRAFT
 // opcode: 0x02 OBJECT_LIST / 0x03 BEGIN / 0x04 DATA (二进制前缀, 不在本文件) / 0x05 ACK
-//         0x06 FINISH / 0x07 ABORT / 0x09 DELETE_OBJECT / 0x10 TRANSFER_ERROR_EVENT
+//         0x06 FINISH / 0x07 ABORT / 0x09 DELETE_OBJECT / 0x0A WINDOW_END (固定 16B
+//         二进制, 不在本文件) / 0x10 TRANSFER_ERROR_EVENT
 //         0x01 留空 / 0x08 原 STATUS 撤销 / 0x7E 保留。
 // DATA 前缀 (非 PB): transfer_id u32 LE + offset u32 LE [+ frame_crc32 u32 LE] + data[]。
+// WINDOW_END (非 PB, crc_mode=2 双向 feedback): transfer_id u32 LE + start_offset u32 LE
+//   + end_offset u32 LE + crc32 u32 LE。发送方每发满一个 ACK 窗口即发一帧;
+//   接收方校验 [start,end) 数据 CRC —— 过则持久化并 ACK(error_code=0,
+//   next_expected_offset=end), 错则弃整窗回 NACK(error_code=INTEGRITY 0x0009,
+//   next_expected_offset=start), 发送方收 NACK 立即整窗重发 (不等 T_ack)。
 syntax = "proto3";
 
 package uwtp.transfer;
@@ -30,10 +36,15 @@ message ObjectListRsp {
 message TransferBeginReq {
   uint32 file_id = 1;
   uint32 start_offset = 2;       // 续传起点 (App 记录的已收连续偏移)
-  uint32 crc_mode = 3;           // 0 = OFF, 1 = 每 DATA 帧带 frame_crc32
+  uint32 crc_mode = 3;           // 0 = OFF; 1 = 每 DATA 帧带 frame_crc32 (未实现, 设备降级 0);
+                                 // 2 = ACK 窗口 CRC (WINDOW_END 0x0A, 2026-07-16 实现)
   uint32 ack_every_n = 4;        // 窗口大小 (帧数); 样本值非冻结数值 (P0 实测后定)
   fixed64 object_token = 5;      // 0 = 首次/不校验; 非 0 且与当前对象不符 -> OBJECT_CHANGED
-  uint32 object_size = 6;        // 同上, 辅助校验; 0 = 不校验
+  uint32 object_size = 6;        // 上行: 辅助校验, 0 = 不校验; 下行: 必填 = 推送对象总字节
+  // ---- 下行 (App->Device) 扩展, 2026-07-15 D-14 起草 [DRAFT-待复核] ----
+  uint32 direction = 7;          // 0 = DEV_TO_APP (默认, 旧上行语义不变) / 1 = APP_TO_DEV
+  uint32 object_type = 8;        // direction=1 时: 0 = FILE (保留) / 1 = FIRMWARE / 2 = RESOURCE
+  string object_name = 9;        // RESOURCE 落地文件名 (如 "ResData.dat", 无路径分隔符); FIRMWARE 忽略
 }
 
 message TransferBeginRsp {
@@ -47,15 +58,30 @@ message TransferBeginRsp {
   uint32 max_data_len = 8;         // 单 DATA 帧数据区上限 = uwtp_payload_max - 前缀
 }
 
-// ---- ACK (0x05, feedback): 累计确认 ----
+// ---- ACK (0x05, feedback): 累计确认; crc_mode=2 时兼作窗口判决 ----
 message TransferAck {
   uint32 transfer_id = 1;
   uint32 next_expected_offset = 2;
+  uint32 error_code = 3;         // crc_mode=2: 0 = 窗口通过 (next 必须严格 = 窗口 end);
+                                 // INTEGRITY(0x0009) = 窗口 CRC/长度校验失败 (NACK,
+                                 // next 回退到窗口 start, 发送方立即整窗重发)。
+                                 // 发送方须拒绝任意跳跃偏移的 ACK。mode0 忽略本字段。
 }
 
 // ---- FINISH (0x06): App 收口 ----
 message TransferFinishReq {
   uint32 transfer_id = 1;
+  // ---- 下行 (App->Device) 扩展, 2026-07-15 D-14/D-14b 起草 [DRAFT-待复核] ----
+  optional uint32 object_crc32 = 2;  // 下行**必填**: 对象整体 CRC32 (推送端计算)。设备校验分级
+                                 // (2026-07-16 裁决): FIRMWARE -> 重读落盘文件核对(介质级把关,
+                                 // FINISH 过即进 SecBL 烧写); RESOURCE -> 流式秒判(落盘字节的
+                                 // 累积 CRC, 续传 BEGIN 从头补齐; 大资源免重读, 根除 17.9MB
+                                 // FINISH 60s 超时)。校验与否按**字段是否在场**判定(2026-07-16
+                                 // P0: "0=不校验"语义废除, CRC 恰为 0 也照常核对)。optional 使
+                                 // 0 值可正常显式编码(HasField 语义), 缺失 -> INVALID_PARAM
+                                 // (不 staged 不激活)
+  uint32 commit = 3;             // 下行: 1 = 会话收尾激活 (FW 会话既有 OTA 链: 资源齐全校验+置 flag+重启);
+                                 // 仅 FW 已 FINISH(校验过) 的会话受理, 上行忽略
 }
 
 message TransferFinishRsp {

@@ -32,5 +32,8 @@ message CtrlInfoRsp {
   uint32 fw_version = 2;                              // 编码形态待专项①
   uint32 registry_rev = 3;                            // 全局注册表快照, 首版=1, 0 保留无效
   repeated uwtp.common.RawSchemaRef raw_schemas = 4;  // RAW 解码发现 (设备支持集合)
-  // field 5+ 留白: 能力字段按需加法登记; 未实现功能不得宣告 (P-5)。
+  string fw_ver_str = 5;                              // 真实固件版本串(EIOT_SW_VERSION 同源,
+                                                      // 如 "V1.1.99.10"); OTA 后现场凭此验版本,
+                                                      // 不依赖 J-Link (2026-07-16 P0, DRAFT)
+  // field 6+ 留白: 能力字段按需加法登记; 未实现功能不得宣告 (P-5)。
 }
