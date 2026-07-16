@@ -26,11 +26,14 @@ const val PROFILE_HRS = "HeartRate.SIG.0x180D"
 /**
  * **B2A 协议** profile id（不是某一款设备的 id）——写入 manifest device.profileId，规格见 `Docs/S7B2A/`。
  *
+ * 值形制对齐 [PROFILE_HRS]（协议.UUID 锚），**不含厂商与设备名**（2026-07-16 硬约束：
+ * 协议标识只表示协议能力，SKG/S7 不进入架构标识；旧值 `"SKG.S7.B2A"` 已废，历史会话
+ * manifest 中的旧值只读展示不回比，demo 阶段直接替换不迁移）。
+ *
  * **它不是识别判据**：识别锚点是 GATT UUID（广播含 `FFE0` → [io.bluetrace.shared.b2a.B2aDetect]），
- * 产品名/广播名只用于 UI 展示，会随产品改名。本常量是识别**结果**的稳定标识，跨设备型号复用：
- * 任何跑 B2A 的设备（不限当前的 SKG S7 一款）识别后都拿到本 id。
+ * 产品名/广播名只用于 UI 展示，会随产品改名。本常量是识别**结果**的稳定标识，跨设备型号复用。
  */
-const val PROFILE_B2A = "SKG.S7.B2A"
+const val PROFILE_B2A = "B2A.0xFFE0"
 
 /**
  * **测试夹具**：手边那台 B2A 真机（SKG WATCH S7-FCC4）的 MAC，Mock 设备与真机联调的目标对象。
