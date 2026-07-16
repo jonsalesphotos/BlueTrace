@@ -1,0 +1,101 @@
+--------- beginning of main
+07-16 16:54:03.625 D/BtNordicBle(22835): manager gen 1 created
+07-16 16:54:03.687 D/BtNordicBle(22835): scanResult (unnamed) 62:31:D9:F4:99:25 rssi=-75 adv=[]
+07-16 16:54:03.696 D/BtNordicBle(22835): scanResult (unnamed) 07:80:C5:60:A7:FC rssi=-78 adv=[]
+07-16 16:54:03.702 D/BtNordicBle(22835): scanResult SKG WATCH S7-A858 C4:D4:15:39:A8:58 rssi=-75 adv=[180A, FFE0, FFE1, FFE2, FFEB]
+07-16 16:54:03.709 D/BtNordicBle(22835): scanResult (unnamed) 49:B2:C7:6D:F4:87 rssi=-83 adv=[]
+07-16 16:54:03.715 D/BtNordicBle(22835): scanResult (unnamed) 39:FA:15:E0:A7:E4 rssi=-70 adv=[]
+07-16 16:54:12.298 D/BtNordicBle(22835): connect start C8:D3:E0:C1:D8:F7 spec=FFE0 gen=1
+07-16 16:54:17.747 W/BtNordicFork(22835): DISC_REQUEST dev=C8:D3:E0:C1:D8:F7 gattId=138059597 started=true ts=1784192057747
+07-16 16:54:18.307 I/System.out(22835): BtNordicFork DISC_CONSUMED dev=C8:D3:E0:C1:D8:F7 services=3 ts=1784192058307
+07-16 16:54:18.309 W/BtNordicFork(22835): DISC_CALLBACK dev=C8:D3:E0:C1:D8:F7 gattId=138059597 kind=DISCOVERED status=0 services=3 subs=2 tryEmit=true ts=1784192058309
+07-16 16:54:18.328 D/BtNordicBle(22835): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-16 16:54:18.329 D/BtNordicBle(22835): services C8:D3:E0:C1:D8:F7: [1812, FFE0, 190E]
+07-16 16:54:18.352 D/BtNordicBle(22835): CONNECTED C8:D3:E0:C1:D8:F7 gen=1
+07-16 16:54:29.875 D/BtNordicBle(22835): scanResult (unnamed) 7B:83:61:A4:DC:C7 rssi=-61 adv=[]
+07-16 16:54:29.881 D/BtNordicBle(22835): scanResult WHOOP 5AM0402686 F8:36:96:1E:9D:C8 rssi=-92 adv=[180D]
+07-16 16:54:29.885 D/BtNordicBle(22835): scanResult (unnamed) 4D:F9:3D:11:2E:53 rssi=-70 adv=[]
+07-16 16:54:29.897 D/BtNordicBle(22835): scanResult (unnamed) 34:8F:3C:1D:37:66 rssi=-76 adv=[]
+07-16 16:54:29.900 D/BtNordicBle(22835): scanResult (unnamed) 68:6A:69:14:92:65 rssi=-93 adv=[]
+07-16 16:54:37.094 D/BtNordicBle(22835): connect start 71:61:48:19:FC:C4 spec=FFE0 gen=1
+07-16 16:54:38.102 W/BtNordicFork(22835): DISC_REQUEST dev=71:61:48:19:FC:C4 gattId=108462608 started=true ts=1784192078102
+07-16 16:54:38.152 D/BtNordicBle(22835): connected 71:61:48:19:FC:C4 mtu=247
+07-16 16:54:48.153 W/BtNordicBle(22835): services discovery timeout 71:61:48:19:FC:C4, lastState=Discovering, gen=1
+07-16 16:54:48.153 W/BtNordicBle(22835): retiring manager gen 1: service discovery Discovering on 71:61:48:19:FC:C4
+07-16 16:54:48.168 D/BtNordicBle(22835): state=Disconnected(reason=TerminateLocalHost) -> DISCONNECTED C8:D3:E0:C1:D8:F7 gen=1
+07-16 16:54:48.182 D/BtNordicBle(22835): gen 1 retire: link 71:61:48:19:FC:C4 -> DISCONNECTED
+07-16 16:54:48.182 D/BtNordicBle(22835): gen 1 retire: link C8:D3:E0:C1:D8:F7 -> DISCONNECTED
+07-16 16:54:48.184 D/BtNordicBle(22835): manager gen 2 created
+07-16 16:54:48.184 D/BtNordicBle(22835): manager gen 1 retired, 2 link(s) dropped
+07-16 16:54:54.264 D/BtNordicBle(22835): scanResult (unnamed) 45:96:D6:89:48:3C rssi=-61 adv=[]
+07-16 16:54:54.267 D/BtNordicBle(22835): scanResult (unnamed) 38:CC:CA:FB:07:33 rssi=-58 adv=[]
+07-16 16:54:54.272 D/BtNordicBle(22835): scanResult (unnamed) D7:BE:3B:79:2E:68 rssi=-70 adv=[]
+07-16 16:54:54.277 D/BtNordicBle(22835): scanResult (unnamed) 06:B3:7F:CE:99:56 rssi=-55 adv=[]
+07-16 16:54:54.283 D/BtNordicBle(22835): scanResult (unnamed) 3A:89:3B:84:08:EB rssi=-73 adv=[]
+07-16 16:55:02.262 D/BtNordicBle(22835): connect start C8:D3:E0:C1:D8:F7 spec=FFE0 gen=2
+07-16 16:55:05.331 W/BtNordicFork(22835): DISC_REQUEST dev=C8:D3:E0:C1:D8:F7 gattId=254607285 started=true ts=1784192105331
+07-16 16:55:05.379 D/BtNordicBle(22835): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-16 16:55:15.379 W/BtNordicBle(22835): services discovery timeout C8:D3:E0:C1:D8:F7, lastState=Discovering, gen=2
+07-16 16:55:15.380 W/BtNordicBle(22835): retiring manager gen 2: service discovery Discovering on C8:D3:E0:C1:D8:F7
+07-16 16:55:15.401 D/BtNordicBle(22835): gen 2 retire: link C8:D3:E0:C1:D8:F7 -> DISCONNECTED
+07-16 16:55:15.402 D/BtNordicBle(22835): manager gen 3 created
+07-16 16:55:15.402 D/BtNordicBle(22835): manager gen 2 retired, 1 link(s) dropped
+07-16 16:55:20.459 D/BtNordicBle(22835): scanResult (unnamed) 6A:5E:92:72:BE:CE rssi=-90 adv=[]
+07-16 16:55:20.465 D/BtNordicBle(22835): scanResult (unnamed) 7C:04:8D:0C:C2:D9 rssi=-88 adv=[]
+07-16 16:55:20.468 D/BtNordicBle(22835): scanResult (unnamed) 06:23:4E:CF:46:50 rssi=-70 adv=[]
+07-16 16:55:20.473 D/BtNordicBle(22835): scanResult (unnamed) 3C:50:B1:2A:81:D9 rssi=-40 adv=[]
+07-16 16:55:20.479 D/BtNordicBle(22835): scanResult (unnamed) 3B:3C:3F:BB:17:C7 rssi=-77 adv=[]
+07-16 16:55:27.734 D/BtNordicBle(22835): connect start C8:D3:E0:C1:D8:F7 spec=FFE0 gen=3
+07-16 16:55:32.536 D/BtNordicBle(22835): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-16 16:55:32.540 W/BtNordicFork(22835): DISC_REQUEST dev=C8:D3:E0:C1:D8:F7 gattId=265405371 started=true ts=1784192132540
+07-16 16:55:41.178 D/BtNordicBle(22835): connect cancelled C8:D3:E0:C1:D8:F7, releasing
+07-16 16:55:41.179 D/BtNordicBle(22835): disconnect enter C8:D3:E0:C1:D8:F7
+07-16 16:55:45.004 D/BtNordicBle(22835): scanResult (unnamed) 1B:F2:05:49:1E:59 rssi=-69 adv=[]
+07-16 16:55:45.009 D/BtNordicBle(22835): scanResult (unnamed) 35:44:4E:97:03:00 rssi=-77 adv=[]
+07-16 16:55:45.012 D/BtNordicBle(22835): scanResult (unnamed) 55:4F:56:82:55:4C rssi=-87 adv=[]
+07-16 16:55:45.013 D/BtNordicBle(22835): scanResult (unnamed) 07:80:C5:60:A7:FC rssi=-78 adv=[]
+07-16 16:55:45.015 D/BtNordicBle(22835): scanResult (unnamed) 6C:24:79:6B:AC:18 rssi=-73 adv=[]
+07-16 16:55:45.180 W/BtNordicBle(22835): disconnect stuck >4s on C8:D3:E0:C1:D8:F7 -> retiring gen 3
+07-16 16:55:45.181 W/BtNordicBle(22835): retiring manager gen 3: disconnect stuck on C8:D3:E0:C1:D8:F7
+07-16 16:55:45.203 W/BtNordicBle(22835): disconnect timed out (>3s), abandon link C8:D3:E0:C1:D8:F7
+07-16 16:55:45.217 D/BtNordicBle(22835): manager gen 4 created
+07-16 16:55:45.217 D/BtNordicBle(22835): manager gen 3 retired, 0 link(s) dropped
+07-16 16:55:52.269 D/BtNordicBle(22835): connect start C8:D3:E0:C1:D8:F7 spec=FFE0 gen=4
+07-16 16:55:53.896 D/BtNordicBle(22835): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-16 16:55:53.898 W/BtNordicFork(22835): DISC_REQUEST dev=C8:D3:E0:C1:D8:F7 gattId=90984984 started=true ts=1784192153897
+07-16 16:55:53.902 I/System.out(22835): BtNordicFork DISC_CONSUMED dev=C8:D3:E0:C1:D8:F7 services=3 ts=1784192153902
+07-16 16:55:53.902 W/BtNordicFork(22835): DISC_CALLBACK dev=C8:D3:E0:C1:D8:F7 gattId=90984984 kind=DISCOVERED status=0 services=3 subs=1 tryEmit=true ts=1784192153902
+07-16 16:55:53.902 D/BtNordicBle(22835): services C8:D3:E0:C1:D8:F7: [1812, FFE0, 190E]
+07-16 16:55:53.926 D/BtNordicBle(22835): CONNECTED C8:D3:E0:C1:D8:F7 gen=4
+07-16 16:56:09.529 D/BtNordicBle(22835): scanResult (unnamed) 4A:A7:77:40:01:D2 rssi=-84 adv=[]
+07-16 16:56:09.533 D/BtNordicBle(22835): scanResult SKG WATCH S7-20B1 C3:88:5E:4F:20:B1 rssi=-87 adv=[180A, FFE0, FFE1, FFE2, FFEB]
+07-16 16:56:09.537 D/BtNordicBle(22835): scanResult (unnamed) F7:F9:19:88:60:D0 rssi=-89 adv=[]
+07-16 16:56:09.542 D/BtNordicBle(22835): scanResult (unnamed) 1B:F2:05:49:1E:59 rssi=-70 adv=[]
+07-16 16:56:09.548 D/BtNordicBle(22835): scanResult (unnamed) 49:A7:60:69:60:F9 rssi=-76 adv=[]
+07-16 16:56:16.720 D/BtNordicBle(22835): connect start 71:61:48:19:FC:C4 spec=FFE0 gen=4
+07-16 16:56:19.653 W/BtNordicFork(22835): DISC_REQUEST dev=71:61:48:19:FC:C4 gattId=64720246 started=true ts=1784192179653
+07-16 16:56:20.277 W/BtNordicFork(22835): DISC_CALLBACK dev=71:61:48:19:FC:C4 gattId=64720246 kind=DISCOVERED status=0 services=3 subs=1 tryEmit=true ts=1784192180276
+07-16 16:56:20.277 I/System.out(22835): BtNordicFork DISC_CONSUMED dev=71:61:48:19:FC:C4 services=3 ts=1784192180277
+07-16 16:56:20.290 D/BtNordicBle(22835): connected 71:61:48:19:FC:C4 mtu=247
+07-16 16:56:20.290 D/BtNordicBle(22835): services 71:61:48:19:FC:C4: [1812, FFE0, 190E]
+07-16 16:56:20.305 D/BtNordicBle(22835): CONNECTED 71:61:48:19:FC:C4 gen=4
+07-16 16:56:33.935 D/BtNordicBle(22835): scanResult HAQU Ace1�� 11:B3:62:A2:1B:F3 rssi=-91 adv=[]
+07-16 16:56:33.939 D/BtNordicBle(22835): scanResult (unnamed) 78:93:67:E4:D1:A4 rssi=-81 adv=[]
+07-16 16:56:33.942 D/BtNordicBle(22835): scanResult (unnamed) 06:B3:7F:CE:99:56 rssi=-67 adv=[]
+07-16 16:56:33.951 D/BtNordicBle(22835): scanResult (unnamed) 0F:8C:27:55:D1:11 rssi=-73 adv=[]
+07-16 16:56:33.955 D/BtNordicBle(22835): scanResult (unnamed) E6:46:2F:25:7E:BB rssi=-77 adv=[]
+07-16 16:56:41.185 D/BtNordicBle(22835): connect start C8:C8:22:17:27:81 spec=FFE0 gen=4
+07-16 16:56:42.491 W/BtNordicFork(22835): DISC_REQUEST dev=C8:C8:22:17:27:81 gattId=184185692 started=true ts=1784192202491
+07-16 16:56:42.504 W/BtNordicFork(22835): DISC_CALLBACK dev=C8:C8:22:17:27:81 gattId=184185692 kind=DISCOVERED status=0 services=3 subs=1 tryEmit=true ts=1784192202504
+07-16 16:56:42.504 I/System.out(22835): BtNordicFork DISC_CONSUMED dev=C8:C8:22:17:27:81 services=3 ts=1784192202504
+07-16 16:56:42.539 D/BtNordicBle(22835): connected C8:C8:22:17:27:81 mtu=247
+07-16 16:56:42.540 D/BtNordicBle(22835): services C8:C8:22:17:27:81: [1812, FFE0, 190E]
+07-16 16:56:42.576 D/BtNordicBle(22835): CONNECTED C8:C8:22:17:27:81 gen=4
+07-16 16:56:58.660 D/BtNordicBle(22835): scanResult (unnamed) 38:CC:CA:FB:07:33 rssi=-78 adv=[]
+07-16 16:56:58.664 D/BtNordicBle(22835): scanResult (unnamed) 17:47:79:F9:A8:34 rssi=-73 adv=[]
+07-16 16:56:58.675 D/BtNordicBle(22835): scanResult (unnamed) 07:2B:3A:DF:94:39 rssi=-68 adv=[]
+07-16 16:56:58.678 D/BtNordicBle(22835): scanResult (unnamed) 36:7F:05:EF:5F:25 rssi=-52 adv=[]
+07-16 16:56:58.679 D/BtNordicBle(22835): scanResult REDMI Buds 6 Pro 00:BB:43:E8:D1:44 rssi=-77 adv=[184E, 184F, 1850, 1844, 184D]
+07-16 16:57:05.820 D/BtNordicBle(22835): disconnect enter C8:D3:E0:C1:D8:F7
+07-16 16:57:05.820 D/BtNordicBle(22835): state=Disconnecting -> DISCONNECTED C8:D3:E0:C1:D8:F7 gen=4
+07-16 16:57:05.827 D/BtNordicBle(22835): disconnect done C8:D3:E0:C1:D8:F7

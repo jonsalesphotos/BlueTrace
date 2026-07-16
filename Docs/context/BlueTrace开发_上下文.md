@@ -1,4 +1,4 @@
-# BlueTrace 开发上下文（最后更新 2026-07-14）
+# BlueTrace 开发上下文（最后更新 2026-07-16）
 
 > 给零上下文的下一个会话/接手人看的活文档。真源永远是 [`/SPEC.md`](../../SPEC.md) ＞ [`prototypes/v4_android.html`](../prototypes/v4_android.html)；本文只记"走到哪了、为什么、下一步"。
 
@@ -9,6 +9,14 @@ BlueTrace = KMP（Kotlin Multiplatform）Android-first 的 **BLE 生理数据采
 验收习惯（沿用至今的硬门）：`./gradlew :app:assembleDebug` + `:shared:jvmTest` 全绿 → 真机 Xiaomi M2101K9C / Android 13 关键路径跑通并留证据（截图 / adb pull）。
 
 ## 当前状态
+
+**最新（2026-07-15/16，详见 CHANGELOG 同日条与 [`设备指令抽象层_执行笔记.md`](设备指令抽象层_执行笔记.md) 审查记录）**
+- **设备抽象层 W1-W6 全过闸**（判据达成：新增协议=一个协议包+一行注册，ZX 假协议验收）+ Codex 七轮收口（OTA 两级所有权模型）——已推 main。
+- **BLE 后端终局（2026-07-16 拍板）**：自写 `AndroidBleClient` 继续默认；Nordic 保留为可选实验后端；**#24B 转默认无限期暂停**（A/B：自写 hold 0 挂死 vs Nordic 43% 挂死；根因=库丢弃 `discoverServices()` false 返回值+裸 lock 泄漏全进程锁，上游 issue [#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337) 已提；实验代码封存 `origin/task/25-nordic-reconnect-hang`）。#24A（Kotlin 2.4.10+删逃生阀）已完成合入。
+- **协议正名一阶段已落**：`shared.s7`→`shared.b2a`、`S7Xxx`→`B2aXxx`（27 类型，零逻辑）；架构命名不得含产品名（B2A=协议正式名，zqdata 已废弃）。
+- **孤儿连接立项**（9 处连接入口跑 viewModelScope 的生命周期错配，五页同时失明）：修法=`BleConnectionCoordinator`（app 级连接事务宿主），**提交 1 已合 main，提交 2 接线进行中**；随后=身份只认 MAC（规范化大写 hex12）+ `PROFILE_B2A` 值改 `B2A.0xFFE0`。
+- **后续主线 = UWTP v0.2 线**（用户已给完整说明书：协议实验室 + FW-only OTA；固件基线 `apollo4_watch_s7@f480d804`；分支 `feat/uwtp-v02-client` 已 rebase 到最新 main，280 tests 绿；**等用户说"开工"**，真机/串口/装 APK 联调需另行授权）。
+
 
 **已完成（main，2026-06-26 止，已全部推送 origin）**
 - M1–M6 全部完成并真机验证：KMP 骨架 + Mock BLE 闭环 → 会话落盘/导出 → 前台服务/进程恢复 → 产品化打磨（启动屏/主题/i18n）→ 设计↔实现逐屏同步至 v6（场景 JSON 真模型、5 段命名、用户选择/编辑重设计、摘要/详情改采集人·场景）→ v7 存储/日志重构（应用日志改滚动 `.log`、用户表迁 SQLDelight 2.3.2）。明细见 [`里程碑与进度.md`](../里程碑与进度.md) 与 [`CHANGELOG.md`](../CHANGELOG.md)。

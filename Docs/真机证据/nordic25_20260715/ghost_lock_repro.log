@@ -1,0 +1,72 @@
+# Nordic #25 真机取证 — 2026-07-15 20:01~20:02，Xiaomi M2101K9C / Android 13
+# 表 C8:D3:E0:C1:D8:F7（SKG WATCH S7-FCC4），后端 = Nordic（use_nordic_ble=true 实读确认）
+# 构建 = task/25-nordic-reconnect-hang @ 3904e3b + disconnect enter/done 取证日志
+# 复现路径：OTA 连接页 → 点连接 → 未完成即返回上级（取消 connect 协程）
+#
+# 判读要点见同目录 README.md。原始 logcat 过滤器：BtNordicBle:V BtRealBle:V AndroidRuntime:E *:S
+
+--------- beginning of main
+07-15 20:01:19.447 D/BtNordicBle(20706): scanResult TI_S4001_DE54 F4:4E:FD:46:DE:54 rssi=-33 adv=[0FF0]
+07-15 20:01:19.464 D/BtNordicBle(20706): scanResult SKG WATCH S7-A858 C4:D4:15:39:A8:58 rssi=-67 adv=[180A, FFE0, FFE1, FFE2, FFEB]
+07-15 20:01:19.474 D/BtNordicBle(20706): scanResult SKG VitaPilot-E074 C8:9E:C4:40:E0:74 rssi=-83 adv=[180A, FFE0, FFE1, FFE2, FFEB]
+07-15 20:01:19.484 D/BtNordicBle(20706): scanResult (unnamed) 52:B0:F8:CD:AA:41 rssi=-69 adv=[FDAA]
+07-15 20:01:19.488 D/BtNordicBle(20706): scanResult (unnamed) 20:0B:BE:5D:16:E9 rssi=-50 adv=[]
+
+# ===== 样本 1：异常 —— 发现挂死 → disconnect 被幽灵锁堵死 4s（不是 3s！）=====
+07-15 20:01:23.150 W/BtNordicBle(20706): services discovery timeout C8:D3:E0:C1:D8:F7, lastState=Discovering
+07-15 20:01:23.151 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7
+07-15 20:01:24.009 D/BtNordicBle(20706): scanResult (unnamed) 74:04:EB:12:1E:1F rssi=-82 adv=[]
+07-15 20:01:24.017 D/BtNordicBle(20706): scanResult (unnamed) 30:5C:31:5B:51:D0 rssi=-40 adv=[]
+07-15 20:01:27.152 W/BtNordicBle(20706): swept ghost service-discovery lock after teardown C8:D3:E0:C1:D8:F7
+07-15 20:01:27.165 W/BtNordicBle(20706): disconnect timed out (>3s), abandon link C8:D3:E0:C1:D8:F7
+# ^^ 铁证：disconnect enter=23.151，withTimeoutOrNull(3s) 本应在 26.151 返回，
+#    实际 27.165 才打出 —— 紧跟 sweep(27.152) 之后。证明：
+#    (a) 幽灵锁真实存在（sweep 的 holdsLock(ServicesChanged) 为真才会打印）；
+#    (b) disconnect 一直堵在 OperationMutex 前，库内 withContext(NonCancellable)
+#        使外层 withTimeoutOrNull 的取消切不掉它——"3s 超时"只是 3s 时发出取消信号。
+
+# ===== 样本 2：异常 —— 同型态复现 =====
+07-15 20:01:31.767 D/BtNordicBle(20706): connect start C8:D3:E0:C1:D8:F7 spec=FFE0
+07-15 20:01:32.251 D/BtNordicBle(20706): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-15 20:01:34.551 D/BtNordicBle(20706): connect cancelled C8:D3:E0:C1:D8:F7, releasing
+07-15 20:01:34.551 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7
+07-15 20:01:38.554 W/BtNordicBle(20706): swept ghost service-discovery lock after teardown C8:D3:E0:C1:D8:F7
+07-15 20:01:38.570 W/BtNordicBle(20706): disconnect timed out (>3s), abandon link C8:D3:E0:C1:D8:F7
+
+# ===== 样本 3：正常对照 —— 取消发生在服务发现启动前 =====
+07-15 20:01:41.026 D/BtNordicBle(20706): connect start C8:D3:E0:C1:D8:F7 spec=FFE0
+07-15 20:01:42.580 D/BtNordicBle(20706): connect cancelled C8:D3:E0:C1:D8:F7, releasing
+07-15 20:01:42.581 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7
+07-15 20:01:42.585 D/BtNordicBle(20706): disconnect done C8:D3:E0:C1:D8:F7
+# ^^ 对照组：4 毫秒完成。锁空闲时 disconnect 毫秒级返回。
+
+# ===== 样本 4：正常对照 —— 同上 =====
+07-15 20:01:47.430 D/BtNordicBle(20706): connect start C8:D3:E0:C1:D8:F7 spec=FFE0
+07-15 20:01:49.646 D/BtNordicBle(20706): connect cancelled C8:D3:E0:C1:D8:F7, releasing
+07-15 20:01:49.646 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7
+07-15 20:01:49.647 D/BtNordicBle(20706): disconnect done C8:D3:E0:C1:D8:F7
+# ^^ 1 毫秒。两组正常 vs 两组异常 = 受控对照，锁是唯一变量。
+
+# ===== 样本 5：致命 —— sweep 放出陈旧 disconnect，跨代杀死新连接 =====
+07-15 20:01:55.360 D/BtNordicBle(20706): connect start C8:D3:E0:C1:D8:F7 spec=FFE0
+07-15 20:01:55.790 D/BtNordicBle(20706): connected C8:D3:E0:C1:D8:F7 mtu=247
+07-15 20:02:05.793 W/BtNordicBle(20706): services discovery timeout C8:D3:E0:C1:D8:F7, lastState=Discovering
+07-15 20:02:05.793 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7      # Gen1 disconnect 进库，堵在锁前
+07-15 20:02:07.814 D/BtNordicBle(20706): connect start C8:D3:E0:C1:D8:F7 spec=FFE0
+07-15 20:02:07.814 D/BtNordicBle(20706): connected C8:D3:E0:C1:D8:F7 mtu=247      # Gen2 建立（0ms：物理链路从未断过）
+07-15 20:02:09.796 W/BtNordicBle(20706): swept ghost service-discovery lock after teardown C8:D3:E0:C1:D8:F7
+07-15 20:02:09.815 W/BtNordicBle(20706): disconnect timed out (>3s), abandon link C8:D3:E0:C1:D8:F7
+# ^^ sweep 解锁 → Gen1 的 disconnect 恢复执行 → 它读取的是**当前**的 NativeExecutor.gatt
+#    （可变字段，已被 Gen2 替换）→ 断掉了 Gen2 的 GATT。
+#    结论：在 App 调用点做代际检查无效——旧调用早已进入库内部。
+
+# ===== 样本 6：终局 —— servicesDiscovered 闩锁死，发现再也不启动 =====
+07-15 20:02:17.818 W/BtNordicBle(20706): services discovery timeout C8:D3:E0:C1:D8:F7, lastState=Unknown
+07-15 20:02:17.819 D/BtNordicBle(20706): disconnect enter C8:D3:E0:C1:D8:F7
+07-15 20:02:17.820 D/BtNordicBle(20706): disconnect done C8:D3:E0:C1:D8:F7
+# ^^ lastState=Unknown（而非 Discovering）= 服务发现**根本没启动**。
+#    因 Peripheral 被 CentralManager 按 MAC 缓存复用，其 servicesDiscovered 闩仍为 true，
+#    discoverServices() 的 if(!servicesDiscovered) 直接 no-op。该闩只在 invalidateServices()
+#    复位，而后者只在**断链事件到达**时经 handleDisconnection 触发——链路没真断，事件不来，
+#    闩永远不复位 => 该 Peripheral 进入不可恢复状态，用户侧表现为"永远连不上"。
+#    （此项勘误了本会话早先"闩会复位所以不是问题"的判断：它会复位，但依赖一个可能永不到达的事件。）
