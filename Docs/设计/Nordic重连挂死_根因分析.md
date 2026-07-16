@@ -8,7 +8,7 @@
 
 本文主体写于 2026-07-15，其"已落规避"一节描述的 **sweep 方案次日被真机证伪并撤除**；后续三轮真机实验（sweep→代际→看门狗）与分层观测 fork 的完整过程见 CHANGELOG 2026-07-16 条与 [`../真机证据/nordic25_20260716/`](../真机证据/nordic25_20260716/)。最终事实与决定：
 
-- **A/B 判决（同机同表同栈，hold 模式=连接后 12s 不取消）**：自写 `AndroidBleClient` 8 次请求 **0 挂死**；Nordic beta03 7 次请求 **3 挂死（43%）**，且唯一一次取消发生在全部挂死**之后**——排除"取消致回调不来"。四层分层观测（fork 加 `DISC_REQUEST`/`DISC_CALLBACK`/`DISC_CONSUMED` 三观测点）判决：Framework 从未拒绝（`started=false` 0 次）；**丢失发生在 `gatt.discoverServices()` 返回 true 与原生回调之间，且只在 Nordic 侧**；SharedFlow 事件管道清白（`subs>=1`、`tryEmit=true`、CALLBACK 与 CONSUMED 数量恒等）。时序相关性：3/3 挂死均为 **MTU 协商落在发现在飞期间**（库自身注释即警告并发 GATT 操作会丢回调）——只报相关性，未证机制。
+- **A/B 判决（同机同表同栈，hold 模式=连接后 12s 不取消）**：自写 `AndroidBleClient` **4 个 GATT 连接实例 4/4 收到回调、0 挂死**（8 行请求，每实例经两次 onMtuChanged 各发一次——不得记作 8 个独立样本）；Nordic beta03 7 次请求 **3 挂死（43%）**，且唯一一次取消发生在全部挂死**之后**——排除"取消致回调不来"。四层分层观测（fork 加 `DISC_REQUEST`/`DISC_CALLBACK`/`DISC_CONSUMED` 三观测点）判决：Framework 从未拒绝（`started=false` 0 次）；**丢失发生在 `gatt.discoverServices()` 返回 true 与原生回调之间，且只在 Nordic 侧**；SharedFlow 事件管道清白（`subs>=1`、`tryEmit=true`、CALLBACK 与 CONSUMED 数量恒等）。时序相关性：3/3 挂死均为 **MTU 协商落在发现在飞期间**（库自身注释即警告并发 GATT 操作会丢回调）——只报相关性，未证机制。
 - **用户拍板（2026-07-16）**：**自写 AndroidBleClient 继续默认；Nordic 保留为可选实验后端（不删除）；#24B（转默认）无限期暂停**。将来若重启转默认：补 Nordic 连接槽 + 上游/fork 修复 + 固定 MAC 50 次连接/断开与 OTA 回归。
 - **上游 issue 已提交**：[NordicSemiconductor/Kotlin-BLE-Library#337](https://github.com/nordicsemi/Kotlin-BLE-Library/issues/337)（英文全量证据版；本仓 [`Nordic重连挂死_issue草稿.md`](Nordic重连挂死_issue草稿.md) 为其底稿）。
 - **实验代码封存**：sweep（已证伪）、ManagerGen 代际、断开看门狗、观测 fork 接线全部封存在 `origin/task/25-nordic-reconnect-hang`（**不合 main**——代际方案有三条已确认的所有权竞态，修复方案=完整连接槽状态机，留待将来转默认时做）；观测 fork 本体在 `E:\_nordic_fork`（官方 tag beta03 + 3 处只读日志）。
@@ -39,7 +39,7 @@
 <div class="fig">
 <svg viewBox="0 0 840 400" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width:100%;height:auto">
 <title>Nordic beta03 服务发现全局锁泄漏链</title>
-<desc>服务发现在异步协程中用裸 lock 取得全进程唯一的 OperationMutex，随后调用返回 false 被丢弃的原生发现；三条解锁路径全部依赖永不到达的事件，锁被永久持有，导致全进程 GATT 操作排队。</desc>
+<desc>本图为 false-return 独立缺陷链（issue #337 缺陷 1），非本次实测触发——实测触发是返回 true 后原生回调丢失（见终局节）。服务发现在异步协程中用裸 lock 取得全进程唯一的 OperationMutex，三条解锁路径全部依赖永不到达的事件，锁被永久持有，导致全进程 GATT 操作排队。</desc>
 <style>
 .t{fill:var(--fg);font-size:12px;font-weight:700;font-family:Consolas,monospace;}
 .s{fill:var(--muted);font-size:10.5px;font-family:-apple-system,"Microsoft YaHei",sans-serif;}
@@ -53,6 +53,7 @@
 </defs>
 <rect x="20" y="14" width="800" height="32" rx="3" class="bx"/>
 <text x="420" y="35" text-anchor="middle" class="t">OperationMutex = object + 单个 static Mutex —— 全进程共用一把</text>
+<text x="20" y="64" class="s">注: 左列为 false-return 独立缺陷链(issue #337 缺陷 1), 非本次实测触发; 实测触发=返回 true 后回调丢失(终局节). 右列放大器与实测吻合.</text>
 
 <rect x="20" y="72" width="360" height="46" rx="3" class="bx"/>
 <text x="200" y="92" text-anchor="middle" class="t">discoverServices()  Peripheral.kt:495</text>
